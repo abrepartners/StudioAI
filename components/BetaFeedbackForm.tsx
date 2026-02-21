@@ -28,7 +28,8 @@ const BetaFeedbackForm: React.FC<BetaFeedbackFormProps> = ({
 
   const webhookUrl = useMemo(() => {
     const raw = (import.meta as any)?.env?.VITE_LINEAR_FEEDBACK_WEBHOOK;
-    return typeof raw === 'string' ? raw.trim() : '';
+    const configured = typeof raw === 'string' ? raw.trim() : '';
+    return configured || '/api/feedback';
   }, []);
 
   const buildPayload = () => ({
@@ -98,8 +99,15 @@ const BetaFeedbackForm: React.FC<BetaFeedbackFormProps> = ({
           throw new Error(`Webhook returned ${response.status}`);
         }
 
+        const intakeResult = await response.json().catch(() => null);
+        const issueKey = intakeResult?.issue?.identifier;
+
         setStatus('submitted');
-        setStatusMessage('Feedback submitted to Linear intake.');
+        setStatusMessage(
+          issueKey
+            ? `Feedback submitted to Linear (${issueKey}).`
+            : 'Feedback submitted to Linear intake.'
+        );
       } else {
         queuePayloadLocally(payload);
         setStatus('queued');
@@ -226,11 +234,9 @@ const BetaFeedbackForm: React.FC<BetaFeedbackFormProps> = ({
         </div>
       )}
 
-      {!webhookUrl && (
-        <p className="mt-3 text-[11px] text-[var(--color-text)]/65">
-          Tip: set <code>VITE_LINEAR_FEEDBACK_WEBHOOK</code> to enable direct issue intake.
-        </p>
-      )}
+      <p className="mt-3 text-[11px] text-[var(--color-text)]/65">
+        Intake endpoint: <code>{webhookUrl}</code>. Set <code>VITE_LINEAR_FEEDBACK_WEBHOOK</code> to override.
+      </p>
     </div>
   );
 };

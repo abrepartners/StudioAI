@@ -31,3 +31,12 @@ Server-side environment variables required for Linear issue creation:
 Optional client override:
 
 - `VITE_LINEAR_FEEDBACK_WEBHOOK` - custom feedback endpoint URL
+
+## Beta Workflow Scope
+
+Current beta keeps Design Studio focused on two active generation paths:
+
+- `Text` mode (prompt-driven)
+- `Packs` mode (preset-driven)
+
+`Furniture` is visible in the mode switcher as `Coming Soon` and is intentionally disabled in this phase.

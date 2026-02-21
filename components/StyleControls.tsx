@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { FurnitureRoomType, StylePreset, StagedFurniture, SavedLayout } from '../types';
+import React, { useEffect, useState } from 'react';
+import { FurnitureRoomType, StylePreset } from '../types';
 import {
   Wand2,
   Sofa,
@@ -7,8 +7,6 @@ import {
   Palmtree,
   Factory,
   Wheat,
-  RotateCw,
-  Plus,
   Library,
   Layers,
   Cloud,
@@ -16,29 +14,21 @@ import {
   Eraser,
   ShieldCheck,
   Dices,
-  X,
   FilePenLine,
   Home,
 } from 'lucide-react';
+
+type StageMode = 'text' | 'packs' | 'furniture';
 
 interface RenovationControlsProps {
   activeMode: 'cleanup' | 'design';
   hasGenerated: boolean;
   onGenerate: (prompt: string) => void;
   onReroll: () => void;
+  onStageModeChange?: (mode: StageMode) => void;
   isGenerating: boolean;
   hasMask: boolean;
-  stagedFurniture: StagedFurniture[];
-  addFurniture: (name: string) => void;
-  removeFurniture: (id: string) => void;
-  rotateFurniture: (id: string) => void;
-  onAutoArrange: () => void;
-  isAutoArranging: boolean;
-  savedLayouts: SavedLayout[];
-  saveCurrentLayout: (name: string) => void;
-  loadLayout: (layout: SavedLayout) => void;
   selectedRoom: FurnitureRoomType;
-  setSelectedRoom: (room: FurnitureRoomType) => void;
 }
 
 const RenovationControls: React.FC<RenovationControlsProps> = ({
@@ -46,18 +36,14 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
   hasGenerated,
   onGenerate,
   onReroll,
+  onStageModeChange,
   isGenerating,
   hasMask,
-  stagedFurniture,
-  addFurniture,
-  removeFurniture,
-  rotateFurniture,
-  onAutoArrange,
-  isAutoArranging,
   selectedRoom,
 }) => {
   const [selectedPreset, setSelectedPreset] = useState<StylePreset | null>(null);
   const [customPrompt, setCustomPrompt] = useState('');
+  const [stageMode, setStageMode] = useState<StageMode>('text');
 
   const presets: Array<{ id: StylePreset; icon: React.ReactNode; description: string }> = [
     { id: 'Coastal Modern', icon: <Palmtree size={16} />, description: 'Light and airy flow' },
@@ -70,15 +56,9 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
     { id: 'Bohemian', icon: <Flower2 size={16} />, description: 'Textured eclectic' },
   ];
 
-  const furnitureSuggestions: Record<FurnitureRoomType, string[]> = {
-    'Living Room': ['Sectional Sofa', 'Coffee Table', 'TV Stand', 'Armchair', 'Area Rug', 'Wall Art'],
-    Bedroom: ['King Bed', 'Nightstands', 'Dresser', 'Lamps', 'Bench'],
-    'Dining Room': ['Dining Table', 'Chairs', 'Sideboard', 'Chandelier'],
-    Office: ['Executive Desk', 'Chair', 'Bookshelf', 'Floor Lamp'],
-    Kitchen: ['Bar Stools', 'Fruit Bowl', 'Pendant Lights'],
-    'Primary Bedroom': ['Cal King Bed', 'Chaise Lounge', 'Vanity', 'Mirror'],
-    Exterior: ['Patio Set', 'Outdoor Grill', 'Sun Loungers', 'Fire Pit', 'Potted Palms'],
-  };
+  useEffect(() => {
+    onStageModeChange?.(stageMode);
+  }, [onStageModeChange, stageMode]);
 
   const handleApplyCleanup = () => {
     onGenerate(
@@ -86,16 +66,34 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
     );
   };
 
-  const buildPrompt = () => {
-    const itemsDesc = stagedFurniture.map((f) => `${f.name} (${f.orientation})`).join(', ');
-    let prompt = `Virtually stage as a ${selectedRoom} in ${selectedPreset || 'Modern'} style. IMPORTANT: Do not change any of the original items of the room like the curtains. Preserving architecture.`;
+  const workflowSummary: Record<StageMode, string> = {
+    text: '1) Set mode to Text, 2) describe your design direction, 3) generate the first concept, 4) explore variations.',
+    packs: '1) Set mode to Packs, 2) choose a style pack, 3) generate a concept, 4) explore variations.',
+    furniture: 'Furniture staging is a planned workflow and is disabled in this beta.',
+  };
 
-    if (itemsDesc) {
-      prompt += ` Add: ${itemsDesc}.`;
+  const trimmedPrompt = customPrompt.trim();
+  const canGenerate =
+    stageMode === 'text' ? trimmedPrompt.length > 0 : stageMode === 'packs' ? Boolean(selectedPreset) : false;
+  const canReroll =
+    stageMode === 'text'
+      ? hasGenerated
+      : stageMode === 'packs'
+        ? hasGenerated && Boolean(selectedPreset)
+        : false;
+
+  const buildPrompt = () => {
+    if (stageMode === 'furniture') return;
+
+    let prompt = '';
+
+    if (stageMode === 'text') {
+      prompt = `Virtually stage this ${selectedRoom}. Preserve architecture, layout, windows, doors, and built-in fixtures. Keep proportions realistic and photoreal. Primary direction: ${trimmedPrompt}`;
     }
 
-    if (customPrompt) {
-      prompt += ` ${customPrompt}`;
+    if (stageMode === 'packs') {
+      if (!selectedPreset) return;
+      prompt = `Virtually stage this ${selectedRoom} in a ${selectedPreset} pack direction. Preserve architecture, layout, windows, doors, and built-in fixtures. Keep proportions realistic and photoreal.`;
     }
 
     if (hasMask) {
@@ -151,8 +149,52 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
     <div className="space-y-5">
       <div className="premium-surface rounded-3xl p-4">
         <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--color-text)]/70">Workflow</p>
-        <p className="mt-1 text-sm text-[var(--color-text)]/85">
-          1) Pick style, 2) stage furniture, 3) refine notes, 4) generate or explore variations.
+        <p className="mt-1 text-sm text-[var(--color-text)]/85">{workflowSummary[stageMode]}</p>
+      </div>
+
+      <div className="premium-surface rounded-3xl p-5">
+        <div className="mb-3">
+          <h3 className="font-display text-lg font-semibold">Mode</h3>
+          <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-text)]/70">
+            Pick one path for this render
+          </p>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          <button
+            type="button"
+            onClick={() => setStageMode('text')}
+            className={`rounded-2xl border px-3 py-2 text-left text-sm font-semibold transition-all ${
+              stageMode === 'text'
+                ? 'border-[var(--color-accent)] bg-sky-50 shadow-[0_8px_20px_rgba(3,105,161,0.14)]'
+                : 'border-[var(--color-border)] bg-white/80 hover:bg-white'
+            }`}
+          >
+            Text
+          </button>
+          <button
+            type="button"
+            onClick={() => setStageMode('packs')}
+            className={`rounded-2xl border px-3 py-2 text-left text-sm font-semibold transition-all ${
+              stageMode === 'packs'
+                ? 'border-[var(--color-accent)] bg-sky-50 shadow-[0_8px_20px_rgba(3,105,161,0.14)]'
+                : 'border-[var(--color-border)] bg-white/80 hover:bg-white'
+            }`}
+          >
+            Packs
+          </button>
+          <button
+            type="button"
+            disabled
+            className="cursor-not-allowed rounded-2xl border border-[var(--color-border)] bg-slate-100/70 px-3 py-2 text-left text-sm font-semibold text-slate-500"
+          >
+            <span className="block">Furniture</span>
+            <span className="mt-1 inline-flex rounded-full border border-amber-300/80 bg-amber-100/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-amber-800">
+              Coming Soon
+            </span>
+          </button>
+        </div>
+        <p className="mt-3 text-xs text-[var(--color-text)]/72">
+          Curated furniture staging is coming soon and is intentionally disabled in this beta.
         </p>
       </div>
 
@@ -171,152 +213,124 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
         </div>
       </div>
 
-      <div className="premium-surface rounded-3xl p-5">
-        <div className="mb-3 flex items-center gap-3">
-          <div className="subtle-card rounded-xl p-2 text-[var(--color-primary)]">
-            <FilePenLine size={18} />
+      {stageMode === 'text' && (
+        <div className="premium-surface rounded-3xl p-5">
+          <div className="mb-3 flex items-center gap-3">
+            <div className="subtle-card rounded-xl p-2 text-[var(--color-primary)]">
+              <FilePenLine size={18} />
+            </div>
+            <div>
+              <h3 className="font-display text-lg font-semibold">Design Direction</h3>
+              <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-text)]/70">Primary generation input</p>
+            </div>
           </div>
-          <div>
-            <h3 className="font-display text-lg font-semibold">Design Notes</h3>
-            <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-text)]/70">Prompt refinement</p>
+          <p className="mb-3 text-sm text-[var(--color-text)]/80">
+            {hasGenerated
+              ? 'Adjust direction to iterate on your current render.'
+              : 'Describe the first design you want to generate.'}
+          </p>
+          <textarea
+            value={customPrompt}
+            onChange={(e) => setCustomPrompt(e.target.value)}
+            placeholder="e.g. warm oak flooring, sculptural lamp, linen drapes"
+            rows={4}
+            className="w-full rounded-2xl border border-[var(--color-border)] bg-white/85 px-3 py-2.5 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-text)]/45"
+          />
+        </div>
+      )}
+
+      {stageMode === 'packs' && (
+        <div className="premium-surface rounded-3xl p-5">
+          <div className="mb-4 flex items-center gap-3">
+            <div className="subtle-card rounded-xl p-2 text-[var(--color-primary)]">
+              <Wand2 size={18} />
+            </div>
+            <div>
+              <h3 className="font-display text-lg font-semibold">Style Packs</h3>
+              <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-text)]/70">
+                Select a curated direction
+              </p>
+            </div>
+          </div>
+          <p className="mb-4 text-sm text-[var(--color-text)]/80">
+            Choose one pack to generate a complete staging direction.
+          </p>
+
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {presets.map((preset) => {
+              const active = selectedPreset === preset.id;
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => setSelectedPreset(preset.id)}
+                  className={`rounded-2xl border px-3 py-2 text-left transition-all ${
+                    active
+                      ? 'border-[var(--color-accent)] bg-sky-50 shadow-[0_8px_20px_rgba(3,105,161,0.14)]'
+                      : 'border-[var(--color-border)] bg-white/80 hover:bg-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span
+                      className={`flex h-8 w-8 items-center justify-center rounded-lg ${
+                        active ? 'bg-[var(--color-accent)] text-white' : 'subtle-card text-[var(--color-text)]'
+                      }`}
+                    >
+                      {preset.icon}
+                    </span>
+                    <span>
+                      <span className="block text-sm font-semibold text-[var(--color-ink)]">{preset.id}</span>
+                      <span className="block text-xs text-[var(--color-text)]/70">{preset.description}</span>
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
-        <textarea
-          value={customPrompt}
-          onChange={(e) => setCustomPrompt(e.target.value)}
-          placeholder="e.g. warm oak flooring, sculptural lamp, linen drapes"
-          rows={3}
-          className="w-full rounded-2xl border border-[var(--color-border)] bg-white/85 px-3 py-2.5 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-text)]/45"
-        />
-      </div>
+      )}
 
-      <div className="premium-surface rounded-3xl p-5">
-        <div className="mb-4 flex items-center gap-3">
-          <div className="subtle-card rounded-xl p-2 text-[var(--color-primary)]">
-            <Sofa size={18} />
+      {stageMode === 'furniture' && (
+        <div className="rounded-3xl border border-amber-300/60 bg-amber-50/70 p-5 text-amber-900">
+          <div className="mb-2 flex items-center gap-2.5">
+            <Sofa size={17} />
+            <h3 className="font-display text-lg">Furniture Staging</h3>
           </div>
-          <div>
-            <h3 className="font-display text-lg font-semibold">Furniture Staging</h3>
-            <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-text)]/70">Curated suggestions</p>
-          </div>
+          <p className="text-sm leading-relaxed">Curated furniture staging is coming soon. Not enabled in this beta.</p>
         </div>
-
-        <div className="mb-4 flex flex-wrap gap-2">
-          {furnitureSuggestions[selectedRoom]?.map((item) => (
-            <button
-              key={item}
-              type="button"
-              onClick={() => addFurniture(item)}
-              className="pill-chip inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold transition-all hover:bg-white"
-            >
-              <Plus size={12} />
-              {item}
-            </button>
-          ))}
-        </div>
-
-        <button
-          type="button"
-          onClick={onAutoArrange}
-          disabled={isAutoArranging || stagedFurniture.length === 0}
-          className="cta-secondary mb-4 w-full rounded-2xl px-4 py-2.5 text-sm font-semibold tracking-wide disabled:cursor-not-allowed disabled:opacity-45"
-        >
-          {isAutoArranging ? 'Analyzing Room Geometry...' : 'Auto-arrange Furniture Orientation'}
-        </button>
-
-        {stagedFurniture.length > 0 && (
-          <div className="space-y-2 border-t panel-divider pt-3">
-            {stagedFurniture.map((f) => (
-              <div key={f.id} className="subtle-card flex items-center justify-between rounded-2xl px-3 py-2.5 text-sm">
-                <span className="font-medium text-[var(--color-ink)]">{f.name}</span>
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => rotateFurniture(f.id)}
-                    className="rounded-lg p-1.5 text-[var(--color-text)] transition-all hover:bg-white"
-                    title="Rotate"
-                  >
-                    <RotateCw size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => removeFurniture(f.id)}
-                    className="rounded-lg p-1.5 text-[var(--color-text)] transition-all hover:bg-rose-100 hover:text-rose-700"
-                    title="Remove"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="premium-surface rounded-3xl p-5">
-        <div className="mb-4 flex items-center gap-3">
-          <div className="subtle-card rounded-xl p-2 text-[var(--color-primary)]">
-            <Wand2 size={18} />
-          </div>
-          <div>
-            <h3 className="font-display text-lg font-semibold">Style Palette</h3>
-            <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-text)]/70">Select an aesthetic</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {presets.map((preset) => {
-            const active = selectedPreset === preset.id;
-            return (
-              <button
-                key={preset.id}
-                type="button"
-                onClick={() => setSelectedPreset(preset.id)}
-                className={`rounded-2xl border px-3 py-2 text-left transition-all ${
-                  active
-                    ? 'border-[var(--color-accent)] bg-sky-50 shadow-[0_8px_20px_rgba(3,105,161,0.14)]'
-                    : 'border-[var(--color-border)] bg-white/80 hover:bg-white'
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <span
-                    className={`flex h-8 w-8 items-center justify-center rounded-lg ${
-                      active ? 'bg-[var(--color-accent)] text-white' : 'subtle-card text-[var(--color-text)]'
-                    }`}
-                  >
-                    {preset.icon}
-                  </span>
-                  <span>
-                    <span className="block text-sm font-semibold text-[var(--color-ink)]">{preset.id}</span>
-                    <span className="block text-xs text-[var(--color-text)]/70">{preset.description}</span>
-                  </span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      )}
 
       <div className="premium-surface-strong rounded-3xl p-5 sticky bottom-5 space-y-3">
         <button
           type="button"
           onClick={buildPrompt}
-          disabled={isGenerating}
+          disabled={isGenerating || !canGenerate}
           className="cta-primary w-full rounded-2xl px-4 py-3.5 text-sm font-semibold tracking-wide disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {isGenerating ? 'Rendering Design...' : hasGenerated ? 'Re-generate Design' : 'Generate Design'}
+          {isGenerating
+            ? 'Rendering Design...'
+            : stageMode === 'furniture'
+              ? 'Generate Design (Coming Soon)'
+              : hasGenerated
+                ? 'Re-generate Design'
+                : 'Generate Design'}
         </button>
 
         <button
           type="button"
           onClick={onReroll}
-          disabled={isGenerating || (!selectedPreset && !stagedFurniture.length && !customPrompt)}
+          disabled={isGenerating || !canReroll}
           className="cta-secondary w-full rounded-2xl px-4 py-3 text-sm font-semibold tracking-wide disabled:cursor-not-allowed disabled:opacity-45"
         >
           <span className="inline-flex items-center gap-2">
             <Dices size={14} /> Explore Variation
           </span>
         </button>
+        {!hasGenerated && stageMode !== 'furniture' && (
+          <p className="text-center text-xs text-[var(--color-text)]/70">
+            Generate the first concept to unlock variation mode.
+          </p>
+        )}
       </div>
     </div>
   );

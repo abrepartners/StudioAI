@@ -60,12 +60,15 @@ const roomOptions: FurnitureRoomType[] = [
   'Exterior',
 ];
 
+type StageMode = 'text' | 'packs' | 'furniture';
+
 const App: React.FC = () => {
   const [originalImage, setOriginalImage] = useState<string | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [maskImage, setMaskImage] = useState<string | null>(null);
 
   const [activePanel, setActivePanel] = useState<'tools' | 'chat' | 'history' | 'cleanup'>('tools');
+  const [stageMode, setStageMode] = useState<StageMode>('text');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [isAutoArranging, setIsAutoArranging] = useState(false);
@@ -190,6 +193,7 @@ const App: React.FC = () => {
     setHistoryIndex(-1);
     setIsAnalyzing(true);
     setIsMaskMode(false);
+    setStageMode('text');
 
     try {
       const [colorData, roomType] = await Promise.all([analyzeRoomColors(base64), detectRoomType(base64)]);
@@ -389,8 +393,8 @@ const App: React.FC = () => {
     { title: string; description: string }
   > = {
     tools: {
-      title: 'Design Tools',
-      description: 'Style, staging, and prompt controls for primary generation.',
+      title: 'Design Studio',
+      description: 'Primary generation controls.',
     },
     cleanup: {
       title: 'Cleanup Tools',
@@ -404,6 +408,12 @@ const App: React.FC = () => {
       title: 'Saved Concepts',
       description: 'Restore previous sessions and compare alternatives quickly.',
     },
+  };
+
+  const toolsModeDescription: Record<StageMode, string> = {
+    text: 'Text mode is active. Describe your design direction, then generate.',
+    packs: 'Packs mode is active. Pick a style pack, then generate.',
+    furniture: 'Furniture staging is visible for planning but disabled in this beta.',
   };
 
   return (
@@ -577,7 +587,10 @@ const App: React.FC = () => {
             )}
             <button
               type="button"
-              onClick={() => setOriginalImage(null)}
+              onClick={() => {
+                setOriginalImage(null);
+                setStageMode('text');
+              }}
               className="cta-secondary rounded-xl p-2 text-[var(--color-text)]"
               title="Start over"
             >
@@ -704,7 +717,9 @@ const App: React.FC = () => {
               <div className="subtle-card rounded-2xl px-4 py-3">
                 <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--color-text)]/70">Workspace Panel</p>
                 <h3 className="font-display text-xl mt-1">{panelMeta[activePanel].title}</h3>
-                <p className="text-sm text-[var(--color-text)]/78 mt-1">{panelMeta[activePanel].description}</p>
+                <p className="text-sm text-[var(--color-text)]/78 mt-1">
+                  {activePanel === 'tools' ? toolsModeDescription[stageMode] : panelMeta[activePanel].description}
+                </p>
               </div>
               {!hasProKey && generatedImage && (
                 <div className="mt-3 rounded-xl border border-amber-300/60 bg-amber-50/70 px-3 py-2 text-xs text-amber-900">
@@ -725,24 +740,16 @@ const App: React.FC = () => {
                   hasGenerated={!!generatedImage}
                   onGenerate={(p) => handleGenerate(p, false)}
                   onReroll={() => handleGenerate(lastPromptRef.current || 'New variation.', false, true)}
+                  onStageModeChange={setStageMode}
                   isGenerating={isGenerating}
                   hasMask={!!maskImage}
-                  stagedFurniture={stagedFurniture}
-                  addFurniture={addFurniture}
-                  removeFurniture={removeFurniture}
-                  rotateFurniture={rotateFurniture}
-                  onAutoArrange={handleAutoArrange}
-                  isAutoArranging={isAutoArranging}
-                  savedLayouts={[]}
-                  saveCurrentLayout={() => {}}
-                  loadLayout={() => {}}
                   selectedRoom={selectedRoom}
-                  setSelectedRoom={setSelectedRoom}
                 />
                 <BetaFeedbackForm
                   selectedRoom={selectedRoom}
                   hasGenerated={!!generatedImage}
                   stagedFurnitureCount={stagedFurniture.length}
+                  stageMode={stageMode}
                 />
               </div>
             )}
@@ -756,17 +763,7 @@ const App: React.FC = () => {
                   onReroll={() => handleGenerate(lastPromptRef.current || 'New variation.', false, true)}
                   isGenerating={isGenerating}
                   hasMask={!!maskImage}
-                  stagedFurniture={stagedFurniture}
-                  addFurniture={addFurniture}
-                  removeFurniture={removeFurniture}
-                  rotateFurniture={rotateFurniture}
-                  onAutoArrange={handleAutoArrange}
-                  isAutoArranging={isAutoArranging}
-                  savedLayouts={[]}
-                  saveCurrentLayout={() => {}}
-                  loadLayout={() => {}}
                   selectedRoom={selectedRoom}
-                  setSelectedRoom={setSelectedRoom}
                 />
               </div>
             )}

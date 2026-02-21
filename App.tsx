@@ -13,6 +13,7 @@ import RenovationControls from './components/StyleControls';
 import MaskCanvas from './components/MaskCanvas';
 import ChatInterface from './components/ChatInterface';
 import ColorAnalysis from './components/ColorAnalysis';
+import BetaFeedbackForm from './components/BetaFeedbackForm';
 import {
   ChatMessage,
   ColorData,
@@ -72,6 +73,7 @@ const App: React.FC = () => {
   const [showProConfirm, setShowProConfirm] = useState(false);
   const [showRoomPicker, setShowRoomPicker] = useState(false);
   const [isMaskMode, setIsMaskMode] = useState(false);
+  const [hasProKey, setHasProKey] = useState(false);
 
   const [colors, setColors] = useState<ColorData[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -94,6 +96,26 @@ const App: React.FC = () => {
     const savedS = localStorage.getItem('realestate_ai_stages');
     if (savedS) setSavedStages(JSON.parse(savedS));
   }, []);
+
+  const refreshProKeyStatus = useCallback(async () => {
+    const aiStudio = (window as any)?.aistudio;
+    if (!aiStudio?.hasSelectedApiKey) {
+      setHasProKey(false);
+      return false;
+    }
+    try {
+      const hasKey = await aiStudio.hasSelectedApiKey();
+      setHasProKey(Boolean(hasKey));
+      return Boolean(hasKey);
+    } catch {
+      setHasProKey(false);
+      return false;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (originalImage) refreshProKeyStatus();
+  }, [originalImage, refreshProKeyStatus]);
 
   const pushToHistory = useCallback(
     (newState?: Partial<HistoryState>) => {
@@ -239,7 +261,13 @@ const App: React.FC = () => {
   };
 
   const handleApiKeySelection = async () => {
-    await (window as any).aistudio.openSelectKey();
+    const aiStudio = (window as any)?.aistudio;
+    if (!aiStudio?.openSelectKey) {
+      alert('API key selector is unavailable in this environment. Set GEMINI_API_KEY for local use.');
+      return;
+    }
+    await aiStudio.openSelectKey();
+    await refreshProKeyStatus();
     setShowKeyPrompt(false);
   };
 
@@ -247,7 +275,7 @@ const App: React.FC = () => {
     if (!originalImage) return;
 
     if (highRes) {
-      const hasKey = await (window as any).aistudio.hasSelectedApiKey();
+      const hasKey = hasProKey || (await refreshProKeyStatus());
       if (!hasKey) {
         setShowKeyPrompt(true);
         return;
@@ -288,6 +316,8 @@ const App: React.FC = () => {
     } catch (error: any) {
       if (error.message === 'API_KEY_REQUIRED' || error.message?.includes('Requested entity was not found')) {
         setShowKeyPrompt(true);
+      } else if (error.message?.toLowerCase().includes('api key')) {
+        alert('Missing API key. Add GEMINI_API_KEY for local generation, then retry.');
       } else {
         alert('Generation failed. Check your connection.');
       }
@@ -340,12 +370,41 @@ const App: React.FC = () => {
     id: 'tools' | 'cleanup' | 'chat' | 'history';
     label: string;
     icon: React.ReactNode;
+    available: boolean;
   }> = [
-    { id: 'tools', label: 'Design Studio', icon: <LayoutGrid size={21} /> },
-    { id: 'cleanup', label: 'Cleanup', icon: <Eraser size={21} /> },
-    { id: 'chat', label: 'Chat', icon: <MessageSquare size={21} /> },
-    { id: 'history', label: 'History', icon: <HistoryIcon size={21} /> },
+    { id: 'tools', label: 'Design Studio', icon: <LayoutGrid size={21} />, available: true },
+    { id: 'cleanup', label: 'Cleanup', icon: <Eraser size={21} />, available: false },
+    { id: 'chat', label: 'Chat', icon: <MessageSquare size={21} />, available: false },
+    { id: 'history', label: 'History', icon: <HistoryIcon size={21} />, available: false },
   ];
+
+  useEffect(() => {
+    if (activePanel !== 'tools') {
+      setActivePanel('tools');
+    }
+  }, [activePanel]);
+
+  const panelMeta: Record<
+    'tools' | 'cleanup' | 'chat' | 'history',
+    { title: string; description: string }
+  > = {
+    tools: {
+      title: 'Design Tools',
+      description: 'Style, staging, and prompt controls for primary generation.',
+    },
+    cleanup: {
+      title: 'Cleanup Tools',
+      description: 'Mask and remove objects while preserving architectural structure.',
+    },
+    chat: {
+      title: 'Design Chat',
+      description: 'Describe edits in plain language and let the assistant propose changes.',
+    },
+    history: {
+      title: 'Saved Concepts',
+      description: 'Restore previous sessions and compare alternatives quickly.',
+    },
+  };
 
   return (
     <div className="studio-shell h-screen overflow-hidden flex flex-col">
@@ -505,12 +564,14 @@ const App: React.FC = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowProConfirm(true)}
+                  onClick={() => (hasProKey ? setShowProConfirm(true) : setShowKeyPrompt(true))}
                   disabled={isEnhancing}
-                  className="cta-primary rounded-xl px-3 py-2 text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5 disabled:opacity-55"
+                  className={`rounded-xl px-3 py-2 text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5 disabled:opacity-55 ${
+                    hasProKey ? 'cta-primary' : 'cta-secondary'
+                  }`}
                 >
                   <Zap size={14} className={isEnhancing ? 'animate-pulse' : ''} />
-                  <span className="hidden sm:inline">Pro 2K</span>
+                  <span className="hidden sm:inline">{hasProKey ? 'Pro 2K' : 'Enable Pro'}</span>
                 </button>
               </>
             )}
@@ -565,22 +626,35 @@ const App: React.FC = () => {
         </main>
       ) : (
         <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-          <nav className="shrink-0 w-full lg:w-[88px] premium-surface border-r panel-divider flex lg:flex-col items-center justify-center lg:justify-start gap-2 lg:gap-3 py-2 lg:py-6 order-2 lg:order-1">
+          <nav className="shrink-0 w-full lg:w-[172px] premium-surface border-r panel-divider flex lg:flex-col items-center justify-center lg:justify-start gap-2 lg:gap-2 py-2 lg:py-5 order-2 lg:order-1 sticky bottom-0 z-30">
+            <div className="hidden lg:block px-3 pb-2">
+              <p className="text-[10px] uppercase tracking-[0.16em] text-[var(--color-text)]/65">Beta Scope</p>
+              <p className="text-xs mt-1 text-[var(--color-text)]/78">Design Studio is active. Other tabs are staged for later rollout.</p>
+            </div>
             {navItems.map((item) => {
               const active = activePanel === item.id;
               return (
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => setActivePanel(item.id)}
-                  title={item.label}
-                  className={`flex h-12 w-12 items-center justify-center rounded-2xl border transition-all ${
-                    active
+                  disabled={!item.available}
+                  onClick={() => item.available && setActivePanel(item.id)}
+                  title={item.available ? item.label : `${item.label} (Coming Soon)`}
+                  className={`flex h-12 w-12 lg:h-auto lg:w-[152px] lg:px-3 lg:py-2.5 items-center justify-center lg:justify-start gap-2 rounded-2xl border transition-all ${
+                    active && item.available
                       ? 'cta-primary border-white/15 shadow-[0_12px_24px_rgba(3,105,161,0.3)]'
-                      : 'cta-secondary border-[var(--color-border)] text-[var(--color-text)] hover:bg-white'
+                      : item.available
+                        ? 'cta-secondary border-[var(--color-border)] text-[var(--color-text)] hover:bg-white'
+                        : 'border-[var(--color-border)] bg-slate-100/70 text-slate-400 cursor-not-allowed'
                   }`}
                 >
                   {item.icon}
+                  <span className="hidden lg:inline text-[11px] uppercase tracking-[0.14em]">{item.label}</span>
+                  {!item.available && (
+                    <span className="hidden lg:inline ml-auto text-[10px] font-semibold uppercase tracking-[0.1em] text-amber-700/90">
+                      Soon
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -626,8 +700,25 @@ const App: React.FC = () => {
           </main>
 
           <aside className="order-3 w-full lg:w-[430px] shrink-0 premium-surface border-l panel-divider overflow-y-auto scrollbar-hide">
+            <div className="px-5 sm:px-6 pt-5 sm:pt-6">
+              <div className="subtle-card rounded-2xl px-4 py-3">
+                <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--color-text)]/70">Workspace Panel</p>
+                <h3 className="font-display text-xl mt-1">{panelMeta[activePanel].title}</h3>
+                <p className="text-sm text-[var(--color-text)]/78 mt-1">{panelMeta[activePanel].description}</p>
+              </div>
+              {!hasProKey && generatedImage && (
+                <div className="mt-3 rounded-xl border border-amber-300/60 bg-amber-50/70 px-3 py-2 text-xs text-amber-900">
+                  Pro 2K is disabled until an API key is selected.
+                </div>
+              )}
+            </div>
+
             {activePanel === 'tools' && (
               <div className="p-5 sm:p-6 space-y-5">
+                <div className="rounded-2xl border border-amber-300/60 bg-amber-50/70 px-4 py-3 text-xs text-amber-900">
+                  Beta focus: <strong>Design Studio</strong> only. Cleanup, Chat, and History are staged as coming-soon modules.
+                  Feedback intake is active below.
+                </div>
                 <ColorAnalysis colors={colors} isLoading={isAnalyzing} />
                 <RenovationControls
                   activeMode="design"
@@ -647,6 +738,11 @@ const App: React.FC = () => {
                   loadLayout={() => {}}
                   selectedRoom={selectedRoom}
                   setSelectedRoom={setSelectedRoom}
+                />
+                <BetaFeedbackForm
+                  selectedRoom={selectedRoom}
+                  hasGenerated={!!generatedImage}
+                  stagedFurnitureCount={stagedFurniture.length}
                 />
               </div>
             )}

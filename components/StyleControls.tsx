@@ -52,6 +52,8 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
   addFurniture,
   removeFurniture,
   rotateFurniture,
+  onAutoArrange,
+  isAutoArranging,
   selectedRoom,
 }) => {
   const [selectedPreset, setSelectedPreset] = useState<StylePreset | null>(null);
@@ -147,6 +149,13 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
 
   return (
     <div className="space-y-5">
+      <div className="premium-surface rounded-3xl p-4">
+        <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--color-text)]/70">Workflow</p>
+        <p className="mt-1 text-sm text-[var(--color-text)]/85">
+          1) Pick style, 2) stage furniture, 3) refine notes, 4) generate or explore variations.
+        </p>
+      </div>
+
       <div className="premium-surface rounded-3xl p-5">
         <div className="mb-3 flex items-center gap-3">
           <div className="subtle-card rounded-xl p-2 text-[var(--color-primary)]">
@@ -205,6 +214,15 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
             </button>
           ))}
         </div>
+
+        <button
+          type="button"
+          onClick={onAutoArrange}
+          disabled={isAutoArranging || stagedFurniture.length === 0}
+          className="cta-secondary mb-4 w-full rounded-2xl px-4 py-2.5 text-sm font-semibold tracking-wide disabled:cursor-not-allowed disabled:opacity-45"
+        >
+          {isAutoArranging ? 'Analyzing Room Geometry...' : 'Auto-arrange Furniture Orientation'}
+        </button>
 
         {stagedFurniture.length > 0 && (
           <div className="space-y-2 border-t panel-divider pt-3">

@@ -13,7 +13,6 @@ import {
   Flower2,
   Eraser,
   ShieldCheck,
-  Dices,
   FilePenLine,
   Home,
 } from 'lucide-react';
@@ -24,7 +23,6 @@ interface RenovationControlsProps {
   activeMode: 'cleanup' | 'design';
   hasGenerated: boolean;
   onGenerate: (prompt: string) => void;
-  onReroll: () => void;
   onStageModeChange?: (mode: StageMode) => void;
   isGenerating: boolean;
   hasMask: boolean;
@@ -35,7 +33,6 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
   activeMode,
   hasGenerated,
   onGenerate,
-  onReroll,
   onStageModeChange,
   isGenerating,
   hasMask,
@@ -67,20 +64,14 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
   };
 
   const workflowSummary: Record<StageMode, string> = {
-    text: '1) Set mode to Text, 2) describe your design direction, 3) generate the first concept, 4) explore variations.',
-    packs: '1) Set mode to Packs, 2) choose a style pack, 3) generate a concept, 4) explore variations.',
+    text: '1) Set mode to Text, 2) describe your design direction, 3) generate, 4) regenerate to cycle fresh alternatives.',
+    packs: '1) Set mode to Packs, 2) choose a style pack, 3) generate, 4) regenerate to explore a different take.',
     furniture: 'Furniture staging is a planned workflow and is disabled in this beta.',
   };
 
   const trimmedPrompt = customPrompt.trim();
   const canGenerate =
     stageMode === 'text' ? trimmedPrompt.length > 0 : stageMode === 'packs' ? Boolean(selectedPreset) : false;
-  const canReroll =
-    stageMode === 'text'
-      ? hasGenerated
-      : stageMode === 'packs'
-        ? hasGenerated && Boolean(selectedPreset)
-        : false;
 
   const buildPrompt = () => {
     if (stageMode === 'furniture') return;
@@ -146,7 +137,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <div className="premium-surface rounded-3xl p-4">
         <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--color-text)]/70">Workflow</p>
         <p className="mt-1 text-sm text-[var(--color-text)]/85">{workflowSummary[stageMode]}</p>
@@ -155,9 +146,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
       <div className="premium-surface rounded-3xl p-5">
         <div className="mb-3">
           <h3 className="font-display text-lg font-semibold">Mode</h3>
-          <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-text)]/70">
-            Pick one path for this render
-          </p>
+          <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-text)]/70">Pick one path for this render</p>
         </div>
         <div className="grid grid-cols-3 gap-2">
           <button
@@ -208,9 +197,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
             <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-text)]/70">Detected context</p>
           </div>
         </div>
-        <div className="pill-chip inline-flex items-center rounded-full px-3 py-1.5 text-sm font-semibold">
-          {selectedRoom}
-        </div>
+        <div className="pill-chip inline-flex items-center rounded-full px-3 py-1.5 text-sm font-semibold">{selectedRoom}</div>
       </div>
 
       {stageMode === 'text' && (
@@ -225,9 +212,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
             </div>
           </div>
           <p className="mb-3 text-sm text-[var(--color-text)]/80">
-            {hasGenerated
-              ? 'Adjust direction to iterate on your current render.'
-              : 'Describe the first design you want to generate.'}
+            {hasGenerated ? 'Update your direction, then re-generate for a fresh composition.' : 'Describe the first design you want to generate.'}
           </p>
           <textarea
             value={customPrompt}
@@ -247,14 +232,10 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
             </div>
             <div>
               <h3 className="font-display text-lg font-semibold">Style Packs</h3>
-              <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-text)]/70">
-                Select a curated direction
-              </p>
+              <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-text)]/70">Select a curated direction</p>
             </div>
           </div>
-          <p className="mb-4 text-sm text-[var(--color-text)]/80">
-            Choose one pack to generate a complete staging direction.
-          </p>
+          <p className="mb-4 text-sm text-[var(--color-text)]/80">Choose one pack to generate a complete staging direction.</p>
 
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {presets.map((preset) => {
@@ -290,47 +271,18 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
         </div>
       )}
 
-      {stageMode === 'furniture' && (
-        <div className="rounded-3xl border border-amber-300/60 bg-amber-50/70 p-5 text-amber-900">
-          <div className="mb-2 flex items-center gap-2.5">
-            <Sofa size={17} />
-            <h3 className="font-display text-lg">Furniture Staging</h3>
-          </div>
-          <p className="text-sm leading-relaxed">Curated furniture staging is coming soon. Not enabled in this beta.</p>
-        </div>
-      )}
-
-      <div className="premium-surface-strong rounded-3xl p-5 sticky bottom-5 space-y-3">
+      <div className="premium-surface-strong rounded-3xl p-5 sticky bottom-2 space-y-3">
         <button
           type="button"
           onClick={buildPrompt}
           disabled={isGenerating || !canGenerate}
-          className="cta-primary w-full rounded-2xl px-4 py-3.5 text-sm font-semibold tracking-wide disabled:cursor-not-allowed disabled:opacity-50"
+          className="cta-primary min-h-[46px] w-full rounded-2xl px-4 py-3.5 text-sm font-semibold tracking-wide disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {isGenerating
-            ? 'Rendering Design...'
-            : stageMode === 'furniture'
-              ? 'Generate Design (Coming Soon)'
-              : hasGenerated
-                ? 'Re-generate Design'
-                : 'Generate Design'}
+          {isGenerating ? 'Rendering Design...' : hasGenerated ? 'Re-generate Design' : 'Generate Design'}
         </button>
-
-        <button
-          type="button"
-          onClick={onReroll}
-          disabled={isGenerating || !canReroll}
-          className="cta-secondary w-full rounded-2xl px-4 py-3 text-sm font-semibold tracking-wide disabled:cursor-not-allowed disabled:opacity-45"
-        >
-          <span className="inline-flex items-center gap-2">
-            <Dices size={14} /> Explore Variation
-          </span>
-        </button>
-        {!hasGenerated && stageMode !== 'furniture' && (
-          <p className="text-center text-xs text-[var(--color-text)]/70">
-            Generate the first concept to unlock variation mode.
-          </p>
-        )}
+        <p className="text-center text-xs text-[var(--color-text)]/72">
+          Re-generate always starts from the original upload to keep results fresh.
+        </p>
       </div>
     </div>
   );

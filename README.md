@@ -40,3 +40,23 @@ Current beta keeps Design Studio focused on two active generation paths:
 - `Packs` mode (preset-driven)
 
 `Furniture` is visible in the mode switcher as `Coming Soon` and is intentionally disabled in this phase.
+
+## Invite Gate and Referral Unlocks
+
+Beta access and referral unlocks are handled by:
+
+- `/api/beta-activate`
+- `/api/beta-me`
+- `/api/beta-share`
+
+Recommended server-side env vars:
+
+- `KV_REST_API_URL`
+- `KV_REST_API_TOKEN`
+- `BETA_ROOT_CODES` (comma-separated bootstrap invite codes)
+- `APP_BASE_URL` (optional, used for invite link generation)
+
+Milestones:
+
+- `2` accepted invites => Insider
+- `10` accepted invites => Pro 2K unlock

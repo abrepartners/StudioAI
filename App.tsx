@@ -1,24 +1,18 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   generateRoomDesign,
   analyzeRoomColors,
-  createChatSession,
-  sendMessageToChat,
-  autoArrangeLayout,
   detectRoomType,
 } from './services/geminiService';
 import ImageUploader from './components/ImageUploader';
 import CompareSlider from './components/CompareSlider';
 import RenovationControls from './components/StyleControls';
 import MaskCanvas from './components/MaskCanvas';
-import ChatInterface from './components/ChatInterface';
 import ColorAnalysis from './components/ColorAnalysis';
 import BetaFeedbackForm from './components/BetaFeedbackForm';
 import {
-  ChatMessage,
   ColorData,
   StagedFurniture,
-  SavedLayout,
   FurnitureRoomType,
   SavedStage,
   HistoryState,
@@ -38,17 +32,13 @@ import {
   Eraser,
   Undo2,
   Redo2,
-  Send,
   LayoutGrid,
+  Copy,
+  Check,
+  Lock,
+  Trophy,
+  Users,
 } from 'lucide-react';
-
-const orientations: StagedFurniture['orientation'][] = [
-  'Default',
-  'Angled Left',
-  'Angled Right',
-  'Facing Away',
-  'Profile View',
-];
 
 const roomOptions: FurnitureRoomType[] = [
   'Living Room',
@@ -62,6 +52,25 @@ const roomOptions: FurnitureRoomType[] = [
 
 type StageMode = 'text' | 'packs' | 'furniture';
 
+type BetaUser = {
+  id: string;
+  referralCode: string;
+  acceptedInvites: number;
+  insiderUnlocked: boolean;
+  pro2kUnlocked: boolean;
+  inviteLink: string;
+};
+
+const BETA_TOKEN_KEY = 'studioai_beta_token';
+const BETA_DEVICE_KEY = 'studioai_beta_device_id';
+
+const makeDeviceId = () => {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID();
+  }
+  return `device_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+};
+
 const App: React.FC = () => {
   const [originalImage, setOriginalImage] = useState<string | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
@@ -71,33 +80,61 @@ const App: React.FC = () => {
   const [stageMode, setStageMode] = useState<StageMode>('text');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isEnhancing, setIsEnhancing] = useState(false);
-  const [isAutoArranging, setIsAutoArranging] = useState(false);
   const [showKeyPrompt, setShowKeyPrompt] = useState(false);
   const [showProConfirm, setShowProConfirm] = useState(false);
   const [showRoomPicker, setShowRoomPicker] = useState(false);
-  const [isMaskMode, setIsMaskMode] = useState(false);
   const [hasProKey, setHasProKey] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(true);
 
   const [colors, setColors] = useState<ColorData[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [detectedRoom, setDetectedRoom] = useState<FurnitureRoomType | null>(null);
-
-  const [stagedFurniture, setStagedFurniture] = useState<StagedFurniture[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<FurnitureRoomType>('Living Room');
 
   const [history, setHistory] = useState<HistoryState[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
 
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [isChatLoading, setIsChatLoading] = useState(false);
-  const chatSessionRef = useRef<any>(null);
-
   const [savedStages, setSavedStages] = useState<SavedStage[]>([]);
   const lastPromptRef = useRef<string>('');
+
+  const [betaUser, setBetaUser] = useState<BetaUser | null>(null);
+  const [betaToken, setBetaToken] = useState('');
+  const [betaDeviceId, setBetaDeviceId] = useState('');
+  const [betaInviteCode, setBetaInviteCode] = useState('');
+  const [betaReferralCode, setBetaReferralCode] = useState('');
+  const [betaMessage, setBetaMessage] = useState('');
+  const [betaError, setBetaError] = useState('');
+  const [isBetaLoading, setIsBetaLoading] = useState(true);
+  const [isActivatingBeta, setIsActivatingBeta] = useState(false);
+  const [copiedField, setCopiedField] = useState<'link' | 'code' | null>(null);
+
+  const acceptedInvites = betaUser?.acceptedInvites || 0;
+  const proUnlocked = Boolean(betaUser?.pro2kUnlocked);
+  const insiderUnlocked = Boolean(betaUser?.insiderUnlocked);
 
   useEffect(() => {
     const savedS = localStorage.getItem('realestate_ai_stages');
     if (savedS) setSavedStages(JSON.parse(savedS));
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const referral = (params.get('ref') || '').trim().toUpperCase();
+    if (referral) {
+      setBetaReferralCode(referral);
+      setBetaMessage('Your friend loves you. Enter your invite code to join the private beta.');
+    }
+  }, []);
+
+  useEffect(() => {
+    const existing = localStorage.getItem(BETA_DEVICE_KEY);
+    if (existing) {
+      setBetaDeviceId(existing);
+      return;
+    }
+    const created = makeDeviceId();
+    localStorage.setItem(BETA_DEVICE_KEY, created);
+    setBetaDeviceId(created);
   }, []);
 
   const refreshProKeyStatus = useCallback(async () => {
@@ -116,6 +153,44 @@ const App: React.FC = () => {
     }
   }, []);
 
+  const loadBetaSession = useCallback(
+    async (deviceId: string) => {
+      if (!deviceId) return;
+      setIsBetaLoading(true);
+      try {
+        const token = localStorage.getItem(BETA_TOKEN_KEY) || '';
+        const headers: Record<string, string> = {};
+        if (token) headers.Authorization = `Bearer ${token}`;
+
+        const response = await fetch(`/api/beta-me?deviceId=${encodeURIComponent(deviceId)}`, {
+          method: 'GET',
+          headers,
+        });
+
+        if (!response.ok) {
+          if (token) localStorage.removeItem(BETA_TOKEN_KEY);
+          setBetaToken('');
+          setBetaUser(null);
+          return;
+        }
+
+        const payload = await response.json();
+        setBetaUser(payload.user || null);
+        setBetaToken(token);
+      } catch {
+        setBetaUser(null);
+      } finally {
+        setIsBetaLoading(false);
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (!betaDeviceId) return;
+    loadBetaSession(betaDeviceId);
+  }, [betaDeviceId, loadBetaSession]);
+
   useEffect(() => {
     if (originalImage) refreshProKeyStatus();
   }, [originalImage, refreshProKeyStatus]);
@@ -124,7 +199,7 @@ const App: React.FC = () => {
     (newState?: Partial<HistoryState>) => {
       const currentState: HistoryState = {
         generatedImage,
-        stagedFurniture,
+        stagedFurniture: [],
         selectedRoom,
         colors,
         ...newState,
@@ -137,7 +212,7 @@ const App: React.FC = () => {
       });
       setHistoryIndex((prev) => Math.min(prev + 1, 29));
     },
-    [generatedImage, stagedFurniture, selectedRoom, colors, historyIndex]
+    [generatedImage, selectedRoom, colors, historyIndex]
   );
 
   const undo = useCallback(() => {
@@ -146,7 +221,6 @@ const App: React.FC = () => {
     const state = history[prevIndex];
 
     setGeneratedImage(state.generatedImage);
-    setStagedFurniture(state.stagedFurniture);
     setSelectedRoom(state.selectedRoom);
     setColors(state.colors);
     setHistoryIndex(prevIndex);
@@ -158,7 +232,6 @@ const App: React.FC = () => {
     const state = history[nextIndex];
 
     setGeneratedImage(state.generatedImage);
-    setStagedFurniture(state.stagedFurniture);
     setSelectedRoom(state.selectedRoom);
     setColors(state.colors);
     setHistoryIndex(nextIndex);
@@ -177,22 +250,15 @@ const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [undo, redo]);
 
-  const getChatSession = () => {
-    if (!chatSessionRef.current) chatSessionRef.current = createChatSession();
-    return chatSessionRef.current;
-  };
-
   const handleImageUpload = async (base64: string) => {
     setOriginalImage(base64);
     setGeneratedImage(null);
     setMaskImage(null);
     setColors([]);
-    setStagedFurniture([]);
     setDetectedRoom(null);
     setHistory([]);
     setHistoryIndex(-1);
     setIsAnalyzing(true);
-    setIsMaskMode(false);
     setStageMode('text');
 
     try {
@@ -216,54 +282,6 @@ const App: React.FC = () => {
     }
   };
 
-  const addFurniture = (name: string) => {
-    pushToHistory();
-    const newItem: StagedFurniture = {
-      id: Math.random().toString(36).substr(2, 9),
-      name,
-      orientation: 'Default',
-    };
-    setStagedFurniture((prev) => [...prev, newItem]);
-  };
-
-  const removeFurniture = (id: string) => {
-    pushToHistory();
-    setStagedFurniture((prev) => prev.filter((item) => item.id !== id));
-  };
-
-  const rotateFurniture = (id: string) => {
-    pushToHistory();
-    setStagedFurniture((prev) =>
-      prev.map((item) => {
-        if (item.id === id) {
-          const currentIndex = orientations.indexOf(item.orientation);
-          const nextIndex = (currentIndex + 1) % orientations.length;
-          return { ...item, orientation: orientations[nextIndex] };
-        }
-        return item;
-      })
-    );
-  };
-
-  const handleAutoArrange = async () => {
-    if (!originalImage || stagedFurniture.length === 0) return;
-    setIsAutoArranging(true);
-    try {
-      const suggestions = await autoArrangeLayout(originalImage, selectedRoom, stagedFurniture);
-      pushToHistory();
-      setStagedFurniture((prev) =>
-        prev.map((item) => ({
-          ...item,
-          orientation: suggestions[item.name] || item.orientation,
-        }))
-      );
-    } catch (error) {
-      console.error('Auto arrange failed', error);
-    } finally {
-      setIsAutoArranging(false);
-    }
-  };
-
   const handleApiKeySelection = async () => {
     const aiStudio = (window as any)?.aistudio;
     if (!aiStudio?.openSelectKey) {
@@ -275,8 +293,13 @@ const App: React.FC = () => {
     setShowKeyPrompt(false);
   };
 
-  const handleGenerate = async (prompt: string, highRes = false, isReroll = false) => {
+  const handleGenerate = async (prompt: string, highRes = false) => {
     if (!originalImage) return;
+
+    if (highRes && !proUnlocked) {
+      alert(`Pro 2K unlocks after 10 accepted invites. You are at ${acceptedInvites}/10.`);
+      return;
+    }
 
     if (highRes) {
       const hasKey = hasProKey || (await refreshProKeyStatus());
@@ -292,23 +315,22 @@ const App: React.FC = () => {
 
     try {
       let finalPrompt = prompt;
-      if (isReroll) {
-        finalPrompt = `${prompt}. Provide a completely different variation with new furniture shapes and layout.`;
+      if (!highRes && generatedImage) {
+        finalPrompt = `${prompt} Create a distinctly different variation than previous outputs while preserving architectural structure.`;
       }
       lastPromptRef.current = prompt;
 
-      const sourceImage = generatedImage && activePanel === 'cleanup' ? generatedImage : generatedImage || originalImage;
-      const resultImage = await generateRoomDesign(sourceImage, finalPrompt, maskImage, highRes);
+      const sourceImage = activePanel === 'cleanup' && generatedImage ? generatedImage : originalImage;
+      const resultImage = await generateRoomDesign(sourceImage, finalPrompt, activePanel === 'cleanup' ? maskImage : null, highRes);
       const newColors = await analyzeRoomColors(resultImage);
 
       setGeneratedImage(resultImage);
       setColors(newColors);
       setMaskImage(null);
-      setIsMaskMode(false);
 
       const generatedState: HistoryState = {
         generatedImage: resultImage,
-        stagedFurniture,
+        stagedFurniture: [],
         selectedRoom,
         colors: newColors,
       };
@@ -341,33 +363,72 @@ const App: React.FC = () => {
     document.body.removeChild(link);
   };
 
-  const handleSendMessage = async (text: string) => {
-    const chat = getChatSession();
-    if (!chat) return;
-
-    setMessages((prev) => [...prev, { id: Date.now().toString(), role: 'user', text, timestamp: Date.now() }]);
-    setIsChatLoading(true);
-
-    try {
-      const responseText = await sendMessageToChat(chat, text, generatedImage || originalImage);
-      setMessages((prev) => [...prev, { id: (Date.now() + 1).toString(), role: 'model', text: responseText, timestamp: Date.now() }]);
-      const editMatch = responseText.match(/\[EDIT: (.*?)\]/);
-      if (editMatch && editMatch[1]) handleGenerate(editMatch[1]);
-    } catch {
-      setMessages((prev) => [
-        ...prev,
-        { id: Date.now().toString(), role: 'model', text: 'Error sending message.', timestamp: Date.now() },
-      ]);
-    } finally {
-      setIsChatLoading(false);
-    }
-  };
-
   const changeDetectedRoom = (room: FurnitureRoomType) => {
     pushToHistory();
     setDetectedRoom(room);
     setSelectedRoom(room);
     setShowRoomPicker(false);
+  };
+
+  const activateBeta = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!betaInviteCode.trim() || !betaDeviceId) return;
+
+    setIsActivatingBeta(true);
+    setBetaError('');
+    setBetaMessage('');
+
+    try {
+      const response = await fetch('/api/beta-activate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          inviteCode: betaInviteCode.trim().toUpperCase(),
+          referralCode: betaReferralCode.trim().toUpperCase() || undefined,
+          deviceId: betaDeviceId,
+        }),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok || !payload?.ok) {
+        const errorCode = payload?.code || 'UNKNOWN';
+        const label =
+          errorCode === 'INVALID_CODE'
+            ? 'That invite code is not valid.'
+            : errorCode === 'ALREADY_ACTIVATED_DEVICE'
+              ? 'This device is already activated.'
+              : errorCode === 'RATE_LIMITED'
+                ? 'Too many attempts. Please wait and retry.'
+                : payload?.error || 'Could not activate beta access.';
+        setBetaError(label);
+        return;
+      }
+
+      setBetaUser(payload.user || null);
+      setBetaToken(payload.token || '');
+      localStorage.setItem(BETA_TOKEN_KEY, payload.token || '');
+      setBetaMessage(payload.message || 'Welcome to the private beta.');
+    } catch {
+      setBetaError('Activation failed. Check your connection and retry.');
+    } finally {
+      setIsActivatingBeta(false);
+    }
+  };
+
+  const copyValue = async (type: 'link' | 'code') => {
+    if (!betaUser) return;
+    const value = type === 'link' ? betaUser.inviteLink : betaUser.referralCode;
+
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedField(type);
+      setTimeout(() => setCopiedField(null), 1600);
+    } catch {
+      setCopiedField(null);
+    }
   };
 
   const navItems: Array<{
@@ -388,33 +449,82 @@ const App: React.FC = () => {
     }
   }, [activePanel]);
 
-  const panelMeta: Record<
-    'tools' | 'cleanup' | 'chat' | 'history',
-    { title: string; description: string }
-  > = {
-    tools: {
-      title: 'Design Studio',
-      description: 'Primary generation controls.',
-    },
-    cleanup: {
-      title: 'Cleanup Tools',
-      description: 'Mask and remove objects while preserving architectural structure.',
-    },
-    chat: {
-      title: 'Design Chat',
-      description: 'Describe edits in plain language and let the assistant propose changes.',
-    },
-    history: {
-      title: 'Saved Concepts',
-      description: 'Restore previous sessions and compare alternatives quickly.',
-    },
-  };
-
   const toolsModeDescription: Record<StageMode, string> = {
     text: 'Text mode is active. Describe your design direction, then generate.',
     packs: 'Packs mode is active. Pick a style pack, then generate.',
     furniture: 'Furniture staging is visible for planning but disabled in this beta.',
   };
+
+  const inviteProgress = useMemo(() => {
+    const insiderPct = Math.min(100, Math.round((acceptedInvites / 2) * 100));
+    const proPct = Math.min(100, Math.round((acceptedInvites / 10) * 100));
+    return { insiderPct, proPct };
+  }, [acceptedInvites]);
+
+  if (isBetaLoading) {
+    return (
+      <div className="studio-shell min-h-screen grid place-items-center px-4">
+        <div className="premium-surface-strong rounded-[2rem] p-10 text-center max-w-md w-full">
+          <p className="text-xs uppercase tracking-[0.18em] text-[var(--color-text)]/70">StudioAI Beta</p>
+          <h2 className="font-display text-3xl mt-2">Checking Access</h2>
+          <p className="mt-3 text-sm text-[var(--color-text)]/80">Validating your beta invitation and referral progress...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!betaUser) {
+    return (
+      <div className="studio-shell min-h-screen grid place-items-center px-4 py-8">
+        <div className="premium-surface-strong rounded-[2rem] p-8 sm:p-10 max-w-lg w-full">
+          <div className="inline-flex items-center gap-2 rounded-full cta-secondary px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-primary)]">
+            <Sparkles size={14} /> Private Beta Access
+          </div>
+          <h1 className="font-display text-4xl mt-4">StudioAI</h1>
+          <p className="mt-2 text-sm text-[var(--color-text)]/82">
+            This beta is invite-only. Enter your invite code to join and help shape the product.
+          </p>
+
+          <form onSubmit={activateBeta} className="mt-6 space-y-3">
+            <div>
+              <label className="text-xs uppercase tracking-[0.12em] font-semibold text-[var(--color-text)]/72">Invite code</label>
+              <input
+                value={betaInviteCode}
+                onChange={(e) => setBetaInviteCode(e.target.value.toUpperCase())}
+                placeholder="Enter invite code"
+                className="mt-1 w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2.5 text-sm text-[var(--color-ink)]"
+              />
+            </div>
+            <div>
+              <label className="text-xs uppercase tracking-[0.12em] font-semibold text-[var(--color-text)]/72">
+                Referral code (optional)
+              </label>
+              <input
+                value={betaReferralCode}
+                onChange={(e) => setBetaReferralCode(e.target.value.toUpperCase())}
+                placeholder="Friend referral code"
+                className="mt-1 w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2.5 text-sm text-[var(--color-ink)]"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={isActivatingBeta || !betaInviteCode.trim()}
+              className="cta-primary rounded-xl px-4 py-3 w-full text-sm font-semibold disabled:opacity-50"
+            >
+              {isActivatingBeta ? 'Activating Beta Access...' : 'Enter StudioAI Beta'}
+            </button>
+          </form>
+
+          {betaMessage && <p className="mt-4 rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-2 text-sm text-emerald-900">{betaMessage}</p>}
+          {betaError && <p className="mt-4 rounded-xl bg-rose-50 border border-rose-200 px-3 py-2 text-sm text-rose-900">{betaError}</p>}
+
+          <p className="mt-5 text-xs text-[var(--color-text)]/70">
+            New invitees get their own referral code after activation. 2 accepted invites unlock Insider status. 10 unlock Pro 2K.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="studio-shell h-screen overflow-hidden flex flex-col">
@@ -491,7 +601,7 @@ const App: React.FC = () => {
                 Studio<span className="text-[var(--color-primary)]">AI</span>
               </h1>
               <p className="hidden sm:block text-[11px] uppercase tracking-[0.18em] text-[var(--color-text)]/70">
-                Real Estate Image Studio
+                Invite-Only Beta
               </p>
             </div>
           </div>
@@ -567,21 +677,31 @@ const App: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleDownload}
-                  className="cta-secondary rounded-xl px-3 py-2 text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5"
+                  className="cta-secondary rounded-xl px-3 py-2 text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5 min-h-[44px]"
                 >
                   <Download size={14} />
                   <span className="hidden sm:inline">Export</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => (hasProKey ? setShowProConfirm(true) : setShowKeyPrompt(true))}
-                  disabled={isEnhancing}
-                  className={`rounded-xl px-3 py-2 text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5 disabled:opacity-55 ${
-                    hasProKey ? 'cta-primary' : 'cta-secondary'
+                  onClick={() => {
+                    if (!proUnlocked) return;
+                    if (hasProKey) setShowProConfirm(true);
+                    else setShowKeyPrompt(true);
+                  }}
+                  disabled={isEnhancing || !proUnlocked}
+                  className={`rounded-xl px-3 py-2 text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5 min-h-[44px] disabled:opacity-55 ${
+                    proUnlocked
+                      ? hasProKey
+                        ? 'cta-primary'
+                        : 'cta-secondary'
+                      : 'border border-amber-300/70 bg-amber-50 text-amber-900'
                   }`}
                 >
-                  <Zap size={14} className={isEnhancing ? 'animate-pulse' : ''} />
-                  <span className="hidden sm:inline">{hasProKey ? 'Pro 2K' : 'Enable Pro'}</span>
+                  {proUnlocked ? <Zap size={14} className={isEnhancing ? 'animate-pulse' : ''} /> : <Lock size={14} />}
+                  <span className="hidden sm:inline">
+                    {proUnlocked ? (hasProKey ? 'Pro 2K' : 'Enable Pro') : `Unlock Pro (${acceptedInvites}/10)`}
+                  </span>
                 </button>
               </>
             )}
@@ -589,9 +709,10 @@ const App: React.FC = () => {
               type="button"
               onClick={() => {
                 setOriginalImage(null);
+                setGeneratedImage(null);
                 setStageMode('text');
               }}
-              className="cta-secondary rounded-xl p-2 text-[var(--color-text)]"
+              className="cta-secondary rounded-xl p-2 text-[var(--color-text)] min-h-[44px] min-w-[44px]"
               title="Start over"
             >
               <RefreshCcw size={17} />
@@ -607,14 +728,13 @@ const App: React.FC = () => {
           <section className="px-6 pb-14 pt-10 sm:px-12 lg:px-16 lg:pt-14 flex items-center">
             <div className="max-w-2xl w-full">
               <div className="mb-6 inline-flex items-center gap-2 rounded-full cta-secondary px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-primary)]">
-                <Sparkles size={14} /> Before / After Studio
+                <Sparkles size={14} /> Invite-Only Staging Beta
               </div>
               <h2 className="font-display text-[clamp(2.3rem,7vw,5.3rem)] leading-[0.92] font-semibold text-[var(--color-ink)]">
                 Re-stage interiors with editorial precision.
               </h2>
               <p className="mt-5 max-w-xl text-[1.02rem] leading-relaxed text-[var(--color-text)]/84">
-                Upload a property photo and shape renovation-ready visuals with guided prompts, selective cleanup, and AI-assisted
-                staging.
+                Upload a property photo and shape conversion-ready visuals. Every beta submission directly influences weekly product updates.
               </p>
 
               <div className="mt-8">
@@ -638,9 +758,9 @@ const App: React.FC = () => {
           </section>
         </main>
       ) : (
-        <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-          <nav className="shrink-0 w-full lg:w-[172px] premium-surface border-r panel-divider flex lg:flex-col items-center justify-center lg:justify-start gap-2 lg:gap-2 py-2 lg:py-5 order-2 lg:order-1 sticky bottom-0 z-30">
-            <div className="hidden lg:block px-3 pb-2">
+        <div className="flex-1 flex lg:flex-row overflow-hidden relative">
+          <nav className="hidden lg:flex shrink-0 w-[172px] premium-surface border-r panel-divider flex-col items-center justify-start gap-2 py-5 order-1">
+            <div className="px-3 pb-2">
               <p className="text-[10px] uppercase tracking-[0.16em] text-[var(--color-text)]/65">Beta Scope</p>
               <p className="text-xs mt-1 text-[var(--color-text)]/78">Design Studio is active. Other tabs are staged for later rollout.</p>
             </div>
@@ -653,7 +773,7 @@ const App: React.FC = () => {
                   disabled={!item.available}
                   onClick={() => item.available && setActivePanel(item.id)}
                   title={item.available ? item.label : `${item.label} (Coming Soon)`}
-                  className={`flex h-12 w-12 lg:h-auto lg:w-[152px] lg:px-3 lg:py-2.5 items-center justify-center lg:justify-start gap-2 rounded-2xl border transition-all ${
+                  className={`flex h-auto w-[152px] px-3 py-2.5 items-center justify-start gap-2 rounded-2xl border transition-all ${
                     active && item.available
                       ? 'cta-primary border-white/15 shadow-[0_12px_24px_rgba(3,105,161,0.3)]'
                       : item.available
@@ -662,46 +782,27 @@ const App: React.FC = () => {
                   }`}
                 >
                   {item.icon}
-                  <span className="hidden lg:inline text-[11px] uppercase tracking-[0.14em]">{item.label}</span>
+                  <span className="text-[11px] uppercase tracking-[0.14em]">{item.label}</span>
                   {!item.available && (
-                    <span className="hidden lg:inline ml-auto text-[10px] font-semibold uppercase tracking-[0.1em] text-amber-700/90">
-                      Soon
-                    </span>
+                    <span className="ml-auto text-[10px] font-semibold uppercase tracking-[0.1em] text-amber-700/90">Soon</span>
                   )}
                 </button>
               );
             })}
           </nav>
 
-          <main className="order-1 lg:order-2 flex-1 overflow-auto editor-canvas-bg p-4 sm:p-6 lg:p-8">
+          <main className="order-1 lg:order-2 flex-1 overflow-auto editor-canvas-bg p-4 sm:p-6 lg:p-8 pb-[58vh] lg:pb-8">
             <div className="mx-auto w-full max-w-6xl space-y-4">
               <div className="premium-surface-strong rounded-[2rem] p-2 sm:p-3">
                 <div className="relative overflow-hidden rounded-[1.5rem] border panel-divider bg-[var(--color-bg-deep)] aspect-[4/3] sm:aspect-video">
-                  {generatedImage && activePanel !== 'cleanup' && !isMaskMode ? (
+                  {generatedImage ? (
                     <CompareSlider originalImage={originalImage} generatedImage={generatedImage} />
                   ) : (
                     <MaskCanvas
-                      imageSrc={generatedImage || originalImage}
+                      imageSrc={originalImage}
                       onMaskChange={setMaskImage}
-                      isActive={activePanel === 'cleanup' || isMaskMode}
+                      isActive={false}
                     />
-                  )}
-
-                  {generatedImage && activePanel === 'tools' && (
-                    <div className="absolute bottom-5 left-1/2 z-20 -translate-x-1/2">
-                      <button
-                        type="button"
-                        onClick={() => setIsMaskMode(!isMaskMode)}
-                        className={`inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-semibold tracking-wide border transition-all ${
-                          isMaskMode
-                            ? 'cta-primary border-white/10'
-                            : 'cta-secondary border-[var(--color-border)] text-[var(--color-text)]'
-                        }`}
-                      >
-                        {isMaskMode ? <X size={14} /> : <Send size={14} />}
-                        {isMaskMode ? 'Exit Selection' : 'Select Area to Re-generate'}
-                      </button>
-                    </div>
                   )}
 
                   <div className="absolute right-3 top-3 z-20 rounded-full bg-[var(--color-ink)]/76 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-white backdrop-blur-md">
@@ -712,102 +813,112 @@ const App: React.FC = () => {
             </div>
           </main>
 
-          <aside className="order-3 w-full lg:w-[430px] shrink-0 premium-surface border-l panel-divider overflow-y-auto scrollbar-hide">
-            <div className="px-5 sm:px-6 pt-5 sm:pt-6">
-              <div className="subtle-card rounded-2xl px-4 py-3">
-                <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--color-text)]/70">Workspace Panel</p>
-                <h3 className="font-display text-xl mt-1">{panelMeta[activePanel].title}</h3>
-                <p className="text-sm text-[var(--color-text)]/78 mt-1">
-                  {activePanel === 'tools' ? toolsModeDescription[stageMode] : panelMeta[activePanel].description}
-                </p>
-              </div>
-              {!hasProKey && generatedImage && (
-                <div className="mt-3 rounded-xl border border-amber-300/60 bg-amber-50/70 px-3 py-2 text-xs text-amber-900">
-                  Pro 2K is disabled until an API key is selected.
-                </div>
-              )}
-            </div>
+          <aside className={`mobile-control-sheet order-3 lg:order-3 lg:w-[430px] lg:shrink-0 lg:border-l panel-divider ${sheetOpen ? 'open' : ''}`}>
+            <button
+              type="button"
+              onClick={() => setSheetOpen((prev) => !prev)}
+              className="mobile-sheet-toggle lg:hidden"
+            >
+              <span className="mobile-sheet-handle" />
+              <span className="text-[11px] uppercase tracking-[0.14em] text-[var(--color-text)]/70">
+                {sheetOpen ? 'Hide Controls' : 'Show Controls'}
+              </span>
+            </button>
 
-            {activePanel === 'tools' && (
-              <div className="p-5 sm:p-6 space-y-5">
-                <div className="rounded-2xl border border-amber-300/60 bg-amber-50/70 px-4 py-3 text-xs text-amber-900">
-                  Beta focus: <strong>Design Studio</strong> only. Cleanup, Chat, and History are staged as coming-soon modules.
-                  Feedback intake is active below.
+            <div className="mobile-sheet-scroll scrollbar-hide">
+              <div className="px-5 sm:px-6 pt-5 sm:pt-6">
+                <div className="subtle-card rounded-2xl px-4 py-3">
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--color-text)]/70">Workspace Panel</p>
+                  <h3 className="font-display text-xl mt-1">Design Studio</h3>
+                  <p className="text-sm text-[var(--color-text)]/78 mt-1">{toolsModeDescription[stageMode]}</p>
                 </div>
+
+                {!proUnlocked && (
+                  <div className="mt-3 rounded-xl border border-amber-300/60 bg-amber-50/70 px-3 py-2 text-xs text-amber-900">
+                    Pro 2K is locked. Invite progress: <strong>{acceptedInvites}/10 accepted</strong>.
+                  </div>
+                )}
+                {proUnlocked && !hasProKey && generatedImage && (
+                  <div className="mt-3 rounded-xl border border-amber-300/60 bg-amber-50/70 px-3 py-2 text-xs text-amber-900">
+                    Pro 2K is unlocked. Select an API key to enable high-res rendering.
+                  </div>
+                )}
+              </div>
+
+              <div className="p-5 sm:p-6 space-y-4 pb-[max(1.2rem,env(safe-area-inset-bottom))]">
+                <div className="premium-surface rounded-3xl p-5">
+                  <div className="mb-3 flex items-center gap-2">
+                    <Trophy size={16} className="text-[var(--color-primary)]" />
+                    <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--color-text)]/70">Mission Board</p>
+                  </div>
+                  <p className="text-sm text-[var(--color-text)]/84">
+                    Invite people you trust. Each accepted invite shapes what we ship next.
+                  </p>
+
+                  <div className="mt-4 space-y-3">
+                    <div>
+                      <div className="flex items-center justify-between text-xs text-[var(--color-text)]/80">
+                        <span className="inline-flex items-center gap-1.5"><Users size={13} /> Insider</span>
+                        <span>{acceptedInvites}/2</span>
+                      </div>
+                      <div className="mission-meter mt-1"><span style={{ width: `${inviteProgress.insiderPct}%` }} /></div>
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between text-xs text-[var(--color-text)]/80">
+                        <span className="inline-flex items-center gap-1.5"><Lock size={13} /> Pro 2K</span>
+                        <span>{acceptedInvites}/10</span>
+                      </div>
+                      <div className="mission-meter mt-1"><span style={{ width: `${inviteProgress.proPct}%` }} /></div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => copyValue('link')}
+                      className="cta-secondary min-h-[44px] rounded-xl px-3 py-2 text-xs font-semibold inline-flex items-center justify-center gap-1.5"
+                    >
+                      {copiedField === 'link' ? <Check size={13} /> : <Copy size={13} />} Copy Invite Link
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => copyValue('code')}
+                      className="cta-secondary min-h-[44px] rounded-xl px-3 py-2 text-xs font-semibold inline-flex items-center justify-center gap-1.5"
+                    >
+                      {copiedField === 'code' ? <Check size={13} /> : <Copy size={13} />} Copy Referral Code
+                    </button>
+                  </div>
+
+                  <p className="mt-3 text-[11px] text-[var(--color-text)]/70">
+                    Referral code: <code>{betaUser.referralCode}</code> {insiderUnlocked ? '• Insider unlocked' : ''}
+                  </p>
+                </div>
+
                 <ColorAnalysis colors={colors} isLoading={isAnalyzing} />
+
                 <RenovationControls
                   activeMode="design"
                   hasGenerated={!!generatedImage}
                   onGenerate={(p) => handleGenerate(p, false)}
-                  onReroll={() => handleGenerate(lastPromptRef.current || 'New variation.', false, true)}
                   onStageModeChange={setStageMode}
                   isGenerating={isGenerating}
-                  hasMask={!!maskImage}
+                  hasMask={false}
                   selectedRoom={selectedRoom}
                 />
+
                 <BetaFeedbackForm
                   selectedRoom={selectedRoom}
                   hasGenerated={!!generatedImage}
-                  stagedFurnitureCount={stagedFurniture.length}
+                  stagedFurnitureCount={0}
                   stageMode={stageMode}
+                  betaUserId={betaUser.id}
+                  referralCode={betaUser.referralCode}
+                  acceptedInvites={betaUser.acceptedInvites}
+                  insiderUnlocked={betaUser.insiderUnlocked}
+                  pro2kUnlocked={betaUser.pro2kUnlocked}
                 />
               </div>
-            )}
-
-            {activePanel === 'cleanup' && (
-              <div className="p-5 sm:p-6 space-y-5">
-                <RenovationControls
-                  activeMode="cleanup"
-                  hasGenerated={!!generatedImage}
-                  onGenerate={(p) => handleGenerate(p, false)}
-                  onReroll={() => handleGenerate(lastPromptRef.current || 'New variation.', false, true)}
-                  isGenerating={isGenerating}
-                  hasMask={!!maskImage}
-                  selectedRoom={selectedRoom}
-                />
-              </div>
-            )}
-
-            {activePanel === 'chat' && (
-              <ChatInterface messages={messages} onSendMessage={handleSendMessage} isLoading={isChatLoading} />
-            )}
-
-            {activePanel === 'history' && (
-              <div className="p-5 sm:p-6 space-y-5">
-                <div>
-                  <h2 className="font-display text-2xl">Saved Concepts</h2>
-                  <p className="text-sm text-[var(--color-text)]/75">Restore previous renders and continue editing.</p>
-                </div>
-
-                {savedStages.length === 0 ? (
-                  <div className="premium-surface rounded-3xl p-6 text-center text-[var(--color-text)]/80">
-                    <p className="font-semibold text-[var(--color-ink)]">No saved renders yet</p>
-                    <p className="text-sm mt-1">Generate a design to start building your concept library.</p>
-                  </div>
-                ) : (
-                  <div className="grid gap-4">
-                    {savedStages.map((s) => (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => {
-                          setOriginalImage(s.originalImage);
-                          setGeneratedImage(s.generatedImage);
-                        }}
-                        className="group relative aspect-video overflow-hidden rounded-2xl border panel-divider premium-surface text-left"
-                      >
-                        <img src={s.generatedImage} alt={s.name} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-transparent to-transparent opacity-90" />
-                        <div className="absolute bottom-3 left-3 right-3 text-white">
-                          <p className="text-xs uppercase tracking-[0.16em] text-white/80">Saved Session</p>
-                          <p className="text-sm font-semibold">Restore Concept</p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+            </div>
           </aside>
         </div>
       )}

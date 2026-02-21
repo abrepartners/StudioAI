@@ -7,6 +7,11 @@ interface BetaFeedbackFormProps {
   hasGenerated: boolean;
   stagedFurnitureCount: number;
   stageMode?: 'text' | 'packs' | 'furniture';
+  betaUserId?: string;
+  referralCode?: string;
+  acceptedInvites?: number;
+  insiderUnlocked?: boolean;
+  pro2kUnlocked?: boolean;
 }
 
 type FeedbackCategory = 'Navigation' | 'Design Quality' | 'Prompting' | 'Bug' | 'Other';
@@ -18,6 +23,11 @@ const BetaFeedbackForm: React.FC<BetaFeedbackFormProps> = ({
   hasGenerated,
   stagedFurnitureCount,
   stageMode = 'text',
+  betaUserId = '',
+  referralCode = '',
+  acceptedInvites = 0,
+  insiderUnlocked = false,
+  pro2kUnlocked = false,
 }) => {
   const [category, setCategory] = useState<FeedbackCategory>('Design Quality');
   const [title, setTitle] = useState('');
@@ -46,6 +56,11 @@ const BetaFeedbackForm: React.FC<BetaFeedbackFormProps> = ({
       hasGenerated,
       stagedFurnitureCount,
       stageMode,
+      betaUserId,
+      referralCode,
+      acceptedInvites,
+      insiderUnlocked,
+      pro2kUnlocked,
       appPanel: 'Design Studio',
       appUrl: window.location.href,
       userAgent: navigator.userAgent,

@@ -1,0 +1,7 @@
+{
+  "name": "RealEstateAI Studio",
+  "description": "Professional AI renovation and virtual staging tool for real estate media. Edit flooring, fixtures, and furniture with precision.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

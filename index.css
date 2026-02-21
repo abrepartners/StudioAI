@@ -1,0 +1,186 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Josefin+Sans:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --color-primary: #0f766e;
+  --color-secondary: #14b8a6;
+  --color-accent: #0369a1;
+  --color-bg: #f0fdfa;
+  --color-bg-deep: #dff5f2;
+  --color-text: #134e4a;
+  --color-ink: #0f172a;
+  --color-surface: #ffffff;
+  --color-surface-soft: rgba(255, 255, 255, 0.74);
+  --color-border: rgba(19, 78, 74, 0.16);
+  --color-border-strong: rgba(19, 78, 74, 0.28);
+  --shadow-soft: 0 14px 36px rgba(10, 46, 44, 0.1);
+  --shadow-strong: 0 30px 68px rgba(10, 46, 44, 0.22);
+  --radius-xl: 1.1rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 2rem;
+  --font-display: 'Cinzel', Georgia, serif;
+  --font-body: 'Josefin Sans', 'Segoe UI', sans-serif;
+  --focus-ring: 0 0 0 3px rgba(3, 105, 161, 0.35);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  color: var(--color-text);
+  font-family: var(--font-body);
+  background-color: var(--color-bg);
+  background-image:
+    radial-gradient(circle at 15% -10%, rgba(20, 184, 166, 0.2), transparent 36%),
+    radial-gradient(circle at 86% 0%, rgba(3, 105, 161, 0.12), transparent 34%),
+    linear-gradient(180deg, #f7fffd 0%, var(--color-bg) 28%, var(--color-bg-deep) 100%);
+}
+
+h1,
+h2,
+h3,
+h4,
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: 0.012em;
+  color: var(--color-ink);
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+a:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.studio-shell {
+  position: relative;
+  isolation: isolate;
+}
+
+.studio-shell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.14)),
+    repeating-linear-gradient(
+      45deg,
+      rgba(15, 118, 110, 0.02) 0px,
+      rgba(15, 118, 110, 0.02) 2px,
+      transparent 2px,
+      transparent 8px
+    );
+  z-index: -1;
+}
+
+.premium-surface {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.78));
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-soft);
+}
+
+.premium-surface-strong {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(247, 255, 253, 0.92));
+  border: 1px solid var(--color-border-strong);
+  box-shadow: var(--shadow-strong);
+}
+
+.subtle-card {
+  background: rgba(255, 255, 255, 0.74);
+  border: 1px solid rgba(19, 78, 74, 0.12);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.07);
+}
+
+.glass-overlay {
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.25));
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.56);
+}
+
+.editor-canvas-bg {
+  background-image:
+    radial-gradient(circle at center, rgba(15, 118, 110, 0.08) 0.6px, transparent 0.7px),
+    linear-gradient(125deg, rgba(255, 255, 255, 0.74), rgba(223, 245, 242, 0.92));
+  background-size: 16px 16px, auto;
+}
+
+.grain-overlay {
+  position: relative;
+}
+
+.grain-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.1;
+  border-radius: inherit;
+  background-image: radial-gradient(rgba(19, 78, 74, 0.4) 0.45px, transparent 0.55px);
+  background-size: 3px 3px;
+}
+
+.pill-chip {
+  border: 1px solid rgba(19, 78, 74, 0.24);
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--color-text);
+  border-radius: 999px;
+}
+
+.cta-primary {
+  background: linear-gradient(110deg, var(--color-primary), var(--color-accent));
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+.cta-primary:hover {
+  filter: brightness(1.04);
+}
+
+.cta-secondary {
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(19, 78, 74, 0.22);
+  color: var(--color-text);
+}
+
+.panel-divider {
+  border-color: rgba(19, 78, 74, 0.14);
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

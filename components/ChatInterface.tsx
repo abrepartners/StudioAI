@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Bot, User, Sparkles } from 'lucide-react';
 import { ChatMessage } from '../types';
@@ -13,7 +12,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, onSendMessage, 
   const [inputText, setInputText] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   useEffect(() => scrollToBottom(), [messages]);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -25,83 +24,90 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, onSendMessage, 
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-50">
-      {/* Header */}
-      <div className="p-6 bg-white border-b border-slate-200">
+    <div className="flex h-full flex-col premium-surface-strong rounded-none lg:rounded-l-[1.5rem] overflow-hidden">
+      <div className="panel-divider border-b p-5">
         <div className="flex items-center gap-3">
-          <div className="bg-indigo-100 p-2 rounded-xl text-indigo-600">
-            <Bot size={20} />
+          <div className="h-10 w-10 rounded-2xl cta-secondary flex items-center justify-center text-[var(--color-primary)]">
+            <Bot size={18} />
           </div>
           <div>
-            <h3 className="font-bold text-slate-900">Design Assistant</h3>
-            <div className="flex items-center gap-1.5">
-              <div className={`w-2 h-2 rounded-full ${isLoading ? 'bg-indigo-500 animate-pulse' : 'bg-emerald-500'}`}></div>
-              <p className="text-xs text-slate-500">{isLoading ? 'Thinking...' : 'Online'}</p>
-            </div>
+            <h3 className="font-display text-lg font-semibold text-[var(--color-ink)]">Design Assistant</h3>
+            <p className="flex items-center gap-2 text-xs text-[var(--color-text)]/75">
+              <span className={`h-2 w-2 rounded-full ${isLoading ? 'bg-[var(--color-accent)] animate-pulse' : 'bg-emerald-500'}`} />
+              {isLoading ? 'Generating suggestions...' : 'Ready to help'}
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-8 scrollbar-hide">
+      <div className="flex-1 overflow-y-auto px-4 py-5 space-y-4 scrollbar-hide">
         {messages.length === 0 ? (
-          <div className="text-center text-slate-400 mt-16 space-y-4">
-            <Sparkles size={32} className="mx-auto" />
-            <p className="font-medium">Unlock creative ideas</p>
-            <p className="text-xs max-w-xs mx-auto">Ask for design suggestions, material choices, or specific edits to your image.</p>
+          <div className="premium-surface rounded-3xl p-6 text-center text-[var(--color-text)]/80 mt-4">
+            <Sparkles size={28} className="mx-auto mb-3 text-[var(--color-accent)]" />
+            <p className="font-semibold text-[var(--color-ink)]">Request prompt refinements or styling directions</p>
+            <p className="text-sm mt-2">Ask for layout changes, materials, staging choices, or cleanup guidance.</p>
           </div>
         ) : (
           messages.map((msg) => (
-            <div key={msg.id} className={`flex items-start gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm ${msg.role === 'user' ? 'bg-slate-900 text-white' : 'bg-white text-indigo-600'}`}>
-                {msg.role === 'user' ? 
-                  <img src="https://source.unsplash.com/40x40/?portrait,human" alt="User" className="rounded-full" referrerPolicy="no-referrer" /> :
-                  <Bot size={20} />
-                }
-              </div>
-              <div className={`p-4 rounded-2xl max-w-[80%] text-sm leading-relaxed ${
-                msg.role === 'user' ? 'bg-indigo-600 text-white rounded-br-none shadow-lg' : 'bg-white text-slate-800 rounded-bl-none border border-slate-100'
-              }`}>
+            <div key={msg.id} className={`flex items-start gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
+              {msg.role === 'model' && (
+                <div className="h-9 w-9 rounded-xl cta-secondary flex items-center justify-center text-[var(--color-primary)] shrink-0">
+                  <Bot size={16} />
+                </div>
+              )}
+              <div
+                className={`max-w-[84%] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm ${
+                  msg.role === 'user'
+                    ? 'cta-primary text-white rounded-br-sm'
+                    : 'subtle-card text-[var(--color-ink)] rounded-bl-sm'
+                }`}
+              >
                 {msg.text}
               </div>
+              {msg.role === 'user' && (
+                <div className="h-9 w-9 rounded-xl bg-[var(--color-ink)] text-white flex items-center justify-center shrink-0">
+                  <User size={15} />
+                </div>
+              )}
             </div>
           ))
         )}
+
         {isLoading && messages.length > 0 && (
           <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-white text-indigo-600 shadow-sm">
-              <Bot size={20} />
+            <div className="h-9 w-9 rounded-xl cta-secondary flex items-center justify-center text-[var(--color-primary)] shrink-0">
+              <Bot size={16} />
             </div>
-            <div className="p-4 rounded-2xl bg-white border border-slate-100">
-              <div className="flex items-center gap-1.5 text-slate-400">
-                <div className="w-2 h-2 bg-slate-300 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-slate-300 rounded-full animate-bounce [animation-delay:0.2s]"></div>
-                <div className="w-2 h-2 bg-slate-300 rounded-full animate-bounce [animation-delay:0.4s]"></div>
+            <div className="subtle-card rounded-2xl px-4 py-3">
+              <div className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-[var(--color-primary)]/45 animate-bounce" />
+                <span className="h-2 w-2 rounded-full bg-[var(--color-primary)]/45 animate-bounce [animation-delay:0.2s]" />
+                <span className="h-2 w-2 rounded-full bg-[var(--color-primary)]/45 animate-bounce [animation-delay:0.4s]" />
               </div>
             </div>
           </div>
         )}
+
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Form */}
-      <div className="p-6 bg-white border-t border-slate-200">
+      <div className="panel-divider border-t p-4">
         <form onSubmit={handleSubmit}>
           <div className="relative">
             <input
               type="text"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              placeholder="Ask for a design change..."
-              className="w-full pl-5 pr-14 py-4 rounded-full bg-slate-100 border-transparent focus:ring-2 focus:ring-indigo-500 text-sm font-medium transition-all"
+              placeholder="Describe the change you want..."
+              className="w-full rounded-full border border-[var(--color-border)] bg-white/90 py-3 pl-4 pr-12 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-text)]/55"
               disabled={isLoading}
             />
             <button
               type="submit"
               disabled={isLoading || !inputText.trim()}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-2.5 bg-slate-900 text-white rounded-full hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-lg"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full cta-primary flex items-center justify-center disabled:opacity-50"
             >
-              <Send size={18} />
+              <Send size={15} />
             </button>
           </div>
         </form>

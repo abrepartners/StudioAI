@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { Paintbrush, Undo2, Redo2, Trash2 } from 'lucide-react';
+import { Undo2, Redo2, Trash2 } from 'lucide-react';
 
 interface MaskCanvasProps {
   imageSrc: string;
@@ -15,14 +15,20 @@ const MaskCanvas: React.FC<MaskCanvasProps> = ({ imageSrc, onMaskChange, isActiv
   const [history, setHistory] = useState<ImageData[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
 
-  const getContext = useCallback(() => canvasRef.current?.getContext('2d', { willReadFrequently: true }), []);
+  const getContext = useCallback(
+    () => canvasRef.current?.getContext('2d', { willReadFrequently: true }),
+    []
+  );
 
-  const pushToHistory = useCallback((imageData: ImageData) => {
-    const newHistory = history.slice(0, historyIndex + 1);
-    newHistory.push(imageData);
-    setHistory(newHistory);
-    setHistoryIndex(newHistory.length - 1);
-  }, [history, historyIndex]);
+  const pushToHistory = useCallback(
+    (imageData: ImageData) => {
+      const newHistory = history.slice(0, historyIndex + 1);
+      newHistory.push(imageData);
+      setHistory(newHistory);
+      setHistoryIndex(newHistory.length - 1);
+    },
+    [history, historyIndex]
+  );
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -62,7 +68,7 @@ const MaskCanvas: React.FC<MaskCanvasProps> = ({ imageSrc, onMaskChange, isActiv
     if (!canvas || !ctx) return;
 
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const isCanvasEmpty = !imageData.data.some(channel => channel !== 0);
+    const isCanvasEmpty = !imageData.data.some((channel) => channel !== 0);
     onMaskChange(isCanvasEmpty ? null : canvas.toDataURL('image/png'));
   }, [getContext, onMaskChange]);
 
@@ -146,11 +152,18 @@ const MaskCanvas: React.FC<MaskCanvasProps> = ({ imageSrc, onMaskChange, isActiv
   };
 
   return (
-    <div className="relative w-full h-full group">
-      <img ref={imageRef} src={imageSrc} alt="Original for masking" className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none" />
+    <div className="relative h-full w-full">
+      <img
+        ref={imageRef}
+        src={imageSrc}
+        alt="Original for masking"
+        className="absolute inset-0 h-full w-full object-contain pointer-events-none select-none"
+      />
       <canvas
         ref={canvasRef}
-        className={`absolute inset-0 w-full h-full object-contain ${isActive ? 'cursor-crosshair' : 'cursor-default opacity-80'}`}
+        className={`absolute inset-0 h-full w-full object-contain ${
+          isActive ? 'cursor-crosshair' : 'cursor-default opacity-90'
+        }`}
         onMouseDown={startDrawing}
         onMouseMove={draw}
         onMouseUp={stopDrawing}
@@ -159,20 +172,54 @@ const MaskCanvas: React.FC<MaskCanvasProps> = ({ imageSrc, onMaskChange, isActiv
         onTouchMove={draw}
         onTouchEnd={stopDrawing}
       />
+
       {isActive && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-slate-900/80 backdrop-blur-md text-white p-2 rounded-full flex items-center gap-2 shadow-lg z-10">
-          <div className="flex items-center gap-1 bg-slate-800/50 p-1 rounded-full">
-            {[20, 40, 80].map(size => (
-              <button key={size} onClick={() => setBrushSize(size)} className={`w-8 h-8 rounded-full transition-all flex items-center justify-center ${brushSize === size ? 'bg-indigo-600' : 'hover:bg-slate-700'}`}>
-                <div className="bg-white rounded-full" style={{ width: size/4, height: size/4 }}></div>
-              </button>
-            ))}
+        <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-full bg-[var(--color-ink)]/84 px-3 py-2 text-white shadow-[0_20px_36px_rgba(15,23,42,0.4)] backdrop-blur-md">
+          <div className="rounded-full bg-white/12 px-2 py-1">
+            <div className="flex items-center gap-1">
+              {[20, 40, 80].map((size) => (
+                <button
+                  key={size}
+                  type="button"
+                  onClick={() => setBrushSize(size)}
+                  className={`flex h-7 w-7 items-center justify-center rounded-full transition-all ${
+                    brushSize === size ? 'bg-[var(--color-secondary)] text-[var(--color-ink)]' : 'hover:bg-white/20'
+                  }`}
+                  aria-label={`Set brush size ${size}`}
+                >
+                  <span className="rounded-full bg-white" style={{ width: size / 7, height: size / 7 }} />
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="h-6 w-px bg-white/20"></div>
-          <button onClick={undo} disabled={historyIndex <= 0} className="p-2 rounded-full hover:bg-slate-700 disabled:opacity-30"><Undo2 size={18} /></button>
-          <button onClick={redo} disabled={historyIndex >= history.length - 1} className="p-2 rounded-full hover:bg-slate-700 disabled:opacity-30"><Redo2 size={18} /></button>
-          <div className="h-6 w-px bg-white/20"></div>
-          <button onClick={clearCanvas} className="p-2 rounded-full hover:bg-slate-700"><Trash2 size={18} /></button>
+          <div className="h-6 w-px bg-white/25" />
+          <button
+            type="button"
+            onClick={undo}
+            disabled={historyIndex <= 0}
+            className="rounded-full p-2 transition-all hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-35"
+            aria-label="Undo mask stroke"
+          >
+            <Undo2 size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={redo}
+            disabled={historyIndex >= history.length - 1}
+            className="rounded-full p-2 transition-all hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-35"
+            aria-label="Redo mask stroke"
+          >
+            <Redo2 size={16} />
+          </button>
+          <div className="h-6 w-px bg-white/25" />
+          <button
+            type="button"
+            onClick={clearCanvas}
+            className="rounded-full p-2 transition-all hover:bg-rose-400/30"
+            aria-label="Clear mask"
+          >
+            <Trash2 size={16} />
+          </button>
         </div>
       )}
     </div>

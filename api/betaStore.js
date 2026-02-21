@@ -3,18 +3,8 @@ const KV_REST_API_TOKEN = process.env.KV_REST_API_TOKEN;
 
 const ROOT_CODE_ENV_KEYS = ['BETA_ROOT_CODES', 'BETA_BOOTSTRAP_CODES'];
 
-type MemoryStore = {
-  values: Map<string, string>;
-  numbers: Map<string, number>;
-  expirations: Map<string, number>;
-};
-
-type GlobalWithStore = typeof globalThis & {
-  __studioaiBetaStore?: MemoryStore;
-};
-
-const getMemoryStore = (): MemoryStore => {
-  const g = globalThis as GlobalWithStore;
+const getMemoryStore = () => {
+  const g = globalThis;
   if (!g.__studioaiBetaStore) {
     g.__studioaiBetaStore = {
       values: new Map(),
@@ -25,26 +15,7 @@ const getMemoryStore = (): MemoryStore => {
   return g.__studioaiBetaStore;
 };
 
-export type BetaUserRecord = {
-  id: string;
-  createdAt: string;
-  referralCode: string;
-  referredByUserId: string | null;
-  acceptedInvites: number;
-  insiderUnlockedAt: string | null;
-  pro2kUnlockedAt: string | null;
-};
-
-export type PublicBetaUser = {
-  id: string;
-  referralCode: string;
-  acceptedInvites: number;
-  insiderUnlocked: boolean;
-  pro2kUnlocked: boolean;
-  inviteLink: string;
-};
-
-export const getOriginFromRequest = (req: any): string => {
+const getOriginFromRequest = (req) => {
   const explicit = process.env.APP_BASE_URL;
   if (explicit) return explicit;
 
@@ -60,7 +31,7 @@ export const getOriginFromRequest = (req: any): string => {
 
 const hasKv = () => Boolean(KV_REST_API_URL && KV_REST_API_TOKEN);
 
-const decodeRedisResult = (value: unknown): string | null => {
+const decodeRedisResult = (value) => {
   if (value === null || value === undefined) return null;
   if (typeof value === 'string') return value;
   if (typeof value === 'number') return String(value);
@@ -68,7 +39,7 @@ const decodeRedisResult = (value: unknown): string | null => {
   return null;
 };
 
-const readMemoryExpiration = (store: MemoryStore, key: string) => {
+const readMemoryExpiration = (store, key) => {
   const expiresAt = store.expirations.get(key);
   if (!expiresAt) return;
   if (Date.now() >= expiresAt) {
@@ -78,7 +49,7 @@ const readMemoryExpiration = (store: MemoryStore, key: string) => {
   }
 };
 
-const kvGetRaw = async (key: string): Promise<string | null> => {
+const kvGetRaw = async (key) => {
   if (hasKv()) {
     const response = await fetch(`${KV_REST_API_URL}/get/${encodeURIComponent(key)}`, {
       headers: {
@@ -101,7 +72,7 @@ const kvGetRaw = async (key: string): Promise<string | null> => {
   return null;
 };
 
-const kvSetRaw = async (key: string, value: string, ttlSeconds?: number) => {
+const kvSetRaw = async (key, value, ttlSeconds) => {
   if (hasKv()) {
     const endpoint = ttlSeconds
       ? `${KV_REST_API_URL}/set/${encodeURIComponent(key)}/${encodeURIComponent(value)}?EX=${ttlSeconds}`
@@ -128,7 +99,7 @@ const kvSetRaw = async (key: string, value: string, ttlSeconds?: number) => {
   }
 };
 
-const kvIncr = async (key: string): Promise<number> => {
+const kvIncr = async (key) => {
   if (hasKv()) {
     const response = await fetch(`${KV_REST_API_URL}/incr/${encodeURIComponent(key)}`, {
       headers: {
@@ -153,7 +124,7 @@ const kvIncr = async (key: string): Promise<number> => {
   return next;
 };
 
-const kvExpire = async (key: string, ttlSeconds: number) => {
+const kvExpire = async (key, ttlSeconds) => {
   if (hasKv()) {
     const response = await fetch(`${KV_REST_API_URL}/expire/${encodeURIComponent(key)}/${ttlSeconds}`, {
       headers: {
@@ -171,8 +142,8 @@ const kvExpire = async (key: string, ttlSeconds: number) => {
   store.expirations.set(key, Date.now() + ttlSeconds * 1000);
 };
 
-export const getRootCodes = (): Set<string> => {
-  const values: string[] = [];
+const getRootCodes = () => {
+  const values = [];
   for (const key of ROOT_CODE_ENV_KEYS) {
     const raw = process.env[key];
     if (!raw) continue;
@@ -181,52 +152,46 @@ export const getRootCodes = (): Set<string> => {
   return new Set(values.map((item) => item.trim()).filter(Boolean));
 };
 
-export const getUser = async (userId: string): Promise<BetaUserRecord | null> => {
+const getUser = async (userId) => {
   const raw = await kvGetRaw(`beta:user:${userId}`);
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as BetaUserRecord;
+    return JSON.parse(raw);
   } catch {
     return null;
   }
 };
 
-export const setUser = async (user: BetaUserRecord) => {
+const setUser = async (user) => {
   await kvSetRaw(`beta:user:${user.id}`, JSON.stringify(user));
 };
 
-export const getUserIdByReferralCode = async (referralCode: string): Promise<string | null> => {
-  return kvGetRaw(`beta:refcode:${referralCode}`);
-};
+const getUserIdByReferralCode = async (referralCode) => kvGetRaw(`beta:refcode:${referralCode}`);
 
-export const setReferralCodeOwner = async (referralCode: string, userId: string) => {
+const setReferralCodeOwner = async (referralCode, userId) => {
   await kvSetRaw(`beta:refcode:${referralCode}`, userId);
 };
 
-export const getUserIdBySession = async (token: string): Promise<string | null> => {
-  return kvGetRaw(`beta:session:${token}`);
-};
+const getUserIdBySession = async (token) => kvGetRaw(`beta:session:${token}`);
 
-export const setSessionOwner = async (token: string, userId: string) => {
+const setSessionOwner = async (token, userId) => {
   await kvSetRaw(`beta:session:${token}`, userId, 60 * 60 * 24 * 60);
 };
 
-export const getUserIdByDevice = async (deviceId: string): Promise<string | null> => {
-  return kvGetRaw(`beta:device:${deviceId}`);
-};
+const getUserIdByDevice = async (deviceId) => kvGetRaw(`beta:device:${deviceId}`);
 
-export const setDeviceOwner = async (deviceId: string, userId: string) => {
+const setDeviceOwner = async (deviceId, userId) => {
   await kvSetRaw(`beta:device:${deviceId}`, userId);
 };
 
-export const isRootCode = async (code: string): Promise<boolean> => {
+const isRootCode = async (code) => {
   const roots = getRootCodes();
   if (roots.has(code)) return true;
   const inKv = await kvGetRaw(`beta:rootcode:${code}`);
   return Boolean(inKv);
 };
 
-export const issueReferralCode = async (): Promise<string> => {
+const issueReferralCode = async () => {
   for (let i = 0; i < 5; i += 1) {
     const code = Math.random().toString(36).slice(2, 10).toUpperCase();
     const existing = await getUserIdByReferralCode(code);
@@ -235,13 +200,13 @@ export const issueReferralCode = async (): Promise<string> => {
   return `${Math.random().toString(36).slice(2, 8)}${Date.now().toString(36).slice(-2)}`.toUpperCase();
 };
 
-export const issueToken = () => {
+const issueToken = () => {
   const randomPart = Math.random().toString(36).slice(2);
   const timePart = Date.now().toString(36);
   return `${timePart}.${randomPart}.${Math.random().toString(36).slice(2)}`;
 };
 
-export const enforceRateLimit = async (ipAddress: string, maxPerMinute = 15): Promise<boolean> => {
+const enforceRateLimit = async (ipAddress, maxPerMinute = 15) => {
   const minuteBucket = Math.floor(Date.now() / 60000);
   const key = `beta:ratelimit:${ipAddress}:${minuteBucket}`;
   const count = await kvIncr(key);
@@ -251,7 +216,7 @@ export const enforceRateLimit = async (ipAddress: string, maxPerMinute = 15): Pr
   return count <= maxPerMinute;
 };
 
-export const promoteInviter = async (inviterId: string): Promise<BetaUserRecord | null> => {
+const promoteInviter = async (inviterId) => {
   const inviter = await getUser(inviterId);
   if (!inviter) return null;
 
@@ -268,7 +233,7 @@ export const promoteInviter = async (inviterId: string): Promise<BetaUserRecord 
   return inviter;
 };
 
-export const toPublicUser = (origin: string, user: BetaUserRecord): PublicBetaUser => ({
+const toPublicUser = (origin, user) => ({
   id: user.id,
   referralCode: user.referralCode,
   acceptedInvites: user.acceptedInvites,
@@ -277,7 +242,7 @@ export const toPublicUser = (origin: string, user: BetaUserRecord): PublicBetaUs
   inviteLink: `${origin}/?ref=${encodeURIComponent(user.referralCode)}`,
 });
 
-export const getClientIp = (req: any): string => {
+const getClientIp = (req) => {
   const forwarded = req.headers['x-forwarded-for'];
   const first = Array.isArray(forwarded) ? forwarded[0] : forwarded;
   if (typeof first === 'string' && first.length) {
@@ -286,4 +251,24 @@ export const getClientIp = (req: any): string => {
   const real = req.headers['x-real-ip'];
   if (typeof real === 'string' && real.length) return real;
   return 'unknown';
+};
+
+export {
+  getOriginFromRequest,
+  getRootCodes,
+  getUser,
+  setUser,
+  getUserIdByReferralCode,
+  setReferralCodeOwner,
+  getUserIdBySession,
+  setSessionOwner,
+  getUserIdByDevice,
+  setDeviceOwner,
+  isRootCode,
+  issueReferralCode,
+  issueToken,
+  enforceRateLimit,
+  promoteInviter,
+  toPublicUser,
+  getClientIp,
 };

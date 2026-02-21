@@ -1,5 +1,4 @@
 import {
-  BetaUserRecord,
   enforceRateLimit,
   getClientIp,
   getOriginFromRequest,
@@ -14,7 +13,7 @@ import {
   setSessionOwner,
   setUser,
   toPublicUser,
-} from './betaStore';
+} from './betaStore.js';
 
 const json = (res: any, status: number, body: Record<string, unknown>) => {
   res.status(status).setHeader('Content-Type', 'application/json');
@@ -95,7 +94,7 @@ export default async function handler(req: any, res: any) {
     const referralCode = await issueReferralCode();
     const now = new Date().toISOString();
 
-    const userRecord: BetaUserRecord = {
+    const userRecord = {
       id: userId,
       createdAt: now,
       referralCode,

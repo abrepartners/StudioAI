@@ -48,12 +48,15 @@ Beta access and referral unlocks are handled by:
 - `/api/beta-activate`
 - `/api/beta-me`
 - `/api/beta-share`
+- `/api/beta-admin-login` (owner/admin session)
+- `/api/beta-admin-codes` (generate/list root invite codes)
 
 Recommended server-side env vars:
 
 - `KV_REST_API_URL`
 - `KV_REST_API_TOKEN`
 - `BETA_ROOT_CODES` (comma-separated bootstrap invite codes)
+- `BETA_ADMIN_SECRET` (required for owner login and invite code management)
 - `APP_BASE_URL` (optional, used for invite link generation)
 
 Milestones:
@@ -79,3 +82,14 @@ VITE_BETA_PRO_CODES=VELVET-EMBER-9Q4K
 Invite link format:
 
 `https://<your-domain>/?invite=<ACCESS_CODE>`
+
+## Owner Admin Bypass
+
+If `BETA_ADMIN_SECRET` is configured, the beta gate shows an `Owner Login` action.
+
+After owner login:
+
+- Invite gate is bypassed for that device/session.
+- You can generate root invite codes directly from the in-app `Access` panel.
+- Generated codes are stored in KV and can be shared as:
+  - `https://<your-domain>/?invite=<GENERATED_CODE>`

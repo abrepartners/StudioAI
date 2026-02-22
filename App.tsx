@@ -49,8 +49,16 @@ const roomOptions: FurnitureRoomType[] = [
 ];
 
 type StageMode = 'text' | 'packs' | 'furniture';
+type AdminInviteCode = {
+  code: string;
+  inviteLink: string;
+  createdAt?: string;
+};
 
 const BETA_ACCESS_KEY = 'studioai_beta_access_code';
+const BETA_TOKEN_KEY = 'studioai_beta_token';
+const BETA_DEVICE_KEY = 'studioai_beta_device_id';
+const BETA_ADMIN_TOKEN_KEY = 'studioai_beta_admin_token';
 const DEFAULT_BETA_CODES = ['VELVET-EMBER-9Q4K', 'NORTHSTAR-GLASS-2T7M'];
 
 const parseCodes = (raw: string | undefined) =>
@@ -69,6 +77,20 @@ const FEEDBACK_REQUIRED_INTERVAL = 3;
 const buildInviteLink = (code: string) => {
   if (!code || typeof window === 'undefined') return '';
   return `${window.location.origin}/?invite=${encodeURIComponent(code)}`;
+};
+
+const getOrCreateDeviceId = () => {
+  if (typeof window === 'undefined') return 'server';
+  const existing = localStorage.getItem(BETA_DEVICE_KEY);
+  if (existing) return existing;
+
+  const next =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `device_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+
+  localStorage.setItem(BETA_DEVICE_KEY, next);
+  return next;
 };
 
 const App: React.FC = () => {
@@ -102,10 +124,27 @@ const App: React.FC = () => {
 
   const [betaAccessCode, setBetaAccessCode] = useState('');
   const [betaInviteCode, setBetaInviteCode] = useState('');
+  const [betaReferralCode, setBetaReferralCode] = useState('');
+  const [betaInviteLinkValue, setBetaInviteLinkValue] = useState('');
+  const [betaToken, setBetaToken] = useState('');
+  const [betaUserId, setBetaUserId] = useState('');
+  const [acceptedInvites, setAcceptedInvites] = useState(0);
+  const [insiderUnlocked, setInsiderUnlocked] = useState(false);
+  const [proInviteUnlocked, setProInviteUnlocked] = useState(false);
   const [betaMessage, setBetaMessage] = useState('');
   const [betaError, setBetaError] = useState('');
   const [isBetaLoading, setIsBetaLoading] = useState(true);
   const [isActivatingBeta, setIsActivatingBeta] = useState(false);
+  const [isOwnerAdmin, setIsOwnerAdmin] = useState(false);
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
+  const [adminSecret, setAdminSecret] = useState('');
+  const [adminError, setAdminError] = useState('');
+  const [isAdminLoggingIn, setIsAdminLoggingIn] = useState(false);
+  const [adminToken, setAdminToken] = useState('');
+  const [adminCodePrefix, setAdminCodePrefix] = useState('');
+  const [adminCodeCount, setAdminCodeCount] = useState(1);
+  const [adminGeneratedCodes, setAdminGeneratedCodes] = useState<AdminInviteCode[]>([]);
+  const [isGeneratingAdminCodes, setIsGeneratingAdminCodes] = useState(false);
   const [copiedField, setCopiedField] = useState<'link' | 'code' | null>(null);
 
   const allowedBetaCodes = useMemo(
@@ -113,8 +152,60 @@ const App: React.FC = () => {
     []
   );
 
-  const proUnlocked = Boolean(betaAccessCode && (PRO_UNLOCK_ALL || ENV_PRO_CODES.has(betaAccessCode)));
-  const betaInviteLink = useMemo(() => buildInviteLink(betaAccessCode), [betaAccessCode]);
+  const proUnlocked = Boolean(
+    isOwnerAdmin ||
+      proInviteUnlocked ||
+      (betaAccessCode && (PRO_UNLOCK_ALL || ENV_PRO_CODES.has(betaAccessCode)))
+  );
+  const betaInviteLink = useMemo(
+    () => betaInviteLinkValue || buildInviteLink(betaAccessCode),
+    [betaInviteLinkValue, betaAccessCode]
+  );
+
+  const applyBetaUser = useCallback((user: any, token?: string) => {
+    if (!user) return;
+    const referralCode = String(user.referralCode || '').toUpperCase();
+    const inviteLink = referralCode ? buildInviteLink(referralCode) : '';
+
+    if (referralCode) {
+      setBetaAccessCode(referralCode);
+      localStorage.setItem(BETA_ACCESS_KEY, referralCode);
+    }
+    if (inviteLink) {
+      setBetaInviteLinkValue(inviteLink);
+    }
+
+    setBetaUserId(String(user.id || ''));
+    setAcceptedInvites(Number(user.acceptedInvites) || 0);
+    setInsiderUnlocked(Boolean(user.insiderUnlocked));
+    setProInviteUnlocked(Boolean(user.pro2kUnlocked));
+
+    if (token) {
+      setBetaToken(token);
+      localStorage.setItem(BETA_TOKEN_KEY, token);
+    }
+  }, []);
+
+  const loadAdminCodes = useCallback(async (token: string) => {
+    const response = await fetch('/api/beta-admin-codes?limit=20', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to load admin codes');
+    }
+
+    const data = await response.json().catch(() => ({}));
+    const list = Array.isArray(data.rootCodes) ? data.rootCodes : [];
+    const normalized: AdminInviteCode[] = list.map((entry: any) => ({
+      code: String(entry?.code || '').toUpperCase(),
+      inviteLink: String(entry?.inviteLink || ''),
+      createdAt: String(entry?.createdAt || ''),
+    }));
+    setAdminGeneratedCodes(normalized);
+  }, []);
 
   useEffect(() => {
     const savedS = localStorage.getItem('realestate_ai_stages');
@@ -124,22 +215,104 @@ const App: React.FC = () => {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const invite = (params.get('invite') || params.get('code') || '').trim().toUpperCase();
+    const ref = (params.get('ref') || '').trim().toUpperCase();
+
     if (invite) {
       setBetaInviteCode(invite);
       setBetaMessage('Invite accepted. Enter this code to access the private beta.');
     }
+    if (ref) {
+      setBetaReferralCode(ref);
+      if (!invite) {
+        setBetaMessage('Referral detected. Enter your invite code to join this beta.');
+      }
+    }
   }, []);
 
   useEffect(() => {
-    setIsBetaLoading(true);
-    const existing = (localStorage.getItem(BETA_ACCESS_KEY) || '').trim().toUpperCase();
-    if (existing && allowedBetaCodes.has(existing)) {
-      setBetaAccessCode(existing);
-    } else if (existing) {
-      localStorage.removeItem(BETA_ACCESS_KEY);
-    }
-    setIsBetaLoading(false);
-  }, [allowedBetaCodes]);
+    let mounted = true;
+
+    const bootstrapBeta = async () => {
+      setIsBetaLoading(true);
+      try {
+        const storedAdminToken = (localStorage.getItem(BETA_ADMIN_TOKEN_KEY) || '').trim();
+        if (storedAdminToken) {
+          try {
+            await loadAdminCodes(storedAdminToken);
+            if (!mounted) return;
+
+            setIsOwnerAdmin(true);
+            setAdminToken(storedAdminToken);
+            setBetaAccessCode('OWNER');
+            setBetaMessage('Owner session restored.');
+            setIsBetaLoading(false);
+            return;
+          } catch {
+            localStorage.removeItem(BETA_ADMIN_TOKEN_KEY);
+          }
+        }
+
+        const existingToken = (localStorage.getItem(BETA_TOKEN_KEY) || '').trim();
+        const deviceId = getOrCreateDeviceId();
+
+        if (existingToken) {
+          try {
+            const response = await fetch(`/api/beta-me?deviceId=${encodeURIComponent(deviceId)}`, {
+              headers: {
+                Authorization: `Bearer ${existingToken}`,
+              },
+            });
+
+            if (response.ok) {
+              const data = await response.json().catch(() => ({}));
+              if (data?.ok && data.user) {
+                if (!mounted) return;
+                applyBetaUser(data.user, existingToken);
+                setBetaMessage('Welcome back to the StudioAI beta.');
+                setIsBetaLoading(false);
+                return;
+              }
+            } else {
+              localStorage.removeItem(BETA_TOKEN_KEY);
+            }
+          } catch {
+            // Keep local-code fallback for offline development.
+          }
+        }
+
+        try {
+          const response = await fetch(`/api/beta-me?deviceId=${encodeURIComponent(deviceId)}`);
+          if (response.ok) {
+            const data = await response.json().catch(() => ({}));
+            if (data?.ok && data.user) {
+              if (!mounted) return;
+              applyBetaUser(data.user);
+              setBetaMessage('Welcome back to the StudioAI beta.');
+              setIsBetaLoading(false);
+              return;
+            }
+          }
+        } catch {
+          // Keep local-code fallback for offline development.
+        }
+
+        const existing = (localStorage.getItem(BETA_ACCESS_KEY) || '').trim().toUpperCase();
+        if (existing && allowedBetaCodes.has(existing)) {
+          setBetaAccessCode(existing);
+          setBetaInviteLinkValue(buildInviteLink(existing));
+        } else if (existing) {
+          localStorage.removeItem(BETA_ACCESS_KEY);
+        }
+      } finally {
+        if (mounted) setIsBetaLoading(false);
+      }
+    };
+
+    bootstrapBeta();
+    return () => {
+      mounted = false;
+    };
+  }, [allowedBetaCodes, applyBetaUser, loadAdminCodes]);
 
   const refreshProKeyStatus = useCallback(async () => {
     const aiStudio = (window as any)?.aistudio;
@@ -357,14 +530,55 @@ const App: React.FC = () => {
 
     try {
       const entered = betaInviteCode.trim().toUpperCase();
-      if (!allowedBetaCodes.has(entered)) {
-        setBetaError('That invite code is not valid.');
+      const deviceId = getOrCreateDeviceId();
+      let backendActivated = false;
+
+      try {
+        const response = await fetch('/api/beta-activate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            inviteCode: entered,
+            referralCode: betaReferralCode || undefined,
+            deviceId,
+          }),
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (response.ok && data?.ok && data.user) {
+          backendActivated = true;
+          applyBetaUser(data.user, data.token);
+          setBetaMessage(String(data.message || 'Welcome to the private StudioAI beta.'));
+          return;
+        }
+
+        if (data?.code === 'ALREADY_ACTIVATED_DEVICE') {
+          const recovery = await fetch(`/api/beta-me?deviceId=${encodeURIComponent(deviceId)}`).catch(() => null);
+          if (recovery?.ok) {
+            const recoveryData = await recovery.json().catch(() => ({}));
+            if (recoveryData?.ok && recoveryData.user) {
+              backendActivated = true;
+              applyBetaUser(recoveryData.user);
+              setBetaMessage('Welcome back to the StudioAI beta.');
+              return;
+            }
+          }
+        }
+      } catch {
+        // Keep local-code fallback for local/offline usage.
+      }
+
+      if (!backendActivated && allowedBetaCodes.has(entered)) {
+        setBetaAccessCode(entered);
+        setBetaInviteLinkValue(buildInviteLink(entered));
+        localStorage.setItem(BETA_ACCESS_KEY, entered);
+        setBetaMessage('Welcome to the private StudioAI beta.');
         return;
       }
 
-      setBetaAccessCode(entered);
-      localStorage.setItem(BETA_ACCESS_KEY, entered);
-      setBetaMessage('Welcome to the private StudioAI beta.');
+      setBetaError('That invite code is not valid.');
     } catch {
       setBetaError('Activation failed. Check your connection and retry.');
     } finally {
@@ -372,9 +586,92 @@ const App: React.FC = () => {
     }
   };
 
-  const copyValue = async (type: 'link' | 'code') => {
-    if (!betaAccessCode) return;
-    const value = type === 'link' ? betaInviteLink : betaAccessCode;
+  const activateOwnerAccess = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adminSecret.trim()) return;
+
+    setIsAdminLoggingIn(true);
+    setAdminError('');
+    try {
+      const response = await fetch('/api/beta-admin-login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          secret: adminSecret.trim(),
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data?.ok || !data?.token) {
+        const message = data?.error || 'Owner login failed.';
+        setAdminError(String(message));
+        return;
+      }
+
+      const token = String(data.token);
+      setAdminToken(token);
+      setIsOwnerAdmin(true);
+      setBetaAccessCode('OWNER');
+      setBetaInviteCode('');
+      setBetaMessage('Owner access granted.');
+      setShowAdminLogin(false);
+      setAdminSecret('');
+      localStorage.setItem(BETA_ADMIN_TOKEN_KEY, token);
+      await loadAdminCodes(token);
+    } catch {
+      setAdminError('Owner login failed. Check your connection and retry.');
+    } finally {
+      setIsAdminLoggingIn(false);
+    }
+  };
+
+  const generateOwnerCodes = async () => {
+    if (!adminToken || !isOwnerAdmin) return;
+    setIsGeneratingAdminCodes(true);
+    setAdminError('');
+
+    try {
+      const response = await fetch('/api/beta-admin-codes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify({
+          prefix: adminCodePrefix,
+          count: adminCodeCount,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data?.ok) {
+        setAdminError(String(data?.error || 'Failed to generate invite codes.'));
+        return;
+      }
+
+      const generated = Array.isArray(data.generated) ? data.generated : [];
+      const normalized: AdminInviteCode[] = generated.map((entry: any) => ({
+        code: String(entry?.code || '').toUpperCase(),
+        inviteLink: String(entry?.inviteLink || ''),
+        createdAt: String(entry?.createdAt || ''),
+      }));
+
+      setAdminGeneratedCodes((prev) => {
+        const seen = new Set(normalized.map((entry) => entry.code));
+        return [...normalized, ...prev.filter((entry) => !seen.has(entry.code))];
+      });
+      setBetaMessage(`Generated ${normalized.length} invite code${normalized.length === 1 ? '' : 's'}.`);
+    } catch {
+      setAdminError('Failed to generate invite codes. Check your connection.');
+    } finally {
+      setIsGeneratingAdminCodes(false);
+    }
+  };
+
+  const copyText = async (value: string, type: 'link' | 'code') => {
+    if (!value) return;
 
     try {
       await navigator.clipboard.writeText(value);
@@ -383,6 +680,12 @@ const App: React.FC = () => {
     } catch {
       setCopiedField(null);
     }
+  };
+
+  const copyValue = async (type: 'link' | 'code') => {
+    if (!betaAccessCode) return;
+    const value = type === 'link' ? betaInviteLink : betaAccessCode;
+    await copyText(value, type);
   };
 
   const navItems: Array<{
@@ -402,6 +705,13 @@ const App: React.FC = () => {
       setActivePanel('tools');
     }
   }, [activePanel]);
+
+  useEffect(() => {
+    if (!showAccessPanel || !isOwnerAdmin || !adminToken) return;
+    loadAdminCodes(adminToken).catch(() => {
+      setAdminError('Could not refresh invite codes.');
+    });
+  }, [showAccessPanel, isOwnerAdmin, adminToken, loadAdminCodes]);
 
   if (isBetaLoading) {
     return (
@@ -446,6 +756,17 @@ const App: React.FC = () => {
             </button>
           </form>
 
+          <button
+            type="button"
+            onClick={() => {
+              setShowAdminLogin(true);
+              setAdminError('');
+            }}
+            className="mt-3 w-full rounded-xl border border-[var(--color-border)] bg-white/70 px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.11em] text-[var(--color-text)]/78"
+          >
+            Owner Login
+          </button>
+
           {betaMessage && <p className="mt-4 rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-2 text-sm text-emerald-900">{betaMessage}</p>}
           {betaError && <p className="mt-4 rounded-xl bg-rose-50 border border-rose-200 px-3 py-2 text-sm text-rose-900">{betaError}</p>}
 
@@ -453,6 +774,49 @@ const App: React.FC = () => {
             You can share your access link or code with trusted beta testers.
           </p>
         </div>
+
+        {showAdminLogin && (
+          <div className="fixed inset-0 z-[120] grid place-items-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="premium-surface-strong w-full max-w-md rounded-[2rem] p-7">
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--color-text)]/70">Owner Access</p>
+                  <h3 className="font-display text-2xl">Admin Login</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAdminLogin(false)}
+                  className="rounded-xl p-2 text-[var(--color-text)]/70 transition hover:bg-slate-100"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <form onSubmit={activateOwnerAccess} className="space-y-3">
+                <div>
+                  <label className="text-xs uppercase tracking-[0.12em] font-semibold text-[var(--color-text)]/72">Admin secret</label>
+                  <input
+                    type="password"
+                    autoComplete="current-password"
+                    value={adminSecret}
+                    onChange={(e) => setAdminSecret(e.target.value)}
+                    placeholder="Enter owner secret"
+                    className="mt-1 w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2.5 text-sm text-[var(--color-ink)]"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={isAdminLoggingIn || !adminSecret.trim()}
+                  className="cta-primary w-full rounded-xl px-4 py-3 text-sm font-semibold disabled:opacity-50"
+                >
+                  {isAdminLoggingIn ? 'Signing In...' : 'Unlock Owner Access'}
+                </button>
+              </form>
+
+              {adminError && <p className="mt-4 rounded-xl bg-rose-50 border border-rose-200 px-3 py-2 text-sm text-rose-900">{adminError}</p>}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -540,33 +904,105 @@ const App: React.FC = () => {
               </button>
             </div>
 
-            <p className="text-sm text-[var(--color-text)]/82">
-              Share your access link or code with trusted testers. This is outside the design workflow so the studio stays focused.
-            </p>
+            {isOwnerAdmin ? (
+              <>
+                <p className="text-sm text-[var(--color-text)]/82">
+                  Owner mode bypasses the invite gate and lets you mint invite codes directly from backend KV.
+                </p>
 
-            <div className="mt-4 rounded-xl border border-[var(--color-border)] bg-white/80 px-3 py-2 text-xs text-[var(--color-text)]/80">
-              Access code: <code>{betaAccessCode}</code>
-            </div>
-            <div className="mt-2 rounded-xl border border-[var(--color-border)] bg-white/80 px-3 py-2 text-xs text-[var(--color-text)]/80 break-all">
-              Link: <code>{betaInviteLink}</code>
-            </div>
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
+                  <input
+                    value={adminCodePrefix}
+                    onChange={(e) => setAdminCodePrefix(e.target.value.toUpperCase())}
+                    placeholder="Prefix (optional), e.g. VELVET-EMBER"
+                    className="rounded-xl border border-[var(--color-border)] bg-white px-3 py-2.5 text-sm text-[var(--color-ink)]"
+                  />
+                  <select
+                    value={adminCodeCount}
+                    onChange={(e) => setAdminCodeCount(Number(e.target.value))}
+                    className="rounded-xl border border-[var(--color-border)] bg-white px-3 py-2.5 text-sm text-[var(--color-ink)]"
+                  >
+                    {[1, 2, 3, 5, 10].map((count) => (
+                      <option key={count} value={count}>
+                        {count}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => copyValue('link')}
-                className="cta-secondary min-h-[44px] rounded-xl px-3 py-2 text-xs font-semibold inline-flex items-center justify-center gap-1.5"
-              >
-                {copiedField === 'link' ? <Check size={13} /> : <Copy size={13} />} Copy Access Link
-              </button>
-              <button
-                type="button"
-                onClick={() => copyValue('code')}
-                className="cta-secondary min-h-[44px] rounded-xl px-3 py-2 text-xs font-semibold inline-flex items-center justify-center gap-1.5"
-              >
-                {copiedField === 'code' ? <Check size={13} /> : <Copy size={13} />} Copy Access Code
-              </button>
-            </div>
+                <button
+                  type="button"
+                  onClick={generateOwnerCodes}
+                  disabled={isGeneratingAdminCodes}
+                  className="mt-3 cta-primary w-full rounded-xl px-4 py-3 text-sm font-semibold disabled:opacity-50"
+                >
+                  {isGeneratingAdminCodes ? 'Generating...' : 'Generate Invite Codes'}
+                </button>
+
+                <div className="mt-4 max-h-64 overflow-auto space-y-2">
+                  {adminGeneratedCodes.length === 0 ? (
+                    <p className="text-xs text-[var(--color-text)]/72">No generated codes yet. Create your first batch above.</p>
+                  ) : (
+                    adminGeneratedCodes.map((entry) => (
+                      <div key={entry.code} className="rounded-xl border border-[var(--color-border)] bg-white/85 p-3">
+                        <p className="text-xs font-semibold tracking-[0.08em] text-[var(--color-ink)]">{entry.code}</p>
+                        <p className="mt-1 text-[11px] text-[var(--color-text)]/76 break-all">{entry.inviteLink}</p>
+                        <div className="mt-2 grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => copyText(entry.code, 'code')}
+                            className="cta-secondary rounded-lg px-2 py-2 text-[11px] font-semibold inline-flex items-center justify-center gap-1"
+                          >
+                            {copiedField === 'code' ? <Check size={12} /> : <Copy size={12} />} Copy Code
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => copyText(entry.inviteLink, 'link')}
+                            className="cta-secondary rounded-lg px-2 py-2 text-[11px] font-semibold inline-flex items-center justify-center gap-1"
+                          >
+                            {copiedField === 'link' ? <Check size={12} /> : <Copy size={12} />} Copy Link
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-[var(--color-text)]/82">
+                  Share your access link or code with trusted testers. This is outside the design workflow so the studio stays focused.
+                </p>
+
+                <div className="mt-4 rounded-xl border border-[var(--color-border)] bg-white/80 px-3 py-2 text-xs text-[var(--color-text)]/80">
+                  Access code: <code>{betaAccessCode}</code>
+                </div>
+                <div className="mt-2 rounded-xl border border-[var(--color-border)] bg-white/80 px-3 py-2 text-xs text-[var(--color-text)]/80 break-all">
+                  Link: <code>{betaInviteLink}</code>
+                </div>
+
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => copyValue('link')}
+                    className="cta-secondary min-h-[44px] rounded-xl px-3 py-2 text-xs font-semibold inline-flex items-center justify-center gap-1.5"
+                  >
+                    {copiedField === 'link' ? <Check size={13} /> : <Copy size={13} />} Copy Access Link
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => copyValue('code')}
+                    className="cta-secondary min-h-[44px] rounded-xl px-3 py-2 text-xs font-semibold inline-flex items-center justify-center gap-1.5"
+                  >
+                    {copiedField === 'code' ? <Check size={13} /> : <Copy size={13} />} Copy Access Code
+                  </button>
+                </div>
+              </>
+            )}
+
+            {adminError && (
+              <p className="mt-4 rounded-xl bg-rose-50 border border-rose-200 px-3 py-2 text-sm text-rose-900">{adminError}</p>
+            )}
 
             <p className="mt-4 text-xs text-[var(--color-text)]/75">
               High-res enhancement: <strong>{proUnlocked ? 'Unlocked' : 'Locked'}</strong>
@@ -853,10 +1289,10 @@ const App: React.FC = () => {
                     stagedFurnitureCount={0}
                     stageMode={stageMode}
                     generatedImage={generatedImage}
-                    betaUserId={betaAccessCode ? `access-${betaAccessCode}` : ''}
+                    betaUserId={betaUserId || (betaAccessCode ? `access-${betaAccessCode}` : '')}
                     referralCode={betaAccessCode}
-                    acceptedInvites={0}
-                    insiderUnlocked={false}
+                    acceptedInvites={acceptedInvites}
+                    insiderUnlocked={insiderUnlocked}
                     pro2kUnlocked={proUnlocked}
                   />
                 </div>
@@ -888,10 +1324,10 @@ const App: React.FC = () => {
               stagedFurnitureCount={0}
               stageMode={stageMode}
               generatedImage={generatedImage}
-              betaUserId={betaAccessCode ? `access-${betaAccessCode}` : ''}
+              betaUserId={betaUserId || (betaAccessCode ? `access-${betaAccessCode}` : '')}
               referralCode={betaAccessCode}
-              acceptedInvites={0}
-              insiderUnlocked={false}
+              acceptedInvites={acceptedInvites}
+              insiderUnlocked={insiderUnlocked}
               pro2kUnlocked={proUnlocked}
             />
           </div>

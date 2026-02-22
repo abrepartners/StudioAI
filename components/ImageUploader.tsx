@@ -9,6 +9,7 @@ interface ImageUploaderProps {
 const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload, isAnalyzing }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryAccept = 'image/jpeg,image/png,image/webp,image/heic,image/heif';
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -75,7 +76,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload, isAnalyzin
               className="cta-primary rounded-2xl px-5 py-3.5 text-sm font-semibold tracking-wide transition-all"
             >
               <span className="inline-flex items-center gap-2">
-                <Upload size={15} /> Upload Image
+                <Upload size={15} /> Photo Library
               </span>
             </button>
             <button
@@ -84,7 +85,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload, isAnalyzin
               className="cta-secondary rounded-2xl px-5 py-3.5 text-sm font-semibold tracking-wide transition-all"
             >
               <span className="inline-flex items-center gap-2">
-                <Camera size={15} /> Use Camera
+                <Camera size={15} /> Take Photo
               </span>
             </button>
           </div>
@@ -94,14 +95,14 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload, isAnalyzin
         type="file"
         ref={fileInputRef}
         onChange={handleFileChange}
-        accept="image/*"
+        accept={galleryAccept}
         className="hidden"
       />
       <input
         type="file"
         ref={cameraInputRef}
         onChange={handleFileChange}
-        accept="image/*"
+        accept={galleryAccept}
         className="hidden"
         capture="environment"
       />

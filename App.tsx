@@ -107,7 +107,14 @@ const App: React.FC = () => {
   const [showAccessPanel, setShowAccessPanel] = useState(false);
   const [showRoomPicker, setShowRoomPicker] = useState(false);
   const [hasProKey, setHasProKey] = useState(false);
-  const [sheetOpen, setSheetOpen] = useState(true);
+  const [isDesktopViewport, setIsDesktopViewport] = useState(() =>
+    typeof window === 'undefined' ? true : window.innerWidth >= 1024
+  );
+  const [sheetOpen, setSheetOpen] = useState(() =>
+    typeof window === 'undefined' ? true : window.innerWidth >= 1024
+  );
+  const [showQuickTutorial, setShowQuickTutorial] = useState(true);
+  const [isCompareDragging, setIsCompareDragging] = useState(false);
   const [showFeedbackCheckpoint, setShowFeedbackCheckpoint] = useState(false);
   const [generationsSinceFeedback, setGenerationsSinceFeedback] = useState(0);
 
@@ -314,6 +321,33 @@ const App: React.FC = () => {
     };
   }, [allowedBetaCodes, applyBetaUser, loadAdminCodes]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleResize = () => {
+      const desktop = window.innerWidth >= 1024;
+      setIsDesktopViewport(desktop);
+      if (desktop) {
+        setSheetOpen(true);
+      }
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    if (isDesktopViewport || !isCompareDragging || typeof document === 'undefined') return;
+
+    const body = document.body;
+    body.classList.add('compare-lock');
+
+    return () => {
+      body.classList.remove('compare-lock');
+    };
+  }, [isCompareDragging, isDesktopViewport]);
+
   const refreshProKeyStatus = useCallback(async () => {
     const aiStudio = (window as any)?.aistudio;
     if (!aiStudio?.hasSelectedApiKey) {
@@ -339,6 +373,12 @@ const App: React.FC = () => {
       setShowFeedbackCheckpoint(true);
     }
   }, [generationsSinceFeedback]);
+
+  useEffect(() => {
+    if (!generatedImage) {
+      setIsCompareDragging(false);
+    }
+  }, [generatedImage]);
 
   const pushToHistory = useCallback(
     (newState?: Partial<HistoryState>) => {
@@ -399,6 +439,7 @@ const App: React.FC = () => {
     setOriginalImage(base64);
     setGeneratedImage(null);
     setMaskImage(null);
+    setIsCompareDragging(false);
     setColors([]);
     setDetectedRoom(null);
     setHistory([]);
@@ -407,6 +448,10 @@ const App: React.FC = () => {
     setStageMode('text');
     setShowFeedbackCheckpoint(false);
     setGenerationsSinceFeedback(0);
+    setShowQuickTutorial(true);
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      setSheetOpen(false);
+    }
 
     try {
       const [colorData, roomType] = await Promise.all([analyzeRoomColors(base64), detectRoomType(base64)]);
@@ -1099,9 +1144,14 @@ const App: React.FC = () => {
               onClick={() => {
                 setOriginalImage(null);
                 setGeneratedImage(null);
+                setIsCompareDragging(false);
                 setStageMode('text');
                 setShowFeedbackCheckpoint(false);
                 setGenerationsSinceFeedback(0);
+                setShowQuickTutorial(true);
+                if (!isDesktopViewport) {
+                  setSheetOpen(false);
+                }
               }}
               className="cta-secondary rounded-xl p-2 text-[var(--color-text)] min-h-[44px] min-w-[44px]"
               title="Start over"
@@ -1182,12 +1232,16 @@ const App: React.FC = () => {
             })}
           </nav>
 
-          <main className="order-1 lg:order-2 flex-1 min-h-0 overflow-y-auto editor-canvas-bg p-4 sm:p-6 lg:p-8 pb-[58vh] lg:pb-8">
+          <main className="order-1 lg:order-2 flex-1 min-h-0 overflow-y-auto editor-canvas-bg p-4 sm:p-6 lg:p-8 pb-[52vh] sm:pb-[48vh] lg:pb-8">
             <div className="mx-auto w-full max-w-6xl space-y-4">
               <div className="premium-surface-strong rounded-[2rem] p-2 sm:p-3">
                 <div className="relative overflow-hidden rounded-[1.5rem] border panel-divider bg-[var(--color-bg-deep)] aspect-[4/3] sm:aspect-video">
                   {generatedImage ? (
-                    <CompareSlider originalImage={originalImage} generatedImage={generatedImage} />
+                    <CompareSlider
+                      originalImage={originalImage}
+                      generatedImage={generatedImage}
+                      onDragStateChange={setIsCompareDragging}
+                    />
                   ) : (
                     <MaskCanvas
                       imageSrc={originalImage}
@@ -1259,14 +1313,27 @@ const App: React.FC = () => {
             <div className="mobile-sheet-scroll scrollbar-hide">
               <div className="px-5 sm:px-6 pt-5 sm:pt-6">
                 <div className="subtle-card rounded-2xl px-4 py-3">
-                  <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--color-text)]/70">Quick Tutorial</p>
-                  <h3 className="font-display text-xl mt-1">How To Use Studio</h3>
-                  <ol className="mt-2 space-y-1 text-sm text-[var(--color-text)]/82 list-decimal pl-4">
-                    <li>Choose a <strong>Mode</strong> first.</li>
-                    <li>Add your direction with text or pick a style pack.</li>
-                    <li>Generate and re-generate until it feels right.</li>
-                    <li>Use thumbs feedback to tell us what to improve.</li>
-                  </ol>
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--color-text)]/70">Quick Tutorial</p>
+                      <h3 className="font-display text-xl mt-1">How To Use Studio</h3>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowQuickTutorial((prev) => !prev)}
+                      className="rounded-xl border border-[var(--color-border)] bg-white/75 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text)]/78"
+                    >
+                      {showQuickTutorial ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
+                  {showQuickTutorial && (
+                    <ol className="mt-2 space-y-1 text-sm text-[var(--color-text)]/82 list-decimal pl-4">
+                      <li>Choose a <strong>Mode</strong> first.</li>
+                      <li>Add direction with text or pick one style pack.</li>
+                      <li>Tap Generate, then re-generate for new layouts.</li>
+                      <li>Submit thumbs feedback when prompted.</li>
+                    </ol>
+                  )}
                 </div>
               </div>
 
@@ -1280,6 +1347,7 @@ const App: React.FC = () => {
                   hasMask={false}
                   selectedRoom={selectedRoom}
                   feedbackRequired={showFeedbackCheckpoint}
+                  compactMobile={!isDesktopViewport}
                 />
 
                 <div className="hidden lg:block">

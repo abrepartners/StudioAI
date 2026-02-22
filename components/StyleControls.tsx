@@ -27,6 +27,7 @@ interface RenovationControlsProps {
   hasMask: boolean;
   selectedRoom: FurnitureRoomType;
   feedbackRequired?: boolean;
+  compactMobile?: boolean;
 }
 
 const RenovationControls: React.FC<RenovationControlsProps> = ({
@@ -38,6 +39,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
   hasMask,
   selectedRoom,
   feedbackRequired = false,
+  compactMobile = false,
 }) => {
   const [selectedPreset, setSelectedPreset] = useState<StylePreset | null>(null);
   const [customPrompt, setCustomPrompt] = useState('');
@@ -133,17 +135,17 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
   }
 
   return (
-    <div className="space-y-4">
+    <div className={compactMobile ? 'space-y-3' : 'space-y-4'}>
       <div className="premium-surface rounded-3xl p-5">
         <div className="mb-3">
           <h3 className="font-display text-lg font-semibold">Mode</h3>
-          <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-text)]/70">Pick one path for this render</p>
+          {!compactMobile && <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-text)]/70">Pick one path for this render</p>}
         </div>
-        <div className="grid grid-cols-3 gap-2">
+        <div className={`grid grid-cols-3 ${compactMobile ? 'gap-1.5' : 'gap-2'}`}>
           <button
             type="button"
             onClick={() => setStageMode('text')}
-            className={`rounded-2xl border px-3 py-2 text-left text-sm font-semibold transition-all ${
+            className={`rounded-2xl border px-2.5 py-2 text-left text-sm font-semibold transition-all ${
               stageMode === 'text'
                 ? 'border-[var(--color-accent)] bg-sky-50 shadow-[0_8px_20px_rgba(3,105,161,0.14)]'
                 : 'border-[var(--color-border)] bg-white/80 hover:bg-white'
@@ -154,7 +156,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
           <button
             type="button"
             onClick={() => setStageMode('packs')}
-            className={`rounded-2xl border px-3 py-2 text-left text-sm font-semibold transition-all ${
+            className={`rounded-2xl border px-2.5 py-2 text-left text-sm font-semibold transition-all ${
               stageMode === 'packs'
                 ? 'border-[var(--color-accent)] bg-sky-50 shadow-[0_8px_20px_rgba(3,105,161,0.14)]'
                 : 'border-[var(--color-border)] bg-white/80 hover:bg-white'
@@ -165,7 +167,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
           <button
             type="button"
             disabled
-            className="cursor-not-allowed rounded-2xl border border-[var(--color-border)] bg-slate-100/70 px-3 py-2 text-left text-sm font-semibold text-slate-500"
+            className="cursor-not-allowed rounded-2xl border border-[var(--color-border)] bg-slate-100/70 px-2.5 py-2 text-left text-sm font-semibold text-slate-500"
           >
             <span className="block">Furniture</span>
             <span className="mt-1 inline-flex rounded-full border border-amber-300/80 bg-amber-100/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-amber-800">
@@ -173,9 +175,11 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
             </span>
           </button>
         </div>
-        <p className="mt-3 text-xs text-[var(--color-text)]/72">
-          Curated furniture staging is coming soon and is intentionally disabled in this beta.
-        </p>
+        {!compactMobile && (
+          <p className="mt-3 text-xs text-[var(--color-text)]/72">
+            Curated furniture staging is coming soon and is intentionally disabled in this beta.
+          </p>
+        )}
       </div>
 
       {stageMode === 'text' && (
@@ -190,13 +194,17 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
             </div>
           </div>
           <p className="mb-3 text-sm text-[var(--color-text)]/80">
-            {hasGenerated ? 'Update your direction, then re-generate for a fresh composition.' : 'Describe the first design you want to generate.'}
+            {hasGenerated
+              ? 'Update your direction, then re-generate for a fresh composition.'
+              : compactMobile
+                ? 'Describe the first design.'
+                : 'Describe the first design you want to generate.'}
           </p>
           <textarea
             value={customPrompt}
             onChange={(e) => setCustomPrompt(e.target.value)}
             placeholder="e.g. warm oak flooring, sculptural lamp, linen drapes"
-            rows={4}
+            rows={compactMobile ? 3 : 4}
             className="w-full rounded-2xl border border-[var(--color-border)] bg-white/85 px-3 py-2.5 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-text)]/45"
           />
         </div>
@@ -213,9 +221,9 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
               <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-text)]/70">Select a curated direction</p>
             </div>
           </div>
-          <p className="mb-4 text-sm text-[var(--color-text)]/80">Choose one pack to generate a complete staging direction.</p>
+          {!compactMobile && <p className="mb-4 text-sm text-[var(--color-text)]/80">Choose one pack to generate a complete staging direction.</p>}
 
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <div className={`grid gap-2 ${compactMobile ? 'grid-cols-2' : 'grid-cols-1 sm:grid-cols-2'}`}>
             {presets.map((preset) => {
               const active = selectedPreset === preset.id;
               return (
@@ -223,7 +231,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
                   key={preset.id}
                   type="button"
                   onClick={() => setSelectedPreset(preset.id)}
-                  className={`rounded-2xl border px-3 py-2 text-left transition-all ${
+                  className={`rounded-2xl border px-2.5 py-2 text-left transition-all ${
                     active
                       ? 'border-[var(--color-accent)] bg-sky-50 shadow-[0_8px_20px_rgba(3,105,161,0.14)]'
                       : 'border-[var(--color-border)] bg-white/80 hover:bg-white'
@@ -238,8 +246,10 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
                       {preset.icon}
                     </span>
                     <span>
-                      <span className="block text-sm font-semibold text-[var(--color-ink)]">{preset.id}</span>
-                      <span className="block text-xs text-[var(--color-text)]/70">{preset.description}</span>
+                      <span className={`block font-semibold text-[var(--color-ink)] ${compactMobile ? 'text-[12px] leading-tight' : 'text-sm'}`}>
+                        {preset.id}
+                      </span>
+                      {!compactMobile && <span className="block text-xs text-[var(--color-text)]/70">{preset.description}</span>}
                     </span>
                   </div>
                 </button>
@@ -249,16 +259,24 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
         </div>
       )}
 
-      <div className="premium-surface-strong rounded-3xl p-5 sticky bottom-2 space-y-3">
+      <div
+        className={
+          compactMobile
+            ? 'sticky bottom-0 z-20 -mx-5 mt-2 border-t border-[var(--color-border)] bg-[linear-gradient(180deg,rgba(247,255,253,0.9),rgba(247,255,253,0.98))] px-5 pb-[max(0.95rem,env(safe-area-inset-bottom))] pt-3 space-y-2'
+            : 'premium-surface-strong rounded-3xl p-5 sticky bottom-2 space-y-3'
+        }
+      >
         <button
           type="button"
           onClick={buildPrompt}
           disabled={isGenerating || !canGenerate}
-          className="cta-primary min-h-[46px] w-full rounded-2xl px-4 py-3.5 text-sm font-semibold tracking-wide disabled:cursor-not-allowed disabled:opacity-50"
+          className={`cta-primary w-full rounded-2xl px-4 py-3.5 text-sm font-semibold tracking-wide disabled:cursor-not-allowed disabled:opacity-50 ${
+            compactMobile ? 'min-h-[52px]' : 'min-h-[46px]'
+          }`}
         >
           {isGenerating ? 'Rendering Design...' : hasGenerated ? 'Re-generate Design' : 'Generate Design'}
         </button>
-        <p className="text-center text-xs text-[var(--color-text)]/72">
+        <p className={`${compactMobile ? 'text-left' : 'text-center'} text-xs text-[var(--color-text)]/72`}>
           {feedbackRequired
             ? 'Feedback checkpoint required. Submit a thumbs rating to continue generating.'
             : 'Re-generate always starts from the original upload to keep results fresh.'}

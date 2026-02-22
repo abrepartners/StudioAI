@@ -184,6 +184,7 @@ a:focus-visible {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  will-change: transform;
 }
 
 .mobile-sheet-toggle {
@@ -211,6 +212,7 @@ a:focus-visible {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
+  overscroll-behavior: contain;
 }
 
 @media (max-width: 1023px) {
@@ -220,17 +222,23 @@ a:focus-visible {
     right: 0;
     bottom: 0;
     z-index: 40;
-    height: min(62vh, calc(100dvh - 76px));
+    height: min(78vh, calc(100dvh - 68px));
     border-top: 1px solid rgba(19, 78, 74, 0.2);
     box-shadow: 0 -20px 36px rgba(10, 46, 44, 0.22);
     border-radius: 1.55rem 1.55rem 0 0;
-    transform: translateY(calc(100% - 42px));
+    transform: translateY(calc(100% - 56px));
     transition: transform 220ms ease;
   }
 
   .mobile-control-sheet.open {
     transform: translateY(0%);
   }
+}
+
+body.compare-lock {
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
 }
 
 @media (min-width: 1024px) {

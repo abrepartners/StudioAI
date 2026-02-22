@@ -81,6 +81,7 @@ const App: React.FC = () => {
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [showKeyPrompt, setShowKeyPrompt] = useState(false);
   const [showProConfirm, setShowProConfirm] = useState(false);
+  const [showAccessPanel, setShowAccessPanel] = useState(false);
   const [showRoomPicker, setShowRoomPicker] = useState(false);
   const [hasProKey, setHasProKey] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(true);
@@ -259,7 +260,7 @@ const App: React.FC = () => {
     if (!originalImage) return;
 
     if (highRes && !proUnlocked) {
-      alert('Pro 2K is locked for this beta access cohort.');
+      alert('High-resolution enhancement is locked for this beta access code.');
       return;
     }
 
@@ -384,12 +385,6 @@ const App: React.FC = () => {
     }
   }, [activePanel]);
 
-  const toolsModeDescription: Record<StageMode, string> = {
-    text: 'Text mode is active. Describe your design direction, then generate.',
-    packs: 'Packs mode is active. Pick a style pack, then generate.',
-    furniture: 'Furniture staging is visible for planning but disabled in this beta.',
-  };
-
   if (isBetaLoading) {
     return (
       <div className="studio-shell min-h-screen grid place-items-center px-4">
@@ -452,9 +447,9 @@ const App: React.FC = () => {
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl cta-secondary text-[var(--color-primary)]">
               <Key size={30} />
             </div>
-            <h2 className="font-display text-3xl font-semibold">Pro Rendering</h2>
+            <h2 className="font-display text-3xl font-semibold">High-Res Rendering</h2>
             <p className="mt-2 text-sm text-[var(--color-text)]/80">
-              Select a Gemini Pro API key from a paid GCP project to enable 2K renders.
+              Select a Gemini API key from a paid GCP project to enable high-resolution enhancement.
             </p>
             <div className="mt-6 space-y-2.5">
               <button
@@ -482,9 +477,9 @@ const App: React.FC = () => {
             <div className="mb-4 flex items-start justify-between">
               <div>
                 <p className="inline-flex items-center gap-2 rounded-full cta-secondary px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-primary)]">
-                  <Zap size={14} /> 2K Render
+                  <Zap size={14} /> High-Res
                 </p>
-                <h3 className="font-display mt-3 text-2xl">Confirm High-Fidelity Pass</h3>
+                <h3 className="font-display mt-3 text-2xl">Confirm Enhancement Pass</h3>
               </div>
               <button
                 type="button"
@@ -502,8 +497,62 @@ const App: React.FC = () => {
               onClick={() => handleGenerate(lastPromptRef.current || 'Finalize with realistic textures.', true)}
               className="cta-primary w-full rounded-2xl py-3.5 text-sm font-semibold"
             >
-              Confirm and Render
+              Confirm and Enhance
             </button>
+          </div>
+        </div>
+      )}
+
+      {showAccessPanel && (
+        <div className="fixed inset-0 z-[100] grid place-items-center bg-black/45 backdrop-blur-sm p-4">
+          <div className="premium-surface-strong w-full max-w-md rounded-[2rem] p-8">
+            <div className="mb-4 flex items-start justify-between">
+              <div>
+                <p className="inline-flex items-center gap-2 rounded-full cta-secondary px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-primary)]">
+                  <Copy size={14} /> Beta Access
+                </p>
+                <h3 className="font-display mt-3 text-2xl">Share Access</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAccessPanel(false)}
+                className="rounded-xl p-2 text-[var(--color-text)]/70 transition hover:bg-slate-100"
+              >
+                <X size={17} />
+              </button>
+            </div>
+
+            <p className="text-sm text-[var(--color-text)]/82">
+              Share your access link or code with trusted testers. This is outside the design workflow so the studio stays focused.
+            </p>
+
+            <div className="mt-4 rounded-xl border border-[var(--color-border)] bg-white/80 px-3 py-2 text-xs text-[var(--color-text)]/80">
+              Access code: <code>{betaAccessCode}</code>
+            </div>
+            <div className="mt-2 rounded-xl border border-[var(--color-border)] bg-white/80 px-3 py-2 text-xs text-[var(--color-text)]/80 break-all">
+              Link: <code>{betaInviteLink}</code>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => copyValue('link')}
+                className="cta-secondary min-h-[44px] rounded-xl px-3 py-2 text-xs font-semibold inline-flex items-center justify-center gap-1.5"
+              >
+                {copiedField === 'link' ? <Check size={13} /> : <Copy size={13} />} Copy Access Link
+              </button>
+              <button
+                type="button"
+                onClick={() => copyValue('code')}
+                className="cta-secondary min-h-[44px] rounded-xl px-3 py-2 text-xs font-semibold inline-flex items-center justify-center gap-1.5"
+              >
+                {copiedField === 'code' ? <Check size={13} /> : <Copy size={13} />} Copy Access Code
+              </button>
+            </div>
+
+            <p className="mt-4 text-xs text-[var(--color-text)]/75">
+              High-res enhancement: <strong>{proUnlocked ? 'Unlocked' : 'Locked'}</strong>
+            </p>
           </div>
         </div>
       )}
@@ -523,46 +572,6 @@ const App: React.FC = () => {
               </p>
             </div>
           </div>
-
-          {originalImage && (
-            <div className="relative hidden md:block">
-              <button
-                type="button"
-                onClick={() => setShowRoomPicker(!showRoomPicker)}
-                className="pill-chip inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold"
-              >
-                {detectedRoom ? (
-                  <>
-                    <BrainCircuit size={14} className="text-[var(--color-primary)]" />
-                    <span>
-                      Room: <span className="text-[var(--color-primary)]">{detectedRoom}</span>
-                    </span>
-                    <ChevronDown size={13} className={`transition-transform ${showRoomPicker ? 'rotate-180' : ''}`} />
-                  </>
-                ) : (
-                  <span className="inline-flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-[var(--color-accent)] animate-pulse" />
-                    Analyzing room
-                  </span>
-                )}
-              </button>
-
-              {showRoomPicker && (
-                <div className="absolute left-0 top-full mt-2 w-52 rounded-2xl premium-surface p-2 z-30">
-                  {roomOptions.map((room) => (
-                    <button
-                      key={room}
-                      type="button"
-                      onClick={() => changeDetectedRoom(room)}
-                      className="w-full rounded-xl px-3 py-2 text-left text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-bg)]"
-                    >
-                      {room}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
 
           {originalImage && (
             <div className="hidden sm:flex items-center gap-1 rounded-full subtle-card p-1">
@@ -590,6 +599,14 @@ const App: React.FC = () => {
 
         {originalImage ? (
           <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              type="button"
+              onClick={() => setShowAccessPanel(true)}
+              className="cta-secondary rounded-xl px-3 py-2 text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5 min-h-[44px]"
+            >
+              <Copy size={14} />
+              <span className="hidden sm:inline">Access</span>
+            </button>
             {generatedImage && (
               <>
                 <button
@@ -618,7 +635,7 @@ const App: React.FC = () => {
                 >
                   {proUnlocked ? <Zap size={14} className={isEnhancing ? 'animate-pulse' : ''} /> : <Lock size={14} />}
                   <span className="hidden sm:inline">
-                    {proUnlocked ? (hasProKey ? 'Pro 2K' : 'Enable Pro') : 'Pro Locked'}
+                    {proUnlocked ? (hasProKey ? 'Enhance' : 'Enable Enhance') : 'Locked'}
                   </span>
                 </button>
               </>
@@ -723,10 +740,50 @@ const App: React.FC = () => {
                     />
                   )}
 
+                  <div className="absolute left-3 top-3 z-20">
+                    <button
+                      type="button"
+                      onClick={() => setShowRoomPicker((prev) => !prev)}
+                      className="pill-chip inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold backdrop-blur-sm"
+                    >
+                      {detectedRoom ? (
+                        <>
+                          <BrainCircuit size={14} className="text-[var(--color-primary)]" />
+                          <span>{selectedRoom}</span>
+                          <ChevronDown size={13} className={`transition-transform ${showRoomPicker ? 'rotate-180' : ''}`} />
+                        </>
+                      ) : (
+                        <span className="inline-flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-[var(--color-accent)] animate-pulse" />
+                          Detecting room...
+                        </span>
+                      )}
+                    </button>
+
+                    {showRoomPicker && (
+                      <div className="mt-2 w-52 rounded-2xl premium-surface p-2">
+                        {roomOptions.map((room) => (
+                          <button
+                            key={room}
+                            type="button"
+                            onClick={() => changeDetectedRoom(room)}
+                            className="w-full rounded-xl px-3 py-2 text-left text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-bg)]"
+                          >
+                            {room}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
                   <div className="absolute right-3 top-3 z-20 rounded-full bg-[var(--color-ink)]/76 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-white backdrop-blur-md">
                     {isGenerating ? 'Rendering...' : 'Studio Live'}
                   </div>
                 </div>
+              </div>
+
+              <div className="w-full">
+                <ColorAnalysis colors={colors} isLoading={isAnalyzing} />
               </div>
             </div>
           </main>
@@ -746,57 +803,18 @@ const App: React.FC = () => {
             <div className="mobile-sheet-scroll scrollbar-hide">
               <div className="px-5 sm:px-6 pt-5 sm:pt-6">
                 <div className="subtle-card rounded-2xl px-4 py-3">
-                  <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--color-text)]/70">Workspace Panel</p>
-                  <h3 className="font-display text-xl mt-1">Design Studio</h3>
-                  <p className="text-sm text-[var(--color-text)]/78 mt-1">{toolsModeDescription[stageMode]}</p>
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--color-text)]/70">Quick Tutorial</p>
+                  <h3 className="font-display text-xl mt-1">How To Use Studio</h3>
+                  <ol className="mt-2 space-y-1 text-sm text-[var(--color-text)]/82 list-decimal pl-4">
+                    <li>Choose a <strong>Mode</strong> first.</li>
+                    <li>Add your direction with text or pick a style pack.</li>
+                    <li>Generate and re-generate until it feels right.</li>
+                    <li>Use thumbs feedback to tell us what to improve.</li>
+                  </ol>
                 </div>
-
-                {!proUnlocked && (
-                  <div className="mt-3 rounded-xl border border-amber-300/60 bg-amber-50/70 px-3 py-2 text-xs text-amber-900">
-                    Pro 2K is locked for this access code.
-                  </div>
-                )}
-                {proUnlocked && !hasProKey && generatedImage && (
-                  <div className="mt-3 rounded-xl border border-amber-300/60 bg-amber-50/70 px-3 py-2 text-xs text-amber-900">
-                    Pro 2K is unlocked. Select an API key to enable high-res rendering.
-                  </div>
-                )}
               </div>
 
               <div className="p-5 sm:p-6 space-y-4 pb-[max(1.2rem,env(safe-area-inset-bottom))]">
-                <div className="premium-surface rounded-3xl p-5">
-                  <div className="mb-3 flex items-center gap-2">
-                    <Copy size={16} className="text-[var(--color-primary)]" />
-                    <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--color-text)]/70">Invite Access</p>
-                  </div>
-                  <p className="text-sm text-[var(--color-text)]/84">
-                    Share direct access with trusted testers using the same code or link.
-                  </p>
-
-                  <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => copyValue('link')}
-                      className="cta-secondary min-h-[44px] rounded-xl px-3 py-2 text-xs font-semibold inline-flex items-center justify-center gap-1.5"
-                    >
-                      {copiedField === 'link' ? <Check size={13} /> : <Copy size={13} />} Copy Access Link
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => copyValue('code')}
-                      className="cta-secondary min-h-[44px] rounded-xl px-3 py-2 text-xs font-semibold inline-flex items-center justify-center gap-1.5"
-                    >
-                      {copiedField === 'code' ? <Check size={13} /> : <Copy size={13} />} Copy Access Code
-                    </button>
-                  </div>
-
-                  <p className="mt-3 text-[11px] text-[var(--color-text)]/70">
-                    Access code: <code>{betaAccessCode}</code>
-                  </p>
-                </div>
-
-                <ColorAnalysis colors={colors} isLoading={isAnalyzing} />
-
                 <RenovationControls
                   activeMode="design"
                   hasGenerated={!!generatedImage}

@@ -60,3 +60,22 @@ Milestones:
 
 - `2` accepted invites => Insider
 - `10` accepted invites => Pro 2K unlock
+
+## Simplified Beta Access (Fast Launch)
+
+For fast invite-only rollout, the frontend can run with manual code approval and shared invite links:
+
+- `VITE_BETA_ACCESS_CODES` - comma-separated access codes allowed into the app
+- `VITE_BETA_PRO_CODES` - optional comma-separated access codes that unlock Pro 2K
+- `VITE_BETA_PRO_UNLOCK` - optional `true` to unlock Pro 2K for all codes
+
+Example:
+
+```bash
+VITE_BETA_ACCESS_CODES=VELVET-EMBER-9Q4K,NORTHSTAR-GLASS-2T7M
+VITE_BETA_PRO_CODES=VELVET-EMBER-9Q4K
+```
+
+Invite link format:
+
+`https://<your-domain>/?invite=<ACCESS_CODE>`

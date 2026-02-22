@@ -36,8 +36,6 @@ import {
   Copy,
   Check,
   Lock,
-  Trophy,
-  Users,
 } from 'lucide-react';
 
 const roomOptions: FurnitureRoomType[] = [
@@ -52,23 +50,24 @@ const roomOptions: FurnitureRoomType[] = [
 
 type StageMode = 'text' | 'packs' | 'furniture';
 
-type BetaUser = {
-  id: string;
-  referralCode: string;
-  acceptedInvites: number;
-  insiderUnlocked: boolean;
-  pro2kUnlocked: boolean;
-  inviteLink: string;
-};
+const BETA_ACCESS_KEY = 'studioai_beta_access_code';
+const DEFAULT_BETA_CODES = ['VELVET-EMBER-9Q4K', 'NORTHSTAR-GLASS-2T7M'];
 
-const BETA_TOKEN_KEY = 'studioai_beta_token';
-const BETA_DEVICE_KEY = 'studioai_beta_device_id';
+const parseCodes = (raw: string | undefined) =>
+  new Set(
+    (raw || '')
+      .split(',')
+      .map((part) => part.trim().toUpperCase())
+      .filter(Boolean)
+  );
 
-const makeDeviceId = () => {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return crypto.randomUUID();
-  }
-  return `device_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+const ENV_BETA_CODES = parseCodes((import.meta as any)?.env?.VITE_BETA_ACCESS_CODES);
+const ENV_PRO_CODES = parseCodes((import.meta as any)?.env?.VITE_BETA_PRO_CODES);
+const PRO_UNLOCK_ALL = String((import.meta as any)?.env?.VITE_BETA_PRO_UNLOCK || '').toLowerCase() === 'true';
+
+const buildInviteLink = (code: string) => {
+  if (!code || typeof window === 'undefined') return '';
+  return `${window.location.origin}/?invite=${encodeURIComponent(code)}`;
 };
 
 const App: React.FC = () => {
@@ -97,20 +96,21 @@ const App: React.FC = () => {
   const [savedStages, setSavedStages] = useState<SavedStage[]>([]);
   const lastPromptRef = useRef<string>('');
 
-  const [betaUser, setBetaUser] = useState<BetaUser | null>(null);
-  const [betaToken, setBetaToken] = useState('');
-  const [betaDeviceId, setBetaDeviceId] = useState('');
+  const [betaAccessCode, setBetaAccessCode] = useState('');
   const [betaInviteCode, setBetaInviteCode] = useState('');
-  const [betaReferralCode, setBetaReferralCode] = useState('');
   const [betaMessage, setBetaMessage] = useState('');
   const [betaError, setBetaError] = useState('');
   const [isBetaLoading, setIsBetaLoading] = useState(true);
   const [isActivatingBeta, setIsActivatingBeta] = useState(false);
   const [copiedField, setCopiedField] = useState<'link' | 'code' | null>(null);
 
-  const acceptedInvites = betaUser?.acceptedInvites || 0;
-  const proUnlocked = Boolean(betaUser?.pro2kUnlocked);
-  const insiderUnlocked = Boolean(betaUser?.insiderUnlocked);
+  const allowedBetaCodes = useMemo(
+    () => (ENV_BETA_CODES.size > 0 ? new Set(ENV_BETA_CODES) : new Set(DEFAULT_BETA_CODES)),
+    []
+  );
+
+  const proUnlocked = Boolean(betaAccessCode && (PRO_UNLOCK_ALL || ENV_PRO_CODES.has(betaAccessCode)));
+  const betaInviteLink = useMemo(() => buildInviteLink(betaAccessCode), [betaAccessCode]);
 
   useEffect(() => {
     const savedS = localStorage.getItem('realestate_ai_stages');
@@ -119,23 +119,23 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const referral = (params.get('ref') || '').trim().toUpperCase();
-    if (referral) {
-      setBetaReferralCode(referral);
-      setBetaMessage('Your friend loves you. Enter your invite code to join the private beta.');
+    const invite = (params.get('invite') || params.get('code') || '').trim().toUpperCase();
+    if (invite) {
+      setBetaInviteCode(invite);
+      setBetaMessage('Invite accepted. Enter this code to access the private beta.');
     }
   }, []);
 
   useEffect(() => {
-    const existing = localStorage.getItem(BETA_DEVICE_KEY);
-    if (existing) {
-      setBetaDeviceId(existing);
-      return;
+    setIsBetaLoading(true);
+    const existing = (localStorage.getItem(BETA_ACCESS_KEY) || '').trim().toUpperCase();
+    if (existing && allowedBetaCodes.has(existing)) {
+      setBetaAccessCode(existing);
+    } else if (existing) {
+      localStorage.removeItem(BETA_ACCESS_KEY);
     }
-    const created = makeDeviceId();
-    localStorage.setItem(BETA_DEVICE_KEY, created);
-    setBetaDeviceId(created);
-  }, []);
+    setIsBetaLoading(false);
+  }, [allowedBetaCodes]);
 
   const refreshProKeyStatus = useCallback(async () => {
     const aiStudio = (window as any)?.aistudio;
@@ -152,44 +152,6 @@ const App: React.FC = () => {
       return false;
     }
   }, []);
-
-  const loadBetaSession = useCallback(
-    async (deviceId: string) => {
-      if (!deviceId) return;
-      setIsBetaLoading(true);
-      try {
-        const token = localStorage.getItem(BETA_TOKEN_KEY) || '';
-        const headers: Record<string, string> = {};
-        if (token) headers.Authorization = `Bearer ${token}`;
-
-        const response = await fetch(`/api/beta-me?deviceId=${encodeURIComponent(deviceId)}`, {
-          method: 'GET',
-          headers,
-        });
-
-        if (!response.ok) {
-          if (token) localStorage.removeItem(BETA_TOKEN_KEY);
-          setBetaToken('');
-          setBetaUser(null);
-          return;
-        }
-
-        const payload = await response.json();
-        setBetaUser(payload.user || null);
-        setBetaToken(token);
-      } catch {
-        setBetaUser(null);
-      } finally {
-        setIsBetaLoading(false);
-      }
-    },
-    []
-  );
-
-  useEffect(() => {
-    if (!betaDeviceId) return;
-    loadBetaSession(betaDeviceId);
-  }, [betaDeviceId, loadBetaSession]);
 
   useEffect(() => {
     if (originalImage) refreshProKeyStatus();
@@ -297,7 +259,7 @@ const App: React.FC = () => {
     if (!originalImage) return;
 
     if (highRes && !proUnlocked) {
-      alert(`Pro 2K unlocks after 10 accepted invites. You are at ${acceptedInvites}/10.`);
+      alert('Pro 2K is locked for this beta access cohort.');
       return;
     }
 
@@ -372,45 +334,22 @@ const App: React.FC = () => {
 
   const activateBeta = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!betaInviteCode.trim() || !betaDeviceId) return;
+    if (!betaInviteCode.trim()) return;
 
     setIsActivatingBeta(true);
     setBetaError('');
     setBetaMessage('');
 
     try {
-      const response = await fetch('/api/beta-activate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          inviteCode: betaInviteCode.trim().toUpperCase(),
-          referralCode: betaReferralCode.trim().toUpperCase() || undefined,
-          deviceId: betaDeviceId,
-        }),
-      });
-
-      const payload = await response.json().catch(() => ({}));
-
-      if (!response.ok || !payload?.ok) {
-        const errorCode = payload?.code || 'UNKNOWN';
-        const label =
-          errorCode === 'INVALID_CODE'
-            ? 'That invite code is not valid.'
-            : errorCode === 'ALREADY_ACTIVATED_DEVICE'
-              ? 'This device is already activated.'
-              : errorCode === 'RATE_LIMITED'
-                ? 'Too many attempts. Please wait and retry.'
-                : payload?.error || 'Could not activate beta access.';
-        setBetaError(label);
+      const entered = betaInviteCode.trim().toUpperCase();
+      if (!allowedBetaCodes.has(entered)) {
+        setBetaError('That invite code is not valid.');
         return;
       }
 
-      setBetaUser(payload.user || null);
-      setBetaToken(payload.token || '');
-      localStorage.setItem(BETA_TOKEN_KEY, payload.token || '');
-      setBetaMessage(payload.message || 'Welcome to the private beta.');
+      setBetaAccessCode(entered);
+      localStorage.setItem(BETA_ACCESS_KEY, entered);
+      setBetaMessage('Welcome to the private StudioAI beta.');
     } catch {
       setBetaError('Activation failed. Check your connection and retry.');
     } finally {
@@ -419,8 +358,8 @@ const App: React.FC = () => {
   };
 
   const copyValue = async (type: 'link' | 'code') => {
-    if (!betaUser) return;
-    const value = type === 'link' ? betaUser.inviteLink : betaUser.referralCode;
+    if (!betaAccessCode) return;
+    const value = type === 'link' ? betaInviteLink : betaAccessCode;
 
     try {
       await navigator.clipboard.writeText(value);
@@ -455,25 +394,19 @@ const App: React.FC = () => {
     furniture: 'Furniture staging is visible for planning but disabled in this beta.',
   };
 
-  const inviteProgress = useMemo(() => {
-    const insiderPct = Math.min(100, Math.round((acceptedInvites / 2) * 100));
-    const proPct = Math.min(100, Math.round((acceptedInvites / 10) * 100));
-    return { insiderPct, proPct };
-  }, [acceptedInvites]);
-
   if (isBetaLoading) {
     return (
       <div className="studio-shell min-h-screen grid place-items-center px-4">
         <div className="premium-surface-strong rounded-[2rem] p-10 text-center max-w-md w-full">
           <p className="text-xs uppercase tracking-[0.18em] text-[var(--color-text)]/70">StudioAI Beta</p>
           <h2 className="font-display text-3xl mt-2">Checking Access</h2>
-          <p className="mt-3 text-sm text-[var(--color-text)]/80">Validating your beta invitation and referral progress...</p>
+          <p className="mt-3 text-sm text-[var(--color-text)]/80">Checking your beta access code...</p>
         </div>
       </div>
     );
   }
 
-  if (!betaUser) {
+  if (!betaAccessCode) {
     return (
       <div className="studio-shell min-h-screen grid place-items-center px-4 py-8">
         <div className="premium-surface-strong rounded-[2rem] p-8 sm:p-10 max-w-lg w-full">
@@ -495,17 +428,6 @@ const App: React.FC = () => {
                 className="mt-1 w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2.5 text-sm text-[var(--color-ink)]"
               />
             </div>
-            <div>
-              <label className="text-xs uppercase tracking-[0.12em] font-semibold text-[var(--color-text)]/72">
-                Referral code (optional)
-              </label>
-              <input
-                value={betaReferralCode}
-                onChange={(e) => setBetaReferralCode(e.target.value.toUpperCase())}
-                placeholder="Friend referral code"
-                className="mt-1 w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2.5 text-sm text-[var(--color-ink)]"
-              />
-            </div>
             <button
               type="submit"
               disabled={isActivatingBeta || !betaInviteCode.trim()}
@@ -519,7 +441,7 @@ const App: React.FC = () => {
           {betaError && <p className="mt-4 rounded-xl bg-rose-50 border border-rose-200 px-3 py-2 text-sm text-rose-900">{betaError}</p>}
 
           <p className="mt-5 text-xs text-[var(--color-text)]/70">
-            New invitees get their own referral code after activation. 2 accepted invites unlock Insider status. 10 unlock Pro 2K.
+            You can share your access link or code with trusted beta testers.
           </p>
         </div>
       </div>
@@ -700,7 +622,7 @@ const App: React.FC = () => {
                 >
                   {proUnlocked ? <Zap size={14} className={isEnhancing ? 'animate-pulse' : ''} /> : <Lock size={14} />}
                   <span className="hidden sm:inline">
-                    {proUnlocked ? (hasProKey ? 'Pro 2K' : 'Enable Pro') : `Unlock Pro (${acceptedInvites}/10)`}
+                    {proUnlocked ? (hasProKey ? 'Pro 2K' : 'Enable Pro') : 'Pro Locked'}
                   </span>
                 </button>
               </>
@@ -835,7 +757,7 @@ const App: React.FC = () => {
 
                 {!proUnlocked && (
                   <div className="mt-3 rounded-xl border border-amber-300/60 bg-amber-50/70 px-3 py-2 text-xs text-amber-900">
-                    Pro 2K is locked. Invite progress: <strong>{acceptedInvites}/10 accepted</strong>.
+                    Pro 2K is locked for this access code.
                   </div>
                 )}
                 {proUnlocked && !hasProKey && generatedImage && (
@@ -848,29 +770,12 @@ const App: React.FC = () => {
               <div className="p-5 sm:p-6 space-y-4 pb-[max(1.2rem,env(safe-area-inset-bottom))]">
                 <div className="premium-surface rounded-3xl p-5">
                   <div className="mb-3 flex items-center gap-2">
-                    <Trophy size={16} className="text-[var(--color-primary)]" />
-                    <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--color-text)]/70">Mission Board</p>
+                    <Copy size={16} className="text-[var(--color-primary)]" />
+                    <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--color-text)]/70">Invite Access</p>
                   </div>
                   <p className="text-sm text-[var(--color-text)]/84">
-                    Invite people you trust. Each accepted invite shapes what we ship next.
+                    Share direct access with trusted testers using the same code or link.
                   </p>
-
-                  <div className="mt-4 space-y-3">
-                    <div>
-                      <div className="flex items-center justify-between text-xs text-[var(--color-text)]/80">
-                        <span className="inline-flex items-center gap-1.5"><Users size={13} /> Insider</span>
-                        <span>{acceptedInvites}/2</span>
-                      </div>
-                      <div className="mission-meter mt-1"><span style={{ width: `${inviteProgress.insiderPct}%` }} /></div>
-                    </div>
-                    <div>
-                      <div className="flex items-center justify-between text-xs text-[var(--color-text)]/80">
-                        <span className="inline-flex items-center gap-1.5"><Lock size={13} /> Pro 2K</span>
-                        <span>{acceptedInvites}/10</span>
-                      </div>
-                      <div className="mission-meter mt-1"><span style={{ width: `${inviteProgress.proPct}%` }} /></div>
-                    </div>
-                  </div>
 
                   <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <button
@@ -878,19 +783,19 @@ const App: React.FC = () => {
                       onClick={() => copyValue('link')}
                       className="cta-secondary min-h-[44px] rounded-xl px-3 py-2 text-xs font-semibold inline-flex items-center justify-center gap-1.5"
                     >
-                      {copiedField === 'link' ? <Check size={13} /> : <Copy size={13} />} Copy Invite Link
+                      {copiedField === 'link' ? <Check size={13} /> : <Copy size={13} />} Copy Access Link
                     </button>
                     <button
                       type="button"
                       onClick={() => copyValue('code')}
                       className="cta-secondary min-h-[44px] rounded-xl px-3 py-2 text-xs font-semibold inline-flex items-center justify-center gap-1.5"
                     >
-                      {copiedField === 'code' ? <Check size={13} /> : <Copy size={13} />} Copy Referral Code
+                      {copiedField === 'code' ? <Check size={13} /> : <Copy size={13} />} Copy Access Code
                     </button>
                   </div>
 
                   <p className="mt-3 text-[11px] text-[var(--color-text)]/70">
-                    Referral code: <code>{betaUser.referralCode}</code> {insiderUnlocked ? '• Insider unlocked' : ''}
+                    Access code: <code>{betaAccessCode}</code>
                   </p>
                 </div>
 
@@ -911,11 +816,11 @@ const App: React.FC = () => {
                   hasGenerated={!!generatedImage}
                   stagedFurnitureCount={0}
                   stageMode={stageMode}
-                  betaUserId={betaUser.id}
-                  referralCode={betaUser.referralCode}
-                  acceptedInvites={betaUser.acceptedInvites}
-                  insiderUnlocked={betaUser.insiderUnlocked}
-                  pro2kUnlocked={betaUser.pro2kUnlocked}
+                  betaUserId={betaAccessCode ? `access-${betaAccessCode}` : ''}
+                  referralCode={betaAccessCode}
+                  acceptedInvites={0}
+                  insiderUnlocked={false}
+                  pro2kUnlocked={proUnlocked}
                 />
               </div>
             </div>

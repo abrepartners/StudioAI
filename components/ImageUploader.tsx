@@ -11,9 +11,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload, isAnalyzin
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
-      processFile(file);
-    }
+    if (file) processFile(file);
   };
 
   const processFile = (file: File) => {
@@ -29,49 +27,57 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload, isAnalyzin
     event.preventDefault();
     if (isAnalyzing) return;
     const file = event.dataTransfer.files?.[0];
-    if (file && file.type.startsWith('image/')) {
-      processFile(file);
-    }
+    if (file && file.type.startsWith('image/')) processFile(file);
   };
 
   const triggerFileUpload = () => {
     if (isAnalyzing) return;
     fileInputRef.current?.click();
-  }
+  };
 
   return (
     <div
-      className={`bg-slate-50 rounded-3xl p-8 flex flex-col items-center justify-center text-center transition-all duration-300 ${isAnalyzing ? 'opacity-60 cursor-not-allowed' : 'hover:bg-slate-100'}`}
+      className={`premium-surface grain-overlay rounded-[1.9rem] p-8 sm:p-10 text-center transition-all duration-300 ${
+        isAnalyzing ? 'opacity-75 cursor-not-allowed' : 'hover:-translate-y-0.5 hover:shadow-[0_22px_52px_rgba(10,46,44,0.17)]'
+      }`}
       onDragOver={(e) => e.preventDefault()}
       onDrop={handleDrop}
     >
       {isAnalyzing ? (
-        <div className="flex flex-col items-center justify-center">
-          <LoaderCircle size={40} className="text-indigo-600 animate-spin mb-4" />
-          <h3 className="text-lg font-semibold text-slate-800">Analyzing Image...</h3>
-          <p className="text-slate-500 mt-1 text-sm">Extracting colors and room type.</p>
+        <div className="flex flex-col items-center gap-4 py-3">
+          <LoaderCircle size={44} className="text-[var(--color-accent)] animate-spin" />
+          <div>
+            <h3 className="font-display text-2xl font-semibold text-[var(--color-ink)]">Analyzing Space</h3>
+            <p className="mt-1 text-sm text-[var(--color-text)]/80">Extracting room type and dominant palette.</p>
+          </div>
         </div>
       ) : (
         <>
-          <div className="bg-white border-4 border-slate-100 p-4 rounded-full mb-4 text-slate-500">
-            <ImageIcon size={32} />
+          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl subtle-card text-[var(--color-primary)]">
+            <ImageIcon size={28} />
           </div>
-          <h3 className="text-lg font-semibold text-slate-800">Upload a Photo</h3>
-          <p className="text-slate-500 mt-1 text-sm max-w-xs">Drag & drop your image here, or use one of the options below.</p>
-          <div className="flex items-center gap-4 mt-6">
-            <button 
+          <h3 className="font-display text-3xl font-semibold leading-tight text-[var(--color-ink)]">Drop Room Photo</h3>
+          <p className="mx-auto mt-2 max-w-sm text-[15px] text-[var(--color-text)]/80">
+            Upload a listing photo to generate staging, renovation, and cleanup concepts in one workspace.
+          </p>
+          <div className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <button
+              type="button"
               onClick={triggerFileUpload}
-              className="flex-1 bg-slate-900 text-white font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all"
+              className="cta-primary rounded-2xl px-5 py-3.5 text-sm font-semibold tracking-wide transition-all"
             >
-              <Upload size={16} />
-              Upload
+              <span className="inline-flex items-center gap-2">
+                <Upload size={15} /> Upload Image
+              </span>
             </button>
-            <button 
-              onClick={triggerFileUpload} 
-              className="flex-1 bg-white text-slate-800 font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-200 transition-all border border-slate-200"
+            <button
+              type="button"
+              onClick={triggerFileUpload}
+              className="cta-secondary rounded-2xl px-5 py-3.5 text-sm font-semibold tracking-wide transition-all"
             >
-              <Camera size={16} />
-              Use Camera
+              <span className="inline-flex items-center gap-2">
+                <Camera size={15} /> Use Camera
+              </span>
             </button>
           </div>
         </>

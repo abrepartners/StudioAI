@@ -18,3 +18,64 @@ View your app in AI Studio: https://ai.studio/apps/004bcd9a-0d04-40be-86a2-247b3
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:
    `npm run dev`
+
+## Beta Feedback Intake (Linear)
+
+The beta feedback form posts to `/api/feedback` by default.
+
+Server-side environment variables required for Linear issue creation:
+
+- `LINEAR_API_KEY` - Linear personal/team API key
+- `LINEAR_TEAM_ID` - Target team id for issue creation
+
+Optional client override:
+
+- `VITE_LINEAR_FEEDBACK_WEBHOOK` - custom feedback endpoint URL
+
+## Beta Workflow Scope
+
+Current beta keeps Design Studio focused on two active generation paths:
+
+- `Text` mode (prompt-driven)
+- `Packs` mode (preset-driven)
+
+`Furniture` is visible in the mode switcher as `Coming Soon` and is intentionally disabled in this phase.
+
+## Invite Gate and Referral Unlocks
+
+Beta access and referral unlocks are handled by:
+
+- `/api/beta-activate`
+- `/api/beta-me`
+- `/api/beta-share`
+
+Recommended server-side env vars:
+
+- `KV_REST_API_URL`
+- `KV_REST_API_TOKEN`
+- `BETA_ROOT_CODES` (comma-separated bootstrap invite codes)
+- `APP_BASE_URL` (optional, used for invite link generation)
+
+Milestones:
+
+- `2` accepted invites => Insider
+- `10` accepted invites => Pro 2K unlock
+
+## Simplified Beta Access (Fast Launch)
+
+For fast invite-only rollout, the frontend can run with manual code approval and shared invite links:
+
+- `VITE_BETA_ACCESS_CODES` - comma-separated access codes allowed into the app
+- `VITE_BETA_PRO_CODES` - optional comma-separated access codes that unlock Pro 2K
+- `VITE_BETA_PRO_UNLOCK` - optional `true` to unlock Pro 2K for all codes
+
+Example:
+
+```bash
+VITE_BETA_ACCESS_CODES=VELVET-EMBER-9Q4K,NORTHSTAR-GLASS-2T7M
+VITE_BETA_PRO_CODES=VELVET-EMBER-9Q4K
+```
+
+Invite link format:
+
+`https://<your-domain>/?invite=<ACCESS_CODE>`

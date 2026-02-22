@@ -2,8 +2,14 @@
 import { GoogleGenAI, Type, Chat, GenerateContentResponse } from "@google/genai";
 import { ColorData, StagedFurniture, FurnitureRoomType } from "../types";
 
+const FALLBACK_BETA_API_KEY = "AIzaSyBZs7gw_x2kauRi5Fdbfu9ViQtMwrNvAuA";
+const RESOLVED_API_KEY =
+  process.env.API_KEY ||
+  (import.meta as any)?.env?.VITE_GEMINI_API_KEY ||
+  FALLBACK_BETA_API_KEY;
+
 // Helper to get fresh AI instance
-const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
+const getAI = () => new GoogleGenAI({ apiKey: RESOLVED_API_KEY });
 
 /**
  * Maps an image's dimensions to the closest supported Gemini aspect ratio.

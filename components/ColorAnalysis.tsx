@@ -1,7 +1,6 @@
-
 import React from 'react';
-import { ColorData } from '../types';
 import { Palette } from 'lucide-react';
+import { ColorData } from '../types';
 
 interface ColorAnalysisProps {
   colors: ColorData[];
@@ -9,19 +8,18 @@ interface ColorAnalysisProps {
 }
 
 const ColorAnalysis: React.FC<ColorAnalysisProps> = ({ colors, isLoading }) => {
-    if (isLoading) {
+  if (isLoading) {
     return (
-      <div className="p-4 bg-white rounded-2xl border border-slate-100 shadow-sm w-full max-w-xs animate-pulse">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="bg-slate-200 rounded-lg w-8 h-8"></div>
-          <div className="flex-1 space-y-1.5">
-            <div className="h-3 bg-slate-200 rounded w-3/4"></div>
-          </div>
+      <div className="premium-surface rounded-3xl p-5 w-full max-w-sm animate-pulse">
+        <div className="mb-4 flex items-center gap-3">
+          <div className="h-9 w-9 rounded-xl bg-[var(--color-bg-deep)]" />
+          <div className="h-3.5 w-40 rounded-full bg-[var(--color-bg-deep)]" />
         </div>
-        <div className="h-2 bg-slate-200 rounded-full mb-3"></div>
-        <div className="space-y-1.5">
-          <div className="h-2 bg-slate-200 rounded w-full"></div>
-          <div className="h-2 bg-slate-200 rounded w-5/6"></div>
+        <div className="mb-3 h-2 w-full rounded-full bg-[var(--color-bg-deep)]" />
+        <div className="space-y-2">
+          <div className="h-3 w-full rounded-full bg-[var(--color-bg-deep)]" />
+          <div className="h-3 w-4/5 rounded-full bg-[var(--color-bg-deep)]" />
+          <div className="h-3 w-2/3 rounded-full bg-[var(--color-bg-deep)]" />
         </div>
       </div>
     );
@@ -30,35 +28,31 @@ const ColorAnalysis: React.FC<ColorAnalysisProps> = ({ colors, isLoading }) => {
   if (colors.length === 0) return null;
 
   return (
-    <div className="p-4 bg-white rounded-2xl border border-slate-100 shadow-sm w-full max-w-xs animate-in fade-in duration-500">
-      <div className="flex items-center gap-3 mb-3">
-        <div className="bg-slate-100 p-1.5 rounded-lg text-slate-600">
+    <div className="premium-surface rounded-3xl p-5 w-full max-w-sm">
+      <div className="mb-4 flex items-center gap-3">
+        <div className="subtle-card rounded-xl p-2 text-[var(--color-primary)]">
           <Palette size={16} />
         </div>
         <div>
-          <h3 className="font-bold text-sm text-slate-900">Color Palette</h3>
+          <h3 className="font-display text-lg font-semibold">Detected Palette</h3>
+          <p className="text-xs tracking-[0.14em] uppercase text-[var(--color-text)]/70">Material color mix</p>
         </div>
       </div>
-      
-      <div className="flex w-full h-2 rounded-full overflow-hidden mb-3">
+
+      <div className="mb-4 flex h-2.5 w-full overflow-hidden rounded-full bg-[var(--color-bg-deep)]">
         {colors.map((color, idx) => (
-          <div
-            key={idx}
-            className="h-full"
-            style={{ width: `${color.value}%`, backgroundColor: color.fill }}
-            title={`${color.name}: ${color.value}%`}
-          />
+          <div key={idx} className="h-full" style={{ width: `${color.value}%`, backgroundColor: color.fill }} />
         ))}
       </div>
 
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         {colors.slice(0, 4).map((color, idx) => (
-          <div key={idx} className="flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full border border-slate-200" style={{ backgroundColor: color.fill }} />
-              <span className="font-medium text-slate-700">{color.name}</span>
+          <div key={idx} className="flex items-center justify-between rounded-xl subtle-card px-3 py-2 text-sm">
+            <div className="flex items-center gap-2.5">
+              <div className="h-3.5 w-3.5 rounded-full border border-black/5" style={{ backgroundColor: color.fill }} />
+              <span className="font-medium text-[var(--color-ink)]">{color.name}</span>
             </div>
-            <span className="font-mono text-slate-500">{color.value}%</span>
+            <span className="font-semibold text-[var(--color-text)]/80">{color.value}%</span>
           </div>
         ))}
       </div>

@@ -445,7 +445,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="studio-shell h-screen overflow-hidden flex flex-col">
+    <div className="studio-shell min-h-[100dvh] lg:h-screen overflow-x-hidden lg:overflow-hidden flex flex-col">
       {showKeyPrompt && (
         <div className="fixed inset-0 z-[100] grid place-items-center bg-black/52 backdrop-blur-sm p-4">
           <div className="premium-surface-strong w-full max-w-md rounded-[2rem] p-8 sm:p-10 text-center">
@@ -676,7 +676,7 @@ const App: React.FC = () => {
           </section>
         </main>
       ) : (
-        <div className="flex-1 flex lg:flex-row overflow-hidden relative">
+        <div className="flex-1 min-h-0 flex lg:flex-row overflow-hidden relative">
           <nav className="hidden lg:flex shrink-0 w-[172px] premium-surface border-r panel-divider flex-col items-center justify-start gap-2 py-5 order-1">
             <div className="px-3 pb-2">
               <p className="text-[10px] uppercase tracking-[0.16em] text-[var(--color-text)]/65">Beta Scope</p>
@@ -709,7 +709,7 @@ const App: React.FC = () => {
             })}
           </nav>
 
-          <main className="order-1 lg:order-2 flex-1 overflow-auto editor-canvas-bg p-4 sm:p-6 lg:p-8 pb-[58vh] lg:pb-8">
+          <main className="order-1 lg:order-2 flex-1 min-h-0 overflow-y-auto editor-canvas-bg p-4 sm:p-6 lg:p-8 pb-[58vh] lg:pb-8">
             <div className="mx-auto w-full max-w-6xl space-y-4">
               <div className="premium-surface-strong rounded-[2rem] p-2 sm:p-3">
                 <div className="relative overflow-hidden rounded-[1.5rem] border panel-divider bg-[var(--color-bg-deep)] aspect-[4/3] sm:aspect-video">

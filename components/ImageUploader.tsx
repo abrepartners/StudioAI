@@ -8,10 +8,13 @@ interface ImageUploaderProps {
 
 const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload, isAnalyzing }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) processFile(file);
+    // Allow selecting the same file again after upload.
+    event.target.value = '';
   };
 
   const processFile = (file: File) => {
@@ -33,6 +36,11 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload, isAnalyzin
   const triggerFileUpload = () => {
     if (isAnalyzing) return;
     fileInputRef.current?.click();
+  };
+
+  const triggerCameraUpload = () => {
+    if (isAnalyzing) return;
+    cameraInputRef.current?.click();
   };
 
   return (
@@ -72,7 +80,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload, isAnalyzin
             </button>
             <button
               type="button"
-              onClick={triggerFileUpload}
+              onClick={triggerCameraUpload}
               className="cta-secondary rounded-2xl px-5 py-3.5 text-sm font-semibold tracking-wide transition-all"
             >
               <span className="inline-flex items-center gap-2">
@@ -85,6 +93,13 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload, isAnalyzin
       <input
         type="file"
         ref={fileInputRef}
+        onChange={handleFileChange}
+        accept="image/*"
+        className="hidden"
+      />
+      <input
+        type="file"
+        ref={cameraInputRef}
         onChange={handleFileChange}
         accept="image/*"
         className="hidden"

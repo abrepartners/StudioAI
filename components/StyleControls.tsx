@@ -26,6 +26,7 @@ interface RenovationControlsProps {
   isGenerating: boolean;
   hasMask: boolean;
   selectedRoom: FurnitureRoomType;
+  feedbackRequired?: boolean;
 }
 
 const RenovationControls: React.FC<RenovationControlsProps> = ({
@@ -36,6 +37,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
   isGenerating,
   hasMask,
   selectedRoom,
+  feedbackRequired = false,
 }) => {
   const [selectedPreset, setSelectedPreset] = useState<StylePreset | null>(null);
   const [customPrompt, setCustomPrompt] = useState('');
@@ -64,7 +66,8 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
 
   const trimmedPrompt = customPrompt.trim();
   const canGenerate =
-    stageMode === 'text' ? trimmedPrompt.length > 0 : stageMode === 'packs' ? Boolean(selectedPreset) : false;
+    !feedbackRequired &&
+    (stageMode === 'text' ? trimmedPrompt.length > 0 : stageMode === 'packs' ? Boolean(selectedPreset) : false);
 
   const buildPrompt = () => {
     if (stageMode === 'furniture') return;
@@ -256,7 +259,9 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
           {isGenerating ? 'Rendering Design...' : hasGenerated ? 'Re-generate Design' : 'Generate Design'}
         </button>
         <p className="text-center text-xs text-[var(--color-text)]/72">
-          Re-generate always starts from the original upload to keep results fresh.
+          {feedbackRequired
+            ? 'Feedback checkpoint required. Submit a thumbs rating to continue generating.'
+            : 'Re-generate always starts from the original upload to keep results fresh.'}
         </p>
       </div>
     </div>

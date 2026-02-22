@@ -64,6 +64,7 @@ const parseCodes = (raw: string | undefined) =>
 const ENV_BETA_CODES = parseCodes((import.meta as any)?.env?.VITE_BETA_ACCESS_CODES);
 const ENV_PRO_CODES = parseCodes((import.meta as any)?.env?.VITE_BETA_PRO_CODES);
 const PRO_UNLOCK_ALL = String((import.meta as any)?.env?.VITE_BETA_PRO_UNLOCK || '').toLowerCase() === 'true';
+const FEEDBACK_REQUIRED_INTERVAL = 3;
 
 const buildInviteLink = (code: string) => {
   if (!code || typeof window === 'undefined') return '';
@@ -85,6 +86,8 @@ const App: React.FC = () => {
   const [showRoomPicker, setShowRoomPicker] = useState(false);
   const [hasProKey, setHasProKey] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(true);
+  const [showFeedbackCheckpoint, setShowFeedbackCheckpoint] = useState(false);
+  const [generationsSinceFeedback, setGenerationsSinceFeedback] = useState(0);
 
   const [colors, setColors] = useState<ColorData[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -158,6 +161,12 @@ const App: React.FC = () => {
     if (originalImage) refreshProKeyStatus();
   }, [originalImage, refreshProKeyStatus]);
 
+  useEffect(() => {
+    if (generationsSinceFeedback >= FEEDBACK_REQUIRED_INTERVAL) {
+      setShowFeedbackCheckpoint(true);
+    }
+  }, [generationsSinceFeedback]);
+
   const pushToHistory = useCallback(
     (newState?: Partial<HistoryState>) => {
       const currentState: HistoryState = {
@@ -223,6 +232,8 @@ const App: React.FC = () => {
     setHistoryIndex(-1);
     setIsAnalyzing(true);
     setStageMode('text');
+    setShowFeedbackCheckpoint(false);
+    setGenerationsSinceFeedback(0);
 
     try {
       const [colorData, roomType] = await Promise.all([analyzeRoomColors(base64), detectRoomType(base64)]);
@@ -258,6 +269,10 @@ const App: React.FC = () => {
 
   const handleGenerate = async (prompt: string, highRes = false) => {
     if (!originalImage) return;
+    if (showFeedbackCheckpoint) {
+      alert('Please complete the quick feedback checkpoint to continue generating.');
+      return;
+    }
 
     if (highRes && !proUnlocked) {
       alert('High-resolution enhancement is locked for this beta access code.');
@@ -298,6 +313,9 @@ const App: React.FC = () => {
         return [...newHistory, generatedState];
       });
       setHistoryIndex((prev) => prev + 1);
+      if (!highRes) {
+        setGenerationsSinceFeedback((prev) => prev + 1);
+      }
     } catch (error: any) {
       if (error.message === 'API_KEY_REQUIRED' || error.message?.includes('Requested entity was not found')) {
         setShowKeyPrompt(true);
@@ -646,6 +664,8 @@ const App: React.FC = () => {
                 setOriginalImage(null);
                 setGeneratedImage(null);
                 setStageMode('text');
+                setShowFeedbackCheckpoint(false);
+                setGenerationsSinceFeedback(0);
               }}
               className="cta-secondary rounded-xl p-2 text-[var(--color-text)] min-h-[44px] min-w-[44px]"
               title="Start over"
@@ -823,23 +843,58 @@ const App: React.FC = () => {
                   isGenerating={isGenerating}
                   hasMask={false}
                   selectedRoom={selectedRoom}
+                  feedbackRequired={showFeedbackCheckpoint}
                 />
 
-                <BetaFeedbackForm
-                  selectedRoom={selectedRoom}
-                  hasGenerated={!!generatedImage}
-                  stagedFurnitureCount={0}
-                  stageMode={stageMode}
-                  generatedImage={generatedImage}
-                  betaUserId={betaAccessCode ? `access-${betaAccessCode}` : ''}
-                  referralCode={betaAccessCode}
-                  acceptedInvites={0}
-                  insiderUnlocked={false}
-                  pro2kUnlocked={proUnlocked}
-                />
+                <div className="hidden lg:block">
+                  <BetaFeedbackForm
+                    selectedRoom={selectedRoom}
+                    hasGenerated={!!generatedImage}
+                    stagedFurnitureCount={0}
+                    stageMode={stageMode}
+                    generatedImage={generatedImage}
+                    betaUserId={betaAccessCode ? `access-${betaAccessCode}` : ''}
+                    referralCode={betaAccessCode}
+                    acceptedInvites={0}
+                    insiderUnlocked={false}
+                    pro2kUnlocked={proUnlocked}
+                  />
+                </div>
               </div>
             </div>
           </aside>
+        </div>
+      )}
+
+      {showFeedbackCheckpoint && generatedImage && (
+        <div className="fixed inset-0 z-[110] grid place-items-center bg-black/48 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg premium-surface-strong rounded-[2rem] p-5 sm:p-6">
+            <div className="mb-3">
+              <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--color-text)]/70">Required Checkpoint</p>
+              <h3 className="font-display text-2xl">Quick Feedback Needed</h3>
+              <p className="mt-1 text-sm text-[var(--color-text)]/82">
+                We ask for a thumbs rating every {FEEDBACK_REQUIRED_INTERVAL} generations so beta output quality improves fast.
+              </p>
+            </div>
+            <BetaFeedbackForm
+              mode="quick-only"
+              quickRequired
+              onQuickSubmitted={() => {
+                setShowFeedbackCheckpoint(false);
+                setGenerationsSinceFeedback(0);
+              }}
+              selectedRoom={selectedRoom}
+              hasGenerated={!!generatedImage}
+              stagedFurnitureCount={0}
+              stageMode={stageMode}
+              generatedImage={generatedImage}
+              betaUserId={betaAccessCode ? `access-${betaAccessCode}` : ''}
+              referralCode={betaAccessCode}
+              acceptedInvites={0}
+              insiderUnlocked={false}
+              pro2kUnlocked={proUnlocked}
+            />
+          </div>
         </div>
       )}
     </div>

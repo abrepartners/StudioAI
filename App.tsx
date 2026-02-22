@@ -276,14 +276,10 @@ const App: React.FC = () => {
     }
 
     try {
-      let finalPrompt = prompt;
-      if (!highRes && generatedImage) {
-        finalPrompt = `${prompt} Create a distinctly different variation than previous outputs while preserving architectural structure.`;
-      }
       lastPromptRef.current = prompt;
 
       const sourceImage = activePanel === 'cleanup' && generatedImage ? generatedImage : originalImage;
-      const resultImage = await generateRoomDesign(sourceImage, finalPrompt, activePanel === 'cleanup' ? maskImage : null, highRes);
+      const resultImage = await generateRoomDesign(sourceImage, prompt, activePanel === 'cleanup' ? maskImage : null, highRes);
       const newColors = await analyzeRoomColors(resultImage);
 
       setGeneratedImage(resultImage);
@@ -816,6 +812,7 @@ const App: React.FC = () => {
                   hasGenerated={!!generatedImage}
                   stagedFurnitureCount={0}
                   stageMode={stageMode}
+                  generatedImage={generatedImage}
                   betaUserId={betaAccessCode ? `access-${betaAccessCode}` : ''}
                   referralCode={betaAccessCode}
                   acceptedInvites={0}

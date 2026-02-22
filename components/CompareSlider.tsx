@@ -26,21 +26,28 @@ const CompareSlider: React.FC<CompareSliderProps> = ({ originalImage, generatedI
       if (isDragging) handleMove(e.clientX);
     };
     const onTouchMove = (e: TouchEvent) => {
-      if (isDragging) handleMove(e.touches[0].clientX);
+      if (!isDragging) return;
+      // Prevent native vertical scroll / pull-to-refresh while sliding.
+      e.preventDefault();
+      if (!e.touches.length) return;
+      handleMove(e.touches[0].clientX);
     };
+    const touchListenerOptions: AddEventListenerOptions = { passive: false };
 
     if (isDragging) {
       window.addEventListener('mousemove', onMouseMove);
       window.addEventListener('mouseup', onMouseUp);
-      window.addEventListener('touchmove', onTouchMove);
+      window.addEventListener('touchmove', onTouchMove, touchListenerOptions);
       window.addEventListener('touchend', onMouseUp);
+      window.addEventListener('touchcancel', onMouseUp);
     }
 
     return () => {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
-      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchmove', onTouchMove, touchListenerOptions);
       window.removeEventListener('touchend', onMouseUp);
+      window.removeEventListener('touchcancel', onMouseUp);
     };
   }, [isDragging, handleMove]);
 
@@ -48,6 +55,7 @@ const CompareSlider: React.FC<CompareSliderProps> = ({ originalImage, generatedI
     <div
       ref={containerRef}
       className="relative h-full w-full select-none overflow-hidden rounded-[1.25rem] cursor-ew-resize"
+      style={{ touchAction: 'none', overscrollBehavior: 'contain' }}
       onMouseDown={(e) => {
         handleMove(e.clientX);
         onMouseDown();

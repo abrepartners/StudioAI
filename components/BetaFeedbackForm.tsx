@@ -13,6 +13,9 @@ interface BetaFeedbackFormProps {
   insiderUnlocked?: boolean;
   pro2kUnlocked?: boolean;
   generatedImage?: string | null;
+  mode?: 'full' | 'quick-only';
+  quickRequired?: boolean;
+  onQuickSubmitted?: () => void;
 }
 
 type FeedbackCategory = 'Navigation' | 'Design Quality' | 'Prompting' | 'Bug' | 'Other';
@@ -30,6 +33,9 @@ const BetaFeedbackForm: React.FC<BetaFeedbackFormProps> = ({
   insiderUnlocked = false,
   pro2kUnlocked = false,
   generatedImage = null,
+  mode = 'full',
+  quickRequired = false,
+  onQuickSubmitted,
 }) => {
   const [reaction, setReaction] = useState<'up' | 'down' | null>(null);
   const [quickReason, setQuickReason] = useState('');
@@ -224,6 +230,7 @@ const BetaFeedbackForm: React.FC<BetaFeedbackFormProps> = ({
     await submitPayload(payload, true);
     if (reaction === 'down') setQuickReason('');
     setReaction(null);
+    onQuickSubmitted?.();
   };
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -241,6 +248,107 @@ const BetaFeedbackForm: React.FC<BetaFeedbackFormProps> = ({
     setContact('');
   };
 
+  const quickFeedbackBlock = (
+    <div className="mb-4 rounded-2xl border border-[var(--color-border)] bg-white/70 p-3">
+      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-text)]/72">Quick Rating</p>
+      <p className="mt-1 text-xs text-[var(--color-text)]/75">
+        {quickRequired
+          ? 'Please rate this result to continue.'
+          : 'Give this result a quick thumbs up/down.'}
+      </p>
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={() => setReaction('up')}
+          className={`rounded-xl px-3 py-2 text-sm font-semibold inline-flex items-center justify-center gap-2 ${
+            reaction === 'up'
+              ? 'border border-emerald-300 bg-emerald-50 text-emerald-900'
+              : 'border border-[var(--color-border)] bg-white text-[var(--color-ink)]'
+          }`}
+        >
+          <ThumbsUp size={14} /> Thumbs Up
+        </button>
+        <button
+          type="button"
+          onClick={() => setReaction('down')}
+          className={`rounded-xl px-3 py-2 text-sm font-semibold inline-flex items-center justify-center gap-2 ${
+            reaction === 'down'
+              ? 'border border-rose-300 bg-rose-50 text-rose-900'
+              : 'border border-[var(--color-border)] bg-white text-[var(--color-ink)]'
+          }`}
+        >
+          <ThumbsDown size={14} /> Thumbs Down
+        </button>
+      </div>
+
+      {reaction === 'down' && (
+        <div className="mt-3 space-y-2">
+          <label className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-text)]/72">
+            What was wrong?
+          </label>
+          <textarea
+            value={quickReason}
+            onChange={(e) => setQuickReason(e.target.value)}
+            rows={3}
+            placeholder="Tell us what looked wrong so we can improve this output."
+            className="w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 text-sm text-[var(--color-ink)]"
+          />
+          {generatedImage && (
+            <div className="rounded-xl border border-[var(--color-border)] bg-white p-2">
+              <img
+                src={generatedImage}
+                alt="Current generated result preview"
+                className="max-h-36 w-full rounded-lg object-cover"
+              />
+              <p className="mt-1 text-[11px] text-[var(--color-text)]/70">
+                A compressed screenshot preview will be attached to this report.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {reaction && (
+        <button
+          type="button"
+          onClick={onQuickSubmit}
+          disabled={isQuickSubmitting || (reaction === 'down' && !quickReason.trim())}
+          className="cta-primary mt-3 w-full rounded-xl px-3 py-2.5 text-sm font-semibold disabled:opacity-50"
+        >
+          {isQuickSubmitting ? 'Submitting...' : quickRequired ? 'Submit and Continue' : 'Submit Quick Feedback'}
+        </button>
+      )}
+    </div>
+  );
+
+  if (mode === 'quick-only') {
+    return (
+      <div className="premium-surface rounded-3xl p-5">
+        <div className="mb-3">
+          <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--color-text)]/70">Feedback Checkpoint</p>
+          <h3 className="font-display text-xl mt-1">Rate This Result</h3>
+        </div>
+        {quickFeedbackBlock}
+        {status !== 'idle' && (
+          <div
+            className={`mt-3 rounded-xl px-3 py-2 text-xs ${
+              status === 'submitted'
+                ? 'border border-emerald-300/60 bg-emerald-50 text-emerald-900'
+                : status === 'queued'
+                  ? 'border border-amber-300/60 bg-amber-50 text-amber-900'
+                  : 'border border-rose-300/60 bg-rose-50 text-rose-900'
+            }`}
+          >
+            <p className="inline-flex items-center gap-1.5">
+              {status === 'submitted' ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
+              {statusMessage}
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="premium-surface rounded-3xl p-5">
       <div className="mb-3">
@@ -250,73 +358,7 @@ const BetaFeedbackForm: React.FC<BetaFeedbackFormProps> = ({
           This helps prioritize the next iteration. Use this for confusing flows, missing controls, or visual issues.
         </p>
       </div>
-
-      <div className="mb-4 rounded-2xl border border-[var(--color-border)] bg-white/70 p-3">
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-text)]/72">Quick Rating</p>
-        <p className="mt-1 text-xs text-[var(--color-text)]/75">Give this result a quick thumbs up/down.</p>
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => setReaction('up')}
-            className={`rounded-xl px-3 py-2 text-sm font-semibold inline-flex items-center justify-center gap-2 ${
-              reaction === 'up'
-                ? 'border border-emerald-300 bg-emerald-50 text-emerald-900'
-                : 'border border-[var(--color-border)] bg-white text-[var(--color-ink)]'
-            }`}
-          >
-            <ThumbsUp size={14} /> Thumbs Up
-          </button>
-          <button
-            type="button"
-            onClick={() => setReaction('down')}
-            className={`rounded-xl px-3 py-2 text-sm font-semibold inline-flex items-center justify-center gap-2 ${
-              reaction === 'down'
-                ? 'border border-rose-300 bg-rose-50 text-rose-900'
-                : 'border border-[var(--color-border)] bg-white text-[var(--color-ink)]'
-            }`}
-          >
-            <ThumbsDown size={14} /> Thumbs Down
-          </button>
-        </div>
-
-        {reaction === 'down' && (
-          <div className="mt-3 space-y-2">
-            <label className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-text)]/72">
-              What was wrong?
-            </label>
-            <textarea
-              value={quickReason}
-              onChange={(e) => setQuickReason(e.target.value)}
-              rows={3}
-              placeholder="Tell us what looked wrong so we can improve this output."
-              className="w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 text-sm text-[var(--color-ink)]"
-            />
-            {generatedImage && (
-              <div className="rounded-xl border border-[var(--color-border)] bg-white p-2">
-                <img
-                  src={generatedImage}
-                  alt="Current generated result preview"
-                  className="max-h-36 w-full rounded-lg object-cover"
-                />
-                <p className="mt-1 text-[11px] text-[var(--color-text)]/70">
-                  A compressed screenshot preview will be attached to this report.
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {reaction && (
-          <button
-            type="button"
-            onClick={onQuickSubmit}
-            disabled={isQuickSubmitting || (reaction === 'down' && !quickReason.trim())}
-            className="cta-primary mt-3 w-full rounded-xl px-3 py-2.5 text-sm font-semibold disabled:opacity-50"
-          >
-            {isQuickSubmitting ? 'Submitting...' : 'Submit Quick Feedback'}
-          </button>
-        )}
-      </div>
+      {quickFeedbackBlock}
 
       <form onSubmit={onSubmit} className="space-y-3">
         <div>

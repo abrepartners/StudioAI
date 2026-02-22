@@ -14,7 +14,6 @@ import {
   Eraser,
   ShieldCheck,
   FilePenLine,
-  Home,
 } from 'lucide-react';
 
 type StageMode = 'text' | 'packs' | 'furniture';
@@ -27,6 +26,7 @@ interface RenovationControlsProps {
   isGenerating: boolean;
   hasMask: boolean;
   selectedRoom: FurnitureRoomType;
+  feedbackRequired?: boolean;
 }
 
 const RenovationControls: React.FC<RenovationControlsProps> = ({
@@ -37,6 +37,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
   isGenerating,
   hasMask,
   selectedRoom,
+  feedbackRequired = false,
 }) => {
   const [selectedPreset, setSelectedPreset] = useState<StylePreset | null>(null);
   const [customPrompt, setCustomPrompt] = useState('');
@@ -63,15 +64,10 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
     );
   };
 
-  const workflowSummary: Record<StageMode, string> = {
-    text: '1) Set mode to Text, 2) describe your design direction, 3) generate, 4) regenerate to cycle fresh alternatives.',
-    packs: '1) Set mode to Packs, 2) choose a style pack, 3) generate, 4) regenerate to explore a different take.',
-    furniture: 'Furniture staging is a planned workflow and is disabled in this beta.',
-  };
-
   const trimmedPrompt = customPrompt.trim();
   const canGenerate =
-    stageMode === 'text' ? trimmedPrompt.length > 0 : stageMode === 'packs' ? Boolean(selectedPreset) : false;
+    !feedbackRequired &&
+    (stageMode === 'text' ? trimmedPrompt.length > 0 : stageMode === 'packs' ? Boolean(selectedPreset) : false);
 
   const buildPrompt = () => {
     if (stageMode === 'furniture') return;
@@ -138,11 +134,6 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
 
   return (
     <div className="space-y-4">
-      <div className="premium-surface rounded-3xl p-4">
-        <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--color-text)]/70">Workflow</p>
-        <p className="mt-1 text-sm text-[var(--color-text)]/85">{workflowSummary[stageMode]}</p>
-      </div>
-
       <div className="premium-surface rounded-3xl p-5">
         <div className="mb-3">
           <h3 className="font-display text-lg font-semibold">Mode</h3>
@@ -185,19 +176,6 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
         <p className="mt-3 text-xs text-[var(--color-text)]/72">
           Curated furniture staging is coming soon and is intentionally disabled in this beta.
         </p>
-      </div>
-
-      <div className="premium-surface rounded-3xl p-5">
-        <div className="mb-3 flex items-center gap-3">
-          <div className="subtle-card rounded-xl p-2 text-[var(--color-primary)]">
-            <Home size={18} />
-          </div>
-          <div>
-            <h3 className="font-display text-lg font-semibold">Room Profile</h3>
-            <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-text)]/70">Detected context</p>
-          </div>
-        </div>
-        <div className="pill-chip inline-flex items-center rounded-full px-3 py-1.5 text-sm font-semibold">{selectedRoom}</div>
       </div>
 
       {stageMode === 'text' && (
@@ -281,7 +259,9 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
           {isGenerating ? 'Rendering Design...' : hasGenerated ? 'Re-generate Design' : 'Generate Design'}
         </button>
         <p className="text-center text-xs text-[var(--color-text)]/72">
-          Re-generate always starts from the original upload to keep results fresh.
+          {feedbackRequired
+            ? 'Feedback checkpoint required. Submit a thumbs rating to continue generating.'
+            : 'Re-generate always starts from the original upload to keep results fresh.'}
         </p>
       </div>
     </div>

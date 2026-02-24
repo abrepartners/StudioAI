@@ -42,6 +42,7 @@ import {
   Check,
   Lock,
 } from 'lucide-react';
+import { Analytics } from '@vercel/analytics/react';
 
 const roomOptions: FurnitureRoomType[] = [
   'Living Room',
@@ -989,6 +990,7 @@ const App: React.FC = () => {
           </div>
         )
       }
+      <Analytics />
     </div >
   );
 };

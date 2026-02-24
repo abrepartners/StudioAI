@@ -3,19 +3,24 @@ import {
   generateRoomDesign,
   analyzeRoomColors,
   detectRoomType,
+  createChatSession,
+  sendMessageToChat,
 } from './services/geminiService';
 import ImageUploader from './components/ImageUploader';
 import CompareSlider from './components/CompareSlider';
 import RenovationControls from './components/StyleControls';
 import MaskCanvas from './components/MaskCanvas';
 import ColorAnalysis from './components/ColorAnalysis';
+import ChatInterface from './components/ChatInterface';
 import BetaFeedbackForm from './components/BetaFeedbackForm';
+import SpecialModesPanel from './components/SpecialModesPanel';
 import {
   ColorData,
   StagedFurniture,
   FurnitureRoomType,
   SavedStage,
   HistoryState,
+  ChatMessage,
 } from './types';
 import {
   RefreshCcw,
@@ -99,6 +104,11 @@ const App: React.FC = () => {
 
   const [savedStages, setSavedStages] = useState<SavedStage[]>([]);
   const lastPromptRef = useRef<string>('');
+
+  // Chat state
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatSession, setChatSession] = useState<ReturnType<typeof createChatSession> | null>(null);
+  const [isChatLoading, setIsChatLoading] = useState(false);
 
   const [betaAccessCode, setBetaAccessCode] = useState('');
   const [betaInviteCode, setBetaInviteCode] = useState('');
@@ -385,23 +395,57 @@ const App: React.FC = () => {
     }
   };
 
+  const handleChatMessage = async (text: string) => {
+    if (!originalImage) return;
+    setIsChatLoading(true);
+
+    // Optimistically add user message
+    const userMsg: ChatMessage = { id: Date.now().toString(), role: 'user', text, timestamp: Date.now() };
+    setChatMessages((prev) => [...prev, userMsg]);
+
+    try {
+      // Create session lazily on first use
+      const session = chatSession ?? createChatSession();
+      if (!chatSession) setChatSession(session);
+
+      const currentImage = generatedImage || originalImage;
+      const reply = await sendMessageToChat(session, text, currentImage);
+
+      const modelMsg: ChatMessage = { id: (Date.now() + 1).toString(), role: 'model', text: reply, timestamp: Date.now() };
+      setChatMessages((prev) => [...prev, modelMsg]);
+
+      // Detect [EDIT: prompt] pattern and auto-trigger generation
+      const editMatch = reply.match(/\[EDIT:\s*(.+?)\]/i);
+      if (editMatch && editMatch[1]) {
+        await handleGenerate(editMatch[1], false);
+      }
+    } catch (err) {
+      const errorMsg: ChatMessage = {
+        id: (Date.now() + 2).toString(),
+        role: 'model',
+        text: 'Sorry, I encountered an error. Please try again.',
+        timestamp: Date.now(),
+      };
+      setChatMessages((prev) => [...prev, errorMsg]);
+    } finally {
+      setIsChatLoading(false);
+    }
+  };
+
+
+
   const navItems: Array<{
     id: 'tools' | 'cleanup' | 'chat' | 'history';
     label: string;
     icon: React.ReactNode;
     available: boolean;
   }> = [
-    { id: 'tools', label: 'Design Studio', icon: <LayoutGrid size={21} />, available: true },
-    { id: 'cleanup', label: 'Cleanup', icon: <Eraser size={21} />, available: false },
-    { id: 'chat', label: 'Chat', icon: <MessageSquare size={21} />, available: false },
-    { id: 'history', label: 'History', icon: <HistoryIcon size={21} />, available: false },
-  ];
+      { id: 'tools', label: 'Design Studio', icon: <LayoutGrid size={21} />, available: true },
+      { id: 'cleanup', label: 'Cleanup', icon: <Eraser size={21} />, available: true },
+      { id: 'chat', label: 'Chat', icon: <MessageSquare size={21} />, available: true },
+      { id: 'history', label: 'History', icon: <HistoryIcon size={21} />, available: true },
+    ];
 
-  useEffect(() => {
-    if (activePanel !== 'tools') {
-      setActivePanel('tools');
-    }
-  }, [activePanel]);
 
   if (isBetaLoading) {
     return (
@@ -643,13 +687,12 @@ const App: React.FC = () => {
                     else setShowKeyPrompt(true);
                   }}
                   disabled={isEnhancing || !proUnlocked}
-                  className={`rounded-xl px-3 py-2 text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5 min-h-[44px] disabled:opacity-55 ${
-                    proUnlocked
-                      ? hasProKey
-                        ? 'cta-primary'
-                        : 'cta-secondary'
-                      : 'border border-amber-300/70 bg-amber-50 text-amber-900'
-                  }`}
+                  className={`rounded-xl px-3 py-2 text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5 min-h-[44px] disabled:opacity-55 ${proUnlocked
+                    ? hasProKey
+                      ? 'cta-primary'
+                      : 'cta-secondary'
+                    : 'border border-amber-300/70 bg-amber-50 text-amber-900'
+                    }`}
                 >
                   {proUnlocked ? <Zap size={14} className={isEnhancing ? 'animate-pulse' : ''} /> : <Lock size={14} />}
                   <span className="hidden sm:inline">
@@ -728,13 +771,12 @@ const App: React.FC = () => {
                   disabled={!item.available}
                   onClick={() => item.available && setActivePanel(item.id)}
                   title={item.available ? item.label : `${item.label} (Coming Soon)`}
-                  className={`flex h-auto w-[152px] px-3 py-2.5 items-center justify-start gap-2 rounded-2xl border transition-all ${
-                    active && item.available
-                      ? 'cta-primary border-white/15 shadow-[0_12px_24px_rgba(3,105,161,0.3)]'
-                      : item.available
-                        ? 'cta-secondary border-[var(--color-border)] text-[var(--color-text)] hover:bg-white'
-                        : 'border-[var(--color-border)] bg-slate-100/70 text-slate-400 cursor-not-allowed'
-                  }`}
+                  className={`flex h-auto w-[152px] px-3 py-2.5 items-center justify-start gap-2 rounded-2xl border transition-all ${active && item.available
+                    ? 'cta-primary border-white/15 shadow-[0_12px_24px_rgba(3,105,161,0.3)]'
+                    : item.available
+                      ? 'cta-secondary border-[var(--color-border)] text-[var(--color-text)] hover:bg-white'
+                      : 'border-[var(--color-border)] bg-slate-100/70 text-slate-400 cursor-not-allowed'
+                    }`}
                 >
                   {item.icon}
                   <span className="text-[11px] uppercase tracking-[0.14em]">{item.label}</span>
@@ -806,6 +848,47 @@ const App: React.FC = () => {
                 <ColorAnalysis colors={colors} isLoading={isAnalyzing} />
               </div>
             </div>
+
+            {/* Chat Panel */}
+            {activePanel === 'chat' && (
+              <div className="premium-surface-strong rounded-[2rem] overflow-hidden h-[520px]">
+                <ChatInterface
+                  messages={chatMessages}
+                  onSendMessage={handleChatMessage}
+                  isLoading={isChatLoading}
+                />
+              </div>
+            )}
+
+            {/* History Panel */}
+            {activePanel === 'history' && (
+              <div className="premium-surface-strong rounded-[2rem] p-5">
+                <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--color-text)]/70 mb-1">Generation History</p>
+                <h3 className="font-display text-xl mb-4">Your Renders</h3>
+                {history.filter(h => h.generatedImage).length === 0 ? (
+                  <p className="text-sm text-[var(--color-text)]/70 py-8 text-center">No renders yet. Generate a design to build your history.</p>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {history.filter(h => h.generatedImage).map((state, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => { setGeneratedImage(state.generatedImage); setSelectedRoom(state.selectedRoom); setColors(state.colors); }}
+                        className="group relative rounded-2xl overflow-hidden border border-[var(--color-border)] aspect-[4/3] hover:ring-2 hover:ring-[var(--color-accent)] transition-all"
+                      >
+                        <img src={state.generatedImage!} alt={`Render ${i + 1}`} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-end p-2">
+                          <span className="opacity-0 group-hover:opacity-100 text-white text-[10px] font-semibold uppercase tracking-wide bg-black/50 rounded-lg px-2 py-1 transition-all">
+                            Restore #{i + 1}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
           </main>
 
           <aside className={`mobile-control-sheet order-3 lg:order-3 lg:w-[430px] lg:shrink-0 lg:border-l panel-divider ${sheetOpen ? 'open' : ''}`}>
@@ -846,6 +929,13 @@ const App: React.FC = () => {
                   feedbackRequired={showFeedbackCheckpoint}
                 />
 
+                <SpecialModesPanel
+                  originalImage={originalImage}
+                  generatedImage={generatedImage}
+                  selectedRoom={selectedRoom}
+                  onNewImage={(img) => { pushToHistory(); setGeneratedImage(img); }}
+                />
+
                 <div className="hidden lg:block">
                   <BetaFeedbackForm
                     selectedRoom={selectedRoom}
@@ -863,41 +953,43 @@ const App: React.FC = () => {
               </div>
             </div>
           </aside>
-        </div>
+        </div >
       )}
 
-      {showFeedbackCheckpoint && generatedImage && (
-        <div className="fixed inset-0 z-[110] grid place-items-center bg-black/48 backdrop-blur-sm p-4">
-          <div className="w-full max-w-lg premium-surface-strong rounded-[2rem] p-5 sm:p-6">
-            <div className="mb-3">
-              <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--color-text)]/70">Required Checkpoint</p>
-              <h3 className="font-display text-2xl">Quick Feedback Needed</h3>
-              <p className="mt-1 text-sm text-[var(--color-text)]/82">
-                We ask for a thumbs rating every {FEEDBACK_REQUIRED_INTERVAL} generations so beta output quality improves fast.
-              </p>
+      {
+        showFeedbackCheckpoint && generatedImage && (
+          <div className="fixed inset-0 z-[110] grid place-items-center bg-black/48 backdrop-blur-sm p-4">
+            <div className="w-full max-w-lg premium-surface-strong rounded-[2rem] p-5 sm:p-6">
+              <div className="mb-3">
+                <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--color-text)]/70">Required Checkpoint</p>
+                <h3 className="font-display text-2xl">Quick Feedback Needed</h3>
+                <p className="mt-1 text-sm text-[var(--color-text)]/82">
+                  We ask for a thumbs rating every {FEEDBACK_REQUIRED_INTERVAL} generations so beta output quality improves fast.
+                </p>
+              </div>
+              <BetaFeedbackForm
+                mode="quick-only"
+                quickRequired
+                onQuickSubmitted={() => {
+                  setShowFeedbackCheckpoint(false);
+                  setGenerationsSinceFeedback(0);
+                }}
+                selectedRoom={selectedRoom}
+                hasGenerated={!!generatedImage}
+                stagedFurnitureCount={0}
+                stageMode={stageMode}
+                generatedImage={generatedImage}
+                betaUserId={betaAccessCode ? `access-${betaAccessCode}` : ''}
+                referralCode={betaAccessCode}
+                acceptedInvites={0}
+                insiderUnlocked={false}
+                pro2kUnlocked={proUnlocked}
+              />
             </div>
-            <BetaFeedbackForm
-              mode="quick-only"
-              quickRequired
-              onQuickSubmitted={() => {
-                setShowFeedbackCheckpoint(false);
-                setGenerationsSinceFeedback(0);
-              }}
-              selectedRoom={selectedRoom}
-              hasGenerated={!!generatedImage}
-              stagedFurnitureCount={0}
-              stageMode={stageMode}
-              generatedImage={generatedImage}
-              betaUserId={betaAccessCode ? `access-${betaAccessCode}` : ''}
-              referralCode={betaAccessCode}
-              acceptedInvites={0}
-              insiderUnlocked={false}
-              pro2kUnlocked={proUnlocked}
-            />
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 };
 

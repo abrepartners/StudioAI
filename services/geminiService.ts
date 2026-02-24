@@ -73,8 +73,9 @@ export const generateRoomDesign = async (
   imageBase64: string,
   prompt: string,
   maskImageBase64?: string | null,
-  isHighRes: boolean = false
-): Promise<string> => {
+  isHighRes: boolean = false,
+  count = 1
+): Promise<string[]> => {
   try {
     const ai = getAI();
     const modelName = isHighRes ? 'gemini-3-pro-image-preview' : 'gemini-2.5-flash-image';
@@ -94,9 +95,16 @@ export const generateRoomDesign = async (
         Current Assignment: ${prompt}. 
         
         CRITICAL ARCHITECTURAL INTEGRITY RULES:
-        1. **PERMANENT FIXTURES**: Do NOT modify or remove doors, window frames, ceiling lights, fans, vents, or outlets unless they are specifically covered by a RED MASK. If they are not masked, keep them exactly as they are in the original photo.
-        2. **REVEAL THE TRUTH**: If removing an object, reveal the original background (hallways, doorways, open spaces). Do NOT "hallucinate" a new wall over a doorway or hallway.
-        3. **DEPTH & PERSPECTIVE**: Maintain the room's original 3D structure.
+        1. **PERMANENT FIXTURES**: Do NOT modify or remove doors, window frames, ceiling lights, fans, vents, or outlets. Do NOT cover windows with new walls or furniture. If they are not masked, keep them exactly as they appear.
+        2. **WINDOWS ARE SACRED**: NEVER add new windows. NEVER remove existing windows. NEVER change the shape, size, or placement of any window. Altering the structural shell is a critical failure.
+        3. **NO HALLUCINATIONS**: Do NOT add mirrors, artwork, door handles, knobs, or light switches to empty wall space. Only add specific furniture/decor requested in the prompt.
+        4. **REVEAL THE TRUTH**: If removing an object, reveal the original background (hallways, doorways, open spaces). Do NOT "hallucinate" a new wall over a structural opening.
+        5. **DEPTH & PERSPECTIVE**: Use the original photo's vanishing points. Match the lens distortion and angle perfectly.
+
+        VISUAL QUALITY REQUIREMENTS:
+        - **VIBRANCY**: Ensure rich, natural color saturation. Avoid desaturated or "grayish" tones. Enhance the colors to look like professional HDR real estate photography.
+        - **LIGHTING**: Match the direction and temperature of the original ambient light. Add realistic shadows for all new furniture to "anchor" them to the floor.
+        - **TEXTURE**: Use high-resolution realistic materials (leather, wood grain, fabric weave).
 
         ${isGrassTask ? `
         LANDSCAPING REALISM PROTOCOL:
@@ -142,7 +150,12 @@ export const generateRoomDesign = async (
       const detectedRatio = await detectAspectRatioFromBase64(cleanBase64);
       config.imageConfig = {
         imageSize: "2K",
-        aspectRatio: detectedRatio
+        aspectRatio: detectedRatio,
+        numberOfImages: count
+      };
+    } else {
+      config.imageConfig = {
+        numberOfImages: count
       };
     }
 
@@ -152,10 +165,15 @@ export const generateRoomDesign = async (
       config
     });
 
+    const images: string[] = [];
     for (const part of response.candidates?.[0]?.content?.parts || []) {
       if (part.inlineData?.data) {
-        return `data:image/png;base64,${part.inlineData.data}`;
+        images.push(`data:image/png;base64,${part.inlineData.data}`);
       }
+    }
+
+    if (images.length > 0) {
+      return images;
     }
 
     throw new Error("No image generated.");
@@ -249,8 +267,58 @@ export const analyzeRoomColors = async (imageBase64: string): Promise<ColorData[
 
     return response.text ? JSON.parse(response.text) : [];
   } catch (error) {
-    return [];
+    // Fallback: Local Canvas-based analysis if API is missing or fails
+    console.log("Using local color analysis fallback...");
+    return getLocalColorPalette(imageBase64);
   }
+};
+
+/**
+ * Local Fallback: Extracts dominant colors using HTML5 Canvas.
+ * No API key required.
+ */
+const getLocalColorPalette = (imageBase64: string): Promise<ColorData[]> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "Anonymous";
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return resolve([]);
+
+      canvas.width = 100; // Resize for speed
+      canvas.height = 100;
+      ctx.drawImage(img, 0, 0, 100, 100);
+
+      const data = ctx.getImageData(0, 0, 100, 100).data;
+      const colors: Record<string, number> = {};
+
+      // Sample pixels
+      for (let i = 0; i < data.length; i += 40) { // Step large for performance
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const hex = `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+        colors[hex] = (colors[hex] || 0) + 1;
+      }
+
+      const sorted = Object.entries(colors)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5);
+
+      const total = sorted.reduce((acc, curr) => acc + curr[1], 0);
+
+      const results: ColorData[] = sorted.map(([hex, count], idx) => ({
+        name: idx === 0 ? 'Primary' : idx === 1 ? 'Secondary' : `Accent ${idx}`,
+        value: Math.round((count / total) * 100),
+        fill: hex
+      }));
+
+      resolve(results);
+    };
+    img.onerror = () => resolve([]);
+    img.src = imageBase64;
+  });
 };
 
 export const createChatSession = (): Chat => {
@@ -299,27 +367,31 @@ export const virtualTwilight = async (imageBase64: string): Promise<string> => {
   const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
 
   const response = await ai.models.generateContent({
-    model: 'gemini-2.0-flash-preview-image-generation',
-    contents: [{
-      role: 'user',
-      parts: [
-        {
-          text: `Transform this exterior real estate photo into a stunning virtual twilight / golden-hour dusk shot.
+    model: 'gemini-2.5-flash-image',
+    contents: [
+      {
+        parts: [
+          {
+            text: `Transform this exterior real estate photo into a stunning virtual twilight / golden-hour dusk shot.
         REQUIREMENTS:
         - Convert sky to a dramatic sunset gradient (deep navy → orange → gold horizon glow)
         - Illuminate ALL windows with warm interior amber/cream light glowing from inside
         - Add warm exterior accent lighting: porch lights ON, pathway glowing, landscape uplighting
         - Keep all architecture, landscaping, driveway exactly as they appear
-        - Photorealistic professional real estate twilight photo quality` },
-        { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
-      ],
-    }],
-    config: { responseModalities: ['IMAGE', 'TEXT'] },
+        - Photorealistic professional real estate twilight photo quality`
+          },
+          { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
+        ],
+      }
+    ],
   });
 
-  const imagePart = response.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'));
-  if (!imagePart?.inlineData?.data) throw new Error('No twilight image generated');
-  return `data:image/${imagePart.inlineData.mimeType.split('/')[1]};base64,${imagePart.inlineData.data}`;
+  for (const part of response.candidates?.[0]?.content?.parts || []) {
+    if (part.inlineData?.data) {
+      return `data:image/png;base64,${part.inlineData.data}`;
+    }
+  }
+  throw new Error('No twilight image generated');
 };
 
 
@@ -333,27 +405,30 @@ export const replaceSky = async (imageBase64: string, skyStyle: 'blue' | 'dramat
   const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
 
   const skyDescriptions: Record<typeof skyStyle, string> = {
-    blue: 'a vibrant, deep blue sky with a few fluffy white cumulus clouds and brilliant golden sunlight from right of frame',
-    dramatic: 'a dramatic sky with large billowing storm clouds backlit by golden light, rays of sun breaking through — epic and cinematic',
-    golden: 'a warm golden-hour sunset sky with brilliant orange, amber, and purple hues — rich and romantic',
-    stormy: 'a moody stormy sky with dark charcoal clouds and dramatic lighting — powerful but not threatening',
+    blue: 'a vibrant, deep blue sky with a few fluffy white clouds and brilliant golden sunlight',
+    dramatic: 'a dramatic sky with large billowing storm clouds backlit by golden light',
+    golden: 'a warm golden-hour sunset sky with brilliant orange and amber hues',
+    stormy: 'a moody stormy sky with dark charcoal clouds and dramatic lighting',
   };
 
   const response = await ai.models.generateContent({
-    model: 'gemini-2.0-flash-preview-image-generation',
-    contents: [{
-      role: 'user',
-      parts: [
-        { text: `Replace ONLY the sky in this exterior real estate photo with ${skyDescriptions[skyStyle]}. PRESERVE EVERYTHING else — the building, landscaping, driveway, foreground — with absolute precision. The horizon line must be perfect. Photorealistic result only.` },
-        { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
-      ],
-    }],
-    config: { responseModalities: ['IMAGE', 'TEXT'] },
+    model: 'gemini-2.5-flash-image',
+    contents: [
+      {
+        parts: [
+          { text: `Replace ONLY the sky in this exterior real estate photo with ${skyDescriptions[skyStyle]}. PRESERVE EVERYTHING else. Horizon line must be perfect.` },
+          { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
+        ],
+      }
+    ],
   });
 
-  const imagePart = response.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'));
-  if (!imagePart?.inlineData?.data) throw new Error('No sky replacement image returned');
-  return `data:image/${imagePart.inlineData.mimeType.split('/')[1]};base64,${imagePart.inlineData.data}`;
+  for (const part of response.candidates?.[0]?.content?.parts || []) {
+    if (part.inlineData?.data) {
+      return `data:image/png;base64,${part.inlineData.data}`;
+    }
+  }
+  throw new Error('No sky replacement image returned');
 };
 
 /**
@@ -366,27 +441,27 @@ export const instantDeclutter = async (imageBase64: string, selectedRoom: string
   const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
 
   const response = await ai.models.generateContent({
-    model: 'gemini-2.0-flash-preview-image-generation',
-    contents: [{
-      role: 'user',
-      parts: [
-        {
-          text: `You are an expert real estate photo editor. Remove ALL personal clutter from this ${selectedRoom} photo while preserving all furniture, fixtures, architecture, and structural elements exactly as they are.
-
-        REMOVE (if visible): family photos and artwork, children's toys and games, pet items (bowls, beds, toys), counter clutter (small appliances, mail, dishes), personal hygiene items, laundry or clothing, trash, magnets on fridges, pill bottles, personal papers.
-        
-        KEEP EXACTLY: all furniture, couches, beds, tables, chairs, all built-in appliances, kitchen/bath fixtures, windows, doors, ceiling fans, light fixtures, area rugs, curtains, plants, and all architectural elements.
-        
-        The result should look like a clean, staged, move-in-ready space ready for professional photography. Photorealistic quality only.` },
-        { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
-      ],
-    }],
-    config: { responseModalities: ['IMAGE', 'TEXT'] },
+    model: 'gemini-2.5-flash-image',
+    contents: [
+      {
+        parts: [
+          {
+            text: `You are an expert real estate photo editor. Remove ALL personal clutter from this ${selectedRoom} photo while preserving all furniture and architecture.
+        REMOVE: photos, toys, pet items, counter clutter, laundry, trash.
+        KEEP: furniture, appliances, windows, doors, lighting.`
+          },
+          { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
+        ],
+      }
+    ],
   });
 
-  const imagePart = response.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'));
-  if (!imagePart?.inlineData?.data) throw new Error('No decluttered image returned');
-  return `data:image/${imagePart.inlineData.mimeType.split('/')[1]};base64,${imagePart.inlineData.data}`;
+  for (const part of response.candidates?.[0]?.content?.parts || []) {
+    if (part.inlineData?.data) {
+      return `data:image/png;base64,${part.inlineData.data}`;
+    }
+  }
+  throw new Error('No decluttered image returned');
 };
 
 /**
@@ -402,35 +477,31 @@ export const virtualRenovation = async (
   const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
 
   const changesList = [
-    changes.cabinets && `Cabinets: Replace with ${changes.cabinets}`,
-    changes.countertops && `Countertops: Replace with ${changes.countertops}`,
-    changes.flooring && `Flooring: Replace with ${changes.flooring}`,
-    changes.walls && `Walls: Repaint with ${changes.walls}`,
-    changes.fixtures && `Fixtures/Hardware: Replace with ${changes.fixtures}`,
-  ].filter(Boolean).join('\n');
+    changes.cabinets && `Cabinets: ${changes.cabinets}`,
+    changes.countertops && `Countertops: ${changes.countertops}`,
+    changes.flooring && `Flooring: ${changes.flooring}`,
+    changes.walls && `Walls: ${changes.walls}`,
+    changes.fixtures && `Fixtures: ${changes.fixtures}`,
+  ].filter(Boolean).join(', ');
 
   const response = await ai.models.generateContent({
-    model: 'gemini-2.0-flash-preview-image-generation',
-    contents: [{
-      role: 'user',
-      parts: [
-        {
-          text: `Apply these SPECIFIC renovation changes to this real estate photo: ${changesList}
-        
-        RULES:
-        - Only change what is listed above. Leave everything else IDENTICAL to the original.
-        - Maintain EXACT room layout, dimensions, lighting, and perspective.
-        - The result must look like a professional before/after renovation photo.
-        - Photorealistic only — no artistic styles or illustration.` },
-        { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
-      ],
-    }],
-    config: { responseModalities: ['IMAGE', 'TEXT'] },
+    model: 'gemini-2.5-flash-image',
+    contents: [
+      {
+        parts: [
+          { text: `Apply renovation changes: ${changesList}. Preserve room layout and lighting.` },
+          { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
+        ],
+      }
+    ],
   });
 
-  const imagePart = response.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'));
-  if (!imagePart?.inlineData?.data) throw new Error('No renovation image returned');
-  return `data:image/${imagePart.inlineData.mimeType.split('/')[1]};base64,${imagePart.inlineData.data}`;
+  for (const part of response.candidates?.[0]?.content?.parts || []) {
+    if (part.inlineData?.data) {
+      return `data:image/png;base64,${part.inlineData.data}`;
+    }
+  }
+  throw new Error('No renovation image returned');
 };
 
 /**
@@ -448,7 +519,7 @@ export const generateListingCopy = async (imageBase64: string, selectedRoom: str
   const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
 
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-pro-preview-05-06',
+    model: 'gemini-3.1-pro',
     contents: [{
       role: 'user',
       parts: [

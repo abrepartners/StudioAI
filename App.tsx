@@ -41,6 +41,7 @@ import {
   Copy,
   Check,
   Lock,
+  Heart,
 } from 'lucide-react';
 
 const roomOptions: FurnitureRoomType[] = [
@@ -98,9 +99,11 @@ const App: React.FC = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [detectedRoom, setDetectedRoom] = useState<FurnitureRoomType | null>(null);
   const [selectedRoom, setSelectedRoom] = useState<FurnitureRoomType>('Living Room');
+  const [isMultiGen, setIsMultiGen] = useState(false);
 
   const [history, setHistory] = useState<HistoryState[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [historyTab, setHistoryTab] = useState<'recent' | 'saved'>('recent');
 
   const [savedStages, setSavedStages] = useState<SavedStage[]>([]);
   const lastPromptRef = useRef<string>('');
@@ -173,7 +176,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (generationsSinceFeedback >= FEEDBACK_REQUIRED_INTERVAL) {
-      setShowFeedbackCheckpoint(true);
+      // setShowFeedbackCheckpoint(true); // Disable full-screen blocker
     }
   }, [generationsSinceFeedback]);
 
@@ -276,7 +279,28 @@ const App: React.FC = () => {
     await refreshProKeyStatus();
     setShowKeyPrompt(false);
   };
-
+  const handleSamplePhoto = async () => {
+    // High-quality sample interior
+    const SAMPLE_IMG = "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&q=80&w=2000";
+    setIsAnalyzing(true);
+    try {
+      const response = await fetch(SAMPLE_IMG);
+      const blob = await response.blob();
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        handleImageUpload(reader.result as string);
+      };
+      reader.readAsDataURL(blob);
+    } catch {
+      // Fallback if fetch fails
+      setOriginalImage(SAMPLE_IMG);
+      setGeneratedImage(null);
+      setHistory([]);
+      setHistoryIndex(-1);
+      setStageMode('text');
+      setIsAnalyzing(false);
+    }
+  };
   const handleGenerate = async (prompt: string, highRes = false) => {
     if (!originalImage) return;
     if (showFeedbackCheckpoint) {
@@ -305,24 +329,27 @@ const App: React.FC = () => {
       lastPromptRef.current = prompt;
 
       const sourceImage = activePanel === 'cleanup' && generatedImage ? generatedImage : originalImage;
-      const resultImage = await generateRoomDesign(sourceImage, prompt, activePanel === 'cleanup' ? maskImage : null, highRes);
-      const newColors = await analyzeRoomColors(resultImage);
+      const count = isMultiGen ? 2 : 1;
+      const resultImages = await generateRoomDesign(sourceImage, prompt, activePanel === 'cleanup' ? maskImage : null, highRes, count);
 
-      setGeneratedImage(resultImage);
+      const newColors = await analyzeRoomColors(resultImages[0]);
+
+      setGeneratedImage(resultImages[0]);
       setColors(newColors);
       setMaskImage(null);
 
-      const generatedState: HistoryState = {
-        generatedImage: resultImage,
+      const newStates = resultImages.map(img => ({
+        generatedImage: img,
         stagedFurniture: [],
         selectedRoom,
         colors: newColors,
-      };
+      }));
+
       setHistory((prev) => {
         const newHistory = prev.slice(0, historyIndex + 1);
-        return [...newHistory, generatedState];
+        return [...newHistory, ...newStates];
       });
-      setHistoryIndex((prev) => prev + 1);
+      setHistoryIndex((prev) => prev + newStates.length);
       if (!highRes) {
         setGenerationsSinceFeedback((prev) => prev + 1);
       }
@@ -348,6 +375,22 @@ const App: React.FC = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleSaveStage = () => {
+    if (!generatedImage || !originalImage) return;
+    const newStage: SavedStage = {
+      id: crypto.randomUUID(),
+      name: `Design ${new Date().toLocaleDateString()}`,
+      originalImage,
+      generatedImage,
+      timestamp: Date.now(),
+    };
+    setSavedStages((prev) => {
+      const updated = [newStage, ...prev];
+      localStorage.setItem('realestate_ai_stages', JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const changeDetectedRoom = (room: FurnitureRoomType) => {
@@ -447,59 +490,9 @@ const App: React.FC = () => {
     ];
 
 
-  if (isBetaLoading) {
-    return (
-      <div className="studio-shell min-h-screen grid place-items-center px-4">
-        <div className="premium-surface-strong rounded-[2rem] p-10 text-center max-w-md w-full">
-          <p className="text-xs uppercase tracking-[0.18em] text-[var(--color-text)]/70">StudioAI Beta</p>
-          <h2 className="font-display text-3xl mt-2">Checking Access</h2>
-          <p className="mt-3 text-sm text-[var(--color-text)]/80">Checking your beta access code...</p>
-        </div>
-      </div>
-    );
-  }
+  // Removed the activation wall as it was causing friction. Users go straight to the studio now.
 
-  if (!betaAccessCode) {
-    return (
-      <div className="studio-shell min-h-screen grid place-items-center px-4 py-8">
-        <div className="premium-surface-strong rounded-[2rem] p-8 sm:p-10 max-w-lg w-full">
-          <div className="inline-flex items-center gap-2 rounded-full cta-secondary px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-primary)]">
-            <Sparkles size={14} /> Private Beta Access
-          </div>
-          <h1 className="font-display text-4xl mt-4">StudioAI</h1>
-          <p className="mt-2 text-sm text-[var(--color-text)]/82">
-            This beta is invite-only. Enter your invite code to join and help shape the product.
-          </p>
-
-          <form onSubmit={activateBeta} className="mt-6 space-y-3">
-            <div>
-              <label className="text-xs uppercase tracking-[0.12em] font-semibold text-[var(--color-text)]/72">Invite code</label>
-              <input
-                value={betaInviteCode}
-                onChange={(e) => setBetaInviteCode(e.target.value.toUpperCase())}
-                placeholder="Enter invite code"
-                className="mt-1 w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2.5 text-sm text-[var(--color-ink)]"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={isActivatingBeta || !betaInviteCode.trim()}
-              className="cta-primary rounded-xl px-4 py-3 w-full text-sm font-semibold disabled:opacity-50"
-            >
-              {isActivatingBeta ? 'Activating Beta Access...' : 'Enter StudioAI Beta'}
-            </button>
-          </form>
-
-          {betaMessage && <p className="mt-4 rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-2 text-sm text-emerald-900">{betaMessage}</p>}
-          {betaError && <p className="mt-4 rounded-xl bg-rose-50 border border-rose-200 px-3 py-2 text-sm text-rose-900">{betaError}</p>}
-
-          <p className="mt-5 text-xs text-[var(--color-text)]/70">
-            You can share your access link or code with trusted beta testers.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  // Invite wall removed by user request.
 
   return (
     <div className="studio-shell min-h-[100dvh] lg:h-screen overflow-x-hidden lg:overflow-hidden flex flex-col">
@@ -681,6 +674,14 @@ const App: React.FC = () => {
                 </button>
                 <button
                   type="button"
+                  onClick={handleSaveStage}
+                  className="cta-secondary rounded-xl px-3 py-2 text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5 min-h-[44px]"
+                >
+                  <Heart size={14} className={savedStages.some(s => s.generatedImage === generatedImage) ? 'fill-[var(--color-primary)] text-[var(--color-primary)]' : ''} />
+                  <span className="hidden sm:inline">Save</span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => {
                     if (!proUnlocked) return;
                     if (hasProKey) setShowProConfirm(true);
@@ -735,8 +736,17 @@ const App: React.FC = () => {
                 Upload a property photo and shape conversion-ready visuals. Every beta submission directly influences weekly product updates.
               </p>
 
-              <div className="mt-8">
+              <div className="mt-8 flex flex-col sm:flex-row items-center gap-4">
                 <ImageUploader onImageUpload={handleImageUpload} isAnalyzing={isAnalyzing} />
+                <span className="text-sm font-semibold text-[var(--color-text)]/50 uppercase tracking-widest hidden sm:inline-block">OR</span>
+                <button
+                  onClick={handleSamplePhoto}
+                  disabled={isAnalyzing}
+                  className="cta-secondary h-14 px-8 rounded-2xl flex items-center gap-2 font-semibold text-[var(--color-ink)] hover:bg-white transition-all disabled:opacity-50"
+                >
+                  <Sparkles size={18} className="text-[var(--color-primary)]" />
+                  Try Sample Room
+                </button>
               </div>
             </div>
           </section>
@@ -863,28 +873,81 @@ const App: React.FC = () => {
             {/* History Panel */}
             {activePanel === 'history' && (
               <div className="premium-surface-strong rounded-[2rem] p-5">
-                <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--color-text)]/70 mb-1">Generation History</p>
-                <h3 className="font-display text-xl mb-4">Your Renders</h3>
-                {history.filter(h => h.generatedImage).length === 0 ? (
-                  <p className="text-sm text-[var(--color-text)]/70 py-8 text-center">No renders yet. Generate a design to build your history.</p>
-                ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {history.filter(h => h.generatedImage).map((state, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => { setGeneratedImage(state.generatedImage); setSelectedRoom(state.selectedRoom); setColors(state.colors); }}
-                        className="group relative rounded-2xl overflow-hidden border border-[var(--color-border)] aspect-[4/3] hover:ring-2 hover:ring-[var(--color-accent)] transition-all"
-                      >
-                        <img src={state.generatedImage!} alt={`Render ${i + 1}`} className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-end p-2">
-                          <span className="opacity-0 group-hover:opacity-100 text-white text-[10px] font-semibold uppercase tracking-wide bg-black/50 rounded-lg px-2 py-1 transition-all">
-                            Restore #{i + 1}
-                          </span>
-                        </div>
-                      </button>
-                    ))}
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--color-text)]/70 mb-1">Generation History</p>
+                    <h3 className="font-display text-xl">Your Renders</h3>
                   </div>
+                  <div className="flex bg-black/10 rounded-full p-1">
+                    <button
+                      type="button"
+                      onClick={() => setHistoryTab('recent')}
+                      className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${historyTab === 'recent' ? 'bg-white shadow text-black' : 'text-[var(--color-text)]/60'}`}
+                    >
+                      Recent
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setHistoryTab('saved')}
+                      className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${historyTab === 'saved' ? 'bg-white shadow text-black' : 'text-[var(--color-text)]/60'}`}
+                    >
+                      Saved
+                    </button>
+                  </div>
+                </div>
+
+                {historyTab === 'recent' ? (
+                  history.filter(h => h.generatedImage).length === 0 ? (
+                    <p className="text-sm text-[var(--color-text)]/70 py-8 text-center">No renders yet. Generate a design to build your history.</p>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {history.filter(h => h.generatedImage).map((state, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => { setGeneratedImage(state.generatedImage); setSelectedRoom(state.selectedRoom); setColors(state.colors); }}
+                          className="group relative rounded-2xl overflow-hidden border border-[var(--color-border)] aspect-[4/3] hover:ring-2 hover:ring-[var(--color-accent)] transition-all"
+                        >
+                          <img src={state.generatedImage!} alt={`Render ${i + 1}`} className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-end p-2">
+                            <span className="opacity-0 group-hover:opacity-100 text-white text-[10px] font-semibold uppercase tracking-wide bg-black/50 rounded-lg px-2 py-1 transition-all">
+                              Restore #{i + 1}
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )
+                ) : (
+                  savedStages.length === 0 ? (
+                    <p className="text-sm text-[var(--color-text)]/70 py-8 text-center">No saved stages yet. Click the <Heart size={14} className="inline-block mx-1 mb-1" /> Save button on any design.</p>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {savedStages.map((stage) => (
+                        <div key={stage.id} className="group relative rounded-2xl overflow-hidden border border-[var(--color-border)] aspect-[4/3] hover:ring-2 hover:ring-[var(--color-accent)] transition-all">
+                          <img src={stage.generatedImage} alt={stage.name} className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex flex-col justify-end p-2 opacity-0 group-hover:opacity-100">
+                            <button
+                              onClick={() => { setGeneratedImage(stage.generatedImage); setOriginalImage(stage.originalImage); }}
+                              className="cta-primary rounded-lg py-1.5 text-xs font-semibold w-full mb-1"
+                            >
+                              Restore
+                            </button>
+                            <button
+                              onClick={() => {
+                                const updated = savedStages.filter(s => s.id !== stage.id);
+                                setSavedStages(updated);
+                                localStorage.setItem('realestate_ai_stages', JSON.stringify(updated));
+                              }}
+                              className="bg-black/50 text-white rounded-lg py-1.5 text-[10px] uppercase tracking-wide font-semibold w-full hover:bg-red-500/80 transition-colors"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )
                 )}
               </div>
             )}
@@ -927,6 +990,8 @@ const App: React.FC = () => {
                   hasMask={false}
                   selectedRoom={selectedRoom}
                   feedbackRequired={showFeedbackCheckpoint}
+                  isMultiGen={isMultiGen}
+                  onMultiGenChange={setIsMultiGen}
                 />
 
                 <SpecialModesPanel
@@ -934,6 +999,7 @@ const App: React.FC = () => {
                   generatedImage={generatedImage}
                   selectedRoom={selectedRoom}
                   onNewImage={(img) => { pushToHistory(); setGeneratedImage(img); }}
+                  onRequireKey={() => setShowKeyPrompt(true)}
                 />
 
                 <div className="hidden lg:block">
@@ -956,40 +1022,38 @@ const App: React.FC = () => {
         </div >
       )}
 
-      {
-        showFeedbackCheckpoint && generatedImage && (
-          <div className="fixed inset-0 z-[110] grid place-items-center bg-black/48 backdrop-blur-sm p-4">
-            <div className="w-full max-w-lg premium-surface-strong rounded-[2rem] p-5 sm:p-6">
-              <div className="mb-3">
-                <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--color-text)]/70">Required Checkpoint</p>
-                <h3 className="font-display text-2xl">Quick Feedback Needed</h3>
-                <p className="mt-1 text-sm text-[var(--color-text)]/82">
-                  We ask for a thumbs rating every {FEEDBACK_REQUIRED_INTERVAL} generations so beta output quality improves fast.
-                </p>
-              </div>
-              <BetaFeedbackForm
-                mode="quick-only"
-                quickRequired
-                onQuickSubmitted={() => {
-                  setShowFeedbackCheckpoint(false);
-                  setGenerationsSinceFeedback(0);
-                }}
-                selectedRoom={selectedRoom}
-                hasGenerated={!!generatedImage}
-                stagedFurnitureCount={0}
-                stageMode={stageMode}
-                generatedImage={generatedImage}
-                betaUserId={betaAccessCode ? `access-${betaAccessCode}` : ''}
-                referralCode={betaAccessCode}
-                acceptedInvites={0}
-                insiderUnlocked={false}
-                pro2kUnlocked={proUnlocked}
-              />
+      {showFeedbackCheckpoint && generatedImage && (
+        <div className="fixed bottom-6 right-6 z-[110] w-[340px] shadow-2xl animate-in slide-in-from-bottom-8 fade-in duration-300">
+          <div className="premium-surface-strong rounded-[2rem] p-5 border border-white/20">
+            <div className="mb-3">
+              <p className="text-[10px] uppercase tracking-[0.16em] text-[var(--color-primary)] font-semibold mb-1">Feedback Checkpoint</p>
+              <h3 className="font-display text-xl leading-tight">Rate this render</h3>
+              <p className="mt-1 text-sm text-[var(--color-text)]/82">
+                We ask for a thumbs rating every {FEEDBACK_REQUIRED_INTERVAL} generations so beta output quality improves fast.
+              </p>
             </div>
+            <BetaFeedbackForm
+              mode="quick-only"
+              quickRequired={false}
+              onQuickSubmitted={() => {
+                setShowFeedbackCheckpoint(false);
+                setGenerationsSinceFeedback(0);
+              }}
+              selectedRoom={selectedRoom}
+              hasGenerated={!!generatedImage}
+              stagedFurnitureCount={0}
+              stageMode={stageMode}
+              generatedImage={generatedImage}
+              betaUserId={betaAccessCode ? `access-${betaAccessCode}` : ''}
+              referralCode={betaAccessCode}
+              acceptedInvites={0}
+              insiderUnlocked={false}
+              pro2kUnlocked={proUnlocked}
+            />
           </div>
-        )
-      }
-    </div >
+        </div>
+      )}
+    </div>
   );
 };
 

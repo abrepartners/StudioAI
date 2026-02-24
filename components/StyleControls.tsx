@@ -27,6 +27,8 @@ interface RenovationControlsProps {
   hasMask: boolean;
   selectedRoom: FurnitureRoomType;
   feedbackRequired?: boolean;
+  isMultiGen: boolean;
+  onMultiGenChange: (multiGen: boolean) => void;
 }
 
 const RenovationControls: React.FC<RenovationControlsProps> = ({
@@ -38,6 +40,8 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
   hasMask,
   selectedRoom,
   feedbackRequired = false,
+  isMultiGen,
+  onMultiGenChange,
 }) => {
   const [selectedPreset, setSelectedPreset] = useState<StylePreset | null>(null);
   const [customPrompt, setCustomPrompt] = useState('');
@@ -48,7 +52,6 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
     { id: 'Urban Loft', icon: <Factory size={16} />, description: 'Industrial edge' },
     { id: 'Farmhouse Chic', icon: <Wheat size={16} />, description: 'Rustic warmth' },
     { id: 'Minimalist', icon: <Sparkles size={16} />, description: 'Quiet simplicity' },
-    { id: 'Traditional', icon: <Library size={16} />, description: 'Layered classic' },
     { id: 'Mid-Century Modern', icon: <Layers size={16} />, description: 'Retro balance' },
     { id: 'Scandinavian', icon: <Cloud size={16} />, description: 'Natural calm' },
     { id: 'Bohemian', icon: <Flower2 size={16} />, description: 'Textured eclectic' },
@@ -143,22 +146,20 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
           <button
             type="button"
             onClick={() => setStageMode('text')}
-            className={`rounded-2xl border px-3 py-2 text-left text-sm font-semibold transition-all ${
-              stageMode === 'text'
-                ? 'border-[var(--color-accent)] bg-sky-50 shadow-[0_8px_20px_rgba(3,105,161,0.14)]'
-                : 'border-[var(--color-border)] bg-white/80 hover:bg-white'
-            }`}
+            className={`rounded-2xl border px-3 py-2 text-left text-sm font-semibold transition-all ${stageMode === 'text'
+              ? 'border-[var(--color-accent)] bg-sky-50 shadow-[0_8px_20px_rgba(3,105,161,0.14)]'
+              : 'border-[var(--color-border)] bg-white/80 hover:bg-white'
+              }`}
           >
             Text
           </button>
           <button
             type="button"
             onClick={() => setStageMode('packs')}
-            className={`rounded-2xl border px-3 py-2 text-left text-sm font-semibold transition-all ${
-              stageMode === 'packs'
-                ? 'border-[var(--color-accent)] bg-sky-50 shadow-[0_8px_20px_rgba(3,105,161,0.14)]'
-                : 'border-[var(--color-border)] bg-white/80 hover:bg-white'
-            }`}
+            className={`rounded-2xl border px-3 py-2 text-left text-sm font-semibold transition-all ${stageMode === 'packs'
+              ? 'border-[var(--color-accent)] bg-sky-50 shadow-[0_8px_20px_rgba(3,105,161,0.14)]'
+              : 'border-[var(--color-border)] bg-white/80 hover:bg-white'
+              }`}
           >
             Packs
           </button>
@@ -199,6 +200,23 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
             rows={4}
             className="w-full rounded-2xl border border-[var(--color-border)] bg-white/85 px-3 py-2.5 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-text)]/45"
           />
+          <div className="mt-3 flex flex-wrap gap-2">
+            {[
+              "Scandinavian minimalist with light oak wood",
+              "Mid-century modern with warm walnut accents",
+              "Coastal contemporary with natural textures",
+              "Industrial loft with exposed brick"
+            ].map(suggestion => (
+              <button
+                key={suggestion}
+                type="button"
+                onClick={() => setCustomPrompt(suggestion)}
+                className="text-[10px] font-semibold uppercase tracking-wide px-3 py-1.5 rounded-full border border-[var(--color-border)] bg-white/50 hover:bg-white hover:border-[var(--color-accent)] transition-all text-[var(--color-text)]/80 hover:text-[var(--color-primary)] shadow-sm"
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
@@ -223,17 +241,15 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
                   key={preset.id}
                   type="button"
                   onClick={() => setSelectedPreset(preset.id)}
-                  className={`rounded-2xl border px-3 py-2 text-left transition-all ${
-                    active
-                      ? 'border-[var(--color-accent)] bg-sky-50 shadow-[0_8px_20px_rgba(3,105,161,0.14)]'
-                      : 'border-[var(--color-border)] bg-white/80 hover:bg-white'
-                  }`}
+                  className={`rounded-2xl border px-3 py-2 text-left transition-all ${active
+                    ? 'border-[var(--color-accent)] bg-sky-50 shadow-[0_8px_20px_rgba(3,105,161,0.14)]'
+                    : 'border-[var(--color-border)] bg-white/80 hover:bg-white'
+                    }`}
                 >
                   <div className="flex items-center gap-2.5">
                     <span
-                      className={`flex h-8 w-8 items-center justify-center rounded-lg ${
-                        active ? 'bg-[var(--color-accent)] text-white' : 'subtle-card text-[var(--color-text)]'
-                      }`}
+                      className={`flex h-8 w-8 items-center justify-center rounded-lg ${active ? 'bg-[var(--color-accent)] text-white' : 'subtle-card text-[var(--color-text)]'
+                        }`}
                     >
                       {preset.icon}
                     </span>
@@ -250,6 +266,22 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
       )}
 
       <div className="premium-surface-strong rounded-3xl p-5 sticky bottom-2 space-y-3">
+        <label className="flex items-center gap-3 p-1 cursor-pointer group">
+          <div className={`flex w-9 h-5 items-center rounded-full p-1 transition-colors ${isMultiGen ? 'bg-[var(--color-accent)]' : 'bg-slate-300'}`}>
+            <div className={`h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform ${isMultiGen ? 'translate-x-3.5' : 'translate-x-0'}`} />
+          </div>
+          <div>
+            <span className="block text-xs font-semibold text-[var(--color-ink)]">Enable Multi-Gen</span>
+            <span className="block text-[10px] text-[var(--color-text)]/70">Generate 2 variations at once (Uses more credits)</span>
+          </div>
+          <input
+            type="checkbox"
+            className="hidden"
+            checked={isMultiGen}
+            onChange={(e) => onMultiGenChange(e.target.checked)}
+          />
+        </label>
+
         <button
           type="button"
           onClick={buildPrompt}

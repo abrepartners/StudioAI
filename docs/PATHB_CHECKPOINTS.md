@@ -47,7 +47,7 @@ Each checkpoint must include:
 
 ### CP-02 Sprint 2 Presets + Job Intake + Status Engine
 
-1. Commit: `TBD`
+1. Commit: `e7121c4`
 2. Completed:
    1. Preset CRUD API with scope-based authorization
    2. Job intake API with preset-driven approval/disclosure defaults
@@ -55,7 +55,7 @@ Each checkpoint must include:
    4. Status transition API enforcing canonical workflow map
    5. Audit events for submission, transitions, delivery, and revisions
 3. Rollback:
-   1. `git checkout <cp-02-hash>`
+   1. `git checkout e7121c4`
 4. Gaps:
    1. No reviewer queue API yet
    2. No delivery/revision UI screens yet

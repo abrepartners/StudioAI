@@ -149,14 +149,14 @@ Each checkpoint must include:
 
 ### CP-09 Ops Safety Confirmations + Bulk Queue Decisions
 
-1. Commit: `TBD`
+1. Commit: `c0b5a25`
 2. Completed:
    1. Added confirmation modal for destructive quick actions
    2. Added queue multi-select with select-visible and clear controls
    3. Added bulk queue decisions (`approve`, `request_changes`, `reject`)
    4. Added confirmation wrappers for quick status transitions from job cards
 3. Rollback:
-   1. `git checkout TBD`
+   1. `git checkout c0b5a25`
 4. Gaps:
    1. No optional custom reason/note input in confirmation modal yet
    2. No undo action after quick/bulk decisions yet

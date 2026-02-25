@@ -135,14 +135,14 @@ Each checkpoint must include:
 
 ### CP-08 Ops Queue and Jobs Quick Actions
 
-1. Commit: `TBD`
+1. Commit: `c0655b0`
 2. Completed:
    1. Added queue-level quick actions for approve, request changes, and reject
    2. Added job-card quick actions for detail, transition, and status shortcuts
    3. Added single-click ID prefill across transition/approval/delivery/revision forms
    4. Added quick workflow execution wrappers with snapshot refresh and response logging
 3. Rollback:
-   1. `git checkout TBD`
+   1. `git checkout c0655b0`
 4. Gaps:
    1. No confirmation modal before destructive quick actions yet
    2. No bulk actions yet for multi-job operations

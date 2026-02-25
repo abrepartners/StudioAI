@@ -52,6 +52,9 @@
 12. `GET /api/pathb/audit-events`
 13. `GET /api/pathb/review-queue`
 14. `POST /api/pathb/approvals`
+15. `POST /api/pathb/deliveries`
+16. `POST /api/pathb/revisions`
+17. `GET /api/pathb/job-detail`
 
 ## Request context requirements
 

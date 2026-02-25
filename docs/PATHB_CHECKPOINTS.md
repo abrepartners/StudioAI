@@ -75,3 +75,17 @@ Each checkpoint must include:
 4. Gaps:
    1. No delivery/revision UI integration yet
    2. No reporting dashboards/exports yet
+
+### CP-04 Sprint 4 Delivery + Revision Workflow APIs
+
+1. Commit: `TBD`
+2. Completed:
+   1. Delivery endpoint with output asset linkage and delivery records
+   2. Revision endpoint with cycle tracking and reason categories
+   3. Job detail endpoint returning archive bundle (assets, approvals, revisions, deliveries)
+   4. Transition enforcement and audit emission for delivery/revision flows
+3. Rollback:
+   1. `git checkout <cp-04-hash>`
+4. Gaps:
+   1. No reporting CSV/dashboard APIs yet
+   2. No UI implementation for delivery/revision flows yet

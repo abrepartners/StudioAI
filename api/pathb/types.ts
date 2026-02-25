@@ -192,3 +192,27 @@ export interface JobApprovalRecord {
   note?: string | null;
   createdAt: string;
 }
+
+export interface JobRevisionRecord {
+  id: string;
+  brokerageId: string;
+  officeId: string;
+  jobId: string;
+  requestedByUserId: string;
+  reasonCategory: string;
+  notes?: string | null;
+  cycleNumber: number;
+  createdAt: string;
+}
+
+export interface JobDeliveryRecord {
+  id: string;
+  brokerageId: string;
+  officeId: string;
+  jobId: string;
+  deliveredByUserId: string;
+  outputAssetIds: string[];
+  notes?: string | null;
+  disclosureFlagPresent: boolean;
+  createdAt: string;
+}

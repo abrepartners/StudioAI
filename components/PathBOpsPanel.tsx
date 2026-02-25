@@ -20,6 +20,15 @@ type ApiResponse = {
 };
 
 const ACTOR_STORAGE_KEY = 'studioai_pathb_actor_context';
+const ACTOR_PROFILES_STORAGE_KEY = 'studioai_pathb_actor_profiles';
+
+type ActorProfile = {
+  id: string;
+  name: string;
+  context: ActorState;
+  createdAt: string;
+  updatedAt: string;
+};
 
 const ROLE_OPTIONS: PathBRole[] = [
   'BrokerageAdmin',
@@ -98,6 +107,29 @@ const renderTime = (value?: string | null) => {
   return date.toLocaleString();
 };
 
+const loadActorProfiles = (): ActorProfile[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const parsed = JSON.parse(localStorage.getItem(ACTOR_PROFILES_STORAGE_KEY) || '[]');
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((item) => item && typeof item === 'object' && item.id && item.name && item.context)
+      .map((item) => ({
+        id: String(item.id),
+        name: String(item.name),
+        context: {
+          ...defaultActor,
+          ...item.context,
+          role: ROLE_OPTIONS.includes(item.context.role) ? item.context.role : defaultActor.role,
+        },
+        createdAt: String(item.createdAt || ''),
+        updatedAt: String(item.updatedAt || ''),
+      }));
+  } catch {
+    return [];
+  }
+};
+
 const PathBOpsPanel: React.FC = () => {
   const [actor, setActor] = useState<ActorState>(() => {
     if (typeof window === 'undefined') return defaultActor;
@@ -118,6 +150,9 @@ const PathBOpsPanel: React.FC = () => {
   const [statusMessage, setStatusMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [lastResponse, setLastResponse] = useState('');
+  const [actorProfiles, setActorProfiles] = useState<ActorProfile[]>(() => loadActorProfiles());
+  const [profileName, setProfileName] = useState('');
+  const [selectedProfileId, setSelectedProfileId] = useState('');
 
   const [bootstrapForm, setBootstrapForm] = useState({
     brokerageName: '',
@@ -222,6 +257,11 @@ const PathBOpsPanel: React.FC = () => {
   }, [actor]);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(ACTOR_PROFILES_STORAGE_KEY, JSON.stringify(actorProfiles));
+  }, [actorProfiles]);
+
+  useEffect(() => {
     setTeamForm((prev) => (prev.officeId ? prev : { ...prev, officeId: actor.officeId }));
     setUserForm((prev) => ({
       ...prev,
@@ -246,6 +286,165 @@ const PathBOpsPanel: React.FC = () => {
   }, [actor]);
 
   const actorHeadersPreview = useMemo(() => buildHeaders(actor, true), [actor]);
+
+  const userNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const user of users) {
+      if (!user?.id) continue;
+      map.set(String(user.id), String(user.name || user.email || user.id));
+    }
+    return map;
+  }, [users]);
+
+  const officeNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const office of offices) {
+      if (!office?.id) continue;
+      map.set(String(office.id), String(office.name || office.id));
+    }
+    return map;
+  }, [offices]);
+
+  const teamNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const team of teams) {
+      if (!team?.id) continue;
+      map.set(String(team.id), String(team.name || team.id));
+    }
+    return map;
+  }, [teams]);
+
+  const membershipQuickContexts = useMemo(() => {
+    return memberships.slice(0, 18).map((membership) => {
+      const membershipRole = String(membership?.role || '');
+      const role = ROLE_OPTIONS.includes(membershipRole as PathBRole)
+        ? (membershipRole as PathBRole)
+        : defaultActor.role;
+      const userId = String(membership?.userId || '');
+      const officeId = String(membership?.officeId || '');
+      const teamId = String(membership?.teamId || '');
+      const brokerageId = String(membership?.brokerageId || actor.brokerageId || '');
+      const scopeType = String(membership?.scopeType || '');
+
+      const labelName = userNameById.get(userId) || userId || 'Unknown user';
+      const scopeLabel =
+        scopeType === 'team'
+          ? `Team ${teamNameById.get(teamId) || teamId || 'n/a'}`
+          : scopeType === 'office'
+            ? `Office ${officeNameById.get(officeId) || officeId || 'n/a'}`
+            : 'Brokerage scope';
+
+      return {
+        id: String(membership?.id || `${userId}-${role}-${scopeType}`),
+        label: `${labelName} · ${role}`,
+        subtitle: scopeLabel,
+        context: {
+          userId,
+          role,
+          brokerageId,
+          officeId,
+          teamId,
+          bootstrapKey: actor.bootstrapKey,
+        } as ActorState,
+      };
+    });
+  }, [memberships, userNameById, teamNameById, officeNameById, actor.bootstrapKey, actor.brokerageId]);
+
+  const applyActorContext = useCallback((context: ActorState, source: string) => {
+    const nextRole = ROLE_OPTIONS.includes(context.role) ? context.role : defaultActor.role;
+    setActor({
+      userId: String(context.userId || '').trim(),
+      role: nextRole,
+      brokerageId: String(context.brokerageId || '').trim(),
+      officeId: String(context.officeId || '').trim(),
+      teamId: String(context.teamId || '').trim(),
+      bootstrapKey: String(context.bootstrapKey || '').trim(),
+    });
+    setErrorMessage('');
+    setStatusMessage(`Context applied from ${source}.`);
+  }, []);
+
+  const resetActorContext = useCallback(() => {
+    const keepBootstrapKey = actor.bootstrapKey;
+    setActor({ ...defaultActor, bootstrapKey: keepBootstrapKey });
+    setSelectedProfileId('');
+    setErrorMessage('');
+    setStatusMessage('Actor headers reset.');
+  }, [actor.bootstrapKey]);
+
+  const saveActorProfile = useCallback(() => {
+    const name = profileName.trim();
+    if (!name) {
+      setErrorMessage('Profile name is required.');
+      return;
+    }
+
+    const now = new Date().toISOString();
+    let savedProfileId = '';
+
+    setActorProfiles((prev) => {
+      const existing = prev.find((profile) => profile.name.toLowerCase() === name.toLowerCase());
+      if (existing) {
+        savedProfileId = existing.id;
+        return prev.map((profile) =>
+          profile.id === existing.id
+            ? {
+                ...profile,
+                name,
+                context: { ...actor },
+                updatedAt: now,
+              }
+            : profile
+        );
+      }
+
+      const id = `profile_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+      savedProfileId = id;
+      const next: ActorProfile = {
+        id,
+        name,
+        context: { ...actor },
+        createdAt: now,
+        updatedAt: now,
+      };
+      return [next, ...prev].slice(0, 30);
+    });
+
+    setSelectedProfileId(savedProfileId);
+    setProfileName('');
+    setErrorMessage('');
+    setStatusMessage(`Saved profile "${name}".`);
+  }, [profileName, actor]);
+
+  const applySelectedProfile = useCallback(() => {
+    if (!selectedProfileId) {
+      setErrorMessage('Select a saved profile first.');
+      return;
+    }
+    const profile = actorProfiles.find((item) => item.id === selectedProfileId);
+    if (!profile) {
+      setErrorMessage('Selected profile was not found.');
+      return;
+    }
+    applyActorContext(profile.context, `profile "${profile.name}"`);
+  }, [selectedProfileId, actorProfiles, applyActorContext]);
+
+  const deleteSelectedProfile = useCallback(() => {
+    if (!selectedProfileId) {
+      setErrorMessage('Select a saved profile first.');
+      return;
+    }
+    const profile = actorProfiles.find((item) => item.id === selectedProfileId);
+    if (!profile) {
+      setErrorMessage('Selected profile was not found.');
+      return;
+    }
+
+    setActorProfiles((prev) => prev.filter((item) => item.id !== selectedProfileId));
+    setSelectedProfileId('');
+    setErrorMessage('');
+    setStatusMessage(`Deleted profile "${profile.name}".`);
+  }, [selectedProfileId, actorProfiles]);
 
   const runJsonRequest = useCallback(
     async (
@@ -807,6 +1006,87 @@ const PathBOpsPanel: React.FC = () => {
             placeholder="x-pathb-bootstrap-key (bootstrap only)"
             className="rounded-xl border border-[var(--color-border)] bg-white px-3 py-2.5 text-sm"
           />
+        </div>
+        <div className="rounded-xl border border-[var(--color-border)] bg-white/70 p-3 space-y-2">
+          <p className="text-xs uppercase tracking-[0.11em] text-[var(--color-text)]/72">Saved Profiles</p>
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
+            <input
+              value={profileName}
+              onChange={(event) => setProfileName(event.target.value)}
+              placeholder="Profile name (e.g. Broker Admin - Main)"
+              className="rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 text-sm"
+            />
+            <button
+              type="button"
+              onClick={saveActorProfile}
+              disabled={isBusy}
+              className="cta-secondary rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-[0.1em] disabled:opacity-50"
+            >
+              Save Current
+            </button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto] gap-2">
+            <select
+              value={selectedProfileId}
+              onChange={(event) => setSelectedProfileId(event.target.value)}
+              className="rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 text-sm"
+            >
+              <option value="">Select profile</option>
+              {actorProfiles.map((profile) => (
+                <option key={profile.id} value={profile.id}>
+                  {profile.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={applySelectedProfile}
+              disabled={isBusy || actorProfiles.length === 0}
+              className="cta-secondary rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-[0.1em] disabled:opacity-50"
+            >
+              Apply
+            </button>
+            <button
+              type="button"
+              onClick={deleteSelectedProfile}
+              disabled={isBusy || !selectedProfileId}
+              className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold uppercase tracking-[0.1em] text-rose-900 disabled:opacity-50"
+            >
+              Delete
+            </button>
+            <button
+              type="button"
+              onClick={resetActorContext}
+              disabled={isBusy}
+              className="rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--color-text)] disabled:opacity-50"
+            >
+              Reset
+            </button>
+          </div>
+        </div>
+        <div className="rounded-xl border border-[var(--color-border)] bg-white/70 p-3 space-y-2">
+          <p className="text-xs uppercase tracking-[0.11em] text-[var(--color-text)]/72">
+            One-Click Contexts
+          </p>
+          {membershipQuickContexts.length === 0 ? (
+            <p className="text-xs text-[var(--color-text)]/74">
+              Load snapshot first to generate context presets from memberships.
+            </p>
+          ) : (
+            <div className="max-h-40 overflow-auto grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {membershipQuickContexts.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => applyActorContext(item.context, item.label)}
+                  className="rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 text-left hover:bg-[var(--color-bg)] transition"
+                >
+                  <p className="text-xs font-semibold text-[var(--color-ink)]">{item.label}</p>
+                  <p className="text-[11px] text-[var(--color-text)]/72">{item.subtitle}</p>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <pre className="max-h-40 overflow-auto rounded-xl border border-[var(--color-border)] bg-slate-950 text-slate-100 p-3 text-xs">
 {JSON.stringify(actorHeadersPreview, null, 2)}

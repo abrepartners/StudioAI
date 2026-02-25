@@ -118,3 +118,17 @@ Each checkpoint must include:
 4. Gaps:
    1. No dedicated route-level RBAC UI yet (header context is manual)
    2. No pagination/virtualization for large Path B datasets yet
+
+### CP-07 Ops Context Profiles + One-Click Presets
+
+1. Commit: `TBD`
+2. Completed:
+   1. Added saved actor context profiles (create/apply/delete)
+   2. Added one-click context presets generated from membership data
+   3. Added actor header reset workflow while preserving bootstrap key
+   4. Persisted context profiles in local storage for repeat sessions
+3. Rollback:
+   1. `git checkout TBD`
+4. Gaps:
+   1. Profile sharing/import export is not implemented yet
+   2. No server-backed profile storage yet (browser-local only)

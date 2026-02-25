@@ -92,14 +92,14 @@ Each checkpoint must include:
 
 ### CP-05 Sprint 5 Reporting + CSV Exports APIs
 
-1. Commit: `TBD`
+1. Commit: `2d0ecc3`
 2. Completed:
    1. Operational reporting endpoint with scoped filters
    2. Metrics for volume, turnaround, revisions, bottlenecks, disclosures
    3. CSV export endpoint for jobs, office usage, and revisions
    4. Shared reporting utility for scope filtering and date filters
 3. Rollback:
-   1. `git checkout <cp-05-hash>`
+   1. `git checkout 2d0ecc3`
 4. Gaps:
    1. No reporting UI dashboard views yet
    2. No async export jobs yet (direct response only)

@@ -136,3 +136,8 @@ Sprint 1 API handlers currently available:
 - `/Users/camillebrown/.codex/workspaces/default/StudioAI/api/pathb/job-detail.ts`
 - `/Users/camillebrown/.codex/workspaces/default/StudioAI/api/pathb/reports.ts`
 - `/Users/camillebrown/.codex/workspaces/default/StudioAI/api/pathb/report-export.ts`
+
+Path B frontend ops surface (CP-06):
+
+- `/Users/camillebrown/.codex/workspaces/default/StudioAI/App.tsx` (adds `Ops` panel switching)
+- `/Users/camillebrown/.codex/workspaces/default/StudioAI/components/PathBOpsPanel.tsx` (admin console UI for `/api/pathb/*`)

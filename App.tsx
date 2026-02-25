@@ -36,7 +36,9 @@ import {
   Copy,
   Check,
   Lock,
+  Building2,
 } from 'lucide-react';
+import PathBOpsPanel from './components/PathBOpsPanel';
 
 const roomOptions: FurnitureRoomType[] = [
   'Living Room',
@@ -98,7 +100,7 @@ const App: React.FC = () => {
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [maskImage, setMaskImage] = useState<string | null>(null);
 
-  const [activePanel, setActivePanel] = useState<'tools' | 'chat' | 'history' | 'cleanup'>('tools');
+  const [activePanel, setActivePanel] = useState<'tools' | 'ops' | 'chat' | 'history' | 'cleanup'>('tools');
   const [stageMode, setStageMode] = useState<StageMode>('text');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isEnhancing, setIsEnhancing] = useState(false);
@@ -734,22 +736,17 @@ const App: React.FC = () => {
   };
 
   const navItems: Array<{
-    id: 'tools' | 'cleanup' | 'chat' | 'history';
+    id: 'tools' | 'ops' | 'cleanup' | 'chat' | 'history';
     label: string;
     icon: React.ReactNode;
     available: boolean;
   }> = [
     { id: 'tools', label: 'Design Studio', icon: <LayoutGrid size={21} />, available: true },
+    { id: 'ops', label: 'Ops Console', icon: <Building2 size={21} />, available: true },
     { id: 'cleanup', label: 'Cleanup', icon: <Eraser size={21} />, available: false },
     { id: 'chat', label: 'Chat', icon: <MessageSquare size={21} />, available: false },
     { id: 'history', label: 'History', icon: <HistoryIcon size={21} />, available: false },
   ];
-
-  useEffect(() => {
-    if (activePanel !== 'tools') {
-      setActivePanel('tools');
-    }
-  }, [activePanel]);
 
   useEffect(() => {
     if (!showAccessPanel || !isOwnerAdmin || !adminToken) return;
@@ -1072,7 +1069,28 @@ const App: React.FC = () => {
             </div>
           </div>
 
-          {originalImage && (
+          <div className="flex items-center gap-1 rounded-full subtle-card p-1">
+            <button
+              type="button"
+              onClick={() => setActivePanel('tools')}
+              className={`rounded-full px-3 py-1.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.12em] transition ${
+                activePanel === 'tools' ? 'cta-primary' : 'text-[var(--color-text)] hover:bg-white'
+              }`}
+            >
+              Studio
+            </button>
+            <button
+              type="button"
+              onClick={() => setActivePanel('ops')}
+              className={`rounded-full px-3 py-1.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.12em] transition ${
+                activePanel === 'ops' ? 'cta-primary' : 'text-[var(--color-text)] hover:bg-white'
+              }`}
+            >
+              Ops
+            </button>
+          </div>
+
+          {originalImage && activePanel === 'tools' && (
             <div className="hidden sm:flex items-center gap-1 rounded-full subtle-card p-1">
               <button
                 type="button"
@@ -1096,7 +1114,26 @@ const App: React.FC = () => {
           )}
         </div>
 
-        {originalImage ? (
+        {activePanel === 'ops' ? (
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              type="button"
+              onClick={() => setShowAccessPanel(true)}
+              className="cta-secondary rounded-xl px-3 py-2 text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5 min-h-[44px]"
+            >
+              <Copy size={14} />
+              <span className="hidden sm:inline">Access</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActivePanel('tools')}
+              className="cta-primary rounded-xl px-3 py-2 text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5 min-h-[44px]"
+            >
+              <LayoutGrid size={14} />
+              <span className="hidden sm:inline">Open Studio</span>
+            </button>
+          </div>
+        ) : originalImage ? (
           <div className="flex items-center gap-2 sm:gap-3">
             <button
               type="button"
@@ -1164,7 +1201,11 @@ const App: React.FC = () => {
         )}
       </header>
 
-      {!originalImage ? (
+      {activePanel === 'ops' ? (
+        <main className="flex-1 min-h-0 overflow-y-auto editor-canvas-bg p-4 sm:p-6 lg:p-8">
+          <PathBOpsPanel />
+        </main>
+      ) : !originalImage ? (
         <main className="flex-1 grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] overflow-auto">
           <section className="px-6 pb-14 pt-10 sm:px-12 lg:px-16 lg:pt-14 flex items-center">
             <div className="max-w-2xl w-full">
@@ -1203,7 +1244,7 @@ const App: React.FC = () => {
           <nav className="hidden lg:flex shrink-0 w-[172px] premium-surface border-r panel-divider flex-col items-center justify-start gap-2 py-5 order-1">
             <div className="px-3 pb-2">
               <p className="text-[10px] uppercase tracking-[0.16em] text-[var(--color-text)]/65">Beta Scope</p>
-              <p className="text-xs mt-1 text-[var(--color-text)]/78">Design Studio is active. Other tabs are staged for later rollout.</p>
+              <p className="text-xs mt-1 text-[var(--color-text)]/78">Design Studio and Ops Console are active. Other tabs are staged for later rollout.</p>
             </div>
             {navItems.map((item) => {
               const active = activePanel === item.id;
@@ -1370,7 +1411,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {showFeedbackCheckpoint && generatedImage && (
+      {showFeedbackCheckpoint && generatedImage && activePanel === 'tools' && (
         <div className="fixed inset-0 z-[110] grid place-items-center bg-black/48 backdrop-blur-sm p-4">
           <div className="w-full max-w-lg premium-surface-strong rounded-[2rem] p-5 sm:p-6">
             <div className="mb-3">

@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 type PathBRole = 'BrokerageAdmin' | 'OfficeAdmin' | 'TeamLead' | 'Agent' | 'MediaPartner' | 'Reviewer';
 type ScopeType = 'brokerage' | 'office' | 'team';
 type JobPriority = 'low' | 'normal' | 'high' | 'urgent';
+type ApprovalDecision = 'approve' | 'reject' | 'request_changes';
 
 type ActorState = {
   userId: string;
@@ -888,16 +889,28 @@ const PathBOpsPanel: React.FC = () => {
     });
   };
 
+  const loadJobDetailById = useCallback(
+    async (jobId: string) => {
+      const normalizedId = jobId.trim();
+      if (!normalizedId) {
+        throw new Error('Job ID is required.');
+      }
+      await execute('Load job detail', async () => {
+        const response = await runJsonRequest('/api/pathb/job-detail', {
+          query: { jobId: normalizedId },
+        });
+        if (!response.ok) throw new Error(parseApiError(response.payload, response.status));
+        setJobDetail(response.payload?.data || null);
+        setJobDetailId(normalizedId);
+        setResponseEnvelope('Job detail', response.payload);
+      });
+    },
+    [execute, runJsonRequest, setResponseEnvelope]
+  );
+
   const loadJobDetail = async (event: React.FormEvent) => {
     event.preventDefault();
-    await execute('Load job detail', async () => {
-      const response = await runJsonRequest('/api/pathb/job-detail', {
-        query: { jobId: jobDetailId.trim() },
-      });
-      if (!response.ok) throw new Error(parseApiError(response.payload, response.status));
-      setJobDetail(response.payload?.data || null);
-      setResponseEnvelope('Job detail', response.payload);
-    });
+    await loadJobDetailById(jobDetailId);
   };
 
   const loadReports = async (event?: React.FormEvent) => {
@@ -925,6 +938,84 @@ const PathBOpsPanel: React.FC = () => {
       setResponseEnvelope(`Report export ${type}`, { ok: true, downloaded: true, type });
     });
   };
+
+  const prefillActionsFromJob = useCallback((job: any) => {
+    const jobId = String(job?.id || '');
+    const selectedPresetId = String(job?.selectedPresetId || '');
+    const officeId = String(job?.officeId || '');
+    const teamId = String(job?.teamId || '');
+    const agentUserId = String(job?.agentUserId || '');
+
+    setTransitionForm((prev) => ({ ...prev, jobId }));
+    setApprovalForm((prev) => ({ ...prev, jobId }));
+    setDeliveryForm((prev) => ({ ...prev, jobId }));
+    setRevisionForm((prev) => ({ ...prev, jobId }));
+    setJobDetailId(jobId);
+    setJobForm((prev) => ({
+      ...prev,
+      officeId: officeId || prev.officeId,
+      teamId: teamId || prev.teamId,
+      agentUserId: agentUserId || prev.agentUserId,
+      selectedPresetId: selectedPresetId || prev.selectedPresetId,
+    }));
+    setErrorMessage('');
+    setStatusMessage(`Loaded ${jobId} into action forms.`);
+  }, []);
+
+  const runQuickApproval = useCallback(
+    async (jobId: string, decision: ApprovalDecision) => {
+      const actionLabel =
+        decision === 'approve' ? 'Quick approve' : decision === 'reject' ? 'Quick reject' : 'Quick request changes';
+
+      await execute(actionLabel, async () => {
+        const note =
+          decision === 'approve'
+            ? 'Approved from quick action.'
+            : decision === 'reject'
+              ? 'Rejected from quick action.'
+              : 'Requested changes from quick action.';
+
+        const response = await runJsonRequest('/api/pathb/approvals', {
+          method: 'POST',
+          body: {
+            jobId,
+            decision,
+            note,
+          },
+        });
+        if (!response.ok) throw new Error(parseApiError(response.payload, response.status));
+        setResponseEnvelope(actionLabel, response.payload);
+        await refreshSnapshot();
+      });
+    },
+    [execute, refreshSnapshot, runJsonRequest, setResponseEnvelope]
+  );
+
+  const runQuickTransition = useCallback(
+    async (
+      jobId: string,
+      toStatus: string,
+      options?: { reason?: string; note?: string; revisionReasonCategory?: string; outputAssetIds?: string[] }
+    ) => {
+      await execute(`Quick transition to ${toStatus}`, async () => {
+        const response = await runJsonRequest('/api/pathb/job-transition', {
+          method: 'POST',
+          body: {
+            jobId,
+            toStatus,
+            reason: options?.reason,
+            note: options?.note,
+            revisionReasonCategory: options?.revisionReasonCategory,
+            outputAssetIds: options?.outputAssetIds || [],
+          },
+        });
+        if (!response.ok) throw new Error(parseApiError(response.payload, response.status));
+        setResponseEnvelope(`Quick transition to ${toStatus}`, response.payload);
+        await refreshSnapshot();
+      });
+    },
+    [execute, refreshSnapshot, runJsonRequest, setResponseEnvelope]
+  );
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-4 pb-6">
@@ -1646,6 +1737,39 @@ const PathBOpsPanel: React.FC = () => {
                   <p className="text-[var(--color-text)]/78">
                     {job.propertyAddress} · {job.status}
                   </p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => prefillActionsFromJob(job)}
+                      className="rounded-lg border border-[var(--color-border)] bg-white px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.08em]"
+                    >
+                      Use IDs
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => runQuickApproval(job.id, 'approve')}
+                      disabled={isBusy}
+                      className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-emerald-900 disabled:opacity-50"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => runQuickApproval(job.id, 'request_changes')}
+                      disabled={isBusy}
+                      className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-amber-900 disabled:opacity-50"
+                    >
+                      Changes
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => runQuickApproval(job.id, 'reject')}
+                      disabled={isBusy}
+                      className="rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-rose-900 disabled:opacity-50"
+                    >
+                      Reject
+                    </button>
+                  </div>
                 </div>
               ))
             )}
@@ -1785,6 +1909,79 @@ const PathBOpsPanel: React.FC = () => {
                     {job.id} · {job.status} · {job.priority}
                   </p>
                   <p className="text-[var(--color-text)]/68">Updated: {renderTime(job.updatedAt)}</p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => prefillActionsFromJob(job)}
+                      className="rounded-lg border border-[var(--color-border)] bg-white px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.08em]"
+                    >
+                      Use IDs
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => loadJobDetailById(job.id)}
+                      disabled={isBusy}
+                      className="rounded-lg border border-[var(--color-border)] bg-white px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] disabled:opacity-50"
+                    >
+                      Detail
+                    </button>
+                    {job.status === 'Approved for Processing' && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          runQuickTransition(job.id, 'Processing', {
+                            note: 'Moved to processing from quick action.',
+                          })
+                        }
+                        disabled={isBusy}
+                        className="rounded-lg border border-sky-200 bg-sky-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-sky-900 disabled:opacity-50"
+                      >
+                        To Processing
+                      </button>
+                    )}
+                    {job.status === 'Delivered' && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          runQuickTransition(job.id, 'Completed', {
+                            note: 'Marked complete from quick action.',
+                          })
+                        }
+                        disabled={isBusy}
+                        className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-emerald-900 disabled:opacity-50"
+                      >
+                        Complete
+                      </button>
+                    )}
+                    {job.status === 'Revision Requested' && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          runQuickTransition(job.id, 'Processing', {
+                            note: 'Returned to processing from quick action.',
+                          })
+                        }
+                        disabled={isBusy}
+                        className="rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-indigo-900 disabled:opacity-50"
+                      >
+                        Reprocess
+                      </button>
+                    )}
+                    {job.status === 'Rejected' && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          runQuickTransition(job.id, 'Draft', {
+                            note: 'Returned to draft from quick action.',
+                          })
+                        }
+                        disabled={isBusy}
+                        className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-amber-900 disabled:opacity-50"
+                      >
+                        Back to Draft
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))
             )}

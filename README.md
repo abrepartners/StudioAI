@@ -142,3 +142,4 @@ Path B frontend ops surface (CP-06):
 - `/Users/camillebrown/.codex/workspaces/default/StudioAI/App.tsx` (adds `Ops` panel switching)
 - `/Users/camillebrown/.codex/workspaces/default/StudioAI/components/PathBOpsPanel.tsx` (admin console UI for `/api/pathb/*`)
   - Includes CP-07 context tooling: saved actor profiles and one-click membership presets
+  - Includes CP-08 quick actions: queue approvals and status shortcuts from job cards

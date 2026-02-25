@@ -60,3 +60,18 @@ Each checkpoint must include:
    1. No reviewer queue API yet
    2. No delivery/revision UI screens yet
    3. No reporting endpoints yet
+
+### CP-03 Sprint 3 Approval Routing + Reviewer Queue
+
+1. Commit: `TBD`
+2. Completed:
+   1. Reviewer queue endpoint scoped by role and tenant
+   2. Approval decision endpoint (approve, reject, request changes)
+   3. Approval records persisted per job
+   4. Transition enforcement from `In Review` to approved/rejected/draft states
+   5. Audit events for approval decisions and status mutations
+3. Rollback:
+   1. `git checkout <cp-03-hash>`
+4. Gaps:
+   1. No delivery/revision UI integration yet
+   2. No reporting dashboards/exports yet

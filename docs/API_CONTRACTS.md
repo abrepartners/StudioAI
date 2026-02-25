@@ -50,6 +50,8 @@
 10. `GET|POST /api/pathb/users`
 11. `GET|POST /api/pathb/memberships`
 12. `GET /api/pathb/audit-events`
+13. `GET /api/pathb/review-queue`
+14. `POST /api/pathb/approvals`
 
 ## Request context requirements
 

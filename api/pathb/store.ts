@@ -1,6 +1,7 @@
 import { AuditEvent } from './audit';
 import {
   BrokerageRecord,
+  JobApprovalRecord,
   JobAssetRecord,
   JobRecord,
   MembershipRecord,
@@ -134,6 +135,7 @@ const entityKey = {
   preset: (id: string) => `pathb:preset:${id}`,
   job: (id: string) => `pathb:job:${id}`,
   jobAsset: (id: string) => `pathb:job-asset:${id}`,
+  jobApproval: (id: string) => `pathb:job-approval:${id}`,
   auditByBrokerage: (brokerageId: string) => `pathb:audit:${brokerageId}`,
 };
 
@@ -150,6 +152,8 @@ const indexKey = {
   jobsByOffice: (officeId: string) => `pathb:index:jobs-office:${officeId}`,
   jobsByAgent: (agentUserId: string) => `pathb:index:jobs-agent:${agentUserId}`,
   assetsByJob: (jobId: string) => `pathb:index:job-assets:${jobId}`,
+  approvalsByJob: (jobId: string) => `pathb:index:job-approvals-job:${jobId}`,
+  approvalsByBrokerage: (brokerageId: string) => `pathb:index:job-approvals-brokerage:${brokerageId}`,
 };
 
 const nowIso = () => new Date().toISOString();
@@ -435,6 +439,31 @@ export const listJobAssets = async (jobId: string): Promise<JobAssetRecord[]> =>
   const ids = await getJson<string[]>(indexKey.assetsByJob(jobId), []);
   const items = await Promise.all(ids.map((id) => getJobAsset(id)));
   return items.filter((item): item is JobAssetRecord => Boolean(item));
+};
+
+export const createJobApproval = async (
+  input: Omit<JobApprovalRecord, 'id' | 'createdAt'> & { id?: string }
+): Promise<JobApprovalRecord> => {
+  const id = input.id?.trim() || issueId('approval');
+  const record: JobApprovalRecord = {
+    ...input,
+    id,
+    createdAt: nowIso(),
+  };
+
+  await setJson(entityKey.jobApproval(id), record);
+  await addUniqueIndexValue(indexKey.approvalsByJob(record.jobId), id);
+  await addUniqueIndexValue(indexKey.approvalsByBrokerage(record.brokerageId), id);
+  return record;
+};
+
+export const getJobApproval = async (id: string): Promise<JobApprovalRecord | null> =>
+  getJson<JobApprovalRecord | null>(entityKey.jobApproval(id), null);
+
+export const listJobApprovals = async (jobId: string): Promise<JobApprovalRecord[]> => {
+  const ids = await getJson<string[]>(indexKey.approvalsByJob(jobId), []);
+  const items = await Promise.all(ids.map((id) => getJobApproval(id)));
+  return items.filter((item): item is JobApprovalRecord => Boolean(item));
 };
 
 export const appendAuditEvent = async (brokerageId: string, event: AuditEvent) => {

@@ -179,3 +179,16 @@ export interface JobAssetRecord {
   uploadedByUserId: string;
   createdAt: string;
 }
+
+export type ApprovalDecision = 'approve' | 'reject' | 'request_changes';
+
+export interface JobApprovalRecord {
+  id: string;
+  brokerageId: string;
+  officeId: string;
+  jobId: string;
+  reviewerUserId: string;
+  decision: ApprovalDecision;
+  note?: string | null;
+  createdAt: string;
+}

@@ -129,3 +129,5 @@ Sprint 1 API handlers currently available:
 - `/Users/camillebrown/.codex/workspaces/default/StudioAI/api/pathb/presets.ts`
 - `/Users/camillebrown/.codex/workspaces/default/StudioAI/api/pathb/jobs.ts`
 - `/Users/camillebrown/.codex/workspaces/default/StudioAI/api/pathb/job-transition.ts`
+- `/Users/camillebrown/.codex/workspaces/default/StudioAI/api/pathb/review-queue.ts`
+- `/Users/camillebrown/.codex/workspaces/default/StudioAI/api/pathb/approvals.ts`

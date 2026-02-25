@@ -40,20 +40,16 @@
 
 1. `POST /api/pathb/jobs`
 2. `GET /api/pathb/jobs`
-3. `GET /api/pathb/jobs/:jobId`
-4. `POST /api/pathb/jobs/:jobId/transitions`
-5. `POST /api/pathb/jobs/:jobId/approvals`
-6. `POST /api/pathb/jobs/:jobId/revisions`
-7. `POST /api/pathb/jobs/:jobId/deliveries`
-8. `GET /api/pathb/review-queue`
-9. `GET /api/pathb/presets`
-10. `POST /api/pathb/presets`
-11. `POST /api/pathb/bootstrap`
-12. `GET|POST /api/pathb/offices`
-13. `GET|POST /api/pathb/teams`
-14. `GET|POST /api/pathb/users`
-15. `GET|POST /api/pathb/memberships`
-16. `GET /api/pathb/audit-events`
+3. `POST /api/pathb/job-transition`
+4. `GET /api/pathb/presets`
+5. `POST /api/pathb/presets`
+6. `POST /api/pathb/bootstrap`
+7. `GET /api/pathb/brokerages`
+8. `GET|POST /api/pathb/offices`
+9. `GET|POST /api/pathb/teams`
+10. `GET|POST /api/pathb/users`
+11. `GET|POST /api/pathb/memberships`
+12. `GET /api/pathb/audit-events`
 
 ## Request context requirements
 
@@ -64,10 +60,11 @@
 
 ## Transition contract
 
-`POST /api/pathb/jobs/:jobId/transitions`
+`POST /api/pathb/job-transition`
 
 ```json
 {
+  "jobId": "job_123",
   "toStatus": "Delivered",
   "reason": "Required when rejecting or cancelling from processing",
   "revisionReasonCategory": "Composition mismatch",

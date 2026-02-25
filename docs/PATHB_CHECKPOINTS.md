@@ -44,3 +44,19 @@ Each checkpoint must include:
    1. No UI screens yet for org management
    2. No DB migrations layer yet (KV-backed scaffold)
    3. No presets/job workflow APIs yet
+
+### CP-02 Sprint 2 Presets + Job Intake + Status Engine
+
+1. Commit: `TBD`
+2. Completed:
+   1. Preset CRUD API with scope-based authorization
+   2. Job intake API with preset-driven approval/disclosure defaults
+   3. Asset linking at intake
+   4. Status transition API enforcing canonical workflow map
+   5. Audit events for submission, transitions, delivery, and revisions
+3. Rollback:
+   1. `git checkout <cp-02-hash>`
+4. Gaps:
+   1. No reviewer queue API yet
+   2. No delivery/revision UI screens yet
+   3. No reporting endpoints yet

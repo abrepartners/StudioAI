@@ -1,8 +1,11 @@
 import { AuditEvent } from './audit';
 import {
   BrokerageRecord,
+  JobAssetRecord,
+  JobRecord,
   MembershipRecord,
   OfficeRecord,
+  PresetRecord,
   TeamRecord,
   UserRecord,
 } from './types';
@@ -128,6 +131,9 @@ const entityKey = {
   team: (id: string) => `pathb:team:${id}`,
   user: (id: string) => `pathb:user:${id}`,
   membership: (id: string) => `pathb:membership:${id}`,
+  preset: (id: string) => `pathb:preset:${id}`,
+  job: (id: string) => `pathb:job:${id}`,
+  jobAsset: (id: string) => `pathb:job-asset:${id}`,
   auditByBrokerage: (brokerageId: string) => `pathb:audit:${brokerageId}`,
 };
 
@@ -138,6 +144,12 @@ const indexKey = {
   usersByBrokerage: (brokerageId: string) => `pathb:index:users:${brokerageId}`,
   membershipsByBrokerage: (brokerageId: string) => `pathb:index:memberships:${brokerageId}`,
   membershipsByUser: (userId: string) => `pathb:index:user-memberships:${userId}`,
+  presetsByBrokerage: (brokerageId: string) => `pathb:index:presets:${brokerageId}`,
+  presetsByOffice: (officeId: string) => `pathb:index:presets-office:${officeId}`,
+  jobsByBrokerage: (brokerageId: string) => `pathb:index:jobs:${brokerageId}`,
+  jobsByOffice: (officeId: string) => `pathb:index:jobs-office:${officeId}`,
+  jobsByAgent: (agentUserId: string) => `pathb:index:jobs-agent:${agentUserId}`,
+  assetsByJob: (jobId: string) => `pathb:index:job-assets:${jobId}`,
 };
 
 const nowIso = () => new Date().toISOString();
@@ -299,6 +311,130 @@ export const listMembershipsByUser = async (userId: string): Promise<MembershipR
   const ids = await getJson<string[]>(indexKey.membershipsByUser(userId), []);
   const items = await Promise.all(ids.map((id) => getMembership(id)));
   return items.filter((item): item is MembershipRecord => Boolean(item));
+};
+
+export const createPreset = async (input: {
+  brokerageId: string;
+  officeId?: string | null;
+  name: string;
+  scopeType: 'brokerage' | 'office';
+  scopeId: string;
+  active: boolean;
+  allowedEditTypes: PresetRecord['allowedEditTypes'];
+  defaultSettingsJson: Record<string, unknown>;
+  approvalRequired: boolean;
+  disclosureRequiredDefault: boolean;
+  deliveryNotesTemplate: string;
+  revisionPolicyTemplate: string;
+  createdBy: string;
+  id?: string;
+}): Promise<PresetRecord> => {
+  const id = input.id?.trim() || issueId('preset');
+  const timestamp = nowIso();
+
+  const record: PresetRecord = {
+    id,
+    name: input.name.trim(),
+    scopeType: input.scopeType,
+    scopeId: input.scopeId,
+    brokerageId: input.brokerageId,
+    officeId: input.officeId || null,
+    active: input.active,
+    allowedEditTypes: input.allowedEditTypes,
+    defaultSettingsJson: input.defaultSettingsJson,
+    approvalRequired: input.approvalRequired,
+    disclosureRequiredDefault: input.disclosureRequiredDefault,
+    deliveryNotesTemplate: input.deliveryNotesTemplate,
+    revisionPolicyTemplate: input.revisionPolicyTemplate,
+    createdBy: input.createdBy,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+
+  await setJson(entityKey.preset(id), record);
+  await addUniqueIndexValue(indexKey.presetsByBrokerage(input.brokerageId), id);
+  if (record.officeId) {
+    await addUniqueIndexValue(indexKey.presetsByOffice(record.officeId), id);
+  }
+  return record;
+};
+
+export const getPreset = async (id: string): Promise<PresetRecord | null> =>
+  getJson<PresetRecord | null>(entityKey.preset(id), null);
+
+export const listPresetsByBrokerage = async (brokerageId: string): Promise<PresetRecord[]> => {
+  const ids = await getJson<string[]>(indexKey.presetsByBrokerage(brokerageId), []);
+  const items = await Promise.all(ids.map((id) => getPreset(id)));
+  return items.filter((item): item is PresetRecord => Boolean(item));
+};
+
+export const listPresetsByOffice = async (officeId: string): Promise<PresetRecord[]> => {
+  const ids = await getJson<string[]>(indexKey.presetsByOffice(officeId), []);
+  const items = await Promise.all(ids.map((id) => getPreset(id)));
+  return items.filter((item): item is PresetRecord => Boolean(item));
+};
+
+export const createJob = async (input: Omit<JobRecord, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }): Promise<JobRecord> => {
+  const id = input.id?.trim() || issueId('job');
+  const timestamp = nowIso();
+  const record: JobRecord = {
+    ...input,
+    id,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+
+  await setJson(entityKey.job(id), record);
+  await addUniqueIndexValue(indexKey.jobsByBrokerage(record.brokerageId), id);
+  await addUniqueIndexValue(indexKey.jobsByOffice(record.officeId), id);
+  await addUniqueIndexValue(indexKey.jobsByAgent(record.agentUserId), id);
+  return record;
+};
+
+export const getJob = async (id: string): Promise<JobRecord | null> =>
+  getJson<JobRecord | null>(entityKey.job(id), null);
+
+export const saveJob = async (job: JobRecord) => {
+  const next: JobRecord = {
+    ...job,
+    updatedAt: nowIso(),
+  };
+  await setJson(entityKey.job(job.id), next);
+  return next;
+};
+
+export const listJobsByBrokerage = async (brokerageId: string): Promise<JobRecord[]> => {
+  const ids = await getJson<string[]>(indexKey.jobsByBrokerage(brokerageId), []);
+  const items = await Promise.all(ids.map((id) => getJob(id)));
+  return items.filter((item): item is JobRecord => Boolean(item));
+};
+
+export const listJobsByAgent = async (agentUserId: string): Promise<JobRecord[]> => {
+  const ids = await getJson<string[]>(indexKey.jobsByAgent(agentUserId), []);
+  const items = await Promise.all(ids.map((id) => getJob(id)));
+  return items.filter((item): item is JobRecord => Boolean(item));
+};
+
+export const createJobAsset = async (input: Omit<JobAssetRecord, 'id' | 'createdAt'> & { id?: string }): Promise<JobAssetRecord> => {
+  const id = input.id?.trim() || issueId('asset');
+  const record: JobAssetRecord = {
+    ...input,
+    id,
+    createdAt: nowIso(),
+  };
+
+  await setJson(entityKey.jobAsset(id), record);
+  await addUniqueIndexValue(indexKey.assetsByJob(record.jobId), id);
+  return record;
+};
+
+export const getJobAsset = async (id: string): Promise<JobAssetRecord | null> =>
+  getJson<JobAssetRecord | null>(entityKey.jobAsset(id), null);
+
+export const listJobAssets = async (jobId: string): Promise<JobAssetRecord[]> => {
+  const ids = await getJson<string[]>(indexKey.assetsByJob(jobId), []);
+  const items = await Promise.all(ids.map((id) => getJobAsset(id)));
+  return items.filter((item): item is JobAssetRecord => Boolean(item));
 };
 
 export const appendAuditEvent = async (brokerageId: string, event: AuditEvent) => {

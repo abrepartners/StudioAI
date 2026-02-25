@@ -109,3 +109,73 @@ export interface MembershipRecord {
   createdAt: string;
   updatedAt: string;
 }
+
+export type EditLabel =
+  | 'Virtual Staging'
+  | 'Restaging'
+  | 'Twilight'
+  | 'Declutter'
+  | 'Object Removal'
+  | 'Lawn Enhancement'
+  | 'Sky Replacement'
+  | 'Minor Cleanup'
+  | 'Renovation Preview';
+
+export interface PresetRecord {
+  id: string;
+  name: string;
+  scopeType: 'brokerage' | 'office';
+  scopeId: string;
+  brokerageId: string;
+  officeId?: string | null;
+  active: boolean;
+  allowedEditTypes: EditLabel[];
+  defaultSettingsJson: Record<string, unknown>;
+  approvalRequired: boolean;
+  disclosureRequiredDefault: boolean;
+  deliveryNotesTemplate: string;
+  revisionPolicyTemplate: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type JobPriority = 'low' | 'normal' | 'high' | 'urgent';
+
+export interface JobRecord {
+  id: string;
+  brokerageId: string;
+  officeId: string;
+  teamId?: string | null;
+  agentUserId: string;
+  propertyAddress: string;
+  mlsId?: string | null;
+  selectedPresetId: string;
+  requestedEditCategories: EditLabel[];
+  requestedTurnaround?: string | null;
+  priority: JobPriority;
+  notes?: string | null;
+  disclosureRelevant: boolean;
+  disclosureRequired: boolean;
+  status: JobStatus;
+  revisionCount: number;
+  createdAt: string;
+  updatedAt: string;
+  submittedAt?: string | null;
+  deliveredAt?: string | null;
+  completedAt?: string | null;
+}
+
+export interface JobAssetRecord {
+  id: string;
+  brokerageId: string;
+  officeId: string;
+  jobId: string;
+  kind: 'original' | 'processed';
+  version: number;
+  editLabel?: EditLabel | null;
+  url: string;
+  name?: string | null;
+  uploadedByUserId: string;
+  createdAt: string;
+}

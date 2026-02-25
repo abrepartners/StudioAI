@@ -93,3 +93,25 @@ After owner login:
 - You can generate root invite codes directly from the in-app `Access` panel.
 - Generated codes are stored in KV and can be shared as:
   - `https://<your-domain>/?invite=<GENERATED_CODE>`
+
+## Path B Brokerage Ops Handoff
+
+Path B planning and implementation specs are documented here:
+
+1. `/Users/camillebrown/.codex/workspaces/default/StudioAI/docs/PROJECT_CONTEXT.md`
+2. `/Users/camillebrown/.codex/workspaces/default/StudioAI/docs/MVP_SCOPE.md`
+3. `/Users/camillebrown/.codex/workspaces/default/StudioAI/docs/WORKFLOW_STATUS_SPEC.md`
+4. `/Users/camillebrown/.codex/workspaces/default/StudioAI/docs/RBAC_MATRIX.md`
+5. `/Users/camillebrown/.codex/workspaces/default/StudioAI/docs/PRESET_SPEC.md`
+6. `/Users/camillebrown/.codex/workspaces/default/StudioAI/docs/AUDIT_EVENTS_SPEC.md`
+7. `/Users/camillebrown/.codex/workspaces/default/StudioAI/docs/API_CONTRACTS.md`
+8. `/Users/camillebrown/.codex/workspaces/default/StudioAI/docs/PILOT_READINESS_CHECKLIST.md`
+9. `/Users/camillebrown/.codex/workspaces/default/StudioAI/docs/TEST_MATRIX_MVP.md`
+
+Starter policy and workflow code lives in:
+
+- `/Users/camillebrown/.codex/workspaces/default/StudioAI/api/pathb/types.ts`
+- `/Users/camillebrown/.codex/workspaces/default/StudioAI/api/pathb/errors.ts`
+- `/Users/camillebrown/.codex/workspaces/default/StudioAI/api/pathb/rbac.ts`
+- `/Users/camillebrown/.codex/workspaces/default/StudioAI/api/pathb/workflow.ts`
+- `/Users/camillebrown/.codex/workspaces/default/StudioAI/api/pathb/audit.ts`

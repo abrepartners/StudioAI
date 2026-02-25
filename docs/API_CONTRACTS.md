@@ -55,6 +55,8 @@
 15. `POST /api/pathb/deliveries`
 16. `POST /api/pathb/revisions`
 17. `GET /api/pathb/job-detail`
+18. `GET /api/pathb/reports`
+19. `GET /api/pathb/report-export?type=jobs|office-usage|revisions`
 
 ## Request context requirements
 

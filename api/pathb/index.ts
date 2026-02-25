@@ -3,6 +3,7 @@ export * from './context';
 export * from './errors';
 export * from './http';
 export * from './rbac';
+export * from './reporting';
 export * from './store';
 export * from './types';
 export * from './workflow';

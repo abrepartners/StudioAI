@@ -134,3 +134,5 @@ Sprint 1 API handlers currently available:
 - `/Users/camillebrown/.codex/workspaces/default/StudioAI/api/pathb/deliveries.ts`
 - `/Users/camillebrown/.codex/workspaces/default/StudioAI/api/pathb/revisions.ts`
 - `/Users/camillebrown/.codex/workspaces/default/StudioAI/api/pathb/job-detail.ts`
+- `/Users/camillebrown/.codex/workspaces/default/StudioAI/api/pathb/reports.ts`
+- `/Users/camillebrown/.codex/workspaces/default/StudioAI/api/pathb/report-export.ts`

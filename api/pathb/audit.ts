@@ -1,6 +1,7 @@
 import { ActorContext, TenantScopeContext } from './types';
 
 export const AUDIT_EVENT_TYPES = [
+  'ORG_STRUCTURE_CHANGED',
   'USER_INVITED',
   'MEMBERSHIP_CHANGED',
   'PRESET_CREATED',
@@ -30,8 +31,8 @@ export interface AuditEvent {
   targetEntityId: string;
   timestamp: string;
   source: AuditSource;
-  beforeSnapshot?: Record<string, unknown> | null;
-  afterSnapshot?: Record<string, unknown> | null;
+  beforeSnapshot?: unknown;
+  afterSnapshot?: unknown;
   reason?: string | null;
   note?: string | null;
   requestId: string;
@@ -44,8 +45,8 @@ export interface BuildAuditEventInput {
   targetEntityType: string;
   targetEntityId: string;
   source: AuditSource;
-  beforeSnapshot?: Record<string, unknown> | null;
-  afterSnapshot?: Record<string, unknown> | null;
+  beforeSnapshot?: unknown;
+  afterSnapshot?: unknown;
   reason?: string | null;
   note?: string | null;
 }

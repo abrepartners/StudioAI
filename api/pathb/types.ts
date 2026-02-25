@@ -60,3 +60,52 @@ export interface TransitionMetadata {
   revisionReasonCategory?: string;
   note?: string;
 }
+
+export interface BrokerageRecord {
+  id: string;
+  name: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OfficeRecord {
+  id: string;
+  brokerageId: string;
+  name: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TeamRecord {
+  id: string;
+  brokerageId: string;
+  officeId: string;
+  name: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UserRecord {
+  id: string;
+  brokerageId: string;
+  email: string;
+  name: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MembershipRecord {
+  id: string;
+  brokerageId: string;
+  officeId?: string | null;
+  teamId?: string | null;
+  userId: string;
+  role: PathBRole;
+  scopeType: ScopeType;
+  createdAt: string;
+  updatedAt: string;
+}

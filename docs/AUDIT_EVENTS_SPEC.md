@@ -19,19 +19,20 @@
 
 ## Required event categories
 
-1. User invited
-2. Membership changed
-3. Preset created
-4. Preset updated
-5. Preset deleted
-6. Job submitted
-7. Status changed
-8. Approval decision
-9. Delivery created
-10. Revision requested
-11. Asset uploaded
-12. Disclosure flag changed
-13. Report export generated
+1. Org structure changed
+2. User invited
+3. Membership changed
+4. Preset created
+5. Preset updated
+6. Preset deleted
+7. Job submitted
+8. Status changed
+9. Approval decision
+10. Delivery created
+11. Revision requested
+12. Asset uploaded
+13. Disclosure flag changed
+14. Report export generated
 
 ## Implementation constraints
 

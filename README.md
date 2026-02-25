@@ -107,6 +107,7 @@ Path B planning and implementation specs are documented here:
 7. `/Users/camillebrown/.codex/workspaces/default/StudioAI/docs/API_CONTRACTS.md`
 8. `/Users/camillebrown/.codex/workspaces/default/StudioAI/docs/PILOT_READINESS_CHECKLIST.md`
 9. `/Users/camillebrown/.codex/workspaces/default/StudioAI/docs/TEST_MATRIX_MVP.md`
+10. `/Users/camillebrown/.codex/workspaces/default/StudioAI/docs/PATHB_CHECKPOINTS.md`
 
 Starter policy and workflow code lives in:
 
@@ -115,3 +116,13 @@ Starter policy and workflow code lives in:
 - `/Users/camillebrown/.codex/workspaces/default/StudioAI/api/pathb/rbac.ts`
 - `/Users/camillebrown/.codex/workspaces/default/StudioAI/api/pathb/workflow.ts`
 - `/Users/camillebrown/.codex/workspaces/default/StudioAI/api/pathb/audit.ts`
+
+Sprint 1 API handlers currently available:
+
+- `/Users/camillebrown/.codex/workspaces/default/StudioAI/api/pathb/bootstrap.ts`
+- `/Users/camillebrown/.codex/workspaces/default/StudioAI/api/pathb/brokerages.ts`
+- `/Users/camillebrown/.codex/workspaces/default/StudioAI/api/pathb/offices.ts`
+- `/Users/camillebrown/.codex/workspaces/default/StudioAI/api/pathb/teams.ts`
+- `/Users/camillebrown/.codex/workspaces/default/StudioAI/api/pathb/users.ts`
+- `/Users/camillebrown/.codex/workspaces/default/StudioAI/api/pathb/memberships.ts`
+- `/Users/camillebrown/.codex/workspaces/default/StudioAI/api/pathb/audit-events.ts`

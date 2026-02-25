@@ -106,7 +106,7 @@ Each checkpoint must include:
 
 ### CP-06 Ops Console Frontend (Path B Admin UI)
 
-1. Commit: `TBD`
+1. Commit: `acec3c9`
 2. Completed:
    1. Added in-app `Ops Console` panel in the main shell
    2. Added actor-context header controls for Path B endpoints
@@ -114,7 +114,7 @@ Each checkpoint must include:
    4. Added response inspector for payload debugging and validation
    5. Kept Design Studio generation workflow intact while enabling panel switching
 3. Rollback:
-   1. `git checkout TBD`
+   1. `git checkout acec3c9`
 4. Gaps:
    1. No dedicated route-level RBAC UI yet (header context is manual)
    2. No pagination/virtualization for large Path B datasets yet

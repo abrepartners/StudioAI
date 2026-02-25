@@ -63,7 +63,7 @@ Each checkpoint must include:
 
 ### CP-03 Sprint 3 Approval Routing + Reviewer Queue
 
-1. Commit: `TBD`
+1. Commit: `c6cf634`
 2. Completed:
    1. Reviewer queue endpoint scoped by role and tenant
    2. Approval decision endpoint (approve, reject, request changes)
@@ -71,7 +71,7 @@ Each checkpoint must include:
    4. Transition enforcement from `In Review` to approved/rejected/draft states
    5. Audit events for approval decisions and status mutations
 3. Rollback:
-   1. `git checkout <cp-03-hash>`
+   1. `git checkout c6cf634`
 4. Gaps:
    1. No delivery/revision UI integration yet
    2. No reporting dashboards/exports yet

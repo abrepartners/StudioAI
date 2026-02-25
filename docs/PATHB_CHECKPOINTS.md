@@ -31,7 +31,7 @@ Each checkpoint must include:
 
 ### CP-01 Sprint 1 Org APIs
 
-1. Commit: `TBD`
+1. Commit: `37bfe5d`
 2. Completed:
    1. Bootstrap endpoint for first brokerage setup
    2. Offices/teams/users/memberships API handlers
@@ -39,7 +39,7 @@ Each checkpoint must include:
    4. Path B storage adapter with KV + memory fallback
    5. Audit events persisted for org actions
 3. Rollback:
-   1. `git checkout <cp-01-hash>`
+   1. `git checkout 37bfe5d`
 4. Gaps:
    1. No UI screens yet for org management
    2. No DB migrations layer yet (KV-backed scaffold)

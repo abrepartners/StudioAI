@@ -31,6 +31,15 @@ type ActorProfile = {
   updatedAt: string;
 };
 
+type PendingQuickAction = {
+  id: string;
+  title: string;
+  description: string;
+  confirmLabel: string;
+  tone: 'primary' | 'warning' | 'danger';
+  run: () => Promise<void>;
+};
+
 const ROLE_OPTIONS: PathBRole[] = [
   'BrokerageAdmin',
   'OfficeAdmin',
@@ -151,6 +160,9 @@ const PathBOpsPanel: React.FC = () => {
   const [statusMessage, setStatusMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [lastResponse, setLastResponse] = useState('');
+  const [pendingQuickAction, setPendingQuickAction] = useState<PendingQuickAction | null>(null);
+  const [isConfirmingQuickAction, setIsConfirmingQuickAction] = useState(false);
+  const [selectedQueueJobIds, setSelectedQueueJobIds] = useState<string[]>([]);
   const [actorProfiles, setActorProfiles] = useState<ActorProfile[]>(() => loadActorProfiles());
   const [profileName, setProfileName] = useState('');
   const [selectedProfileId, setSelectedProfileId] = useState('');
@@ -263,6 +275,11 @@ const PathBOpsPanel: React.FC = () => {
   }, [actorProfiles]);
 
   useEffect(() => {
+    const visibleIds = new Set(reviewQueue.map((job) => String(job?.id || '')));
+    setSelectedQueueJobIds((prev) => prev.filter((id) => visibleIds.has(id)));
+  }, [reviewQueue]);
+
+  useEffect(() => {
     setTeamForm((prev) => (prev.officeId ? prev : { ...prev, officeId: actor.officeId }));
     setUserForm((prev) => ({
       ...prev,
@@ -351,6 +368,16 @@ const PathBOpsPanel: React.FC = () => {
     });
   }, [memberships, userNameById, teamNameById, officeNameById, actor.bootstrapKey, actor.brokerageId]);
 
+  const visibleQueueJobs = useMemo(() => reviewQueue.slice(0, 8), [reviewQueue]);
+  const visibleQueueJobIds = useMemo(
+    () => visibleQueueJobs.map((job) => String(job?.id || '')).filter(Boolean),
+    [visibleQueueJobs]
+  );
+  const allVisibleQueueSelected = useMemo(
+    () => visibleQueueJobIds.length > 0 && visibleQueueJobIds.every((id) => selectedQueueJobIds.includes(id)),
+    [visibleQueueJobIds, selectedQueueJobIds]
+  );
+
   const applyActorContext = useCallback((context: ActorState, source: string) => {
     const nextRole = ROLE_OPTIONS.includes(context.role) ? context.role : defaultActor.role;
     setActor({
@@ -372,6 +399,50 @@ const PathBOpsPanel: React.FC = () => {
     setErrorMessage('');
     setStatusMessage('Actor headers reset.');
   }, [actor.bootstrapKey]);
+
+  const requestQuickActionConfirm = useCallback((config: Omit<PendingQuickAction, 'id'>) => {
+    setPendingQuickAction({
+      id: `quick_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+      ...config,
+    });
+    setErrorMessage('');
+  }, []);
+
+  const cancelPendingQuickAction = useCallback(() => {
+    if (isConfirmingQuickAction) return;
+    setPendingQuickAction(null);
+  }, [isConfirmingQuickAction]);
+
+  const confirmPendingQuickAction = useCallback(async () => {
+    if (!pendingQuickAction) return;
+    setIsConfirmingQuickAction(true);
+    try {
+      await pendingQuickAction.run();
+      setPendingQuickAction(null);
+    } finally {
+      setIsConfirmingQuickAction(false);
+    }
+  }, [pendingQuickAction]);
+
+  const toggleQueueJobSelection = useCallback((jobId: string) => {
+    setSelectedQueueJobIds((prev) =>
+      prev.includes(jobId) ? prev.filter((id) => id !== jobId) : [...prev, jobId]
+    );
+  }, []);
+
+  const toggleSelectAllVisibleQueue = useCallback(() => {
+    if (allVisibleQueueSelected) {
+      setSelectedQueueJobIds((prev) => prev.filter((id) => !visibleQueueJobIds.includes(id)));
+      return;
+    }
+    setSelectedQueueJobIds((prev) => {
+      const next = new Set(prev);
+      for (const id of visibleQueueJobIds) {
+        next.add(id);
+      }
+      return Array.from(next);
+    });
+  }, [allVisibleQueueSelected, visibleQueueJobIds]);
 
   const saveActorProfile = useCallback(() => {
     const name = profileName.trim();
@@ -963,17 +1034,22 @@ const PathBOpsPanel: React.FC = () => {
   }, []);
 
   const runQuickApproval = useCallback(
-    async (jobId: string, decision: ApprovalDecision) => {
+    async (
+      jobId: string,
+      decision: ApprovalDecision,
+      options?: { note?: string; afterSuccess?: () => void }
+    ) => {
       const actionLabel =
         decision === 'approve' ? 'Quick approve' : decision === 'reject' ? 'Quick reject' : 'Quick request changes';
 
       await execute(actionLabel, async () => {
         const note =
-          decision === 'approve'
+          options?.note ||
+          (decision === 'approve'
             ? 'Approved from quick action.'
             : decision === 'reject'
               ? 'Rejected from quick action.'
-              : 'Requested changes from quick action.';
+              : 'Requested changes from quick action.');
 
         const response = await runJsonRequest('/api/pathb/approvals', {
           method: 'POST',
@@ -986,6 +1062,7 @@ const PathBOpsPanel: React.FC = () => {
         if (!response.ok) throw new Error(parseApiError(response.payload, response.status));
         setResponseEnvelope(actionLabel, response.payload);
         await refreshSnapshot();
+        options?.afterSuccess?.();
       });
     },
     [execute, refreshSnapshot, runJsonRequest, setResponseEnvelope]
@@ -995,7 +1072,13 @@ const PathBOpsPanel: React.FC = () => {
     async (
       jobId: string,
       toStatus: string,
-      options?: { reason?: string; note?: string; revisionReasonCategory?: string; outputAssetIds?: string[] }
+      options?: {
+        reason?: string;
+        note?: string;
+        revisionReasonCategory?: string;
+        outputAssetIds?: string[];
+        afterSuccess?: () => void;
+      }
     ) => {
       await execute(`Quick transition to ${toStatus}`, async () => {
         const response = await runJsonRequest('/api/pathb/job-transition', {
@@ -1012,9 +1095,75 @@ const PathBOpsPanel: React.FC = () => {
         if (!response.ok) throw new Error(parseApiError(response.payload, response.status));
         setResponseEnvelope(`Quick transition to ${toStatus}`, response.payload);
         await refreshSnapshot();
+        options?.afterSuccess?.();
       });
     },
     [execute, refreshSnapshot, runJsonRequest, setResponseEnvelope]
+  );
+
+  const runBulkQueueDecision = useCallback(
+    async (decision: ApprovalDecision) => {
+      const jobIds = Array.from(new Set<string>(selectedQueueJobIds));
+      if (jobIds.length === 0) {
+        setErrorMessage('Select at least one queue item for bulk action.');
+        return;
+      }
+
+      const label =
+        decision === 'approve'
+          ? 'Bulk Approve'
+          : decision === 'reject'
+            ? 'Bulk Reject'
+            : 'Bulk Request Changes';
+      const note =
+        decision === 'approve'
+          ? 'Approved in bulk from queue.'
+          : decision === 'reject'
+            ? 'Rejected in bulk from queue.'
+            : 'Requested changes in bulk from queue.';
+
+      requestQuickActionConfirm({
+        title: `${label} (${jobIds.length})`,
+        description: `Apply ${decision} to ${jobIds.length} selected in-review jobs.`,
+        confirmLabel: label,
+        tone: decision === 'approve' ? 'primary' : decision === 'reject' ? 'danger' : 'warning',
+        run: async () => {
+          await execute(label, async () => {
+            const results: Array<{ jobId: string; ok: boolean; payload: any }> = [];
+            for (const jobId of jobIds) {
+              const response = await runJsonRequest('/api/pathb/approvals', {
+                method: 'POST',
+                body: {
+                  jobId,
+                  decision,
+                  note,
+                },
+              });
+              if (!response.ok) {
+                throw new Error(`Bulk action failed for ${jobId}: ${parseApiError(response.payload, response.status)}`);
+              }
+              results.push({ jobId, ok: true, payload: response.payload?.data || {} });
+            }
+            await refreshSnapshot();
+            setSelectedQueueJobIds((prev) => prev.filter((id) => !jobIds.includes(id)));
+            setResponseEnvelope(label, {
+              ok: true,
+              count: results.length,
+              decision,
+              results,
+            });
+          });
+        },
+      });
+    },
+    [
+      selectedQueueJobIds,
+      requestQuickActionConfirm,
+      execute,
+      runJsonRequest,
+      refreshSnapshot,
+      setResponseEnvelope,
+    ]
   );
 
   return (
@@ -1727,16 +1876,75 @@ const PathBOpsPanel: React.FC = () => {
               Load Detail
             </button>
           </form>
+          <div className="rounded-xl border border-[var(--color-border)] bg-white/75 px-3 py-2">
+            <p className="text-[11px] uppercase tracking-[0.1em] text-[var(--color-text)]/72">
+              Queue Selection
+            </p>
+            <p className="text-xs text-[var(--color-text)]/78 mt-1">
+              Selected {selectedQueueJobIds.length} of {visibleQueueJobIds.length} visible queue items.
+            </p>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                onClick={toggleSelectAllVisibleQueue}
+                className="rounded-lg border border-[var(--color-border)] bg-white px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.08em]"
+              >
+                {allVisibleQueueSelected ? 'Unselect Visible' : 'Select Visible'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedQueueJobIds([])}
+                disabled={selectedQueueJobIds.length === 0}
+                className="rounded-lg border border-[var(--color-border)] bg-white px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] disabled:opacity-50"
+              >
+                Clear
+              </button>
+              <button
+                type="button"
+                onClick={() => runBulkQueueDecision('approve')}
+                disabled={isBusy || selectedQueueJobIds.length === 0}
+                className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-emerald-900 disabled:opacity-50"
+              >
+                Bulk Approve
+              </button>
+              <button
+                type="button"
+                onClick={() => runBulkQueueDecision('request_changes')}
+                disabled={isBusy || selectedQueueJobIds.length === 0}
+                className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-amber-900 disabled:opacity-50"
+              >
+                Bulk Changes
+              </button>
+              <button
+                type="button"
+                onClick={() => runBulkQueueDecision('reject')}
+                disabled={isBusy || selectedQueueJobIds.length === 0}
+                className="rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-rose-900 disabled:opacity-50"
+              >
+                Bulk Reject
+              </button>
+            </div>
+          </div>
           <div className="max-h-48 overflow-auto space-y-2">
             {reviewQueue.length === 0 ? (
               <p className="text-xs text-[var(--color-text)]/75">No jobs currently in review queue.</p>
             ) : (
-              reviewQueue.slice(0, 8).map((job) => (
+              visibleQueueJobs.map((job) => (
                 <div key={job.id} className="rounded-xl border border-[var(--color-border)] bg-white/80 px-3 py-2 text-xs">
-                  <p className="font-semibold text-[var(--color-ink)]">{job.id}</p>
-                  <p className="text-[var(--color-text)]/78">
-                    {job.propertyAddress} · {job.status}
-                  </p>
+                  <div className="flex items-start gap-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedQueueJobIds.includes(String(job.id))}
+                      onChange={() => toggleQueueJobSelection(String(job.id))}
+                      className="mt-1 h-4 w-4 rounded border-[var(--color-border)]"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-[var(--color-ink)]">{job.id}</p>
+                      <p className="text-[var(--color-text)]/78">
+                        {job.propertyAddress} · {job.status}
+                      </p>
+                    </div>
+                  </div>
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     <button
                       type="button"
@@ -1755,7 +1963,18 @@ const PathBOpsPanel: React.FC = () => {
                     </button>
                     <button
                       type="button"
-                      onClick={() => runQuickApproval(job.id, 'request_changes')}
+                      onClick={() =>
+                        requestQuickActionConfirm({
+                          title: `Request Changes (${job.id})`,
+                          description: 'Move this in-review job back to Draft with change request notes.',
+                          confirmLabel: 'Request Changes',
+                          tone: 'warning',
+                          run: async () =>
+                            runQuickApproval(job.id, 'request_changes', {
+                              note: 'Requested changes from quick action.',
+                            }),
+                        })
+                      }
                       disabled={isBusy}
                       className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-amber-900 disabled:opacity-50"
                     >
@@ -1763,7 +1982,18 @@ const PathBOpsPanel: React.FC = () => {
                     </button>
                     <button
                       type="button"
-                      onClick={() => runQuickApproval(job.id, 'reject')}
+                      onClick={() =>
+                        requestQuickActionConfirm({
+                          title: `Reject Job (${job.id})`,
+                          description: 'Reject this in-review job and set status to Rejected.',
+                          confirmLabel: 'Reject',
+                          tone: 'danger',
+                          run: async () =>
+                            runQuickApproval(job.id, 'reject', {
+                              note: 'Rejected from quick action.',
+                            }),
+                        })
+                      }
                       disabled={isBusy}
                       className="rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-rose-900 disabled:opacity-50"
                     >
@@ -1929,8 +2159,15 @@ const PathBOpsPanel: React.FC = () => {
                       <button
                         type="button"
                         onClick={() =>
-                          runQuickTransition(job.id, 'Processing', {
-                            note: 'Moved to processing from quick action.',
+                          requestQuickActionConfirm({
+                            title: `Move To Processing (${job.id})`,
+                            description: 'Advance this job from Approved for Processing to Processing.',
+                            confirmLabel: 'Move To Processing',
+                            tone: 'primary',
+                            run: async () =>
+                              runQuickTransition(job.id, 'Processing', {
+                                note: 'Moved to processing from quick action.',
+                              }),
                           })
                         }
                         disabled={isBusy}
@@ -1943,8 +2180,15 @@ const PathBOpsPanel: React.FC = () => {
                       <button
                         type="button"
                         onClick={() =>
-                          runQuickTransition(job.id, 'Completed', {
-                            note: 'Marked complete from quick action.',
+                          requestQuickActionConfirm({
+                            title: `Complete Job (${job.id})`,
+                            description: 'Mark this delivered job as Completed.',
+                            confirmLabel: 'Mark Complete',
+                            tone: 'primary',
+                            run: async () =>
+                              runQuickTransition(job.id, 'Completed', {
+                                note: 'Marked complete from quick action.',
+                              }),
                           })
                         }
                         disabled={isBusy}
@@ -1957,8 +2201,15 @@ const PathBOpsPanel: React.FC = () => {
                       <button
                         type="button"
                         onClick={() =>
-                          runQuickTransition(job.id, 'Processing', {
-                            note: 'Returned to processing from quick action.',
+                          requestQuickActionConfirm({
+                            title: `Reprocess Job (${job.id})`,
+                            description: 'Move this revision-requested job back into Processing.',
+                            confirmLabel: 'Reprocess',
+                            tone: 'warning',
+                            run: async () =>
+                              runQuickTransition(job.id, 'Processing', {
+                                note: 'Returned to processing from quick action.',
+                              }),
                           })
                         }
                         disabled={isBusy}
@@ -1971,8 +2222,15 @@ const PathBOpsPanel: React.FC = () => {
                       <button
                         type="button"
                         onClick={() =>
-                          runQuickTransition(job.id, 'Draft', {
-                            note: 'Returned to draft from quick action.',
+                          requestQuickActionConfirm({
+                            title: `Back To Draft (${job.id})`,
+                            description: 'Return this rejected job to Draft for resubmission.',
+                            confirmLabel: 'Back To Draft',
+                            tone: 'warning',
+                            run: async () =>
+                              runQuickTransition(job.id, 'Draft', {
+                                note: 'Returned to draft from quick action.',
+                              }),
                           })
                         }
                         disabled={isBusy}
@@ -1994,6 +2252,40 @@ const PathBOpsPanel: React.FC = () => {
           </pre>
         </div>
       </section>
+
+      {pendingQuickAction && (
+        <div className="fixed inset-0 z-[90] grid place-items-center bg-black/45 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md premium-surface-strong rounded-[1.6rem] p-5 sm:p-6">
+            <p className="text-[11px] uppercase tracking-[0.14em] text-[var(--color-text)]/70">Confirm Action</p>
+            <h4 className="font-display text-2xl mt-1">{pendingQuickAction.title}</h4>
+            <p className="mt-2 text-sm text-[var(--color-text)]/84">{pendingQuickAction.description}</p>
+            <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={cancelPendingQuickAction}
+                disabled={isConfirmingQuickAction}
+                className="rounded-xl border border-[var(--color-border)] bg-white px-3 py-2.5 text-sm font-semibold text-[var(--color-text)] disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmPendingQuickAction}
+                disabled={isConfirmingQuickAction}
+                className={`rounded-xl px-3 py-2.5 text-sm font-semibold text-white disabled:opacity-50 ${
+                  pendingQuickAction.tone === 'danger'
+                    ? 'bg-rose-600 hover:bg-rose-700'
+                    : pendingQuickAction.tone === 'warning'
+                      ? 'bg-amber-600 hover:bg-amber-700'
+                      : 'bg-[var(--color-primary)] hover:brightness-95'
+                }`}
+              >
+                {isConfirmingQuickAction ? 'Running...' : pendingQuickAction.confirmLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

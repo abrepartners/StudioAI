@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI, GenerateContentResponse } from "@google/generative-ai";
+import { ColorData, StagedFurniture, FurnitureRoomType } from "../types";
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
@@ -11,18 +12,6 @@ const getAI = () => {
   }
   return genAI;
 };
-
-export type FurnitureRoomType = 'Living Room' | 'Bedroom' | 'Dining Room' | 'Office' | 'Kitchen' | 'Primary Bedroom' | 'Exterior';
-
-export interface StagedFurniture {
-  id: string;
-  name: string;
-  image: string;
-  category: string;
-  orientation: 'front' | 'left' | 'right' | 'back' | 'top';
-  scale: number;
-  position: { x: number; y: number };
-}
 
 const detectAspectRatioFromBase64 = (base64: string): Promise<"1:1" | "3:4" | "4:3" | "9:16" | "16:9"> => {
   return new Promise((resolve) => {
@@ -129,7 +118,7 @@ export const generateRoomDesign = async (
 
     const config: any = {};
     if (isHighRes) {
-      const detectedRatio = await detectAspectRatioFromBase64(cleanBase64);
+      const detectedRatio = await detectAspectRatioFromBase64(imageBase64);
       config.imageConfig = {
         imageSize: "2K",
         aspectRatio: detectedRatio,
@@ -206,41 +195,75 @@ export const autoArrangeLayout = async (
   }
 };
 
-export const analyzeDesign = async (
-  imageBase64: string,
-  selectedRoom: string,
-  styleNotes: string
-): Promise<{ headline: string; description: string; socialCaption: string; hashtags: string[] }> => {
-  const ai = getAI();
-  const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
-
-  const model = ai.getGenerativeModel({ model: 'gemini-3.1-pro' });
-  const response = await model.generateContent({
-    contents: [{
-      role: 'user',
-      parts: [
-        {
-          text: `You are an expert real estate copywriter. Analyze this ${selectedRoom} photo${styleNotes ? ` (design notes: ${styleNotes})` : ''} and generate professional listing copy.
-        
-        Return a JSON object with EXACTLY these fields:
-        {
-          "headline": "A punchy, 8-12 word MLS headline that highlights the best feature",
-          "description": "A 3-4 sentence MLS description paragraph that is conversational, emotional, and conversion-focused. Describe the space authentically without clichés.",
-          "socialCaption": "An Instagram/Facebook caption 2-3 sentences with emojis that creates FOMO and drives engagement",
-          "hashtags": ["10-12 relevant real estate hashtags without the # symbol"]
-        }
-        
-        Return ONLY the JSON, no other text.` },
-        { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
-      ],
-    }],
-  });
-
-  const text = response.response.text() || '{}';
+export const analyzeRoomColors = async (imageBase64: string): Promise<ColorData[]> => {
   try {
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    return JSON.parse(jsonMatch?.[0] || '{}');
-  } catch {
-    return { headline: '', description: text, socialCaption: '', hashtags: [] };
+    const ai = getAI();
+    const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
+
+    const response = await model.generateContent({
+      contents: [{
+        role: 'user',
+        parts: [
+          { text: "Analyze the colors in this room. Return a JSON array of dominant material/paint colors with 'name', 'value' (0-100), and 'fill' (hex)." },
+          { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } }
+        ]
+      }]
+    });
+
+    const text = response.response.text();
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    return JSON.parse(jsonMatch?.[0] || []);
+  } catch (error) {
+    console.log("Using local color analysis fallback...");
+    return getLocalColorPalette(imageBase64);
   }
+};
+
+const getLocalColorPalette = (imageBase64: string): Promise<ColorData[]> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "Anonymous";
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return resolve([]);
+      canvas.width = 10;
+      canvas.height = 10;
+      ctx.drawImage(img, 0, 0, 10, 10);
+      const data = ctx.getImageData(0, 0, 10, 10).data;
+      const palette = [
+        { name: 'Primary', value: 40, fill: `rgb(${data[0]},${data[1]},${data[2]})` },
+        { name: 'Secondary', value: 30, fill: `rgb(${data[4]},${data[5]},${data[6]})` },
+        { name: 'Accent', value: 20, fill: `rgb(${data[8]},${data[9]},${data[10]})` },
+        { name: 'Detail', value: 10, fill: `rgb(${data[12]},${data[13]},${data[14]})` }
+      ];
+      resolve(palette);
+    };
+    img.onerror = () => resolve([]);
+    img.src = imageBase64;
+  });
+};
+
+export const createChatSession = () => {
+  const ai = getAI();
+  const model = ai.getGenerativeModel({
+    model: "gemini-1.5-flash",
+    systemInstruction: "You are a Master Real Estate Design Assistant. Help users refine their design prompts, suggest styles, and coordinate materials. If the user wants to apply a change, include [EDIT: description of change] in your final sentence."
+  });
+  return model.startChat({
+    history: [],
+    generationConfig: { maxOutputTokens: 500 }
+  });
+};
+
+export const sendMessageToChat = async (chat: any, message: string, currentImageBase64?: string | null) => {
+  const parts: any[] = [{ text: message }];
+  if (currentImageBase64) {
+    const cleanBase64 = currentImageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
+    parts.push({ inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } });
+  }
+  const result = await chat.sendMessage(parts);
+  const response = await result.response;
+  return response.text();
 };

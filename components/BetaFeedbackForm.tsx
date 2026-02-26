@@ -260,22 +260,20 @@ const BetaFeedbackForm: React.FC<BetaFeedbackFormProps> = ({
         <button
           type="button"
           onClick={() => setReaction('up')}
-          className={`rounded-xl px-3 py-2 text-sm font-semibold inline-flex items-center justify-center gap-2 ${
-            reaction === 'up'
+          className={`rounded-xl px-3 py-2 text-sm font-semibold inline-flex items-center justify-center gap-2 ${reaction === 'up'
               ? 'border border-emerald-300 bg-emerald-50 text-emerald-900'
               : 'border border-[var(--color-border)] bg-white text-[var(--color-ink)]'
-          }`}
+            }`}
         >
           <ThumbsUp size={14} /> Thumbs Up
         </button>
         <button
           type="button"
           onClick={() => setReaction('down')}
-          className={`rounded-xl px-3 py-2 text-sm font-semibold inline-flex items-center justify-center gap-2 ${
-            reaction === 'down'
+          className={`rounded-xl px-3 py-2 text-sm font-semibold inline-flex items-center justify-center gap-2 ${reaction === 'down'
               ? 'border border-rose-300 bg-rose-50 text-rose-900'
               : 'border border-[var(--color-border)] bg-white text-[var(--color-ink)]'
-          }`}
+            }`}
         >
           <ThumbsDown size={14} /> Thumbs Down
         </button>
@@ -331,13 +329,12 @@ const BetaFeedbackForm: React.FC<BetaFeedbackFormProps> = ({
         {quickFeedbackBlock}
         {status !== 'idle' && (
           <div
-            className={`mt-3 rounded-xl px-3 py-2 text-xs ${
-              status === 'submitted'
+            className={`mt-3 rounded-xl px-3 py-2 text-xs ${status === 'submitted'
                 ? 'border border-emerald-300/60 bg-emerald-50 text-emerald-900'
                 : status === 'queued'
                   ? 'border border-amber-300/60 bg-amber-50 text-amber-900'
                   : 'border border-rose-300/60 bg-rose-50 text-rose-900'
-            }`}
+              }`}
           >
             <p className="inline-flex items-center gap-1.5">
               {status === 'submitted' ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
@@ -425,27 +422,17 @@ const BetaFeedbackForm: React.FC<BetaFeedbackFormProps> = ({
             <Send size={14} />
             {isSubmitting ? 'Submitting...' : 'Submit Feedback'}
           </button>
-          <button
-            type="button"
-            onClick={copyPayload}
-            disabled={!lastPayload}
-            className="cta-secondary rounded-xl px-3 py-2.5 text-sm font-semibold inline-flex items-center gap-2 disabled:opacity-50"
-          >
-            <ClipboardCopy size={14} />
-            Copy Payload
-          </button>
         </div>
       </form>
 
       {status !== 'idle' && (
         <div
-          className={`mt-3 rounded-xl px-3 py-2 text-xs ${
-            status === 'submitted'
+          className={`mt-3 rounded-xl px-3 py-2 text-xs ${status === 'submitted'
               ? 'border border-emerald-300/60 bg-emerald-50 text-emerald-900'
               : status === 'queued'
                 ? 'border border-amber-300/60 bg-amber-50 text-amber-900'
                 : 'border border-rose-300/60 bg-rose-50 text-rose-900'
-          }`}
+            }`}
         >
           <p className="inline-flex items-center gap-1.5">
             {status === 'submitted' ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
@@ -453,10 +440,6 @@ const BetaFeedbackForm: React.FC<BetaFeedbackFormProps> = ({
           </p>
         </div>
       )}
-
-      <p className="mt-3 text-[11px] text-[var(--color-text)]/65">
-        Intake endpoint: <code>{webhookUrl}</code>. Set <code>VITE_LINEAR_FEEDBACK_WEBHOOK</code> to override.
-      </p>
     </div>
   );
 };

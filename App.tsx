@@ -6,16 +6,18 @@ import {
 } from './services/geminiService';
 import ImageUploader from './components/ImageUploader';
 import CompareSlider from './components/CompareSlider';
-import RenovationControls from './components/StyleControls';
+import StyleControls from './components/StyleControls';
 import MaskCanvas from './components/MaskCanvas';
 import ColorAnalysis from './components/ColorAnalysis';
 import BetaFeedbackForm from './components/BetaFeedbackForm';
+import ChatInterface from './components/ChatInterface';
 import {
   ColorData,
   StagedFurniture,
   FurnitureRoomType,
   SavedStage,
   HistoryState,
+  ChatMessage,
 } from './types';
 import {
   RefreshCcw,
@@ -37,6 +39,10 @@ import {
   Check,
   Lock,
   Building2,
+  Bot,
+  User,
+  Send,
+  Wand2
 } from 'lucide-react';
 import PathBOpsPanel from './components/PathBOpsPanel';
 
@@ -131,6 +137,8 @@ const App: React.FC = () => {
   const [savedStages, setSavedStages] = useState<SavedStage[]>([]);
   const [multiGen, setMultiGen] = useState(false);
   const [galleryTab, setGalleryTab] = useState<'recent' | 'saved'>('recent');
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [isChatLoading, setIsChatLoading] = useState(false);
   const lastPromptRef = useRef<string>('');
 
   const [betaAccessCode, setBetaAccessCode] = useState('');
@@ -776,8 +784,8 @@ const App: React.FC = () => {
   }> = [
       { id: 'tools', label: 'Design Studio', icon: <LayoutGrid size={21} />, available: true },
       { id: 'ops', label: 'Ops Console', icon: <Building2 size={21} />, available: true },
-      { id: 'cleanup', label: 'Cleanup', icon: <Eraser size={21} />, available: false },
-      { id: 'chat', label: 'Chat', icon: <MessageSquare size={21} />, available: false },
+      { id: 'cleanup', label: 'Cleanup', icon: <Eraser size={21} />, available: true },
+      { id: 'chat', label: 'Chat', icon: <MessageSquare size={21} />, available: true },
       { id: 'history', label: 'Gallery', icon: <HistoryIcon size={21} />, available: true },
     ];
 
@@ -1262,16 +1270,16 @@ const App: React.FC = () => {
                 <h2 className="font-display text-4xl font-semibold tracking-tight text-[var(--color-ink)]">Studio Gallery</h2>
               </div>
 
-              <div className="flex p-1 rounded-2xl subtle-card w-fit">
+              <div className="flex p-1 rounded-full subtle-card w-fit">
                 <button
                   onClick={() => setGalleryTab('recent')}
-                  className={`px-6 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition ${galleryTab === 'recent' ? 'cta-primary shadow-lg' : 'text-[var(--color-text)] hover:bg-white'}`}
+                  className={`px-6 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition ${galleryTab === 'recent' ? 'cta-primary shadow-lg' : 'text-[var(--color-text)] hover:bg-white'}`}
                 >
                   Recent
                 </button>
                 <button
                   onClick={() => setGalleryTab('saved')}
-                  className={`px-6 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition ${galleryTab === 'saved' ? 'cta-primary shadow-lg' : 'text-[var(--color-text)] hover:bg-white'}`}
+                  className={`px-6 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition ${galleryTab === 'saved' ? 'cta-primary shadow-lg' : 'text-[var(--color-text)] hover:bg-white'}`}
                 >
                   Saved ({savedStages.length})
                 </button>
@@ -1436,7 +1444,7 @@ const App: React.FC = () => {
             <div className="mx-auto w-full max-w-6xl space-y-4">
               <div className="premium-surface-strong rounded-[2rem] p-2 sm:p-3">
                 <div className="relative overflow-hidden rounded-[1.5rem] border panel-divider bg-[var(--color-bg-deep)] aspect-[4/3] sm:aspect-video">
-                  {generatedImage ? (
+                  {generatedImage && activePanel !== 'cleanup' ? (
                     <CompareSlider
                       originalImage={originalImage}
                       generatedImage={generatedImage}
@@ -1444,9 +1452,9 @@ const App: React.FC = () => {
                     />
                   ) : (
                     <MaskCanvas
-                      imageSrc={originalImage}
+                      imageSrc={generatedImage || originalImage}
                       onMaskChange={setMaskImage}
-                      isActive={false}
+                      isActive={activePanel === 'cleanup'}
                     />
                   )}
 
@@ -1538,17 +1546,45 @@ const App: React.FC = () => {
               </div>
 
               <div className="p-5 sm:p-6 space-y-4 pb-[max(1.2rem,env(safe-area-inset-bottom))]">
-                <RenovationControls
-                  activeMode="design"
-                  hasGenerated={!!generatedImage}
-                  onGenerate={(p) => handleGenerate(p, false)}
-                  onStageModeChange={setStageMode}
-                  isGenerating={isGenerating}
-                  hasMask={false}
-                  selectedRoom={selectedRoom}
-                  feedbackRequired={showFeedbackCheckpoint}
-                  compactMobile={!isDesktopViewport}
-                />
+                {activePanel === 'chat' ? (
+                  <div className="flex-1 min-h-0 flex flex-col">
+                    <ChatInterface
+                      messages={chatMessages}
+                      onSendMessage={async (text) => {
+                        const newUserMsg: ChatMessage = { id: Date.now().toString(), role: 'user', text, timestamp: Date.now() };
+                        setChatMessages(prev => [...prev, newUserMsg]);
+                        setIsChatLoading(true);
+                        try {
+                          setTimeout(() => {
+                            const botMsg: ChatMessage = {
+                              id: (Date.now() + 1).toString(),
+                              role: 'model',
+                              text: `As your personal Design Assistant, I suggest focusing on ${text.includes('modern') ? 'cleaner lines and polished textures' : 'warmer tones and natural materials'}. Would you like me to refine your current prompt with these suggestions?`,
+                              timestamp: Date.now()
+                            };
+                            setChatMessages(prev => [...prev, botMsg]);
+                            setIsChatLoading(false);
+                          }, 1500);
+                        } catch (err) {
+                          setIsChatLoading(false);
+                        }
+                      }}
+                      isLoading={isChatLoading}
+                    />
+                  </div>
+                ) : (
+                  <StyleControls
+                    activeMode={activePanel === 'cleanup' ? 'cleanup' : 'design'}
+                    hasGenerated={!!generatedImage}
+                    onGenerate={handleGenerate}
+                    onStageModeChange={setStageMode}
+                    isGenerating={isGenerating}
+                    hasMask={!!maskImage}
+                    selectedRoom={selectedRoom}
+                    feedbackRequired={showFeedbackCheckpoint}
+                    compactMobile={!isDesktopViewport}
+                  />
+                )}
 
                 <div className="hidden lg:block">
                   <BetaFeedbackForm

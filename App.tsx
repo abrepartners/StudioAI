@@ -8,7 +8,7 @@ import {
 } from './services/geminiService';
 import ImageUploader from './components/ImageUploader';
 import CompareSlider from './components/CompareSlider';
-import RenovationControls from './components/StyleControls';
+import StyleControls from './components/StyleControls';
 import MaskCanvas from './components/MaskCanvas';
 import ColorAnalysis from './components/ColorAnalysis';
 import ChatInterface from './components/ChatInterface';
@@ -41,8 +41,14 @@ import {
   Copy,
   Check,
   Lock,
+  Building2,
+  Bot,
+  User,
+  Send,
+  Wand2,
   Heart,
 } from 'lucide-react';
+import PathBOpsPanel from './components/PathBOpsPanel';
 
 const roomOptions: FurnitureRoomType[] = [
   'Living Room',
@@ -54,264 +60,175 @@ const roomOptions: FurnitureRoomType[] = [
   'Exterior',
 ];
 
-type StageMode = 'text' | 'packs' | 'furniture';
-
-const BETA_ACCESS_KEY = 'studioai_beta_access_code';
-const DEFAULT_BETA_CODES = ['VELVET-EMBER-9Q4K', 'NORTHSTAR-GLASS-2T7M'];
-
-const parseCodes = (raw: string | undefined) =>
-  new Set(
-    (raw || '')
-      .split(',')
-      .map((part) => part.trim().toUpperCase())
-      .filter(Boolean)
-  );
-
-const ENV_BETA_CODES = parseCodes((import.meta as any)?.env?.VITE_BETA_ACCESS_CODES);
-const ENV_PRO_CODES = parseCodes((import.meta as any)?.env?.VITE_BETA_PRO_CODES);
-const PRO_UNLOCK_ALL = String((import.meta as any)?.env?.VITE_BETA_PRO_UNLOCK || '').toLowerCase() === 'true';
 const FEEDBACK_REQUIRED_INTERVAL = 3;
-
-const buildInviteLink = (code: string) => {
-  if (!code || typeof window === 'undefined') return '';
-  return `${window.location.origin}/?invite=${encodeURIComponent(code)}`;
-};
 
 const App: React.FC = () => {
   const [originalImage, setOriginalImage] = useState<string | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [maskImage, setMaskImage] = useState<string | null>(null);
-
-  const [activePanel, setActivePanel] = useState<'tools' | 'chat' | 'history' | 'cleanup'>('tools');
-  const [stageMode, setStageMode] = useState<StageMode>('text');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isEnhancing, setIsEnhancing] = useState(false);
-  const [showKeyPrompt, setShowKeyPrompt] = useState(false);
-  const [showProConfirm, setShowProConfirm] = useState(false);
-  const [showAccessPanel, setShowAccessPanel] = useState(false);
-  const [showRoomPicker, setShowRoomPicker] = useState(false);
-  const [hasProKey, setHasProKey] = useState(false);
-  const [sheetOpen, setSheetOpen] = useState(true);
-  const [showFeedbackCheckpoint, setShowFeedbackCheckpoint] = useState(false);
-  const [generationsSinceFeedback, setGenerationsSinceFeedback] = useState(0);
-
-  const [colors, setColors] = useState<ColorData[]>([]);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [detectedRoom, setDetectedRoom] = useState<FurnitureRoomType | null>(null);
   const [selectedRoom, setSelectedRoom] = useState<FurnitureRoomType>('Living Room');
-  const [isMultiGen, setIsMultiGen] = useState(false);
-
+  const [colors, setColors] = useState<ColorData[]>([]);
   const [history, setHistory] = useState<HistoryState[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
-  const [historyTab, setHistoryTab] = useState<'recent' | 'saved'>('recent');
-
-  const [savedStages, setSavedStages] = useState<SavedStage[]>([]);
-  const lastPromptRef = useRef<string>('');
-
-  // Chat state
+  const [activePanel, setActivePanel] = useState<'tools' | 'ops' | 'cleanup' | 'chat' | 'history'>('tools');
+  const [isCompareDragging, setIsCompareDragging] = useState(false);
+  const [showKeyPrompt, setShowKeyPrompt] = useState(false);
+  const [apiKey, setApiKey] = useState(import.meta.env.VITE_GEMINI_API_KEY || '');
+  const [proUnlocked, setProUnlocked] = useState(import.meta.env.VITE_BETA_PRO_UNLOCK === 'true');
+  const [hasProKey, setHasProKey] = useState(false);
+  const [showProConfirm, setShowProConfirm] = useState(false);
+  const [isMultiGen, setIsMultiGen] = useState(false);
+  const [stageMode, setStageMode] = useState<'text' | 'packs' | 'furniture'>('text');
+  const [showFeedbackCheckpoint, setShowFeedbackCheckpoint] = useState(false);
+  const [generationsSinceFeedback, setGenerationsSinceFeedback] = useState(0);
+  const [showQuickTutorial, setShowQuickTutorial] = useState(true);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [chatSession, setChatSession] = useState<ReturnType<typeof createChatSession> | null>(null);
   const [isChatLoading, setIsChatLoading] = useState(false);
-
-  const [betaAccessCode, setBetaAccessCode] = useState('');
+  const [chatSession, setChatSession] = useState<any>(null);
+  const [betaAccessCode, setBetaAccessCode] = useState(localStorage.getItem('beta_access_code') || '');
   const [betaInviteCode, setBetaInviteCode] = useState('');
-  const [betaMessage, setBetaMessage] = useState('');
-  const [betaError, setBetaError] = useState('');
-  const [isBetaLoading, setIsBetaLoading] = useState(true);
-  const [isActivatingBeta, setIsActivatingBeta] = useState(false);
+  const [isActivating, setIsActivating] = useState(false);
+  const [activationError, setActivationError] = useState('');
+  const [showAccessPanel, setShowAccessPanel] = useState(false);
+  const [isOwnerAdmin, setIsOwnerAdmin] = useState(localStorage.getItem('is_admin') === 'true');
+  const [adminToken, setAdminToken] = useState(localStorage.getItem('admin_token') || '');
+  const [adminGeneratedCodes, setAdminGeneratedCodes] = useState<Array<{ code: string; inviteLink: string }>>([]);
+  const [isGeneratingAdminCodes, setIsGeneratingAdminCodes] = useState(false);
+  const [adminError, setAdminError] = useState('');
   const [copiedField, setCopiedField] = useState<'link' | 'code' | null>(null);
+  const [savedStages, setSavedStages] = useState<SavedStage[]>(JSON.parse(localStorage.getItem('saved_stages') || '[]'));
+  const [galleryTab, setGalleryTab] = useState<'recent' | 'saved'>('recent');
 
-  const allowedBetaCodes = useMemo(
-    () => (ENV_BETA_CODES.size > 0 ? new Set(ENV_BETA_CODES) : new Set(DEFAULT_BETA_CODES)),
-    []
-  );
-
-  const proUnlocked = Boolean(betaAccessCode && (PRO_UNLOCK_ALL || ENV_PRO_CODES.has(betaAccessCode)));
-  const betaInviteLink = useMemo(() => buildInviteLink(betaAccessCode), [betaAccessCode]);
-
-  useEffect(() => {
-    const savedS = localStorage.getItem('realestate_ai_stages');
-    if (savedS) setSavedStages(JSON.parse(savedS));
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const lastPromptRef = useRef<string>('');
+  const isDesktopViewport = useMemo(() => {
+    if (typeof window === 'undefined') return true;
+    return window.innerWidth >= 1024;
   }, []);
+  const [sheetOpen, setSheetOpen] = useState(isDesktopViewport);
+
+  const betaInviteLink = useMemo(() => {
+    const base = import.meta.env.VITE_APP_BASE_URL || window.location.origin;
+    return `${base}?invite=${betaAccessCode}`;
+  }, [betaAccessCode]);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const invite = (params.get('invite') || params.get('code') || '').trim().toUpperCase();
-    if (invite) {
-      setBetaInviteCode(invite);
-      setBetaMessage('Invite accepted. Enter this code to access the private beta.');
+    localStorage.setItem('saved_stages', JSON.stringify(savedStages));
+  }, [savedStages]);
+
+  const handleDownload = useCallback(() => {
+    if (!generatedImage) return;
+    const link = document.createElement('a');
+    link.href = generatedImage;
+    link.download = `studioai-${selectedRoom.toLowerCase()}-${Date.now()}.png`;
+    link.click();
+  }, [generatedImage, selectedRoom]);
+
+  const handleSaveStage = useCallback(() => {
+    if (!generatedImage) return;
+    const alreadySaved = savedStages.some(s => s.generatedImage === generatedImage);
+    if (alreadySaved) {
+      setSavedStages(prev => prev.filter(s => s.generatedImage !== generatedImage));
+      return;
     }
-  }, []);
-
-  useEffect(() => {
-    setIsBetaLoading(true);
-    const existing = (localStorage.getItem(BETA_ACCESS_KEY) || '').trim().toUpperCase();
-    if (existing && allowedBetaCodes.has(existing)) {
-      setBetaAccessCode(existing);
-    } else if (existing) {
-      localStorage.removeItem(BETA_ACCESS_KEY);
-    }
-    setIsBetaLoading(false);
-  }, [allowedBetaCodes]);
-
-  const refreshProKeyStatus = useCallback(async () => {
-    const aiStudio = (window as any)?.aistudio;
-    if (!aiStudio?.hasSelectedApiKey) {
-      setHasProKey(false);
-      return false;
-    }
-    try {
-      const hasKey = await aiStudio.hasSelectedApiKey();
-      setHasProKey(Boolean(hasKey));
-      return Boolean(hasKey);
-    } catch {
-      setHasProKey(false);
-      return false;
-    }
-  }, []);
-
-  useEffect(() => {
-    if (originalImage) refreshProKeyStatus();
-  }, [originalImage, refreshProKeyStatus]);
-
-  useEffect(() => {
-    if (generationsSinceFeedback >= FEEDBACK_REQUIRED_INTERVAL) {
-      // setShowFeedbackCheckpoint(true); // Disable full-screen blocker
-    }
-  }, [generationsSinceFeedback]);
-
-  const pushToHistory = useCallback(
-    (newState?: Partial<HistoryState>) => {
-      const currentState: HistoryState = {
-        generatedImage,
-        stagedFurniture: [],
-        selectedRoom,
-        colors,
-        ...newState,
-      };
-
-      setHistory((prev) => {
-        const newHistory = prev.slice(0, historyIndex + 1);
-        if (newHistory.length >= 30) newHistory.shift();
-        return [...newHistory, currentState];
-      });
-      setHistoryIndex((prev) => Math.min(prev + 1, 29));
-    },
-    [generatedImage, selectedRoom, colors, historyIndex]
-  );
-
-  const undo = useCallback(() => {
-    if (historyIndex <= 0) return;
-    const prevIndex = historyIndex - 1;
-    const state = history[prevIndex];
-
-    setGeneratedImage(state.generatedImage);
-    setSelectedRoom(state.selectedRoom);
-    setColors(state.colors);
-    setHistoryIndex(prevIndex);
-  }, [history, historyIndex]);
-
-  const redo = useCallback(() => {
-    if (historyIndex >= history.length - 1) return;
-    const nextIndex = historyIndex + 1;
-    const state = history[nextIndex];
-
-    setGeneratedImage(state.generatedImage);
-    setSelectedRoom(state.selectedRoom);
-    setColors(state.colors);
-    setHistoryIndex(nextIndex);
-  }, [history, historyIndex]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
-        if (e.shiftKey) redo();
-        else undo();
-      } else if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
-        redo();
-      }
+    const newSaved: SavedStage = {
+      id: Date.now().toString(),
+      originalImage: originalImage || '',
+      generatedImage,
+      selectedRoom,
+      timestamp: Date.now()
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo]);
+    setSavedStages(prev => [newSaved, ...prev]);
+  }, [generatedImage, originalImage, selectedRoom, savedStages]);
 
-  const handleImageUpload = async (base64: string) => {
-    setOriginalImage(base64);
-    setGeneratedImage(null);
-    setMaskImage(null);
-    setColors([]);
-    setDetectedRoom(null);
-    setHistory([]);
-    setHistoryIndex(-1);
-    setIsAnalyzing(true);
-    setStageMode('text');
-    setShowFeedbackCheckpoint(false);
-    setGenerationsSinceFeedback(0);
-
-    try {
-      const [colorData, roomType] = await Promise.all([analyzeRoomColors(base64), detectRoomType(base64)]);
-      setColors(colorData);
-      setDetectedRoom(roomType);
-      setSelectedRoom(roomType);
-
-      const initialState: HistoryState = {
-        generatedImage: null,
-        stagedFurniture: [],
-        selectedRoom: roomType,
-        colors: colorData,
-      };
-      setHistory([initialState]);
-      setHistoryIndex(0);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsAnalyzing(false);
-    }
+  const handleRemoveSavedStage = (id: string) => {
+    setSavedStages(prev => prev.filter(s => s.id !== id));
   };
 
-  const handleApiKeySelection = async () => {
-    const aiStudio = (window as any)?.aistudio;
-    if (!aiStudio?.openSelectKey) {
-      alert('API key selector is unavailable in this environment. Set GEMINI_API_KEY for local use.');
-      return;
-    }
-    await aiStudio.openSelectKey();
-    await refreshProKeyStatus();
-    setShowKeyPrompt(false);
-  };
-  const handleSamplePhoto = async () => {
-    // High-quality sample interior
-    const SAMPLE_IMG = "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&q=80&w=2000";
-    setIsAnalyzing(true);
+  const handleOwnerLogin = async () => {
+    const secret = prompt('Enter Owner Admin Secret:');
+    if (!secret) return;
     try {
-      const response = await fetch(SAMPLE_IMG);
-      const blob = await response.blob();
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        handleImageUpload(reader.result as string);
-      };
-      reader.readAsDataURL(blob);
+      const res = await fetch('/api/beta-router?action=admin-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ secret }),
+      });
+      const data = await res.json();
+      if (data.token) {
+        localStorage.setItem('admin_token', data.token);
+        localStorage.setItem('is_admin', 'true');
+        setAdminToken(data.token);
+        setIsOwnerAdmin(true);
+        setBetaAccessCode('OWNER');
+        localStorage.setItem('beta_access_code', 'OWNER');
+      } else {
+        alert('Invalid admin secret.');
+      }
     } catch {
-      // Fallback if fetch fails
-      setOriginalImage(SAMPLE_IMG);
-      setGeneratedImage(null);
-      setHistory([]);
-      setHistoryIndex(-1);
-      setStageMode('text');
-      setIsAnalyzing(false);
+      alert('Login failed.');
     }
   };
-  const handleGenerate = async (prompt: string, highRes = false) => {
-    if (!originalImage) return;
-    if (showFeedbackCheckpoint) {
-      alert('Please complete the quick feedback checkpoint to continue generating.');
-      return;
-    }
 
-    if (highRes && !proUnlocked) {
-      alert('High-resolution enhancement is locked for this beta access code.');
-      return;
+  const loadAdminCodes = useCallback(async (token: string) => {
+    try {
+      const res = await fetch('/api/beta-router?action=admin-codes&limit=20', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.codes) setAdminGeneratedCodes(data.codes);
+    } catch (err) {
+      console.error('Failed to load codes');
     }
+  }, []);
+
+  const activateBeta = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!betaInviteCode.trim()) return;
+    setIsActivating(true);
+    setActivationError('');
+    try {
+      const deviceId = localStorage.getItem('device_id') || Math.random().toString(36).substring(7);
+      localStorage.setItem('device_id', deviceId);
+      const res = await fetch('/api/beta-router?action=activate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: betaInviteCode, deviceId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setBetaAccessCode(betaInviteCode);
+        localStorage.setItem('beta_access_code', betaInviteCode);
+      } else {
+        setActivationError(data.error || 'Invalid or expired invite code.');
+      }
+    } catch {
+      setActivationError('Connection error. Try again.');
+    } finally {
+      setIsActivating(false);
+    }
+  };
+
+  const refreshProKeyStatus = async () => {
+    if (!betaAccessCode) return false;
+    try {
+      const deviceId = localStorage.getItem('device_id');
+      const res = await fetch(`/api/beta-router?action=me&deviceId=${encodeURIComponent(deviceId || '')}`);
+      const data = await res.json();
+      if (data.proUnlocked) {
+        setProUnlocked(true);
+        setHasProKey(true);
+        return true;
+      }
+    } catch { }
+    return false;
+  };
+
+  const handleGenerate = async (prompt: string, highRes: boolean = false) => {
+    if (showFeedbackCheckpoint) return;
+    if (!originalImage) return;
 
     if (highRes) {
       const hasKey = hasProKey || (await refreshProKeyStatus());
@@ -327,11 +244,10 @@ const App: React.FC = () => {
 
     try {
       lastPromptRef.current = prompt;
-
       const sourceImage = activePanel === 'cleanup' && generatedImage ? generatedImage : originalImage;
       const count = isMultiGen ? 2 : 1;
-      const resultImages = await generateRoomDesign(sourceImage, prompt, activePanel === 'cleanup' ? maskImage : null, highRes, count);
-
+      const result = await generateRoomDesign(sourceImage, prompt, activePanel === 'cleanup' ? maskImage : null, highRes, count);
+      const resultImages = Array.isArray(result) ? result : [result];
       const newColors = await analyzeRoomColors(resultImages[0]);
 
       setGeneratedImage(resultImages[0]);
@@ -350,14 +266,13 @@ const App: React.FC = () => {
         return [...newHistory, ...newStates];
       });
       setHistoryIndex((prev) => prev + newStates.length);
+
       if (!highRes) {
         setGenerationsSinceFeedback((prev) => prev + 1);
       }
     } catch (error: any) {
       if (error.message === 'API_KEY_REQUIRED' || error.message?.includes('Requested entity was not found')) {
         setShowKeyPrompt(true);
-      } else if (error.message?.toLowerCase().includes('api key')) {
-        alert('Missing API key. Add GEMINI_API_KEY for local generation, then retry.');
       } else {
         alert('Generation failed. Check your connection.');
       }
@@ -367,692 +282,173 @@ const App: React.FC = () => {
     }
   };
 
-  const handleDownload = () => {
-    if (!generatedImage) return;
-    const link = document.createElement('a');
-    link.href = generatedImage;
-    link.download = `studio_export_${Date.now()}.png`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const handleSaveStage = () => {
-    if (!generatedImage || !originalImage) return;
-    const newStage: SavedStage = {
-      id: crypto.randomUUID(),
-      name: `Design ${new Date().toLocaleDateString()}`,
-      originalImage,
-      generatedImage,
-      timestamp: Date.now(),
-    };
-    setSavedStages((prev) => {
-      const updated = [newStage, ...prev];
-      localStorage.setItem('realestate_ai_stages', JSON.stringify(updated));
-      return updated;
-    });
-  };
-
-  const changeDetectedRoom = (room: FurnitureRoomType) => {
-    pushToHistory();
-    setDetectedRoom(room);
-    setSelectedRoom(room);
-    setShowRoomPicker(false);
-  };
-
-  const activateBeta = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!betaInviteCode.trim()) return;
-
-    setIsActivatingBeta(true);
-    setBetaError('');
-    setBetaMessage('');
-
-    try {
-      const entered = betaInviteCode.trim().toUpperCase();
-      if (!allowedBetaCodes.has(entered)) {
-        setBetaError('That invite code is not valid.');
-        return;
-      }
-
-      setBetaAccessCode(entered);
-      localStorage.setItem(BETA_ACCESS_KEY, entered);
-      setBetaMessage('Welcome to the private StudioAI beta.');
-    } catch {
-      setBetaError('Activation failed. Check your connection and retry.');
-    } finally {
-      setIsActivatingBeta(false);
-    }
-  };
-
-  const copyValue = async (type: 'link' | 'code') => {
-    if (!betaAccessCode) return;
-    const value = type === 'link' ? betaInviteLink : betaAccessCode;
-
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopiedField(type);
-      setTimeout(() => setCopiedField(null), 1600);
-    } catch {
-      setCopiedField(null);
-    }
-  };
-
   const handleChatMessage = async (text: string) => {
     if (!originalImage) return;
     setIsChatLoading(true);
-
-    // Optimistically add user message
     const userMsg: ChatMessage = { id: Date.now().toString(), role: 'user', text, timestamp: Date.now() };
     setChatMessages((prev) => [...prev, userMsg]);
 
     try {
-      // Create session lazily on first use
       const session = chatSession ?? createChatSession();
       if (!chatSession) setChatSession(session);
-
       const currentImage = generatedImage || originalImage;
       const reply = await sendMessageToChat(session, text, currentImage);
-
       const modelMsg: ChatMessage = { id: (Date.now() + 1).toString(), role: 'model', text: reply, timestamp: Date.now() };
       setChatMessages((prev) => [...prev, modelMsg]);
 
-      // Detect [EDIT: prompt] pattern and auto-trigger generation
       const editMatch = reply.match(/\[EDIT:\s*(.+?)\]/i);
       if (editMatch && editMatch[1]) {
         await handleGenerate(editMatch[1], false);
       }
     } catch (err) {
-      const errorMsg: ChatMessage = {
-        id: (Date.now() + 2).toString(),
-        role: 'model',
-        text: 'Sorry, I encountered an error. Please try again.',
-        timestamp: Date.now(),
-      };
+      const errorMsg: ChatMessage = { id: (Date.now() + 2).toString(), role: 'model', text: 'Chat error. Please try again.', timestamp: Date.now() };
       setChatMessages((prev) => [...prev, errorMsg]);
     } finally {
       setIsChatLoading(false);
     }
   };
 
+  const copyText = async (value: string, type: 'link' | 'code') => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedField(type);
+      setTimeout(() => setCopiedField(null), 1600);
+    } catch { }
+  };
 
+  const navItems = [
+    { id: 'tools', label: 'Design Studio', icon: <LayoutGrid size={21} />, available: true },
+    { id: 'ops', label: 'Ops Console', icon: <Building2 size={21} />, available: isOwnerAdmin },
+    { id: 'cleanup', label: 'Cleanup', icon: <Eraser size={21} />, available: true },
+    { id: 'chat', label: 'Chat', icon: <MessageSquare size={21} />, available: true },
+    { id: 'history', label: 'Gallery', icon: <HistoryIcon size={21} />, available: true },
+  ];
 
-  const navItems: Array<{
-    id: 'tools' | 'cleanup' | 'chat' | 'history';
-    label: string;
-    icon: React.ReactNode;
-    available: boolean;
-  }> = [
-      { id: 'tools', label: 'Design Studio', icon: <LayoutGrid size={21} />, available: true },
-      { id: 'cleanup', label: 'Cleanup', icon: <Eraser size={21} />, available: true },
-      { id: 'chat', label: 'Chat', icon: <MessageSquare size={21} />, available: true },
-      { id: 'history', label: 'History', icon: <HistoryIcon size={21} />, available: true },
-    ];
-
-
-  // Removed the activation wall as it was causing friction. Users go straight to the studio now.
-
-  // Invite wall removed by user request.
+  if (!betaAccessCode) {
+    return (
+      <div className="studio-shell min-h-screen grid place-items-center px-4 py-8">
+        <div className="premium-surface-strong rounded-[2rem] p-8 sm:p-10 max-w-lg w-full">
+          <Sparkles size={14} className="text-[var(--color-primary)]" />
+          <h1 className="font-display text-4xl mt-4">StudioAI</h1>
+          <form onSubmit={activateBeta} className="mt-6 space-y-3">
+            <input
+              value={betaInviteCode}
+              onChange={(e) => setBetaInviteCode(e.target.value.toUpperCase())}
+              placeholder="Enter invite code"
+              className="w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2.5 text-sm"
+            />
+            <button disabled={isActivating} className="cta-primary w-full py-3 rounded-xl font-semibold">
+              {isActivating ? 'Activating...' : 'Join Beta'}
+            </button>
+            {activationError && <p className="text-xs text-rose-500">{activationError}</p>}
+          </form>
+          <button onClick={handleOwnerLogin} className="mt-8 text-xs text-slate-400 hover:text-slate-600 block mx-auto">Owner Login</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="studio-shell min-h-[100dvh] lg:h-screen overflow-x-hidden lg:overflow-hidden flex flex-col">
-      {showKeyPrompt && (
-        <div className="fixed inset-0 z-[100] grid place-items-center bg-black/52 backdrop-blur-sm p-4">
-          <div className="premium-surface-strong w-full max-w-md rounded-[2rem] p-8 sm:p-10 text-center">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl cta-secondary text-[var(--color-primary)]">
-              <Key size={30} />
-            </div>
-            <h2 className="font-display text-3xl font-semibold">High-Res Rendering</h2>
-            <p className="mt-2 text-sm text-[var(--color-text)]/80">
-              Select a Gemini API key from a paid GCP project to enable high-resolution enhancement.
-            </p>
-            <div className="mt-6 space-y-2.5">
-              <button
-                type="button"
-                onClick={handleApiKeySelection}
-                className="cta-primary w-full rounded-2xl py-3.5 text-sm font-semibold"
-              >
-                Select API Key
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowKeyPrompt(false)}
-                className="cta-secondary w-full rounded-2xl py-3.5 text-sm font-semibold"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
+    <div className="studio-shell flex flex-col lg:flex-row h-screen overflow-hidden">
+      <header className="lg:hidden p-4 border-b border-[var(--color-border)] bg-white/90 backdrop-blur-md sticky top-0 z-50 flex items-center justify-between">
+        <h1 className="font-display text-2xl">StudioAI</h1>
+        <div className="flex gap-2">
+          {generatedImage && <button onClick={handleDownload} className="cta-secondary p-2 rounded-xl"><Download size={18} /></button>}
+          {generatedImage && <button onClick={handleSaveStage} className="cta-secondary p-2 rounded-xl"><Heart size={18} className={savedStages.some(s => s.generatedImage === generatedImage) ? 'fill-[var(--color-primary)] text-[var(--color-primary)]' : ''} /></button>}
+          <button onClick={() => setOriginalImage(null)} className="cta-secondary p-2 rounded-xl"><RefreshCcw size={18} /></button>
         </div>
-      )}
-
-      {showProConfirm && (
-        <div className="fixed inset-0 z-[100] grid place-items-center bg-black/45 backdrop-blur-sm p-4">
-          <div className="premium-surface-strong w-full max-w-md rounded-[2rem] p-8">
-            <div className="mb-4 flex items-start justify-between">
-              <div>
-                <p className="inline-flex items-center gap-2 rounded-full cta-secondary px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-primary)]">
-                  <Zap size={14} /> High-Res
-                </p>
-                <h3 className="font-display mt-3 text-2xl">Confirm Enhancement Pass</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowProConfirm(false)}
-                className="rounded-xl p-2 text-[var(--color-text)]/70 transition hover:bg-slate-100"
-              >
-                <X size={17} />
-              </button>
-            </div>
-            <p className="text-sm leading-relaxed text-[var(--color-text)]/85 mb-6">
-              This will trigger a high-detail enhancement render. Keep billing enabled in your connected GCP project.
-            </p>
-            <button
-              type="button"
-              onClick={() => handleGenerate(lastPromptRef.current || 'Finalize with realistic textures.', true)}
-              className="cta-primary w-full rounded-2xl py-3.5 text-sm font-semibold"
-            >
-              Confirm and Enhance
-            </button>
-          </div>
-        </div>
-      )}
-
-      {showAccessPanel && (
-        <div className="fixed inset-0 z-[100] grid place-items-center bg-black/45 backdrop-blur-sm p-4">
-          <div className="premium-surface-strong w-full max-w-md rounded-[2rem] p-8">
-            <div className="mb-4 flex items-start justify-between">
-              <div>
-                <p className="inline-flex items-center gap-2 rounded-full cta-secondary px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-primary)]">
-                  <Copy size={14} /> Beta Access
-                </p>
-                <h3 className="font-display mt-3 text-2xl">Share Access</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowAccessPanel(false)}
-                className="rounded-xl p-2 text-[var(--color-text)]/70 transition hover:bg-slate-100"
-              >
-                <X size={17} />
-              </button>
-            </div>
-
-            <p className="text-sm text-[var(--color-text)]/82">
-              Share your access link or code with trusted testers. This is outside the design workflow so the studio stays focused.
-            </p>
-
-            <div className="mt-4 rounded-xl border border-[var(--color-border)] bg-white/80 px-3 py-2 text-xs text-[var(--color-text)]/80">
-              Access code: <code>{betaAccessCode}</code>
-            </div>
-            <div className="mt-2 rounded-xl border border-[var(--color-border)] bg-white/80 px-3 py-2 text-xs text-[var(--color-text)]/80 break-all">
-              Link: <code>{betaInviteLink}</code>
-            </div>
-
-            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => copyValue('link')}
-                className="cta-secondary min-h-[44px] rounded-xl px-3 py-2 text-xs font-semibold inline-flex items-center justify-center gap-1.5"
-              >
-                {copiedField === 'link' ? <Check size={13} /> : <Copy size={13} />} Copy Access Link
-              </button>
-              <button
-                type="button"
-                onClick={() => copyValue('code')}
-                className="cta-secondary min-h-[44px] rounded-xl px-3 py-2 text-xs font-semibold inline-flex items-center justify-center gap-1.5"
-              >
-                {copiedField === 'code' ? <Check size={13} /> : <Copy size={13} />} Copy Access Code
-              </button>
-            </div>
-
-            <p className="mt-4 text-xs text-[var(--color-text)]/75">
-              High-res enhancement: <strong>{proUnlocked ? 'Unlocked' : 'Locked'}</strong>
-            </p>
-          </div>
-        </div>
-      )}
-
-      <header className="shrink-0 premium-surface-strong border-b panel-divider px-4 py-3 sm:px-6 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 sm:gap-5 min-w-0">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="cta-primary flex h-11 w-11 items-center justify-center rounded-2xl shadow-[0_10px_24px_rgba(3,105,161,0.28)]">
-              <Camera size={20} />
-            </div>
-            <div className="min-w-0">
-              <h1 className="font-display text-[1.15rem] sm:text-[1.35rem] leading-none whitespace-nowrap">
-                Studio<span className="text-[var(--color-primary)]">AI</span>
-              </h1>
-              <p className="hidden sm:block text-[11px] uppercase tracking-[0.18em] text-[var(--color-text)]/70">
-                Invite-Only Beta
-              </p>
-            </div>
-          </div>
-
-          {originalImage && (
-            <div className="hidden sm:flex items-center gap-1 rounded-full subtle-card p-1">
-              <button
-                type="button"
-                onClick={undo}
-                disabled={historyIndex <= 0 || isGenerating}
-                className="rounded-full p-2 text-[var(--color-text)] transition hover:bg-white disabled:opacity-35"
-                title="Undo (Ctrl+Z)"
-              >
-                <Undo2 size={15} />
-              </button>
-              <button
-                type="button"
-                onClick={redo}
-                disabled={historyIndex >= history.length - 1 || isGenerating}
-                className="rounded-full p-2 text-[var(--color-text)] transition hover:bg-white disabled:opacity-35"
-                title="Redo (Ctrl+Y)"
-              >
-                <Redo2 size={15} />
-              </button>
-            </div>
-          )}
-        </div>
-
-        {originalImage ? (
-          <div className="flex items-center gap-2 sm:gap-3">
-            <button
-              type="button"
-              onClick={() => setShowAccessPanel(true)}
-              className="cta-secondary rounded-xl px-3 py-2 text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5 min-h-[44px]"
-            >
-              <Copy size={14} />
-              <span className="hidden sm:inline">Access</span>
-            </button>
-            {generatedImage && (
-              <>
-                <button
-                  type="button"
-                  onClick={handleDownload}
-                  className="cta-secondary rounded-xl px-3 py-2 text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5 min-h-[44px]"
-                >
-                  <Download size={14} />
-                  <span className="hidden sm:inline">Export</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSaveStage}
-                  className="cta-secondary rounded-xl px-3 py-2 text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5 min-h-[44px]"
-                >
-                  <Heart size={14} className={savedStages.some(s => s.generatedImage === generatedImage) ? 'fill-[var(--color-primary)] text-[var(--color-primary)]' : ''} />
-                  <span className="hidden sm:inline">Save</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!proUnlocked) return;
-                    if (hasProKey) setShowProConfirm(true);
-                    else setShowKeyPrompt(true);
-                  }}
-                  disabled={isEnhancing || !proUnlocked}
-                  className={`rounded-xl px-3 py-2 text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5 min-h-[44px] disabled:opacity-55 ${proUnlocked
-                    ? hasProKey
-                      ? 'cta-primary'
-                      : 'cta-secondary'
-                    : 'border border-amber-300/70 bg-amber-50 text-amber-900'
-                    }`}
-                >
-                  {proUnlocked ? <Zap size={14} className={isEnhancing ? 'animate-pulse' : ''} /> : <Lock size={14} />}
-                  <span className="hidden sm:inline">
-                    {proUnlocked ? (hasProKey ? 'Enhance' : 'Enable Enhance') : 'Locked'}
-                  </span>
-                </button>
-              </>
-            )}
-            <button
-              type="button"
-              onClick={() => {
-                setOriginalImage(null);
-                setGeneratedImage(null);
-                setStageMode('text');
-                setShowFeedbackCheckpoint(false);
-                setGenerationsSinceFeedback(0);
-              }}
-              className="cta-secondary rounded-xl p-2 text-[var(--color-text)] min-h-[44px] min-w-[44px]"
-              title="Start over"
-            >
-              <RefreshCcw size={17} />
-            </button>
-          </div>
-        ) : (
-          <p className="hidden md:block text-sm tracking-wide text-[var(--color-text)]/78">Upload a room and begin staging</p>
-        )}
       </header>
 
-      {!originalImage ? (
-        <main className="flex-1 grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] overflow-auto">
-          <section className="px-6 pb-14 pt-10 sm:px-12 lg:px-16 lg:pt-14 flex items-center">
-            <div className="max-w-2xl w-full">
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full cta-secondary px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-primary)]">
-                <Sparkles size={14} /> Invite-Only Staging Beta
-              </div>
-              <h2 className="font-display text-[clamp(2.3rem,7vw,5.3rem)] leading-[0.92] font-semibold text-[var(--color-ink)]">
-                Re-stage interiors with editorial precision.
-              </h2>
-              <p className="mt-5 max-w-xl text-[1.02rem] leading-relaxed text-[var(--color-text)]/84">
-                Upload a property photo and shape conversion-ready visuals. Every beta submission directly influences weekly product updates.
-              </p>
+      <nav className="fixed bottom-0 lg:static w-full lg:w-20 bg-white/90 lg:bg-white backdrop-blur-xl border-t lg:border-t-0 lg:border-r border-[var(--color-border)] z-50 flex lg:flex-col justify-around lg:justify-center items-center py-2 lg:py-8 lg:gap-8">
+        {navItems.filter(i => i.available).map((item) => (
+          <button
+            key={item.id}
+            onClick={() => setActivePanel(item.id as any)}
+            className={`flex flex-col items-center gap-1 p-2 transition-all ${activePanel === item.id ? 'text-[var(--color-primary)]' : 'text-slate-400'}`}
+          >
+            {item.icon}
+            <span className="text-[10px] font-semibold uppercase tracking-wider hidden lg:block">{item.label}</span>
+          </button>
+        ))}
+      </nav>
 
-              <div className="mt-8 flex flex-col sm:flex-row items-center gap-4">
-                <ImageUploader onImageUpload={handleImageUpload} isAnalyzing={isAnalyzing} />
-                <span className="text-sm font-semibold text-[var(--color-text)]/50 uppercase tracking-widest hidden sm:inline-block">OR</span>
-                <button
-                  onClick={handleSamplePhoto}
-                  disabled={isAnalyzing}
-                  className="cta-secondary h-14 px-8 rounded-2xl flex items-center gap-2 font-semibold text-[var(--color-ink)] hover:bg-white transition-all disabled:opacity-50"
-                >
-                  <Sparkles size={18} className="text-[var(--color-primary)]" />
-                  Try Sample Room
-                </button>
-              </div>
+      <main className="flex-1 min-h-0 relative editor-canvas-bg overflow-y-auto">
+        {!originalImage ? (
+          <div className="h-full grid place-items-center p-6">
+            <div className="max-w-xl w-full">
+              <ImageUploader onUpload={(img) => {
+                setOriginalImage(img);
+                detectRoomType(img).then(setSelectedRoom);
+              }} />
             </div>
-          </section>
-
-          <section className="hidden lg:block relative overflow-hidden">
-            <img
-              src="https://images.unsplash.com/photo-1616046229478-9901c5536a45?q=80&w=1920&h=1080&fit=crop"
-              alt="Styled interior reference"
-              className="h-full w-full object-cover"
-              referrerPolicy="no-referrer"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-[rgba(9,38,36,0.42)] via-transparent to-transparent" />
-            <div className="absolute bottom-8 left-8 right-8 rounded-3xl glass-overlay p-6 text-white">
-              <p className="text-xs uppercase tracking-[0.18em]">Minimal Luxury Direction</p>
-              <p className="mt-2 text-xl font-display">Structure-first redesign with premium restraint.</p>
+          </div>
+        ) : (
+          <div className="h-full flex flex-col lg:flex-row">
+            <div className="flex-1 p-4 lg:p-8 flex items-center justify-center min-h-[50vh] lg:min-h-0">
+              {activePanel === 'cleanup' ? (
+                <MaskCanvas originalImage={originalImage} generatedImage={generatedImage} onMaskChange={setMaskImage} />
+              ) : generatedImage ? (
+                <CompareSlider originalImage={originalImage} generatedImage={generatedImage} />
+              ) : (
+                <img src={originalImage} alt="Original" className="max-h-full rounded-2xl shadow-2xl" />
+              )}
             </div>
-          </section>
-        </main>
-      ) : (
-        <div className="flex-1 min-h-0 flex lg:flex-row overflow-hidden relative">
-          <nav className="hidden lg:flex shrink-0 w-[172px] premium-surface border-r panel-divider flex-col items-center justify-start gap-2 py-5 order-1">
-            <div className="px-3 pb-2">
-              <p className="text-[10px] uppercase tracking-[0.16em] text-[var(--color-text)]/65">Beta Scope</p>
-              <p className="text-xs mt-1 text-[var(--color-text)]/78">Design Studio is active. Other tabs are staged for later rollout.</p>
-            </div>
-            {navItems.map((item) => {
-              const active = activePanel === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  disabled={!item.available}
-                  onClick={() => item.available && setActivePanel(item.id)}
-                  title={item.available ? item.label : `${item.label} (Coming Soon)`}
-                  className={`flex h-auto w-[152px] px-3 py-2.5 items-center justify-start gap-2 rounded-2xl border transition-all ${active && item.available
-                    ? 'cta-primary border-white/15 shadow-[0_12px_24px_rgba(3,105,161,0.3)]'
-                    : item.available
-                      ? 'cta-secondary border-[var(--color-border)] text-[var(--color-text)] hover:bg-white'
-                      : 'border-[var(--color-border)] bg-slate-100/70 text-slate-400 cursor-not-allowed'
-                    }`}
-                >
-                  {item.icon}
-                  <span className="text-[11px] uppercase tracking-[0.14em]">{item.label}</span>
-                  {!item.available && (
-                    <span className="ml-auto text-[10px] font-semibold uppercase tracking-[0.1em] text-amber-700/90">Soon</span>
-                  )}
-                </button>
-              );
-            })}
-          </nav>
 
-          <main className="order-1 lg:order-2 flex-1 min-h-0 overflow-y-auto editor-canvas-bg p-4 sm:p-6 lg:p-8 pb-[58vh] lg:pb-8">
-            <div className="mx-auto w-full max-w-6xl space-y-4">
-              <div className="premium-surface-strong rounded-[2rem] p-2 sm:p-3">
-                <div className="relative overflow-hidden rounded-[1.5rem] border panel-divider bg-[var(--color-bg-deep)] aspect-[4/3] sm:aspect-video">
-                  {generatedImage ? (
-                    <CompareSlider originalImage={originalImage} generatedImage={generatedImage} />
-                  ) : (
-                    <MaskCanvas
-                      imageSrc={originalImage}
-                      onMaskChange={setMaskImage}
-                      isActive={false}
-                    />
-                  )}
-
-                  <div className="absolute left-3 top-3 z-20">
-                    <button
-                      type="button"
-                      onClick={() => setShowRoomPicker((prev) => !prev)}
-                      className="pill-chip inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold backdrop-blur-sm"
-                    >
-                      {detectedRoom ? (
-                        <>
-                          <BrainCircuit size={14} className="text-[var(--color-primary)]" />
-                          <span>{selectedRoom}</span>
-                          <ChevronDown size={13} className={`transition-transform ${showRoomPicker ? 'rotate-180' : ''}`} />
-                        </>
-                      ) : (
-                        <span className="inline-flex items-center gap-2">
-                          <span className="h-2 w-2 rounded-full bg-[var(--color-accent)] animate-pulse" />
-                          Detecting room...
-                        </span>
-                      )}
-                    </button>
-
-                    {showRoomPicker && (
-                      <div className="mt-2 w-52 rounded-2xl premium-surface p-2">
-                        {roomOptions.map((room) => (
-                          <button
-                            key={room}
-                            type="button"
-                            onClick={() => changeDetectedRoom(room)}
-                            className="w-full rounded-xl px-3 py-2 text-left text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-bg)]"
-                          >
-                            {room}
-                          </button>
+            <aside className={`w-full lg:w-[400px] border-l border-[var(--color-border)] bg-white/95 backdrop-blur-md overflow-y-auto ${!sheetOpen && 'hidden lg:block'}`}>
+              <div className="p-6 space-y-6">
+                {activePanel === 'chat' ? (
+                  <ChatInterface messages={chatMessages} onSendMessage={handleChatMessage} isLoading={isChatLoading} />
+                ) : activePanel === 'ops' ? (
+                  <PathBOpsPanel />
+                ) : activePanel === 'history' ? (
+                  <div className="space-y-4">
+                    <h2 className="font-display text-xl">Gallery</h2>
+                    <div className="flex gap-2">
+                      <button onClick={() => setGalleryTab('recent')} className={`flex-1 py-2 rounded-full text-xs font-semibold ${galleryTab === 'recent' ? 'bg-[var(--color-primary)] text-white' : 'bg-slate-100'}`}>Recent</button>
+                      <button onClick={() => setGalleryTab('saved')} className={`flex-1 py-2 rounded-full text-xs font-semibold ${galleryTab === 'saved' ? 'bg-[var(--color-primary)] text-white' : 'bg-slate-100'}`}>Saved</button>
+                    </div>
+                    {galleryTab === 'saved' ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        {savedStages.map(s => (
+                          <div key={s.id} className="group relative rounded-xl overflow-hidden shadow-sm aspect-[4/3]">
+                            <img src={s.generatedImage} className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                              <button onClick={() => setGeneratedImage(s.generatedImage)} className="p-2 bg-white rounded-full"><Sparkles size={16} /></button>
+                              <button onClick={() => handleRemoveSavedStage(s.id)} className="p-2 bg-white rounded-full text-rose-500"><X size={16} /></button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2">
+                        {history.map((h, i) => (
+                          <div key={i} onClick={() => { setGeneratedImage(h.generatedImage); setHistoryIndex(i); }} className={`cursor-pointer rounded-xl overflow-hidden aspect-[4/3] ring-2 ring-transparent ${historyIndex === i && 'ring-[var(--color-primary)]'}`}>
+                            <img src={h.generatedImage} className="w-full h-full object-cover" />
+                          </div>
                         ))}
                       </div>
                     )}
                   </div>
-
-                  <div className="absolute right-3 top-3 z-20 rounded-full bg-[var(--color-ink)]/76 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-white backdrop-blur-md">
-                    {isGenerating ? 'Rendering...' : 'Studio Live'}
-                  </div>
-                </div>
-              </div>
-
-              <div className="w-full">
-                <ColorAnalysis colors={colors} isLoading={isAnalyzing} />
-              </div>
-            </div>
-
-            {/* Chat Panel */}
-            {activePanel === 'chat' && (
-              <div className="premium-surface-strong rounded-[2rem] overflow-hidden h-[520px]">
-                <ChatInterface
-                  messages={chatMessages}
-                  onSendMessage={handleChatMessage}
-                  isLoading={isChatLoading}
-                />
-              </div>
-            )}
-
-            {/* History Panel */}
-            {activePanel === 'history' && (
-              <div className="premium-surface-strong rounded-[2rem] p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--color-text)]/70 mb-1">Generation History</p>
-                    <h3 className="font-display text-xl">Your Renders</h3>
-                  </div>
-                  <div className="flex bg-black/10 rounded-full p-1">
-                    <button
-                      type="button"
-                      onClick={() => setHistoryTab('recent')}
-                      className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${historyTab === 'recent' ? 'bg-white shadow text-black' : 'text-[var(--color-text)]/60'}`}
-                    >
-                      Recent
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setHistoryTab('saved')}
-                      className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${historyTab === 'saved' ? 'bg-white shadow text-black' : 'text-[var(--color-text)]/60'}`}
-                    >
-                      Saved
-                    </button>
-                  </div>
-                </div>
-
-                {historyTab === 'recent' ? (
-                  history.filter(h => h.generatedImage).length === 0 ? (
-                    <p className="text-sm text-[var(--color-text)]/70 py-8 text-center">No renders yet. Generate a design to build your history.</p>
-                  ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                      {history.filter(h => h.generatedImage).map((state, i) => (
-                        <button
-                          key={i}
-                          type="button"
-                          onClick={() => { setGeneratedImage(state.generatedImage); setSelectedRoom(state.selectedRoom); setColors(state.colors); }}
-                          className="group relative rounded-2xl overflow-hidden border border-[var(--color-border)] aspect-[4/3] hover:ring-2 hover:ring-[var(--color-accent)] transition-all"
-                        >
-                          <img src={state.generatedImage!} alt={`Render ${i + 1}`} className="w-full h-full object-cover" />
-                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-end p-2">
-                            <span className="opacity-0 group-hover:opacity-100 text-white text-[10px] font-semibold uppercase tracking-wide bg-black/50 rounded-lg px-2 py-1 transition-all">
-                              Restore #{i + 1}
-                            </span>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )
                 ) : (
-                  savedStages.length === 0 ? (
-                    <p className="text-sm text-[var(--color-text)]/70 py-8 text-center">No saved stages yet. Click the <Heart size={14} className="inline-block mx-1 mb-1" /> Save button on any design.</p>
-                  ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                      {savedStages.map((stage) => (
-                        <div key={stage.id} className="group relative rounded-2xl overflow-hidden border border-[var(--color-border)] aspect-[4/3] hover:ring-2 hover:ring-[var(--color-accent)] transition-all">
-                          <img src={stage.generatedImage} alt={stage.name} className="w-full h-full object-cover" />
-                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex flex-col justify-end p-2 opacity-0 group-hover:opacity-100">
-                            <button
-                              onClick={() => { setGeneratedImage(stage.generatedImage); setOriginalImage(stage.originalImage); }}
-                              className="cta-primary rounded-lg py-1.5 text-xs font-semibold w-full mb-1"
-                            >
-                              Restore
-                            </button>
-                            <button
-                              onClick={() => {
-                                const updated = savedStages.filter(s => s.id !== stage.id);
-                                setSavedStages(updated);
-                                localStorage.setItem('realestate_ai_stages', JSON.stringify(updated));
-                              }}
-                              className="bg-black/50 text-white rounded-lg py-1.5 text-[10px] uppercase tracking-wide font-semibold w-full hover:bg-red-500/80 transition-colors"
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )
+                  <StyleControls
+                    activeMode={activePanel === 'cleanup' ? 'cleanup' : 'design'}
+                    hasGenerated={!!generatedImage}
+                    onGenerate={handleGenerate}
+                    onStageModeChange={setStageMode}
+                    isGenerating={isGenerating}
+                    hasMask={!!maskImage}
+                    selectedRoom={selectedRoom}
+                    feedbackRequired={showFeedbackCheckpoint}
+                    compactMobile={false}
+                    isMultiGen={isMultiGen}
+                    onMultiGenChange={setIsMultiGen}
+                  />
                 )}
               </div>
-            )}
-
-          </main>
-
-          <aside className={`mobile-control-sheet order-3 lg:order-3 lg:w-[430px] lg:shrink-0 lg:border-l panel-divider ${sheetOpen ? 'open' : ''}`}>
-            <button
-              type="button"
-              onClick={() => setSheetOpen((prev) => !prev)}
-              className="mobile-sheet-toggle lg:hidden"
-            >
-              <span className="mobile-sheet-handle" />
-              <span className="text-[11px] uppercase tracking-[0.14em] text-[var(--color-text)]/70">
-                {sheetOpen ? 'Hide Controls' : 'Show Controls'}
-              </span>
-            </button>
-
-            <div className="mobile-sheet-scroll scrollbar-hide">
-              <div className="px-5 sm:px-6 pt-5 sm:pt-6">
-                <div className="subtle-card rounded-2xl px-4 py-3">
-                  <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--color-text)]/70">Quick Tutorial</p>
-                  <h3 className="font-display text-xl mt-1">How To Use Studio</h3>
-                  <ol className="mt-2 space-y-1 text-sm text-[var(--color-text)]/82 list-decimal pl-4">
-                    <li>Choose a <strong>Mode</strong> first.</li>
-                    <li>Add your direction with text or pick a style pack.</li>
-                    <li>Generate and re-generate until it feels right.</li>
-                    <li>Use thumbs feedback to tell us what to improve.</li>
-                  </ol>
-                </div>
-              </div>
-
-              <div className="p-5 sm:p-6 space-y-4 pb-[max(1.2rem,env(safe-area-inset-bottom))]">
-                <RenovationControls
-                  activeMode="design"
-                  hasGenerated={!!generatedImage}
-                  onGenerate={(p) => handleGenerate(p, false)}
-                  onStageModeChange={setStageMode}
-                  isGenerating={isGenerating}
-                  hasMask={false}
-                  selectedRoom={selectedRoom}
-                  feedbackRequired={showFeedbackCheckpoint}
-                  isMultiGen={isMultiGen}
-                  onMultiGenChange={setIsMultiGen}
-                />
-
-                <SpecialModesPanel
-                  originalImage={originalImage}
-                  generatedImage={generatedImage}
-                  selectedRoom={selectedRoom}
-                  onNewImage={(img) => { pushToHistory(); setGeneratedImage(img); }}
-                  onRequireKey={() => setShowKeyPrompt(true)}
-                />
-
-                <div className="hidden lg:block">
-                  <BetaFeedbackForm
-                    selectedRoom={selectedRoom}
-                    hasGenerated={!!generatedImage}
-                    stagedFurnitureCount={0}
-                    stageMode={stageMode}
-                    generatedImage={generatedImage}
-                    betaUserId={betaAccessCode ? `access-${betaAccessCode}` : ''}
-                    referralCode={betaAccessCode}
-                    acceptedInvites={0}
-                    insiderUnlocked={false}
-                    pro2kUnlocked={proUnlocked}
-                  />
-                </div>
-              </div>
-            </div>
-          </aside>
-        </div >
-      )}
-
-      {showFeedbackCheckpoint && generatedImage && (
-        <div className="fixed bottom-6 right-6 z-[110] w-[340px] shadow-2xl animate-in slide-in-from-bottom-8 fade-in duration-300">
-          <div className="premium-surface-strong rounded-[2rem] p-5 border border-white/20">
-            <div className="mb-3">
-              <p className="text-[10px] uppercase tracking-[0.16em] text-[var(--color-primary)] font-semibold mb-1">Feedback Checkpoint</p>
-              <h3 className="font-display text-xl leading-tight">Rate this render</h3>
-              <p className="mt-1 text-sm text-[var(--color-text)]/82">
-                We ask for a thumbs rating every {FEEDBACK_REQUIRED_INTERVAL} generations so beta output quality improves fast.
-              </p>
-            </div>
-            <BetaFeedbackForm
-              mode="quick-only"
-              quickRequired={false}
-              onQuickSubmitted={() => {
-                setShowFeedbackCheckpoint(false);
-                setGenerationsSinceFeedback(0);
-              }}
-              selectedRoom={selectedRoom}
-              hasGenerated={!!generatedImage}
-              stagedFurnitureCount={0}
-              stageMode={stageMode}
-              generatedImage={generatedImage}
-              betaUserId={betaAccessCode ? `access-${betaAccessCode}` : ''}
-              referralCode={betaAccessCode}
-              acceptedInvites={0}
-              insiderUnlocked={false}
-              pro2kUnlocked={proUnlocked}
-            />
+            </aside>
           </div>
-        </div>
-      )}
+        )}
+      </main>
     </div>
   );
 };

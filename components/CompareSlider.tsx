@@ -4,9 +4,10 @@ import { ArrowLeftRight } from 'lucide-react';
 interface CompareSliderProps {
   originalImage: string;
   generatedImage: string;
+  onDragStateChange?: (isDragging: boolean) => void;
 }
 
-const CompareSlider: React.FC<CompareSliderProps> = ({ originalImage, generatedImage }) => {
+const CompareSlider: React.FC<CompareSliderProps> = ({ originalImage, generatedImage, onDragStateChange }) => {
   const [sliderPosition, setSliderPosition] = useState(50);
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -19,6 +20,11 @@ const CompareSlider: React.FC<CompareSliderProps> = ({ originalImage, generatedI
   }, []);
 
   const onMouseDown = () => setIsDragging(true);
+
+  useEffect(() => {
+    onDragStateChange?.(isDragging);
+    return () => onDragStateChange?.(false);
+  }, [isDragging, onDragStateChange]);
 
   useEffect(() => {
     const onMouseUp = () => setIsDragging(false);
@@ -61,6 +67,7 @@ const CompareSlider: React.FC<CompareSliderProps> = ({ originalImage, generatedI
         onMouseDown();
       }}
       onTouchStart={(e) => {
+        e.preventDefault();
         handleMove(e.touches[0].clientX);
         onMouseDown();
       }}

@@ -27,6 +27,7 @@ interface RenovationControlsProps {
   hasMask: boolean;
   selectedRoom: FurnitureRoomType;
   feedbackRequired?: boolean;
+  compactMobile?: boolean;
   isMultiGen: boolean;
   onMultiGenChange: (multiGen: boolean) => void;
 }
@@ -40,6 +41,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
   hasMask,
   selectedRoom,
   feedbackRequired = false,
+  compactMobile = false,
   isMultiGen,
   onMultiGenChange,
 }) => {
@@ -50,85 +52,60 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
   const presets: Array<{ id: StylePreset; icon: React.ReactNode; description: string }> = [
     { id: 'Coastal Modern', icon: <Palmtree size={16} />, description: 'Light and airy flow' },
     { id: 'Urban Loft', icon: <Factory size={16} />, description: 'Industrial edge' },
-    { id: 'Farmhouse Chic', icon: <Wheat size={16} />, description: 'Rustic warmth' },
-    { id: 'Minimalist', icon: <Sparkles size={16} />, description: 'Quiet simplicity' },
-    { id: 'Mid-Century Modern', icon: <Layers size={16} />, description: 'Retro balance' },
-    { id: 'Scandinavian', icon: <Cloud size={16} />, description: 'Natural calm' },
-    { id: 'Bohemian', icon: <Flower2 size={16} />, description: 'Textured eclectic' },
+    { id: 'Scandi Boho', icon: <Flower2 size={16} />, description: 'Warm and eclectic' },
+    { id: 'Modern Farmhouse', icon: <Wheat size={16} />, description: 'Rustic luxury' },
+    { id: 'Japandi', icon: <Library size={16} />, description: 'Minimalist serenity' },
+    { id: 'Dark Academia', icon: <Layers size={16} />, description: 'Moody and sophisticated' },
+    { id: 'Luxe Art Deco', icon: <Sparkles size={16} />, description: 'Opulent gold accents' },
+    { id: 'Organic Modern', icon: <Cloud size={16} />, description: 'Natural textures' },
   ];
 
-  useEffect(() => {
-    onStageModeChange?.(stageMode);
-  }, [onStageModeChange, stageMode]);
-
-  const handleApplyCleanup = () => {
-    onGenerate(
-      'Architectural Restoration: Precisely remove only the masked items. Keep all doors, ceiling lights, and structural openings exactly as they appear in the original. Reveal the floor or hallway behind the mask. DO NOT cover hallways with new walls.'
-    );
-  };
-
-  const trimmedPrompt = customPrompt.trim();
-  const canGenerate =
-    !feedbackRequired &&
-    (stageMode === 'text' ? trimmedPrompt.length > 0 : stageMode === 'packs' ? Boolean(selectedPreset) : false);
-
   const buildPrompt = () => {
-    if (stageMode === 'furniture') return;
-
-    let prompt = '';
+    if (activeMode === 'cleanup') {
+      onGenerate('cleanup');
+      return;
+    }
 
     if (stageMode === 'text') {
-      prompt = `Virtually stage this ${selectedRoom}. Preserve architecture, layout, windows, doors, and built-in fixtures. Keep proportions realistic and photoreal. Primary direction: ${trimmedPrompt}`;
-    }
-
-    if (stageMode === 'packs') {
+      if (!customPrompt.trim()) return;
+      onGenerate(customPrompt);
+    } else if (stageMode === 'packs') {
       if (!selectedPreset) return;
-      prompt = `Virtually stage this ${selectedRoom} in a ${selectedPreset} pack direction. Preserve architecture, layout, windows, doors, and built-in fixtures. Keep proportions realistic and photoreal.`;
+      onGenerate(selectedPreset);
     }
-
-    if (hasMask) {
-      prompt += ' ONLY update the masked area, keeping the rest of the image identical.';
-    }
-
-    onGenerate(prompt);
   };
+
+  const canGenerate = (stageMode === 'text' ? !!customPrompt.trim() : !!selectedPreset) || activeMode === 'cleanup';
+
+  useEffect(() => {
+    if (onStageModeChange) onStageModeChange(stageMode);
+  }, [stageMode, onStageModeChange]);
 
   if (activeMode === 'cleanup') {
     return (
-      <div className="space-y-5">
-        <div className="premium-surface rounded-3xl p-5">
-          <div className="mb-3 flex items-center gap-3">
-            <div className="subtle-card rounded-xl p-2 text-[var(--color-primary)]">
-              <Eraser size={18} />
-            </div>
-            <div>
-              <h3 className="font-display text-lg font-semibold">Architectural Cleanup</h3>
-              <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-text)]/70">Masked precision edit</p>
-            </div>
+      <div className="premium-surface rounded-3xl p-5">
+        <div className="mb-4 flex items-center gap-3">
+          <div className="subtle-card rounded-xl p-2 text-[var(--color-primary)]">
+            <Eraser size={18} />
           </div>
-          <p className="text-sm leading-relaxed text-[var(--color-text)]/85">
-            Paint over unwanted objects to remove them while preserving doors, windows, and lighting.
+          <div>
+            <h3 className="font-display text-lg font-semibold">Smart Cleanup</h3>
+            <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-text)]/70">Remove items or imperfections</p>
+          </div>
+        </div>
+
+        <div className="rounded-2xl bg-amber-50 p-4 border border-amber-100">
+          <p className="text-xs text-amber-800 leading-relaxed font-medium">
+            Use the brush to mask areas you want to remove. Our AI will seamlessly fill in the space based on the surrounding textures.
           </p>
         </div>
 
-        <div className="rounded-2xl border border-emerald-300/45 bg-emerald-50/70 px-4 py-3 text-sm text-emerald-900">
-          <p className="flex items-start gap-2">
-            <ShieldCheck size={16} className="mt-0.5 shrink-0" />
-            Structural fixtures are protected unless specifically included in the selected mask.
-          </p>
-        </div>
-
-        <div className="premium-surface-strong rounded-3xl p-5 sticky bottom-5">
-          <button
-            type="button"
-            onClick={handleApplyCleanup}
-            disabled={isGenerating || !hasMask}
-            className="cta-primary w-full rounded-2xl px-4 py-3.5 text-sm font-semibold tracking-wide disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isGenerating ? 'Processing Mask...' : 'Remove and Reveal'}
-          </button>
-          <p className="mt-3 text-center text-xs text-[var(--color-text)]/70">
-            {hasMask ? 'Mask detected. Ready to process.' : 'Draw over an area on the canvas to enable cleanup.'}
+        <div className="mt-5 rounded-2xl bg-sky-50 p-4 border border-sky-100 flex items-start gap-3">
+          <div className="text-[var(--color-primary)] mt-0.5">
+            <ShieldCheck size={16} />
+          </div>
+          <p className="text-[11px] text-sky-900 leading-relaxed">
+            <strong>Pro Tip:</strong> Smaller brush strokes for fine details like wires or debris work best.
           </p>
         </div>
       </div>
@@ -136,17 +113,17 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
   }
 
   return (
-    <div className="space-y-4">
+    <div className={compactMobile ? 'space-y-3' : 'space-y-4'}>
       <div className="premium-surface rounded-3xl p-5">
         <div className="mb-3">
           <h3 className="font-display text-lg font-semibold">Mode</h3>
-          <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-text)]/70">Pick one path for this render</p>
+          {!compactMobile && <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-text)]/70">Pick one path for this render</p>}
         </div>
-        <div className="grid grid-cols-3 gap-2">
+        <div className={`grid grid-cols-3 ${compactMobile ? 'gap-1.5' : 'gap-2'}`}>
           <button
             type="button"
             onClick={() => setStageMode('text')}
-            className={`rounded-2xl border px-3 py-2 text-left text-sm font-semibold transition-all ${stageMode === 'text'
+            className={`rounded-2xl border px-2.5 py-2 text-left text-sm font-semibold transition-all ${stageMode === 'text'
               ? 'border-[var(--color-accent)] bg-sky-50 shadow-[0_8px_20px_rgba(3,105,161,0.14)]'
               : 'border-[var(--color-border)] bg-white/80 hover:bg-white'
               }`}
@@ -156,7 +133,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
           <button
             type="button"
             onClick={() => setStageMode('packs')}
-            className={`rounded-2xl border px-3 py-2 text-left text-sm font-semibold transition-all ${stageMode === 'packs'
+            className={`rounded-2xl border px-2.5 py-2 text-left text-sm font-semibold transition-all ${stageMode === 'packs'
               ? 'border-[var(--color-accent)] bg-sky-50 shadow-[0_8px_20px_rgba(3,105,161,0.14)]'
               : 'border-[var(--color-border)] bg-white/80 hover:bg-white'
               }`}
@@ -166,7 +143,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
           <button
             type="button"
             disabled
-            className="cursor-not-allowed rounded-2xl border border-[var(--color-border)] bg-slate-100/70 px-3 py-2 text-left text-sm font-semibold text-slate-500"
+            className="cursor-not-allowed rounded-2xl border border-[var(--color-border)] bg-slate-100/70 px-2.5 py-2 text-left text-sm font-semibold text-slate-500"
           >
             <span className="block">Furniture</span>
             <span className="mt-1 inline-flex rounded-full border border-amber-300/80 bg-amber-100/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-amber-800">
@@ -174,49 +151,37 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
             </span>
           </button>
         </div>
-        <p className="mt-3 text-xs text-[var(--color-text)]/72">
-          Curated furniture staging is coming soon and is intentionally disabled in this beta.
-        </p>
+        {!compactMobile && (
+          <p className="mt-3 text-xs text-[var(--color-text)]/72">
+            Curated furniture staging is coming soon and is intentionally disabled in this beta.
+          </p>
+        )}
       </div>
 
       {stageMode === 'text' && (
         <div className="premium-surface rounded-3xl p-5">
-          <div className="mb-3 flex items-center gap-3">
+          <div className="mb-4 flex items-center gap-3">
             <div className="subtle-card rounded-xl p-2 text-[var(--color-primary)]">
               <FilePenLine size={18} />
             </div>
             <div>
-              <h3 className="font-display text-lg font-semibold">Design Direction</h3>
-              <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-text)]/70">Primary generation input</p>
+              <h3 className="font-display text-lg font-semibold">Custom Design</h3>
+              <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-text)]/70">Prompt your vision</p>
             </div>
           </div>
-          <p className="mb-3 text-sm text-[var(--color-text)]/80">
-            {hasGenerated ? 'Update your direction, then re-generate for a fresh composition.' : 'Describe the first design you want to generate.'}
-          </p>
-          <textarea
-            value={customPrompt}
-            onChange={(e) => setCustomPrompt(e.target.value)}
-            placeholder="e.g. warm oak flooring, sculptural lamp, linen drapes"
-            rows={4}
-            className="w-full rounded-2xl border border-[var(--color-border)] bg-white/85 px-3 py-2.5 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-text)]/45"
-          />
-          <div className="mt-3 flex flex-wrap gap-2">
-            {[
-              "Scandinavian minimalist with light oak wood",
-              "Mid-century modern with warm walnut accents",
-              "Coastal contemporary with natural textures",
-              "Industrial loft with exposed brick"
-            ].map(suggestion => (
-              <button
-                key={suggestion}
-                type="button"
-                onClick={() => setCustomPrompt(suggestion)}
-                className="text-[10px] font-semibold uppercase tracking-wide px-3 py-1.5 rounded-full border border-[var(--color-border)] bg-white/50 hover:bg-white hover:border-[var(--color-accent)] transition-all text-[var(--color-text)]/80 hover:text-[var(--color-primary)] shadow-sm"
-              >
-                {suggestion}
-              </button>
-            ))}
+          <div className="group relative">
+            <textarea
+              value={customPrompt}
+              onChange={(e) => setCustomPrompt(e.target.value)}
+              placeholder="e.g. A modern living room with a navy velvet sofa and gold accents..."
+              className="h-32 w-full resize-none rounded-2xl border border-[var(--color-border)] bg-white/80 p-4 text-sm transition-all focus:border-[var(--color-accent)] focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-100"
+            />
           </div>
+          {!compactMobile && (
+            <p className="mt-3 text-[11px] leading-relaxed text-[var(--color-text)]/60">
+              Be specific about textures (velvet, oak, linen) and colors for the best results.
+            </p>
+          )}
         </div>
       )}
 
@@ -231,9 +196,9 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
               <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-text)]/70">Select a curated direction</p>
             </div>
           </div>
-          <p className="mb-4 text-sm text-[var(--color-text)]/80">Choose one pack to generate a complete staging direction.</p>
+          {!compactMobile && <p className="mb-4 text-sm text-[var(--color-text)]/80">Choose one pack to generate a complete staging direction.</p>}
 
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <div className={`grid gap-2 ${compactMobile ? 'grid-cols-2' : 'grid-cols-1 sm:grid-cols-2'}`}>
             {presets.map((preset) => {
               const active = selectedPreset === preset.id;
               return (
@@ -241,7 +206,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
                   key={preset.id}
                   type="button"
                   onClick={() => setSelectedPreset(preset.id)}
-                  className={`rounded-2xl border px-3 py-2 text-left transition-all ${active
+                  className={`rounded-2xl border px-2.5 py-2 text-left transition-all hover-lift ${active
                     ? 'border-[var(--color-accent)] bg-sky-50 shadow-[0_8px_20px_rgba(3,105,161,0.14)]'
                     : 'border-[var(--color-border)] bg-white/80 hover:bg-white'
                     }`}
@@ -254,8 +219,10 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
                       {preset.icon}
                     </span>
                     <span>
-                      <span className="block text-sm font-semibold text-[var(--color-ink)]">{preset.id}</span>
-                      <span className="block text-xs text-[var(--color-text)]/70">{preset.description}</span>
+                      <span className={`block font-semibold text-[var(--color-ink)] ${compactMobile ? 'text-[12px] leading-tight' : 'text-sm'}`}>
+                        {preset.id}
+                      </span>
+                      {!compactMobile && <span className="block text-xs text-[var(--color-text)]/70">{preset.description}</span>}
                     </span>
                   </div>
                 </button>
@@ -265,7 +232,13 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
         </div>
       )}
 
-      <div className="premium-surface-strong rounded-3xl p-5 sticky bottom-2 space-y-3">
+      <div
+        className={
+          compactMobile
+            ? 'sticky bottom-0 z-20 -mx-5 mt-2 border-t border-[var(--color-border)] bg-[linear-gradient(180deg,rgba(247,255,253,0.9),rgba(247,255,253,0.98))] px-5 pb-[max(0.95rem,env(safe-area-inset-bottom))] pt-3 space-y-2'
+            : 'premium-surface-strong rounded-3xl p-5 sticky bottom-2 space-y-3'
+        }
+      >
         <label className="flex items-center gap-3 p-1 cursor-pointer group">
           <div className={`flex w-9 h-5 items-center rounded-full p-1 transition-colors ${isMultiGen ? 'bg-[var(--color-accent)]' : 'bg-slate-300'}`}>
             <div className={`h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform ${isMultiGen ? 'translate-x-3.5' : 'translate-x-0'}`} />
@@ -286,11 +259,12 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
           type="button"
           onClick={buildPrompt}
           disabled={isGenerating || !canGenerate}
-          className="cta-primary min-h-[46px] w-full rounded-2xl px-4 py-3.5 text-sm font-semibold tracking-wide disabled:cursor-not-allowed disabled:opacity-50"
+          className={`cta-primary w-full rounded-2xl px-4 py-3.5 text-sm font-semibold tracking-wide disabled:cursor-not-allowed disabled:opacity-50 ${compactMobile ? 'min-h-[52px]' : 'min-h-[46px]'
+            }`}
         >
           {isGenerating ? 'Rendering Design...' : hasGenerated ? 'Re-generate Design' : 'Generate Design'}
         </button>
-        <p className="text-center text-xs text-[var(--color-text)]/72">
+        <p className={`${compactMobile ? 'text-left' : 'text-center'} text-xs text-[var(--color-text)]/72`}>
           {feedbackRequired
             ? 'Feedback checkpoint required. Submit a thumbs rating to continue generating.'
             : 'Re-generate always starts from the original upload to keep results fresh.'}

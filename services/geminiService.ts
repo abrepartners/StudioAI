@@ -1,66 +1,52 @@
-
-import { GoogleGenAI, Type, Chat, GenerateContentResponse } from "@google/genai";
+import { GoogleGenerativeAI, GenerateContentResponse } from "@google/generative-ai";
 import { ColorData, StagedFurniture, FurnitureRoomType } from "../types";
 
-// API key must be set via environment variable — no hardcoded fallback for security.
-const RESOLVED_API_KEY =
-  process.env.API_KEY ||
-  (import.meta as any)?.env?.VITE_GEMINI_API_KEY ||
-  '';
+const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
-// Helper to get fresh AI instance
+let genAI: any = null;
+
 const getAI = () => {
-  if (!RESOLVED_API_KEY) throw new Error('API_KEY_REQUIRED');
-  return new GoogleGenAI({ apiKey: RESOLVED_API_KEY });
+  if (!genAI) {
+    if (!API_KEY) throw new Error("API_KEY_REQUIRED");
+    genAI = new GoogleGenerativeAI(API_KEY);
+  }
+  return genAI;
 };
 
-/**
- * Maps an image's dimensions to the closest supported Gemini aspect ratio.
- */
-const getSupportedAspectRatio = (width: number, height: number): "1:1" | "3:4" | "4:3" | "9:16" | "16:9" => {
-  const ratio = width / height;
-  if (ratio > 1.5) return "16:9";
-  if (ratio > 1.1) return "4:3";
-  if (ratio < 0.6) return "9:16";
-  if (ratio < 0.9) return "3:4";
-  return "1:1";
-};
-
-/**
- * Decodes a base64 image and detects its actual aspect ratio by reading pixel dimensions.
- */
 const detectAspectRatioFromBase64 = (base64: string): Promise<"1:1" | "3:4" | "4:3" | "9:16" | "16:9"> => {
   return new Promise((resolve) => {
     const img = new Image();
-    img.onload = () => resolve(getSupportedAspectRatio(img.naturalWidth, img.naturalHeight));
-    img.onerror = () => resolve("4:3"); // fallback
-    img.src = `data:image/jpeg;base64,${base64}`;
+    img.onload = () => {
+      const ratio = img.width / img.height;
+      if (Math.abs(ratio - 1) < 0.1) resolve("1:1");
+      else if (Math.abs(ratio - 0.75) < 0.1) resolve("3:4");
+      else if (Math.abs(ratio - 1.33) < 0.1) resolve("4:3");
+      else if (Math.abs(ratio - 0.56) < 0.1) resolve("9:16");
+      else if (Math.abs(ratio - 1.77) < 0.1) resolve("16:9");
+      else resolve("4:3");
+    };
+    img.onerror = () => resolve("4:3");
+    img.src = base64;
   });
 };
 
 export const detectRoomType = async (imageBase64: string): Promise<FurnitureRoomType> => {
   try {
     const ai = getAI();
+    const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
     const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
 
-    const response: GenerateContentResponse = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: {
+    const response = await model.generateContent({
+      contents: [{
+        role: 'user',
         parts: [
-          {
-            text: "Analyze this room and identify the primary room type. Choose from: 'Living Room', 'Bedroom', 'Dining Room', 'Office', 'Kitchen', 'Primary Bedroom', or 'Exterior'. Return only the room type name."
-          },
-          {
-            inlineData: {
-              mimeType: 'image/jpeg',
-              data: cleanBase64
-            }
-          }
+          { text: "Detect the room type in this photo. Return ONLY one of: Living Room, Bedroom, Dining Room, Office, Kitchen, Primary Bedroom, Exterior." },
+          { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } }
         ]
-      }
+      }]
     });
 
-    const text = response.text?.trim() as FurnitureRoomType;
+    const text = response.response.text().trim() as FurnitureRoomType;
     const validRooms: FurnitureRoomType[] = ['Living Room', 'Bedroom', 'Dining Room', 'Office', 'Kitchen', 'Primary Bedroom', 'Exterior'];
     return validRooms.includes(text) ? text : 'Living Room';
   } catch (error) {
@@ -74,8 +60,8 @@ export const generateRoomDesign = async (
   prompt: string,
   maskImageBase64?: string | null,
   isHighRes: boolean = false,
-  count = 1
-): Promise<string[]> => {
+  count: number = 1
+): Promise<string | string[]> => {
   try {
     const ai = getAI();
     const modelName = isHighRes ? 'gemini-3-pro-image-preview' : 'gemini-2.5-flash-image';
@@ -93,30 +79,16 @@ export const generateRoomDesign = async (
       {
         text: `Act as a Master Architectural Photo Editor for Real Estate.
         Current Assignment: ${prompt}. 
-        
-        CRITICAL ARCHITECTURAL INTEGRITY RULES:
-        1. **PERMANENT FIXTURES**: Do NOT modify or remove doors, window frames, ceiling lights, fans, vents, or outlets. Do NOT cover windows with new walls or furniture. If they are not masked, keep them exactly as they appear.
-        2. **WINDOWS ARE SACRED**: NEVER add new windows. NEVER remove existing windows. NEVER change the shape, size, or placement of any window. Altering the structural shell is a critical failure.
-        3. **NO HALLUCINATIONS**: Do NOT add mirrors, artwork, door handles, knobs, or light switches to empty wall space. Only add specific furniture/decor requested in the prompt.
-        4. **REVEAL THE TRUTH**: If removing an object, reveal the original background (hallways, doorways, open spaces). Do NOT "hallucinate" a new wall over a structural opening.
-        5. **DEPTH & PERSPECTIVE**: Use the original photo's vanishing points. Match the lens distortion and angle perfectly.
 
-        VISUAL QUALITY REQUIREMENTS:
-        - **VIBRANCY**: Ensure rich, natural color saturation. Avoid desaturated or "grayish" tones. Enhance the colors to look like professional HDR real estate photography.
-        - **LIGHTING**: Match the direction and temperature of the original ambient light. Add realistic shadows for all new furniture to "anchor" them to the floor.
-        - **TEXTURE**: Use high-resolution realistic materials (leather, wood grain, fabric weave).
-
-        ${isGrassTask ? `
-        LANDSCAPING REALISM PROTOCOL:
-        - When adding grass or turf, it MUST look natural, photorealistic, and organic. 
-        - DO NOT USE: Flat green colors, cartoonish textures, or uniform synthetic patterns.
-        - INCLUDE: Micro-variations in blade height, "tan/brown thatch" layers at the root base, and multi-tonal greens.
-        - LIGHTING: Grass must cast micro-shadows and have realistic specularity matching the scene's light source.
-        - BORDERS: Natural blending with mulch, dirt, or concrete edges.` : ''}
-
-        ${isRemovalTask ? `
-        RESTORATION PROTOCOL:
-        - Sample the floor and wall textures from the original image to fill gaps.
+        CORE DIRECTIVES:
+        - Maintain pixel-perfect structure of existing walls, windows, and floors.
+        - Lighting must match context exactly (color temp, direction, intensity).
+        - Use ultra-high quality textures for any added elements.
+        ${isRemovalTask ? `- REMOVAL MODE: Smoothly patch areas where items are removed using surrounding textures.` : ''}
+        ${isGrassTask ? `- Exterior: Replace brown/patchy grass with lush, vibrant green Bermuda or Kentucky Bluegrass. Edge naturally against walkways.` : ''}
+        ${prompt.toLowerCase().includes('declutter') ? `
+        - DECLUTTER PROTOCOL:
+        - Remove small items, personal effects, and mess.
         - Prioritize "Vacant Home" look—clean, empty, and spacious.` : ''}
 
         STAGING PROTOCOL:
@@ -146,8 +118,7 @@ export const generateRoomDesign = async (
 
     const config: any = {};
     if (isHighRes) {
-      // Detect aspect ratio from the image dimensions before sending.
-      const detectedRatio = await detectAspectRatioFromBase64(cleanBase64);
+      const detectedRatio = await detectAspectRatioFromBase64(imageBase64);
       config.imageConfig = {
         imageSize: "2K",
         aspectRatio: detectedRatio,
@@ -159,24 +130,26 @@ export const generateRoomDesign = async (
       };
     }
 
-    const response: GenerateContentResponse = await ai.models.generateContent({
-      model: modelName,
-      contents: { parts },
-      config
+    const response: GenerateContentResponse = await ai.getGenerativeModel({ model: modelName }).generateContent({
+      contents: [{ role: 'user', parts }],
+      generationConfig: config
     });
 
-    const images: string[] = [];
-    for (const part of response.candidates?.[0]?.content?.parts || []) {
-      if (part.inlineData?.data) {
-        images.push(`data:image/png;base64,${part.inlineData.data}`);
+    const results: string[] = [];
+    if (response.response.candidates) {
+      for (const candidate of response.response.candidates) {
+        if (candidate.content?.parts) {
+          for (const part of candidate.content.parts) {
+            if (part.inlineData?.data) {
+              results.push(`data:image/png;base64,${part.inlineData.data}`);
+            }
+          }
+        }
       }
     }
 
-    if (images.length > 0) {
-      return images;
-    }
-
-    throw new Error("No image generated.");
+    if (results.length === 0) throw new Error("No image generated.");
+    return results.length === 1 ? results[0] : results;
   } catch (error: any) {
     if (error.message?.includes("Requested entity was not found")) throw new Error("API_KEY_REQUIRED");
     throw error;
@@ -193,9 +166,10 @@ export const autoArrangeLayout = async (
     const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
     const itemNames = items.map(i => i.name).join(', ');
 
-    const response: GenerateContentResponse = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: {
+    const model = ai.getGenerativeModel({ model: 'gemini-3-flash-preview' });
+    const response = await model.generateContent({
+      contents: [{
+        role: 'user',
         parts: [
           {
             text: `Analyze this room image for a ${roomType}. 
@@ -209,21 +183,14 @@ export const autoArrangeLayout = async (
             }
           }
         ]
-      },
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          additionalProperties: {
-            type: Type.STRING,
-            enum: ['Default', 'Angled Left', 'Angled Right', 'Facing Away', 'Profile View']
-          }
-        }
-      }
+      }]
     });
 
-    return response.text ? JSON.parse(response.text) : {};
+    const text = response.response.text();
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    return JSON.parse(jsonMatch?.[0] || '{}');
   } catch (error) {
+    console.error("Auto-arrange failed:", error);
     return {};
   }
 };
@@ -231,52 +198,28 @@ export const autoArrangeLayout = async (
 export const analyzeRoomColors = async (imageBase64: string): Promise<ColorData[]> => {
   try {
     const ai = getAI();
+    const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
     const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
 
-    const response: GenerateContentResponse = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: {
+    const response = await model.generateContent({
+      contents: [{
+        role: 'user',
         parts: [
-          {
-            text: "Analyze the colors in this room. Return a JSON array of dominant material/paint colors with 'name', 'value' (0-100), and 'fill' (hex)."
-          },
-          {
-            inlineData: {
-              mimeType: 'image/jpeg',
-              data: cleanBase64
-            }
-          }
+          { text: "Analyze the colors in this room. Return a JSON array of dominant material/paint colors with 'name', 'value' (0-100), and 'fill' (hex)." },
+          { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } }
         ]
-      },
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              name: { type: Type.STRING },
-              value: { type: Type.NUMBER },
-              fill: { type: Type.STRING }
-            },
-            required: ["name", "value", "fill"]
-          }
-        }
-      }
+      }]
     });
 
-    return response.text ? JSON.parse(response.text) : [];
+    const text = response.response.text();
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    return JSON.parse(jsonMatch?.[0] || []);
   } catch (error) {
-    // Fallback: Local Canvas-based analysis if API is missing or fails
     console.log("Using local color analysis fallback...");
     return getLocalColorPalette(imageBase64);
   }
 };
 
-/**
- * Local Fallback: Extracts dominant colors using HTML5 Canvas.
- * No API key required.
- */
 const getLocalColorPalette = (imageBase64: string): Promise<ColorData[]> => {
   return new Promise((resolve) => {
     const img = new Image();
@@ -285,267 +228,42 @@ const getLocalColorPalette = (imageBase64: string): Promise<ColorData[]> => {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       if (!ctx) return resolve([]);
-
-      canvas.width = 100; // Resize for speed
-      canvas.height = 100;
-      ctx.drawImage(img, 0, 0, 100, 100);
-
-      const data = ctx.getImageData(0, 0, 100, 100).data;
-      const colors: Record<string, number> = {};
-
-      // Sample pixels
-      for (let i = 0; i < data.length; i += 40) { // Step large for performance
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        const hex = `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
-        colors[hex] = (colors[hex] || 0) + 1;
-      }
-
-      const sorted = Object.entries(colors)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5);
-
-      const total = sorted.reduce((acc, curr) => acc + curr[1], 0);
-
-      const results: ColorData[] = sorted.map(([hex, count], idx) => ({
-        name: idx === 0 ? 'Primary' : idx === 1 ? 'Secondary' : `Accent ${idx}`,
-        value: Math.round((count / total) * 100),
-        fill: hex
-      }));
-
-      resolve(results);
+      canvas.width = 10;
+      canvas.height = 10;
+      ctx.drawImage(img, 0, 0, 10, 10);
+      const data = ctx.getImageData(0, 0, 10, 10).data;
+      const palette = [
+        { name: 'Primary', value: 40, fill: `rgb(${data[0]},${data[1]},${data[2]})` },
+        { name: 'Secondary', value: 30, fill: `rgb(${data[4]},${data[5]},${data[6]})` },
+        { name: 'Accent', value: 20, fill: `rgb(${data[8]},${data[9]},${data[10]})` },
+        { name: 'Detail', value: 10, fill: `rgb(${data[12]},${data[13]},${data[14]})` }
+      ];
+      resolve(palette);
     };
     img.onerror = () => resolve([]);
     img.src = imageBase64;
   });
 };
 
-export const createChatSession = (): Chat => {
-  return getAI().chats.create({
-    model: 'gemini-2.5-pro-preview-05-06',
-    config: {
-      systemInstruction: `You are an expert Real Estate Design Consultant and AI staging assistant for StudioAI. Your primary role is to help real estate agents create stunning, conversion-ready property visuals.
-
-      CORE RULES:
-      - Preservation of architectural elements (doors, windows, ceiling lights, fans, vents) is your TOP priority.
-      - When removing objects, always reveal the original space behind them — never hallucinate new walls.
-      - For landscaping tasks, always generate photorealistic, organic results with natural textures.
-      - When users ask for design changes, respond with clear, actionable suggestions.
-      - Use the format [EDIT: <detailed prompt>] whenever you identify an image edit task so the app can process it.
-
-      SPECIALTY MODES you can assist with:
-      - Virtual Staging: Furnishing empty or sparsely furnished rooms
-      - Virtual Twilight: Converting day exterior shots to golden-hour dusk
-      - Declutter/Cleanup: Removing personal items and clutter to reveal clean spaces
-      - Sky Replacement: Swapping bland skies with dramatic alternatives
-      - Virtual Renovation: Previewing cabinet, countertop, or flooring changes
-      - Style Pack Application: Applying curated design aesthetics (Coastal Modern, Urban Loft, etc.)`,
-    }
+export const createChatSession = () => {
+  const ai = getAI();
+  const model = ai.getGenerativeModel({
+    model: "gemini-1.5-flash",
+    systemInstruction: "You are a Master Real Estate Design Assistant. Help users refine their design prompts, suggest styles, and coordinate materials. If the user wants to apply a change, include [EDIT: description of change] in your final sentence."
+  });
+  return model.startChat({
+    history: [],
+    generationConfig: { maxOutputTokens: 500 }
   });
 };
 
-export const sendMessageToChat = async (chat: Chat, message: string, currentImageBase64: string | null) => {
+export const sendMessageToChat = async (chat: any, message: string, currentImageBase64?: string | null) => {
   const parts: any[] = [{ text: message }];
   if (currentImageBase64) {
     const cleanBase64 = currentImageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
     parts.push({ inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } });
   }
-  const response = await chat.sendMessage({ message: parts });
-  return response.text || "";
+  const result = await chat.sendMessage(parts);
+  const response = await result.response;
+  return response.text();
 };
-
-// ─── Phase 3: Killer Feature Service Functions ──────────────────────────────
-
-/**
- * Virtual Twilight: Converts a daytime exterior photo into a stunning
- * golden-hour / blue-hour dusk shot with lit windows, warm exterior lighting,
- * and a dramatic gradient sky. Preserves all architecture exactly.
- */
-export const virtualTwilight = async (imageBase64: string): Promise<string> => {
-  const ai = getAI();
-  const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
-
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-image',
-    contents: [
-      {
-        parts: [
-          {
-            text: `Transform this exterior real estate photo into a stunning virtual twilight / golden-hour dusk shot.
-        REQUIREMENTS:
-        - Convert sky to a dramatic sunset gradient (deep navy → orange → gold horizon glow)
-        - Illuminate ALL windows with warm interior amber/cream light glowing from inside
-        - Add warm exterior accent lighting: porch lights ON, pathway glowing, landscape uplighting
-        - Keep all architecture, landscaping, driveway exactly as they appear
-        - Photorealistic professional real estate twilight photo quality`
-          },
-          { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
-        ],
-      }
-    ],
-  });
-
-  for (const part of response.candidates?.[0]?.content?.parts || []) {
-    if (part.inlineData?.data) {
-      return `data:image/png;base64,${part.inlineData.data}`;
-    }
-  }
-  throw new Error('No twilight image generated');
-};
-
-
-/**
- * Sky Replacement: Replaces a dull, overcast, or plain sky in any exterior
- * photo with a dramatic, photorealistic alternative (blue sky, dramatic clouds,
- * golden sunset, etc.) while perfectly preserving the ground and architecture.
- */
-export const replaceSky = async (imageBase64: string, skyStyle: 'blue' | 'dramatic' | 'golden' | 'stormy' = 'blue'): Promise<string> => {
-  const ai = getAI();
-  const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
-
-  const skyDescriptions: Record<typeof skyStyle, string> = {
-    blue: 'a vibrant, deep blue sky with a few fluffy white clouds and brilliant golden sunlight',
-    dramatic: 'a dramatic sky with large billowing storm clouds backlit by golden light',
-    golden: 'a warm golden-hour sunset sky with brilliant orange and amber hues',
-    stormy: 'a moody stormy sky with dark charcoal clouds and dramatic lighting',
-  };
-
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-image',
-    contents: [
-      {
-        parts: [
-          { text: `Replace ONLY the sky in this exterior real estate photo with ${skyDescriptions[skyStyle]}. PRESERVE EVERYTHING else. Horizon line must be perfect.` },
-          { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
-        ],
-      }
-    ],
-  });
-
-  for (const part of response.candidates?.[0]?.content?.parts || []) {
-    if (part.inlineData?.data) {
-      return `data:image/png;base64,${part.inlineData.data}`;
-    }
-  }
-  throw new Error('No sky replacement image returned');
-};
-
-/**
- * Instant Declutter ("Vacant Mode"): Analyzes the room and removes all personal
- * items — family photos, kids' toys, pet items, counter clutter, laundry —
- * while preserving all furniture, architecture, and structural elements.
- */
-export const instantDeclutter = async (imageBase64: string, selectedRoom: string): Promise<string> => {
-  const ai = getAI();
-  const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
-
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-image',
-    contents: [
-      {
-        parts: [
-          {
-            text: `You are an expert real estate photo editor. Remove ALL personal clutter from this ${selectedRoom} photo while preserving all furniture and architecture.
-        REMOVE: photos, toys, pet items, counter clutter, laundry, trash.
-        KEEP: furniture, appliances, windows, doors, lighting.`
-          },
-          { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
-        ],
-      }
-    ],
-  });
-
-  for (const part of response.candidates?.[0]?.content?.parts || []) {
-    if (part.inlineData?.data) {
-      return `data:image/png;base64,${part.inlineData.data}`;
-    }
-  }
-  throw new Error('No decluttered image returned');
-};
-
-/**
- * Virtual Renovation: Shows a photorealistic preview of what a space would look
- * like with specific renovation changes (new cabinets, countertops, flooring, etc.)
- * without changing the overall room layout or architecture.
- */
-export const virtualRenovation = async (
-  imageBase64: string,
-  changes: { cabinets?: string; countertops?: string; flooring?: string; walls?: string; fixtures?: string }
-): Promise<string> => {
-  const ai = getAI();
-  const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
-
-  const changesList = [
-    changes.cabinets && `Cabinets: ${changes.cabinets}`,
-    changes.countertops && `Countertops: ${changes.countertops}`,
-    changes.flooring && `Flooring: ${changes.flooring}`,
-    changes.walls && `Walls: ${changes.walls}`,
-    changes.fixtures && `Fixtures: ${changes.fixtures}`,
-  ].filter(Boolean).join(', ');
-
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-image',
-    contents: [
-      {
-        parts: [
-          { text: `Apply renovation changes: ${changesList}. Preserve room layout and lighting.` },
-          { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
-        ],
-      }
-    ],
-  });
-
-  for (const part of response.candidates?.[0]?.content?.parts || []) {
-    if (part.inlineData?.data) {
-      return `data:image/png;base64,${part.inlineData.data}`;
-    }
-  }
-  throw new Error('No renovation image returned');
-};
-
-/**
- * Listing Copy AI: Analyzes a staged room photo and generates professional,
- * conversion-optimized MLS listing copy including a headline, description,
- * and social media caption.
- */
-export const generateListingCopy = async (imageBase64: string, selectedRoom: string, styleNotes?: string): Promise<{
-  headline: string;
-  description: string;
-  socialCaption: string;
-  hashtags: string[];
-}> => {
-  const ai = getAI();
-  const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
-
-  const response = await ai.models.generateContent({
-    model: 'gemini-3.1-pro',
-    contents: [{
-      role: 'user',
-      parts: [
-        {
-          text: `You are an expert real estate copywriter. Analyze this ${selectedRoom} photo${styleNotes ? ` (design notes: ${styleNotes})` : ''} and generate professional listing copy.
-        
-        Return a JSON object with EXACTLY these fields:
-        {
-          "headline": "A punchy, 8-12 word MLS headline that highlights the best feature",
-          "description": "A 3-4 sentence MLS description paragraph that is conversational, emotional, and conversion-focused. Describe the space authentically without clichés.",
-          "socialCaption": "An Instagram/Facebook caption 2-3 sentences with emojis that creates FOMO and drives engagement",
-          "hashtags": ["10-12 relevant real estate hashtags without the # symbol"]
-        }
-        
-        Return ONLY the JSON, no other text.` },
-        { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
-      ],
-    }],
-  });
-
-  const text = response.text || '{}';
-  try {
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    return JSON.parse(jsonMatch?.[0] || '{}');
-  } catch {
-    return { headline: '', description: text, socialCaption: '', hashtags: [] };
-  }
-};
-

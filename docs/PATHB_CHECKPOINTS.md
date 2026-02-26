@@ -1,0 +1,162 @@
+# Path B Checkpoints
+
+Use this file as the rollback framework for major delivery sections.
+
+## Checkpoint structure
+
+Each checkpoint must include:
+
+1. Section name
+2. Git commit hash
+3. What was completed
+4. Rollback command
+5. Known gaps
+
+## Checkpoints
+
+### CP-00 Foundation Specs + Policy Engine
+
+1. Commit: `5b807d5`
+2. Completed:
+   1. Core Path B docs and shared specs
+   2. Workflow transition rules and validators
+   3. RBAC policy module
+   4. Audit event builder
+   5. Typed API error model
+3. Rollback:
+   1. `git checkout 5b807d5`
+4. Gaps:
+   1. No org CRUD endpoints yet
+   2. No persistent org entities beyond beta stack
+
+### CP-01 Sprint 1 Org APIs
+
+1. Commit: `37bfe5d`
+2. Completed:
+   1. Bootstrap endpoint for first brokerage setup
+   2. Offices/teams/users/memberships API handlers
+   3. Tenant scope and RBAC checks in API path
+   4. Path B storage adapter with KV + memory fallback
+   5. Audit events persisted for org actions
+3. Rollback:
+   1. `git checkout 37bfe5d`
+4. Gaps:
+   1. No UI screens yet for org management
+   2. No DB migrations layer yet (KV-backed scaffold)
+   3. No presets/job workflow APIs yet
+
+### CP-02 Sprint 2 Presets + Job Intake + Status Engine
+
+1. Commit: `e7121c4`
+2. Completed:
+   1. Preset CRUD API with scope-based authorization
+   2. Job intake API with preset-driven approval/disclosure defaults
+   3. Asset linking at intake
+   4. Status transition API enforcing canonical workflow map
+   5. Audit events for submission, transitions, delivery, and revisions
+3. Rollback:
+   1. `git checkout e7121c4`
+4. Gaps:
+   1. No reviewer queue API yet
+   2. No delivery/revision UI screens yet
+   3. No reporting endpoints yet
+
+### CP-03 Sprint 3 Approval Routing + Reviewer Queue
+
+1. Commit: `c6cf634`
+2. Completed:
+   1. Reviewer queue endpoint scoped by role and tenant
+   2. Approval decision endpoint (approve, reject, request changes)
+   3. Approval records persisted per job
+   4. Transition enforcement from `In Review` to approved/rejected/draft states
+   5. Audit events for approval decisions and status mutations
+3. Rollback:
+   1. `git checkout c6cf634`
+4. Gaps:
+   1. No delivery/revision UI integration yet
+   2. No reporting dashboards/exports yet
+
+### CP-04 Sprint 4 Delivery + Revision Workflow APIs
+
+1. Commit: `2a011c2`
+2. Completed:
+   1. Delivery endpoint with output asset linkage and delivery records
+   2. Revision endpoint with cycle tracking and reason categories
+   3. Job detail endpoint returning archive bundle (assets, approvals, revisions, deliveries)
+   4. Transition enforcement and audit emission for delivery/revision flows
+3. Rollback:
+   1. `git checkout 2a011c2`
+4. Gaps:
+   1. No reporting CSV/dashboard APIs yet
+   2. No UI implementation for delivery/revision flows yet
+
+### CP-05 Sprint 5 Reporting + CSV Exports APIs
+
+1. Commit: `2d0ecc3`
+2. Completed:
+   1. Operational reporting endpoint with scoped filters
+   2. Metrics for volume, turnaround, revisions, bottlenecks, disclosures
+   3. CSV export endpoint for jobs, office usage, and revisions
+   4. Shared reporting utility for scope filtering and date filters
+3. Rollback:
+   1. `git checkout 2d0ecc3`
+4. Gaps:
+   1. No reporting UI dashboard views yet
+   2. No async export jobs yet (direct response only)
+
+### CP-06 Ops Console Frontend (Path B Admin UI)
+
+1. Commit: `acec3c9`
+2. Completed:
+   1. Added in-app `Ops Console` panel in the main shell
+   2. Added actor-context header controls for Path B endpoints
+   3. Added bootstrap/org/preset/job/workflow/report actions wired to `/api/pathb/*`
+   4. Added response inspector for payload debugging and validation
+   5. Kept Design Studio generation workflow intact while enabling panel switching
+3. Rollback:
+   1. `git checkout acec3c9`
+4. Gaps:
+   1. No dedicated route-level RBAC UI yet (header context is manual)
+   2. No pagination/virtualization for large Path B datasets yet
+
+### CP-07 Ops Context Profiles + One-Click Presets
+
+1. Commit: `69c08ce`
+2. Completed:
+   1. Added saved actor context profiles (create/apply/delete)
+   2. Added one-click context presets generated from membership data
+   3. Added actor header reset workflow while preserving bootstrap key
+   4. Persisted context profiles in local storage for repeat sessions
+3. Rollback:
+   1. `git checkout 69c08ce`
+4. Gaps:
+   1. Profile sharing/import export is not implemented yet
+   2. No server-backed profile storage yet (browser-local only)
+
+### CP-08 Ops Queue and Jobs Quick Actions
+
+1. Commit: `c0655b0`
+2. Completed:
+   1. Added queue-level quick actions for approve, request changes, and reject
+   2. Added job-card quick actions for detail, transition, and status shortcuts
+   3. Added single-click ID prefill across transition/approval/delivery/revision forms
+   4. Added quick workflow execution wrappers with snapshot refresh and response logging
+3. Rollback:
+   1. `git checkout c0655b0`
+4. Gaps:
+   1. No confirmation modal before destructive quick actions yet
+   2. No bulk actions yet for multi-job operations
+
+### CP-09 Ops Safety Confirmations + Bulk Queue Decisions
+
+1. Commit: `c0b5a25`
+2. Completed:
+   1. Added confirmation modal for destructive quick actions
+   2. Added queue multi-select with select-visible and clear controls
+   3. Added bulk queue decisions (`approve`, `request_changes`, `reject`)
+   4. Added confirmation wrappers for quick status transitions from job cards
+3. Rollback:
+   1. `git checkout c0b5a25`
+4. Gaps:
+   1. No optional custom reason/note input in confirmation modal yet
+   2. No undo action after quick/bulk decisions yet

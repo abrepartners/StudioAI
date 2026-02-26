@@ -2,6 +2,9 @@ const KV_REST_API_URL = process.env.KV_REST_API_URL;
 const KV_REST_API_TOKEN = process.env.KV_REST_API_TOKEN;
 
 const ROOT_CODE_ENV_KEYS = ['BETA_ROOT_CODES', 'BETA_BOOTSTRAP_CODES'];
+const ADMIN_SECRET_ENV_KEYS = ['BETA_ADMIN_SECRET', 'BETA_OWNER_SECRET', 'ADMIN_BETA_SECRET'];
+const ADMIN_SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
+const ROOT_CODE_LIST_KEY = 'beta:rootcodes:list';
 
 const getMemoryStore = () => {
   const g = globalThis;
@@ -152,6 +155,20 @@ const getRootCodes = () => {
   return new Set(values.map((item) => item.trim()).filter(Boolean));
 };
 
+const getAdminSecret = () => {
+  for (const key of ADMIN_SECRET_ENV_KEYS) {
+    const value = process.env[key];
+    if (value && value.trim()) return value.trim();
+  }
+  return '';
+};
+
+const isAdminSecretValid = (secretInput) => {
+  const configured = getAdminSecret();
+  if (!configured) return false;
+  return String(secretInput || '').trim() === configured;
+};
+
 const getUser = async (userId) => {
   const raw = await kvGetRaw(`beta:user:${userId}`);
   if (!raw) return null;
@@ -206,6 +223,85 @@ const issueToken = () => {
   return `${timePart}.${randomPart}.${Math.random().toString(36).slice(2)}`;
 };
 
+const setAdminSessionOwner = async (token, ownerId = 'owner') => {
+  await kvSetRaw(`beta:adminsession:${token}`, ownerId, ADMIN_SESSION_TTL_SECONDS);
+};
+
+const getAdminSessionOwner = async (token) => kvGetRaw(`beta:adminsession:${token}`);
+
+const normalizePrefix = (prefix) =>
+  String(prefix || '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 24);
+
+const readRootCodeList = async () => {
+  const raw = await kvGetRaw(ROOT_CODE_LIST_KEY);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((entry) => entry && typeof entry.code === 'string')
+      .map((entry) => ({
+        code: String(entry.code || '').toUpperCase(),
+        createdAt: String(entry.createdAt || ''),
+        createdBy: String(entry.createdBy || 'owner'),
+      }));
+  } catch {
+    return [];
+  }
+};
+
+const writeRootCodeList = async (entries) => {
+  await kvSetRaw(ROOT_CODE_LIST_KEY, JSON.stringify(entries.slice(0, 500)));
+};
+
+const issueRootCode = async (prefix = '') => {
+  const normalizedPrefix = normalizePrefix(prefix);
+
+  for (let i = 0; i < 10; i += 1) {
+    const blockA = Math.random().toString(36).slice(2, 6).toUpperCase();
+    const blockB = Math.random().toString(36).slice(2, 6).toUpperCase();
+    const code = normalizedPrefix ? `${normalizedPrefix}-${blockA}${blockB}` : `${blockA}-${blockB}`;
+    const existingOwner = await getUserIdByReferralCode(code);
+    const rootExists = await isRootCode(code);
+    if (!existingOwner && !rootExists) return code;
+  }
+
+  return `${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+};
+
+const createRootCodes = async ({ prefix = '', count = 1, createdBy = 'owner' } = {}) => {
+  const cappedCount = Math.max(1, Math.min(25, Number(count) || 1));
+  const now = new Date().toISOString();
+  const created = [];
+
+  for (let i = 0; i < cappedCount; i += 1) {
+    const code = await issueRootCode(prefix);
+    await kvSetRaw(`beta:rootcode:${code}`, '1');
+    created.push({
+      code,
+      createdAt: now,
+      createdBy,
+    });
+  }
+
+  const existing = await readRootCodeList();
+  const freshCodes = new Set(created.map((entry) => entry.code));
+  const merged = [...created, ...existing.filter((entry) => !freshCodes.has(entry.code))];
+  await writeRootCodeList(merged);
+  return created;
+};
+
+const listRootCodes = async (limit = 50) => {
+  const max = Math.max(1, Math.min(200, Number(limit) || 50));
+  const list = await readRootCodeList();
+  return list.slice(0, max);
+};
+
 const enforceRateLimit = async (ipAddress, maxPerMinute = 15) => {
   const minuteBucket = Math.floor(Date.now() / 60000);
   const key = `beta:ratelimit:${ipAddress}:${minuteBucket}`;
@@ -256,17 +352,24 @@ const getClientIp = (req) => {
 export {
   getOriginFromRequest,
   getRootCodes,
+  getAdminSecret,
+  isAdminSecretValid,
   getUser,
   setUser,
   getUserIdByReferralCode,
   setReferralCodeOwner,
   getUserIdBySession,
   setSessionOwner,
+  setAdminSessionOwner,
+  getAdminSessionOwner,
   getUserIdByDevice,
   setDeviceOwner,
   isRootCode,
   issueReferralCode,
+  issueRootCode,
   issueToken,
+  createRootCodes,
+  listRootCodes,
   enforceRateLimit,
   promoteInviter,
   toPublicUser,

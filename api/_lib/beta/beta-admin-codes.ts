@@ -5,7 +5,7 @@ import {
   getOriginFromRequest,
   isAdminSecretValid,
   listRootCodes,
-} from './betaStore.js';
+} from '../betaStore.js';
 
 const json = (res: any, status: number, body: Record<string, unknown>) => {
   res.status(status).setHeader('Content-Type', 'application/json');

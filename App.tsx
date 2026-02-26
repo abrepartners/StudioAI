@@ -206,7 +206,7 @@ const App: React.FC = () => {
   }, []);
 
   const loadAdminCodes = useCallback(async (token: string) => {
-    const response = await fetch('/api/beta-admin-codes?limit=20', {
+    const response = await fetch('/api/beta-router?action=admin-codes&limit=20', {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -276,7 +276,7 @@ const App: React.FC = () => {
 
         if (existingToken) {
           try {
-            const response = await fetch(`/api/beta-me?deviceId=${encodeURIComponent(deviceId)}`, {
+            const response = await fetch(`/api/beta-router?action=me&deviceId=${encodeURIComponent(deviceId)}`, {
               headers: {
                 Authorization: `Bearer ${existingToken}`,
               },
@@ -300,7 +300,7 @@ const App: React.FC = () => {
         }
 
         try {
-          const response = await fetch(`/api/beta-me?deviceId=${encodeURIComponent(deviceId)}`);
+          const response = await fetch(`/api/beta-router?action=me&deviceId=${encodeURIComponent(deviceId)}`);
           if (response.ok) {
             const data = await response.json().catch(() => ({}));
             if (data?.ok && data.user) {
@@ -622,7 +622,7 @@ const App: React.FC = () => {
       let backendActivated = false;
 
       try {
-        const response = await fetch('/api/beta-activate', {
+        const response = await fetch('/api/beta-router?action=activate', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -643,7 +643,7 @@ const App: React.FC = () => {
         }
 
         if (data?.code === 'ALREADY_ACTIVATED_DEVICE') {
-          const recovery = await fetch(`/api/beta-me?deviceId=${encodeURIComponent(deviceId)}`).catch(() => null);
+          const recovery = await fetch(`/api/beta-router?action=me&deviceId=${encodeURIComponent(deviceId)}`).catch(() => null);
           if (recovery?.ok) {
             const recoveryData = await recovery.json().catch(() => ({}));
             if (recoveryData?.ok && recoveryData.user) {
@@ -681,7 +681,7 @@ const App: React.FC = () => {
     setIsAdminLoggingIn(true);
     setAdminError('');
     try {
-      const response = await fetch('/api/beta-admin-login', {
+      const response = await fetch('/api/beta-router?action=admin-login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -721,7 +721,7 @@ const App: React.FC = () => {
     setAdminError('');
 
     try {
-      const response = await fetch('/api/beta-admin-codes', {
+      const response = await fetch('/api/beta-router?action=admin-codes', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -532,11 +532,13 @@ const PathBOpsPanel: React.FC = () => {
       const query = options?.query || {};
       const body = options?.body;
 
+      const action = path.split('/').pop();
       const params = new URLSearchParams();
       Object.entries(query).forEach(([key, value]) => {
         if (value) params.set(key, value);
       });
-      const url = params.toString() ? `${path}?${params.toString()}` : path;
+      if (action) params.set('action', action);
+      const url = `/api/pathb-router?${params.toString()}`;
 
       const headers = buildHeaders(actor, options?.includeBootstrapHeader);
       if (method !== 'GET') {
@@ -568,7 +570,7 @@ const PathBOpsPanel: React.FC = () => {
 
   const runCsvRequest = useCallback(
     async (type: 'jobs' | 'office-usage' | 'revisions') => {
-      const params = new URLSearchParams({ type });
+      const params = new URLSearchParams({ action: 'report-export', type });
       if (reportFilters.status) params.set('status', reportFilters.status);
       if (reportFilters.officeId) params.set('officeId', reportFilters.officeId);
       if (reportFilters.teamId) params.set('teamId', reportFilters.teamId);
@@ -576,7 +578,7 @@ const PathBOpsPanel: React.FC = () => {
       if (reportFilters.from) params.set('from', reportFilters.from);
       if (reportFilters.to) params.set('to', reportFilters.to);
 
-      const response = await fetch(`/api/pathb/report-export?${params.toString()}`, {
+      const response = await fetch(`/api/pathb-router?${params.toString()}`, {
         method: 'GET',
         headers: buildHeaders(actor, false),
       });
@@ -2273,10 +2275,10 @@ const PathBOpsPanel: React.FC = () => {
                 onClick={confirmPendingQuickAction}
                 disabled={isConfirmingQuickAction}
                 className={`rounded-xl px-3 py-2.5 text-sm font-semibold text-white disabled:opacity-50 ${pendingQuickAction.tone === 'danger'
-                    ? 'bg-rose-600 hover:bg-rose-700'
-                    : pendingQuickAction.tone === 'warning'
-                      ? 'bg-amber-600 hover:bg-amber-700'
-                      : 'bg-[var(--color-primary)] hover:brightness-95'
+                  ? 'bg-rose-600 hover:bg-rose-700'
+                  : pendingQuickAction.tone === 'warning'
+                    ? 'bg-amber-600 hover:bg-amber-700'
+                    : 'bg-[var(--color-primary)] hover:brightness-95'
                   }`}
               >
                 {isConfirmingQuickAction ? 'Running...' : pendingQuickAction.confirmLabel}

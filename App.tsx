@@ -129,6 +129,8 @@ const App: React.FC = () => {
   const [historyIndex, setHistoryIndex] = useState(-1);
 
   const [savedStages, setSavedStages] = useState<SavedStage[]>([]);
+  const [multiGen, setMultiGen] = useState(false);
+  const [galleryTab, setGalleryTab] = useState<'recent' | 'saved'>('recent');
   const lastPromptRef = useRef<string>('');
 
   const [betaAccessCode, setBetaAccessCode] = useState('');
@@ -163,8 +165,8 @@ const App: React.FC = () => {
 
   const proUnlocked = Boolean(
     isOwnerAdmin ||
-      proInviteUnlocked ||
-      (betaAccessCode && (PRO_UNLOCK_ALL || ENV_PRO_CODES.has(betaAccessCode)))
+    proInviteUnlocked ||
+    (betaAccessCode && (PRO_UNLOCK_ALL || ENV_PRO_CODES.has(betaAccessCode)))
   );
   const betaInviteLink = useMemo(
     () => betaInviteLinkValue || buildInviteLink(betaAccessCode),
@@ -515,24 +517,29 @@ const App: React.FC = () => {
       lastPromptRef.current = prompt;
 
       const sourceImage = activePanel === 'cleanup' && generatedImage ? generatedImage : originalImage;
-      const resultImage = await generateRoomDesign(sourceImage, prompt, activePanel === 'cleanup' ? maskImage : null, highRes);
-      const newColors = await analyzeRoomColors(resultImage);
+      const result = await generateRoomDesign(sourceImage, prompt, activePanel === 'cleanup' ? maskImage : null, highRes, multiGen ? 4 : 1);
 
-      setGeneratedImage(resultImage);
+      const resultImages = Array.isArray(result) ? result : [result];
+      const newColors = await analyzeRoomColors(resultImages[0]);
+
+      setGeneratedImage(resultImages[0]);
       setColors(newColors);
       setMaskImage(null);
 
-      const generatedState: HistoryState = {
-        generatedImage: resultImage,
-        stagedFurniture: [],
-        selectedRoom,
-        colors: newColors,
-      };
-      setHistory((prev) => {
-        const newHistory = prev.slice(0, historyIndex + 1);
-        return [...newHistory, generatedState];
+      resultImages.forEach((img, idx) => {
+        const state: HistoryState = {
+          generatedImage: img,
+          stagedFurniture: [],
+          selectedRoom,
+          colors: idx === 0 ? newColors : [], // Approximate for speed
+        };
+        setHistory((prev) => {
+          const newHistory = prev.slice(0, historyIndex + 1 + idx);
+          return [...newHistory, state];
+        });
       });
-      setHistoryIndex((prev) => prev + 1);
+      setHistoryIndex((prev) => prev + resultImages.length);
+
       if (!highRes) {
         setGenerationsSinceFeedback((prev) => prev + 1);
       }
@@ -548,6 +555,32 @@ const App: React.FC = () => {
       setIsGenerating(false);
       setIsEnhancing(false);
     }
+  };
+
+  const handleSaveStage = () => {
+    if (!generatedImage || !originalImage) return;
+
+    const newSave: SavedStage = {
+      id: `save_${Date.now()}`,
+      name: `${selectedRoom} Concept`,
+      originalImage,
+      generatedImage,
+      timestamp: Date.now(),
+    };
+
+    setSavedStages((prev) => {
+      const next = [newSave, ...prev];
+      localStorage.setItem('realestate_ai_stages', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const handleRemoveSavedStage = (id: string) => {
+    setSavedStages((prev) => {
+      const next = prev.filter((s) => s.id !== id);
+      localStorage.setItem('realestate_ai_stages', JSON.stringify(next));
+      return next;
+    });
   };
 
   const handleDownload = () => {
@@ -741,12 +774,12 @@ const App: React.FC = () => {
     icon: React.ReactNode;
     available: boolean;
   }> = [
-    { id: 'tools', label: 'Design Studio', icon: <LayoutGrid size={21} />, available: true },
-    { id: 'ops', label: 'Ops Console', icon: <Building2 size={21} />, available: true },
-    { id: 'cleanup', label: 'Cleanup', icon: <Eraser size={21} />, available: false },
-    { id: 'chat', label: 'Chat', icon: <MessageSquare size={21} />, available: false },
-    { id: 'history', label: 'History', icon: <HistoryIcon size={21} />, available: false },
-  ];
+      { id: 'tools', label: 'Design Studio', icon: <LayoutGrid size={21} />, available: true },
+      { id: 'ops', label: 'Ops Console', icon: <Building2 size={21} />, available: true },
+      { id: 'cleanup', label: 'Cleanup', icon: <Eraser size={21} />, available: false },
+      { id: 'chat', label: 'Chat', icon: <MessageSquare size={21} />, available: false },
+      { id: 'history', label: 'Gallery', icon: <HistoryIcon size={21} />, available: true },
+    ];
 
   useEffect(() => {
     if (!showAccessPanel || !isOwnerAdmin || !adminToken) return;
@@ -1056,14 +1089,14 @@ const App: React.FC = () => {
       <header className="shrink-0 premium-surface-strong border-b panel-divider px-4 py-3 sm:px-6 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 sm:gap-5 min-w-0">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="cta-primary flex h-11 w-11 items-center justify-center rounded-2xl shadow-[0_10px_24px_rgba(3,105,161,0.28)]">
+            <div className="cta-primary flex h-11 w-11 items-center justify-center rounded-2xl shadow-[0_10px_24px_rgba(3,105,161,0.28)] animate-float">
               <Camera size={20} />
             </div>
             <div className="min-w-0">
-              <h1 className="font-display text-[1.15rem] sm:text-[1.35rem] leading-none whitespace-nowrap">
+              <h1 className="font-display text-[1.15rem] sm:text-[1.35rem] leading-none whitespace-nowrap tracking-tight">
                 Studio<span className="text-[var(--color-primary)]">AI</span>
               </h1>
-              <p className="hidden sm:block text-[11px] uppercase tracking-[0.18em] text-[var(--color-text)]/70">
+              <p className="hidden sm:block text-[10px] uppercase tracking-[0.2em] text-[var(--color-text)]/60 font-medium">
                 Invite-Only Beta
               </p>
             </div>
@@ -1073,18 +1106,16 @@ const App: React.FC = () => {
             <button
               type="button"
               onClick={() => setActivePanel('tools')}
-              className={`rounded-full px-3 py-1.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.12em] transition ${
-                activePanel === 'tools' ? 'cta-primary' : 'text-[var(--color-text)] hover:bg-white'
-              }`}
+              className={`rounded-full px-3 py-1.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.12em] transition ${activePanel === 'tools' ? 'cta-primary' : 'text-[var(--color-text)] hover:bg-white'
+                }`}
             >
               Studio
             </button>
             <button
               type="button"
               onClick={() => setActivePanel('ops')}
-              className={`rounded-full px-3 py-1.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.12em] transition ${
-                activePanel === 'ops' ? 'cta-primary' : 'text-[var(--color-text)] hover:bg-white'
-              }`}
+              className={`rounded-full px-3 py-1.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.12em] transition ${activePanel === 'ops' ? 'cta-primary' : 'text-[var(--color-text)] hover:bg-white'
+                }`}
             >
               Ops
             </button>
@@ -1148,10 +1179,19 @@ const App: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleDownload}
-                  className="cta-secondary rounded-xl px-3 py-2 text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5 min-h-[44px]"
+                  className="cta-secondary hover-lift rounded-xl px-3 py-2 text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5 min-h-[44px]"
                 >
                   <Download size={14} />
                   <span className="hidden sm:inline">Export</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveStage}
+                  className="cta-secondary hover-lift rounded-xl px-3 py-2 text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5 min-h-[44px] text-rose-600"
+                  title="Save to Gallery"
+                >
+                  <Sparkles size={14} />
+                  <span className="hidden sm:inline">Save</span>
                 </button>
                 <button
                   type="button"
@@ -1161,21 +1201,29 @@ const App: React.FC = () => {
                     else setShowKeyPrompt(true);
                   }}
                   disabled={isEnhancing || !proUnlocked}
-                  className={`rounded-xl px-3 py-2 text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5 min-h-[44px] disabled:opacity-55 ${
-                    proUnlocked
-                      ? hasProKey
-                        ? 'cta-primary'
-                        : 'cta-secondary'
-                      : 'border border-amber-300/70 bg-amber-50 text-amber-900'
-                  }`}
+                  className={`rounded-xl px-3 py-2 text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5 min-h-[44px] transition-all hover-lift disabled:opacity-55 ${proUnlocked
+                    ? hasProKey
+                      ? 'cta-primary shadow-[0_8px_20px_rgba(3,105,161,0.24)]'
+                      : 'cta-secondary'
+                    : 'border border-amber-300/70 bg-amber-50 text-amber-900'
+                    }`}
                 >
                   {proUnlocked ? <Zap size={14} className={isEnhancing ? 'animate-pulse' : ''} /> : <Lock size={14} />}
                   <span className="hidden sm:inline">
-                    {proUnlocked ? (hasProKey ? 'Enhance' : 'Enable Enhance') : 'Locked'}
+                    {proUnlocked ? (hasProKey ? 'High-Res Enhance' : 'Enable High-Res') : 'Locked'}
                   </span>
                 </button>
               </>
             )}
+            <button
+              type="button"
+              onClick={() => setMultiGen(!multiGen)}
+              className={`cta-secondary hover-lift rounded-xl px-3 py-2 text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5 min-h-[44px] ${multiGen ? 'border-[var(--color-primary)] text-[var(--color-primary)]' : ''}`}
+              title="Generate multiple variations"
+            >
+              <LayoutGrid size={14} />
+              <span className="hidden sm:inline">{multiGen ? 'Multi-Gen: ON' : 'Multi-Gen'}</span>
+            </button>
             <button
               type="button"
               onClick={() => {
@@ -1205,6 +1253,118 @@ const App: React.FC = () => {
         <main className="flex-1 min-h-0 overflow-y-auto editor-canvas-bg p-4 sm:p-6 lg:p-8">
           <PathBOpsPanel />
         </main>
+      ) : activePanel === 'history' ? (
+        <main className="flex-1 min-h-0 overflow-y-auto editor-canvas-bg p-4 sm:p-6 lg:p-8 pb-20">
+          <div className="mx-auto max-w-6xl">
+            <div className="mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.2em] font-bold text-[var(--color-primary)] mb-1">Portfolio</p>
+                <h2 className="font-display text-4xl font-semibold tracking-tight text-[var(--color-ink)]">Studio Gallery</h2>
+              </div>
+
+              <div className="flex p-1 rounded-2xl subtle-card w-fit">
+                <button
+                  onClick={() => setGalleryTab('recent')}
+                  className={`px-6 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition ${galleryTab === 'recent' ? 'cta-primary shadow-lg' : 'text-[var(--color-text)] hover:bg-white'}`}
+                >
+                  Recent
+                </button>
+                <button
+                  onClick={() => setGalleryTab('saved')}
+                  className={`px-6 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition ${galleryTab === 'saved' ? 'cta-primary shadow-lg' : 'text-[var(--color-text)] hover:bg-white'}`}
+                >
+                  Saved ({savedStages.length})
+                </button>
+              </div>
+            </div>
+
+            {galleryTab === 'recent' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {history.filter(h => h.generatedImage).length === 0 ? (
+                  <div className="col-span-full py-20 text-center premium-surface rounded-[2.5rem] border border-dashed border-[var(--color-border)]">
+                    <HistoryIcon size={40} className="mx-auto text-slate-300 mb-4" />
+                    <p className="text-[var(--color-text)]/60 font-medium">No recent generations yet.</p>
+                  </div>
+                ) : (
+                  history.filter(h => h.generatedImage).map((item, idx) => (
+                    <div key={idx} className="group premium-surface rounded-[2rem] overflow-hidden border border-[var(--color-border)] hover:border-[var(--color-primary)]/30 transition-all hover:shadow-xl hover-lift">
+                      <div className="aspect-video relative overflow-hidden bg-slate-100">
+                        <img src={item.generatedImage!} alt="Recent" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
+                          <button
+                            onClick={() => {
+                              setGeneratedImage(item.generatedImage);
+                              setColors(item.colors);
+                              setSelectedRoom(item.selectedRoom);
+                              setActivePanel('tools');
+                            }}
+                            className="w-full py-2.5 rounded-xl cta-primary text-xs font-bold uppercase tracking-widest"
+                          >
+                            Open in Studio
+                          </button>
+                        </div>
+                      </div>
+                      <div className="p-5">
+                        <div className="flex justify-between items-center">
+                          <p className="text-sm font-semibold text-[var(--color-ink)]">{item.selectedRoom}</p>
+                          <span className="text-[10px] uppercase tracking-wider font-bold text-[var(--color-text)]/40">Recent</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {savedStages.length === 0 ? (
+                  <div className="col-span-full py-20 text-center premium-surface rounded-[2.5rem] border border-dashed border-[var(--color-border)]">
+                    <Sparkles size={40} className="mx-auto text-slate-300 mb-4" />
+                    <p className="text-[var(--color-text)]/60 font-medium tracking-wide">Your saved gallery is empty.</p>
+                    <button onClick={() => setActivePanel('tools')} className="mt-4 text-[var(--color-primary)] text-xs font-bold uppercase tracking-widest hover:underline">Start Creating</button>
+                  </div>
+                ) : (
+                  savedStages.map((item) => (
+                    <div key={item.id} className="group premium-surface rounded-[2rem] overflow-hidden border border-[var(--color-border)] hover:border-rose-200 transition-all hover:shadow-xl hover-lift">
+                      <div className="aspect-video relative overflow-hidden bg-slate-100">
+                        <img src={item.generatedImage} alt={item.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                        <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                          <button
+                            onClick={() => {
+                              setOriginalImage(item.originalImage);
+                              setGeneratedImage(item.generatedImage);
+                              setSelectedRoom(item.name.replace(' Concept', '') as FurnitureRoomType);
+                              setActivePanel('tools');
+                            }}
+                            className="flex-1 py-2 rounded-xl cta-primary text-[10px] font-bold uppercase tracking-widest"
+                          >
+                            Restore
+                          </button>
+                          <button
+                            onClick={() => handleRemoveSavedStage(item.id)}
+                            className="p-2 rounded-xl bg-white/20 hover:bg-rose-500 text-white transition-colors"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="p-5">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="text-sm font-semibold text-[var(--color-ink)]">{item.name}</h4>
+                            <p className="text-[10px] text-[var(--color-text)]/60 mt-1">{new Date(item.timestamp).toLocaleDateString()}</p>
+                          </div>
+                          <span className="p-1.5 rounded-lg bg-rose-50 text-rose-500">
+                            <Sparkles size={14} />
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        </main>
       ) : !originalImage ? (
         <main className="flex-1 grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] overflow-auto">
           <section className="px-6 pb-14 pt-10 sm:px-12 lg:px-16 lg:pt-14 flex items-center">
@@ -1212,7 +1372,7 @@ const App: React.FC = () => {
               <div className="mb-6 inline-flex items-center gap-2 rounded-full cta-secondary px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-primary)]">
                 <Sparkles size={14} /> Invite-Only Staging Beta
               </div>
-              <h2 className="font-display text-[clamp(2.3rem,7vw,5.3rem)] leading-[0.92] font-semibold text-[var(--color-ink)]">
+              <h2 className="font-display text-[clamp(2.3rem,7vw,5.3rem)] leading-[0.92] font-semibold text-[var(--color-ink)] tracking-tight">
                 Re-stage interiors with editorial precision.
               </h2>
               <p className="mt-5 max-w-xl text-[1.02rem] leading-relaxed text-[var(--color-text)]/84">
@@ -1233,9 +1393,9 @@ const App: React.FC = () => {
               referrerPolicy="no-referrer"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[rgba(9,38,36,0.42)] via-transparent to-transparent" />
-            <div className="absolute bottom-8 left-8 right-8 rounded-3xl glass-overlay p-6 text-white">
-              <p className="text-xs uppercase tracking-[0.18em]">Minimal Luxury Direction</p>
-              <p className="mt-2 text-xl font-display">Structure-first redesign with premium restraint.</p>
+            <div className="absolute bottom-8 left-8 right-8 rounded-3xl glass-overlay p-8 text-slate-900">
+              <p className="text-[11px] uppercase tracking-[0.2em] font-bold text-slate-800/80">Minimal Luxury Direction</p>
+              <p className="mt-3 text-2xl font-display font-medium leading-tight">Structure-first redesign with premium restraint.</p>
             </div>
           </section>
         </main>
@@ -1255,13 +1415,12 @@ const App: React.FC = () => {
                   disabled={!item.available}
                   onClick={() => item.available && setActivePanel(item.id)}
                   title={item.available ? item.label : `${item.label} (Coming Soon)`}
-                  className={`flex h-auto w-[152px] px-3 py-2.5 items-center justify-start gap-2 rounded-2xl border transition-all ${
-                    active && item.available
-                      ? 'cta-primary border-white/15 shadow-[0_12px_24px_rgba(3,105,161,0.3)]'
-                      : item.available
-                        ? 'cta-secondary border-[var(--color-border)] text-[var(--color-text)] hover:bg-white'
-                        : 'border-[var(--color-border)] bg-slate-100/70 text-slate-400 cursor-not-allowed'
-                  }`}
+                  className={`flex h-auto w-[152px] px-3 py-2.5 items-center justify-start gap-2 rounded-2xl border transition-all ${active && item.available
+                    ? 'cta-primary border-white/15 shadow-[0_12px_24px_rgba(3,105,161,0.3)]'
+                    : item.available
+                      ? 'cta-secondary border-[var(--color-border)] text-[var(--color-text)] hover:bg-white'
+                      : 'border-[var(--color-border)] bg-slate-100/70 text-slate-400 cursor-not-allowed'
+                    }`}
                 >
                   {item.icon}
                   <span className="text-[11px] uppercase tracking-[0.14em]">{item.label}</span>

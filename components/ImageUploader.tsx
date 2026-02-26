@@ -46,9 +46,8 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload, isAnalyzin
 
   return (
     <div
-      className={`premium-surface grain-overlay rounded-[1.9rem] p-8 sm:p-10 text-center transition-all duration-300 ${
-        isAnalyzing ? 'opacity-75 cursor-not-allowed' : 'hover:-translate-y-0.5 hover:shadow-[0_22px_52px_rgba(10,46,44,0.17)]'
-      }`}
+      className={`premium-surface rounded-[2rem] p-8 sm:p-12 text-center transition-all duration-500 border-2 border-dashed border-[var(--color-border)] shadow-soft ${isAnalyzing ? 'opacity-75 cursor-not-allowed' : 'hover:border-[var(--color-primary)]/30 hover:shadow-strong hover-lift'
+        }`}
       onDragOver={(e) => e.preventDefault()}
       onDrop={handleDrop}
     >
@@ -62,30 +61,30 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload, isAnalyzin
         </div>
       ) : (
         <>
-          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl subtle-card text-[var(--color-primary)]">
-            <ImageIcon size={28} />
+          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-3xl subtle-card text-[var(--color-primary)] animate-float">
+            <ImageIcon size={32} />
           </div>
-          <h3 className="font-display text-3xl font-semibold leading-tight text-[var(--color-ink)]">Drop Room Photo</h3>
-          <p className="mx-auto mt-2 max-w-sm text-[15px] text-[var(--color-text)]/80">
+          <h3 className="font-display text-3xl font-semibold leading-tight text-[var(--color-ink)] tracking-tight">Drop Room Photo</h3>
+          <p className="mx-auto mt-3 max-w-sm text-[15px] leading-relaxed text-[var(--color-text)]/70">
             Upload a listing photo to generate staging, renovation, and cleanup concepts in one workspace.
           </p>
-          <div className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
             <button
               type="button"
               onClick={triggerFileUpload}
-              className="cta-primary rounded-2xl px-5 py-3.5 text-sm font-semibold tracking-wide transition-all"
+              className="cta-primary hover-lift rounded-2xl px-6 py-4 text-sm font-semibold tracking-wide"
             >
               <span className="inline-flex items-center gap-2">
-                <Upload size={15} /> Photo Library
+                <Upload size={16} /> Photo Library
               </span>
             </button>
             <button
               type="button"
               onClick={triggerCameraUpload}
-              className="cta-secondary rounded-2xl px-5 py-3.5 text-sm font-semibold tracking-wide transition-all"
+              className="cta-secondary hover-lift rounded-2xl px-6 py-4 text-sm font-semibold tracking-wide"
             >
               <span className="inline-flex items-center gap-2">
-                <Camera size={15} /> Take Photo
+                <Camera size={16} /> Take Photo
               </span>
             </button>
           </div>

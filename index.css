@@ -1,25 +1,25 @@
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Josefin+Sans:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
 
 :root {
   --color-primary: #0f766e;
   --color-secondary: #14b8a6;
   --color-accent: #0369a1;
-  --color-bg: #f0fdfa;
-  --color-bg-deep: #dff5f2;
-  --color-text: #134e4a;
+  --color-bg: #f8fafc;
+  --color-bg-deep: #f1f5f9;
+  --color-text: #334155;
   --color-ink: #0f172a;
   --color-surface: #ffffff;
-  --color-surface-soft: rgba(255, 255, 255, 0.74);
-  --color-border: rgba(19, 78, 74, 0.16);
-  --color-border-strong: rgba(19, 78, 74, 0.28);
-  --shadow-soft: 0 14px 36px rgba(10, 46, 44, 0.1);
-  --shadow-strong: 0 30px 68px rgba(10, 46, 44, 0.22);
-  --radius-xl: 1.1rem;
+  --color-surface-soft: rgba(255, 255, 255, 0.7);
+  --color-border: rgba(15, 23, 42, 0.08);
+  --color-border-strong: rgba(15, 23, 42, 0.12);
+  --shadow-soft: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  --shadow-strong: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  --radius-xl: 1rem;
   --radius-2xl: 1.5rem;
-  --radius-3xl: 2rem;
-  --font-display: 'Cinzel', Georgia, serif;
-  --font-body: 'Josefin Sans', 'Segoe UI', sans-serif;
-  --focus-ring: 0 0 0 3px rgba(3, 105, 161, 0.35);
+  --radius-3xl: 2.5rem;
+  --font-display: 'Outfit', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --focus-ring: 0 0 0 3px rgba(15, 118, 110, 0.2);
 }
 
 * {
@@ -38,9 +38,11 @@ body {
   font-family: var(--font-body);
   background-color: var(--color-bg);
   background-image:
-    radial-gradient(circle at 15% -10%, rgba(20, 184, 166, 0.2), transparent 36%),
-    radial-gradient(circle at 86% 0%, rgba(3, 105, 161, 0.12), transparent 34%),
-    linear-gradient(180deg, #f7fffd 0%, var(--color-bg) 28%, var(--color-bg-deep) 100%);
+    radial-gradient(circle at 15% -10%, rgba(15, 118, 110, 0.05), transparent 40%),
+    radial-gradient(circle at 85% 10%, rgba(3, 105, 161, 0.05), transparent 40%),
+    linear-gradient(180deg, #f8fafc 0%, var(--color-bg) 28%, var(--color-bg-deep) 100%);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 h1,
@@ -110,10 +112,29 @@ a:focus-visible {
 }
 
 .glass-overlay {
-  background: linear-gradient(120deg, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.25));
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  border: 1px solid rgba(255, 255, 255, 0.56);
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}
+
+.hover-lift {
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
 }
 
 .editor-canvas-bg {

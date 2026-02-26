@@ -461,11 +461,11 @@ const PathBOpsPanel: React.FC = () => {
         return prev.map((profile) =>
           profile.id === existing.id
             ? {
-                ...profile,
-                name,
-                context: { ...actor },
-                updatedAt: now,
-              }
+              ...profile,
+              name,
+              context: { ...actor },
+              updatedAt: now,
+            }
             : profile
         );
       }
@@ -680,7 +680,7 @@ const PathBOpsPanel: React.FC = () => {
 
       setBrokerages(
         brokeragesRes.payload?.data?.brokerages ||
-          (brokeragesRes.payload?.data?.brokerage ? [brokeragesRes.payload?.data?.brokerage] : [])
+        (brokeragesRes.payload?.data?.brokerage ? [brokeragesRes.payload?.data?.brokerage] : [])
       );
       setOffices(officesRes.payload?.data?.offices || []);
       setUsers(usersRes.payload?.data?.users || []);
@@ -1168,12 +1168,12 @@ const PathBOpsPanel: React.FC = () => {
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-4 pb-6">
-      <section className="premium-surface-strong rounded-[1.5rem] p-4 sm:p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="text-[11px] uppercase tracking-[0.14em] text-[var(--color-text)]/70">Path B Operations</p>
-            <h2 className="font-display text-2xl sm:text-3xl">Brokerage Ops Console</h2>
-            <p className="mt-1 text-sm text-[var(--color-text)]/80">
+      <section className="premium-surface-strong rounded-[2rem] p-6 sm:p-8 shadow-soft border-none">
+        <div className="flex flex-wrap items-start justify-between gap-6">
+          <div className="space-y-1">
+            <p className="text-[10px] uppercase tracking-[0.25em] font-bold text-[var(--color-primary)]/80">Path B Operations</p>
+            <h2 className="font-display text-3xl sm:text-4xl tracking-tight">Brokerage Ops Console</h2>
+            <p className="max-w-xl text-base text-[var(--color-text)]/60 leading-relaxed font-medium">
               Internal admin surface for org setup, workflow testing, and reporting.
             </p>
           </div>
@@ -1181,7 +1181,7 @@ const PathBOpsPanel: React.FC = () => {
             type="button"
             onClick={refreshSnapshot}
             disabled={isBusy}
-            className="cta-primary rounded-xl px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.12em] disabled:opacity-50"
+            className="cta-primary hover-lift rounded-2xl px-6 py-3 text-xs font-bold uppercase tracking-[0.15em] shadow-lg disabled:opacity-50"
           >
             {isBusy ? 'Working...' : 'Refresh Snapshot'}
           </button>
@@ -1204,12 +1204,12 @@ const PathBOpsPanel: React.FC = () => {
           <h3 className="font-display text-xl">Request Context</h3>
           <p className="text-xs text-[var(--color-text)]/75">Headers are required for all Path B endpoints.</p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           <input
             value={actor.userId}
             onChange={(event) => setActor((prev) => ({ ...prev, userId: event.target.value }))}
             placeholder="x-pathb-user-id"
-            className="rounded-xl border border-[var(--color-border)] bg-white px-3 py-2.5 text-sm"
+            className="rounded-2xl border-none bg-[var(--color-bg)] px-4 py-3.5 text-sm font-medium shadow-inner placeholder:text-[var(--color-text)]/40 focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all"
           />
           <select
             value={actor.role}
@@ -1329,7 +1329,7 @@ const PathBOpsPanel: React.FC = () => {
           )}
         </div>
         <pre className="max-h-40 overflow-auto rounded-xl border border-[var(--color-border)] bg-slate-950 text-slate-100 p-3 text-xs">
-{JSON.stringify(actorHeadersPreview, null, 2)}
+          {JSON.stringify(actorHeadersPreview, null, 2)}
         </pre>
       </section>
 
@@ -1377,35 +1377,35 @@ const PathBOpsPanel: React.FC = () => {
           </button>
         </form>
 
-        <div className="premium-surface rounded-[1.5rem] p-4 sm:p-5 space-y-3">
-          <h3 className="font-display text-xl">Snapshot</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
-            <div className="rounded-xl border border-[var(--color-border)] bg-white/75 px-3 py-2">
-              <p className="uppercase tracking-[0.11em] text-[var(--color-text)]/70">Brokerages</p>
-              <p className="text-lg font-semibold">{brokerages.length}</p>
+        <div className="premium-surface rounded-[2rem] p-6 sm:p-8 space-y-4 shadow-soft">
+          <h3 className="font-display text-2xl tracking-tight">Snapshot</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+            <div className="rounded-2xl bg-[var(--color-bg)]/50 px-4 py-3 border border-[var(--color-border)]/40">
+              <p className="uppercase tracking-[0.15em] font-bold text-[var(--color-text)]/50 text-[9px]">Brokerages</p>
+              <p className="text-xl font-display font-semibold mt-1">{brokerages.length}</p>
             </div>
-            <div className="rounded-xl border border-[var(--color-border)] bg-white/75 px-3 py-2">
-              <p className="uppercase tracking-[0.11em] text-[var(--color-text)]/70">Offices</p>
-              <p className="text-lg font-semibold">{offices.length}</p>
+            <div className="rounded-2xl bg-[var(--color-bg)]/50 px-4 py-3 border border-[var(--color-border)]/40">
+              <p className="uppercase tracking-[0.15em] font-bold text-[var(--color-text)]/50 text-[9px]">Offices</p>
+              <p className="text-xl font-display font-semibold mt-1">{offices.length}</p>
             </div>
-            <div className="rounded-xl border border-[var(--color-border)] bg-white/75 px-3 py-2">
-              <p className="uppercase tracking-[0.11em] text-[var(--color-text)]/70">Teams</p>
-              <p className="text-lg font-semibold">{teams.length}</p>
+            <div className="rounded-2xl bg-[var(--color-bg)]/50 px-4 py-3 border border-[var(--color-border)]/40">
+              <p className="uppercase tracking-[0.15em] font-bold text-[var(--color-text)]/50 text-[9px]">Teams</p>
+              <p className="text-xl font-display font-semibold mt-1">{teams.length}</p>
             </div>
-            <div className="rounded-xl border border-[var(--color-border)] bg-white/75 px-3 py-2">
-              <p className="uppercase tracking-[0.11em] text-[var(--color-text)]/70">Users</p>
-              <p className="text-lg font-semibold">{users.length}</p>
+            <div className="rounded-2xl bg-[var(--color-bg)]/50 px-4 py-3 border border-[var(--color-border)]/40">
+              <p className="uppercase tracking-[0.15em] font-bold text-[var(--color-text)]/50 text-[9px]">Users</p>
+              <p className="text-xl font-display font-semibold mt-1">{users.length}</p>
             </div>
-            <div className="rounded-xl border border-[var(--color-border)] bg-white/75 px-3 py-2">
-              <p className="uppercase tracking-[0.11em] text-[var(--color-text)]/70">Presets</p>
-              <p className="text-lg font-semibold">{presets.length}</p>
+            <div className="rounded-2xl bg-[var(--color-bg)]/50 px-4 py-3 border border-[var(--color-border)]/40">
+              <p className="uppercase tracking-[0.15em] font-bold text-[var(--color-text)]/50 text-[9px]">Presets</p>
+              <p className="text-xl font-display font-semibold mt-1">{presets.length}</p>
             </div>
-            <div className="rounded-xl border border-[var(--color-border)] bg-white/75 px-3 py-2">
-              <p className="uppercase tracking-[0.11em] text-[var(--color-text)]/70">Jobs</p>
-              <p className="text-lg font-semibold">{jobs.length}</p>
+            <div className="rounded-2xl bg-[var(--color-bg)]/50 px-4 py-3 border border-[var(--color-border)]/40">
+              <p className="uppercase tracking-[0.15em] font-bold text-[var(--color-text)]/50 text-[9px]">Jobs</p>
+              <p className="text-xl font-display font-semibold mt-1">{jobs.length}</p>
             </div>
           </div>
-          <p className="text-xs text-[var(--color-text)]/74">
+          <p className="text-[11px] font-medium text-[var(--color-text)]/50">
             Queue items: {reviewQueue.length} · Audit events loaded: {auditEvents.length}
           </p>
         </div>
@@ -2248,7 +2248,7 @@ const PathBOpsPanel: React.FC = () => {
         <div className="premium-surface rounded-[1.5rem] p-4 sm:p-5">
           <h3 className="font-display text-xl">Response Inspector</h3>
           <pre className="mt-3 max-h-64 overflow-auto rounded-xl border border-[var(--color-border)] bg-slate-950 text-slate-100 p-3 text-xs">
-{lastResponse || '{\n  "hint": "Run an action to inspect payloads."\n}'}
+            {lastResponse || '{\n  "hint": "Run an action to inspect payloads."\n}'}
           </pre>
         </div>
       </section>
@@ -2272,13 +2272,12 @@ const PathBOpsPanel: React.FC = () => {
                 type="button"
                 onClick={confirmPendingQuickAction}
                 disabled={isConfirmingQuickAction}
-                className={`rounded-xl px-3 py-2.5 text-sm font-semibold text-white disabled:opacity-50 ${
-                  pendingQuickAction.tone === 'danger'
+                className={`rounded-xl px-3 py-2.5 text-sm font-semibold text-white disabled:opacity-50 ${pendingQuickAction.tone === 'danger'
                     ? 'bg-rose-600 hover:bg-rose-700'
                     : pendingQuickAction.tone === 'warning'
                       ? 'bg-amber-600 hover:bg-amber-700'
                       : 'bg-[var(--color-primary)] hover:brightness-95'
-                }`}
+                  }`}
               >
                 {isConfirmingQuickAction ? 'Running...' : pendingQuickAction.confirmLabel}
               </button>

@@ -58,18 +58,19 @@ export const generateRoomDesign = async (
   imageBase64: string,
   prompt: string,
   maskImageBase64?: string | null,
-  isHighRes: boolean = false
-): Promise<string> => {
+  isHighRes: boolean = false,
+  candidateCount: number = 1
+): Promise<string | string[]> => {
   try {
     const ai = getAI();
     const modelName = isHighRes ? 'gemini-3-pro-image-preview' : 'gemini-2.5-flash-image';
     const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
-    
-    const isRemovalTask = prompt.toLowerCase().includes('remove') || 
-                         prompt.toLowerCase().includes('clear') || 
-                         prompt.toLowerCase().includes('erase') ||
-                         prompt.toLowerCase().includes('restore') ||
-                         prompt.toLowerCase().includes('cleanup');
+
+    const isRemovalTask = prompt.toLowerCase().includes('remove') ||
+      prompt.toLowerCase().includes('clear') ||
+      prompt.toLowerCase().includes('erase') ||
+      prompt.toLowerCase().includes('restore') ||
+      prompt.toLowerCase().includes('cleanup');
 
     const isGrassTask = prompt.toLowerCase().includes('grass') || prompt.toLowerCase().includes('turf') || prompt.toLowerCase().includes('landscape');
 
@@ -121,16 +122,13 @@ export const generateRoomDesign = async (
       });
     }
 
-    const config: any = {};
+    const config: any = {
+      candidateCount: candidateCount
+    };
     if (isHighRes) {
-      // Determine Aspect Ratio to maintain export consistency
-      // In a real app, we'd get this from the image element, 
-      // here we assume common real estate 4:3 or 16:9 or detect from data.
-      // For safety in this environment, we attempt to stay as neutral as possible 
-      // or default to common ratios if detection is complex.
       config.imageConfig = {
         imageSize: "2K",
-        aspectRatio: "4:3" // Defaulting to high-quality real estate standard
+        aspectRatio: "4:3"
       };
     }
 
@@ -140,13 +138,21 @@ export const generateRoomDesign = async (
       config
     });
 
-    for (const part of response.candidates?.[0]?.content?.parts || []) {
-      if (part.inlineData?.data) {
-        return `data:image/png;base64,${part.inlineData.data}`;
+    const results: string[] = [];
+    if (response.candidates) {
+      for (const candidate of response.candidates) {
+        if (candidate.content?.parts) {
+          for (const part of candidate.content.parts) {
+            if (part.inlineData?.data) {
+              results.push(`data:image/png;base64,${part.inlineData.data}`);
+            }
+          }
+        }
       }
     }
-    
-    throw new Error("No image generated.");
+
+    if (results.length === 0) throw new Error("No image generated.");
+    return results.length === 1 ? results[0] : results;
   } catch (error: any) {
     if (error.message?.includes("Requested entity was not found")) throw new Error("API_KEY_REQUIRED");
     throw error;

@@ -145,22 +145,20 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
           <button
             type="button"
             onClick={() => setStageMode('text')}
-            className={`rounded-2xl border px-2.5 py-2 text-left text-sm font-semibold transition-all ${
-              stageMode === 'text'
+            className={`rounded-2xl border px-2.5 py-2 text-left text-sm font-semibold transition-all ${stageMode === 'text'
                 ? 'border-[var(--color-accent)] bg-sky-50 shadow-[0_8px_20px_rgba(3,105,161,0.14)]'
                 : 'border-[var(--color-border)] bg-white/80 hover:bg-white'
-            }`}
+              }`}
           >
             Text
           </button>
           <button
             type="button"
             onClick={() => setStageMode('packs')}
-            className={`rounded-2xl border px-2.5 py-2 text-left text-sm font-semibold transition-all ${
-              stageMode === 'packs'
+            className={`rounded-2xl border px-2.5 py-2 text-left text-sm font-semibold transition-all ${stageMode === 'packs'
                 ? 'border-[var(--color-accent)] bg-sky-50 shadow-[0_8px_20px_rgba(3,105,161,0.14)]'
                 : 'border-[var(--color-border)] bg-white/80 hover:bg-white'
-            }`}
+              }`}
           >
             Packs
           </button>
@@ -231,17 +229,15 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
                   key={preset.id}
                   type="button"
                   onClick={() => setSelectedPreset(preset.id)}
-                  className={`rounded-2xl border px-2.5 py-2 text-left transition-all ${
-                    active
+                  className={`rounded-2xl border px-2.5 py-2 text-left transition-all hover-lift ${active
                       ? 'border-[var(--color-accent)] bg-sky-50 shadow-[0_8px_20px_rgba(3,105,161,0.14)]'
                       : 'border-[var(--color-border)] bg-white/80 hover:bg-white'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center gap-2.5">
                     <span
-                      className={`flex h-8 w-8 items-center justify-center rounded-lg ${
-                        active ? 'bg-[var(--color-accent)] text-white' : 'subtle-card text-[var(--color-text)]'
-                      }`}
+                      className={`flex h-8 w-8 items-center justify-center rounded-lg ${active ? 'bg-[var(--color-accent)] text-white' : 'subtle-card text-[var(--color-text)]'
+                        }`}
                     >
                       {preset.icon}
                     </span>
@@ -270,9 +266,8 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
           type="button"
           onClick={buildPrompt}
           disabled={isGenerating || !canGenerate}
-          className={`cta-primary w-full rounded-2xl px-4 py-3.5 text-sm font-semibold tracking-wide disabled:cursor-not-allowed disabled:opacity-50 ${
-            compactMobile ? 'min-h-[52px]' : 'min-h-[46px]'
-          }`}
+          className={`cta-primary w-full rounded-2xl px-4 py-3.5 text-sm font-semibold tracking-wide disabled:cursor-not-allowed disabled:opacity-50 ${compactMobile ? 'min-h-[52px]' : 'min-h-[46px]'
+            }`}
         >
           {isGenerating ? 'Rendering Design...' : hasGenerated ? 'Re-generate Design' : 'Generate Design'}
         </button>

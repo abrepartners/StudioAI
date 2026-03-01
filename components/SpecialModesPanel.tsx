@@ -89,7 +89,7 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
     }) => {
         const open = openSection === id;
         return (
-            <div className="premium-surface rounded-3xl overflow-hidden">
+            <div className="premium-surface rounded-2xl overflow-hidden">
                 <button
                     type="button"
                     onClick={() => setOpenSection(open ? null : id)}

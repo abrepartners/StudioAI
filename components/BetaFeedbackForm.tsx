@@ -321,7 +321,7 @@ const BetaFeedbackForm: React.FC<BetaFeedbackFormProps> = ({
 
   if (mode === 'quick-only') {
     return (
-      <div className="premium-surface rounded-3xl p-5">
+      <div className="premium-surface rounded-2xl p-5">
         <div className="mb-3">
           <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--color-text)]/70">Feedback Checkpoint</p>
           <h3 className="font-display text-xl mt-1">Rate This Result</h3>
@@ -347,7 +347,7 @@ const BetaFeedbackForm: React.FC<BetaFeedbackFormProps> = ({
   }
 
   return (
-    <div className="premium-surface rounded-3xl p-5">
+    <div className="premium-surface rounded-2xl p-5">
       <div className="mb-3">
         <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--color-text)]/70">Beta Feedback</p>
         <h3 className="font-display text-xl mt-1">Tell us what feels off</h3>

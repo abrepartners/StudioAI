@@ -96,7 +96,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
   if (activeMode === 'cleanup') {
     return (
       <div className="space-y-5">
-        <div className="premium-surface rounded-3xl p-5">
+        <div className="premium-surface rounded-2xl p-5">
           <div className="mb-3 flex items-center gap-3">
             <div className="subtle-card rounded-xl p-2 text-[var(--color-primary)]">
               <Eraser size={18} />
@@ -118,7 +118,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
           </p>
         </div>
 
-        <div className="premium-surface-strong rounded-3xl p-5 sticky bottom-5">
+        <div className="premium-surface-strong rounded-2xl p-5 sticky bottom-5">
           <button
             type="button"
             onClick={handleApplyCleanup}
@@ -137,7 +137,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
 
   return (
     <div className="space-y-4">
-      <div className="premium-surface rounded-3xl p-5">
+      <div className="premium-surface rounded-2xl p-5">
         <div className="mb-3">
           <h3 className="font-display text-lg font-semibold">Mode</h3>
           <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-text)]/70">Pick one path for this render</p>
@@ -180,7 +180,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
       </div>
 
       {stageMode === 'text' && (
-        <div className="premium-surface rounded-3xl p-5">
+        <div className="premium-surface rounded-2xl p-5">
           <div className="mb-3 flex items-center gap-3">
             <div className="subtle-card rounded-xl p-2 text-[var(--color-primary)]">
               <FilePenLine size={18} />
@@ -221,7 +221,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
       )}
 
       {stageMode === 'packs' && (
-        <div className="premium-surface rounded-3xl p-5">
+        <div className="premium-surface rounded-2xl p-5">
           <div className="mb-4 flex items-center gap-3">
             <div className="subtle-card rounded-xl p-2 text-[var(--color-primary)]">
               <Wand2 size={18} />
@@ -265,7 +265,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
         </div>
       )}
 
-      <div className="premium-surface-strong rounded-3xl p-5 sticky bottom-2 space-y-3">
+      <div className="premium-surface-strong rounded-2xl p-5 sticky bottom-2 space-y-3">
         <label className="flex items-center gap-3 p-1 cursor-pointer group">
           <div className={`flex w-9 h-5 items-center rounded-full p-1 transition-colors ${isMultiGen ? 'bg-[var(--color-accent)]' : 'bg-slate-300'}`}>
             <div className={`h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform ${isMultiGen ? 'translate-x-3.5' : 'translate-x-0'}`} />

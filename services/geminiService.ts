@@ -2,10 +2,10 @@
 import { GoogleGenAI, Type, Chat, GenerateContentResponse } from "@google/genai";
 import { ColorData, StagedFurniture, FurnitureRoomType } from "../types";
 
-// API key must be set via environment variable — no hardcoded fallback for security.
+// API key resolved from environment — Vite define block or import.meta.env.
 const RESOLVED_API_KEY =
   process.env.API_KEY ||
-  (import.meta as any)?.env?.VITE_GEMINI_API_KEY ||
+  import.meta.env.VITE_GEMINI_API_KEY ||
   '';
 
 // Helper to get fresh AI instance

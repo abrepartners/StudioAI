@@ -45,47 +45,43 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload, isAnalyzin
 
   return (
     <div
-      className={`premium-surface grain-overlay rounded-[1.9rem] p-8 sm:p-10 text-center transition-all duration-300 ${
-        isAnalyzing ? 'opacity-75 cursor-not-allowed' : 'hover:-translate-y-0.5 hover:shadow-[0_22px_52px_rgba(10,46,44,0.17)]'
+      className={`premium-surface rounded-2xl p-6 text-center transition-all duration-200 ${
+        isAnalyzing ? 'opacity-75 cursor-not-allowed' : 'hover:-translate-y-0.5 hover:shadow-md'
       }`}
       onDragOver={(e) => e.preventDefault()}
       onDrop={handleDrop}
     >
       {isAnalyzing ? (
-        <div className="flex flex-col items-center gap-4 py-3">
-          <LoaderCircle size={44} className="text-[var(--color-accent)] animate-spin" />
+        <div className="flex flex-col items-center gap-3 py-2">
+          <LoaderCircle size={32} className="text-[var(--color-primary)] animate-spin" />
           <div>
-            <h3 className="font-display text-2xl font-semibold text-[var(--color-ink)]">Analyzing Space</h3>
-            <p className="mt-1 text-sm text-[var(--color-text)]/80">Extracting room type and dominant palette.</p>
+            <h3 className="font-display text-lg font-semibold text-[var(--color-ink)]">Analyzing Space</h3>
+            <p className="mt-1 text-xs text-[var(--color-text)]">Extracting room type and palette...</p>
           </div>
         </div>
       ) : (
         <>
-          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl subtle-card text-[var(--color-primary)]">
-            <ImageIcon size={28} />
+          <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--color-bg-deep)] text-[var(--color-primary)]">
+            <ImageIcon size={20} />
           </div>
-          <h3 className="font-display text-3xl font-semibold leading-tight text-[var(--color-ink)]">Drop Room Photo</h3>
-          <p className="mx-auto mt-2 max-w-sm text-[15px] text-[var(--color-text)]/80">
-            Upload a listing photo to generate staging, renovation, and cleanup concepts in one workspace.
+          <h3 className="font-display text-lg font-semibold text-[var(--color-ink)]">Drop a room photo</h3>
+          <p className="mx-auto mt-1 text-sm text-[var(--color-text)]">
+            or choose an option below
           </p>
-          <div className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="mt-4 grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={triggerFileUpload}
-              className="cta-primary rounded-2xl px-5 py-3.5 text-sm font-semibold tracking-wide transition-all"
+              className="cta-primary rounded-xl px-4 py-2.5 text-sm font-semibold inline-flex items-center justify-center gap-2"
             >
-              <span className="inline-flex items-center gap-2">
-                <Upload size={15} /> Upload Image
-              </span>
+              <Upload size={14} /> Upload
             </button>
             <button
               type="button"
               onClick={triggerCameraUpload}
-              className="cta-secondary rounded-2xl px-5 py-3.5 text-sm font-semibold tracking-wide transition-all"
+              className="cta-secondary rounded-xl px-4 py-2.5 text-sm font-semibold inline-flex items-center justify-center gap-2"
             >
-              <span className="inline-flex items-center gap-2">
-                <Camera size={15} /> Use Camera
-              </span>
+              <Camera size={14} /> Camera
             </button>
           </div>
         </>

@@ -42,7 +42,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, onSendMessage, 
 
       <div className="flex-1 overflow-y-auto px-4 py-5 space-y-4 scrollbar-hide">
         {messages.length === 0 ? (
-          <div className="premium-surface rounded-3xl p-6 text-center text-[var(--color-text)]/80 mt-4">
+          <div className="premium-surface rounded-2xl p-6 text-center text-[var(--color-text)]/80 mt-4">
             <Sparkles size={28} className="mx-auto mb-3 text-[var(--color-accent)]" />
             <p className="font-semibold text-[var(--color-ink)]">Request prompt refinements or styling directions</p>
             <p className="text-sm mt-2">Ask for layout changes, materials, staging choices, or cleanup guidance.</p>

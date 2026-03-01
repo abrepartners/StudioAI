@@ -42,7 +42,38 @@ import {
   Check,
   Lock,
   Heart,
+  LogOut,
 } from 'lucide-react';
+
+// ─── Google OAuth Types ──────────────────────────────────────────────────────
+interface GoogleUser {
+  name: string;
+  email: string;
+  picture: string;
+  sub: string; // Google user ID
+}
+
+const GOOGLE_CLIENT_ID =
+  process.env.GOOGLE_CLIENT_ID ||
+  (import.meta as any)?.env?.VITE_GOOGLE_CLIENT_ID ||
+  '';
+
+const AUTH_STORAGE_KEY = 'studioai_google_user';
+
+const decodeJwtPayload = (token: string): GoogleUser | null => {
+  try {
+    const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    const json = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+};
 
 const roomOptions: FurnitureRoomType[] = [
   'Living Room',
@@ -56,26 +87,7 @@ const roomOptions: FurnitureRoomType[] = [
 
 type StageMode = 'text' | 'packs' | 'furniture';
 
-const BETA_ACCESS_KEY = 'studioai_beta_access_code';
-const DEFAULT_BETA_CODES = ['VELVET-EMBER-9Q4K', 'NORTHSTAR-GLASS-2T7M'];
-
-const parseCodes = (raw: string | undefined) =>
-  new Set(
-    (raw || '')
-      .split(',')
-      .map((part) => part.trim().toUpperCase())
-      .filter(Boolean)
-  );
-
-const ENV_BETA_CODES = parseCodes((import.meta as any)?.env?.VITE_BETA_ACCESS_CODES);
-const ENV_PRO_CODES = parseCodes((import.meta as any)?.env?.VITE_BETA_PRO_CODES);
-const PRO_UNLOCK_ALL = String((import.meta as any)?.env?.VITE_BETA_PRO_UNLOCK || '').toLowerCase() === 'true';
 const FEEDBACK_REQUIRED_INTERVAL = 3;
-
-const buildInviteLink = (code: string) => {
-  if (!code || typeof window === 'undefined') return '';
-  return `${window.location.origin}/?invite=${encodeURIComponent(code)}`;
-};
 
 const App: React.FC = () => {
   const [originalImage, setOriginalImage] = useState<string | null>(null);
@@ -113,46 +125,81 @@ const App: React.FC = () => {
   const [chatSession, setChatSession] = useState<ReturnType<typeof createChatSession> | null>(null);
   const [isChatLoading, setIsChatLoading] = useState(false);
 
-  const [betaAccessCode, setBetaAccessCode] = useState('');
-  const [betaInviteCode, setBetaInviteCode] = useState('');
-  const [betaMessage, setBetaMessage] = useState('');
-  const [betaError, setBetaError] = useState('');
-  const [isBetaLoading, setIsBetaLoading] = useState(true);
-  const [isActivatingBeta, setIsActivatingBeta] = useState(false);
-  const [copiedField, setCopiedField] = useState<'link' | 'code' | null>(null);
-
-  const allowedBetaCodes = useMemo(
-    () => (ENV_BETA_CODES.size > 0 ? new Set(ENV_BETA_CODES) : new Set(DEFAULT_BETA_CODES)),
-    []
-  );
-
-  const proUnlocked = Boolean(betaAccessCode && (PRO_UNLOCK_ALL || ENV_PRO_CODES.has(betaAccessCode)));
-  const betaInviteLink = useMemo(() => buildInviteLink(betaAccessCode), [betaAccessCode]);
+  // ─── Google OAuth State ──────────────────────────────────────────────────
+  const [googleUser, setGoogleUser] = useState<GoogleUser | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const googleButtonRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const savedS = localStorage.getItem('realestate_ai_stages');
     if (savedS) setSavedStages(JSON.parse(savedS));
   }, []);
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const invite = (params.get('invite') || params.get('code') || '').trim().toUpperCase();
-    if (invite) {
-      setBetaInviteCode(invite);
-      setBetaMessage('Invite accepted. Enter this code to access the private beta.');
+  // ─── Google OAuth: restore session & initialize GIS ─────────────────────
+  const handleGoogleCredential = useCallback((response: any) => {
+    const user = decodeJwtPayload(response.credential);
+    if (user) {
+      setGoogleUser(user);
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
     }
+    setIsAuthLoading(false);
   }, []);
 
   useEffect(() => {
-    setIsBetaLoading(true);
-    const existing = (localStorage.getItem(BETA_ACCESS_KEY) || '').trim().toUpperCase();
-    if (existing && allowedBetaCodes.has(existing)) {
-      setBetaAccessCode(existing);
-    } else if (existing) {
-      localStorage.removeItem(BETA_ACCESS_KEY);
+    // Restore saved session
+    const saved = localStorage.getItem(AUTH_STORAGE_KEY);
+    if (saved) {
+      try {
+        setGoogleUser(JSON.parse(saved));
+      } catch { /* ignore corrupt data */ }
     }
-    setIsBetaLoading(false);
-  }, [allowedBetaCodes]);
+    setIsAuthLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (googleUser || !GOOGLE_CLIENT_ID) return;
+    // Wait for Google Identity Services to load
+    const init = () => {
+      const google = (window as any).google;
+      if (!google?.accounts?.id) return;
+      google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleGoogleCredential,
+        auto_select: true,
+      });
+      if (googleButtonRef.current) {
+        google.accounts.id.renderButton(googleButtonRef.current, {
+          type: 'standard',
+          theme: 'outline',
+          size: 'large',
+          text: 'signin_with',
+          shape: 'pill',
+          width: 300,
+        });
+      }
+    };
+    // Script may still be loading
+    if ((window as any).google?.accounts?.id) {
+      init();
+    } else {
+      const interval = setInterval(() => {
+        if ((window as any).google?.accounts?.id) {
+          clearInterval(interval);
+          init();
+        }
+      }, 100);
+      return () => clearInterval(interval);
+    }
+  }, [googleUser, handleGoogleCredential]);
+
+  const handleSignOut = useCallback(() => {
+    setGoogleUser(null);
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+    const google = (window as any).google;
+    if (google?.accounts?.id) {
+      google.accounts.id.disableAutoSelect();
+    }
+  }, []);
 
   const refreshProKeyStatus = useCallback(async () => {
     const aiStudio = (window as any)?.aistudio;
@@ -308,8 +355,8 @@ const App: React.FC = () => {
       return;
     }
 
-    if (highRes && !proUnlocked) {
-      alert('High-resolution enhancement is locked for this beta access code.');
+    if (highRes && !hasProKey) {
+      setShowKeyPrompt(true);
       return;
     }
 
@@ -400,43 +447,6 @@ const App: React.FC = () => {
     setShowRoomPicker(false);
   };
 
-  const activateBeta = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!betaInviteCode.trim()) return;
-
-    setIsActivatingBeta(true);
-    setBetaError('');
-    setBetaMessage('');
-
-    try {
-      const entered = betaInviteCode.trim().toUpperCase();
-      if (!allowedBetaCodes.has(entered)) {
-        setBetaError('That invite code is not valid.');
-        return;
-      }
-
-      setBetaAccessCode(entered);
-      localStorage.setItem(BETA_ACCESS_KEY, entered);
-      setBetaMessage('Welcome to the private StudioAI beta.');
-    } catch {
-      setBetaError('Activation failed. Check your connection and retry.');
-    } finally {
-      setIsActivatingBeta(false);
-    }
-  };
-
-  const copyValue = async (type: 'link' | 'code') => {
-    if (!betaAccessCode) return;
-    const value = type === 'link' ? betaInviteLink : betaAccessCode;
-
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopiedField(type);
-      setTimeout(() => setCopiedField(null), 1600);
-    } catch {
-      setCopiedField(null);
-    }
-  };
 
   const handleChatMessage = async (text: string) => {
     if (!originalImage) return;
@@ -490,9 +500,45 @@ const App: React.FC = () => {
     ];
 
 
-  // Removed the activation wall as it was causing friction. Users go straight to the studio now.
+  // ─── Auth gate: require Google sign-in ───────────────────────────────────
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-[100dvh] grid place-items-center bg-[var(--color-bg)]">
+        <div className="text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl cta-primary shadow-lg">
+            <Camera size={28} />
+          </div>
+          <p className="text-sm text-[var(--color-text)]/70 animate-pulse">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
-  // Invite wall removed by user request.
+  if (!googleUser) {
+    return (
+      <div className="min-h-[100dvh] grid place-items-center bg-[var(--color-bg)] p-6">
+        <div className="w-full max-w-md text-center">
+          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-3xl cta-primary shadow-[0_10px_30px_rgba(3,105,161,0.3)]">
+            <Camera size={36} />
+          </div>
+          <h1 className="font-display text-4xl font-semibold text-[var(--color-ink)]">
+            Studio<span className="text-[var(--color-primary)]">AI</span>
+          </h1>
+          <p className="mt-2 text-sm text-[var(--color-text)]/70">
+            Sign in to access the real estate design studio.
+          </p>
+          <div className="mt-8 flex justify-center">
+            <div ref={googleButtonRef} />
+          </div>
+          {!GOOGLE_CLIENT_ID && (
+            <p className="mt-6 text-xs text-red-500">
+              Missing VITE_GOOGLE_CLIENT_ID. Add it to your .env.local file.
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="studio-shell min-h-[100dvh] lg:h-screen overflow-x-hidden lg:overflow-hidden flex flex-col">
@@ -564,9 +610,9 @@ const App: React.FC = () => {
             <div className="mb-4 flex items-start justify-between">
               <div>
                 <p className="inline-flex items-center gap-2 rounded-full cta-secondary px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-primary)]">
-                  <Copy size={14} /> Beta Access
+                  Account
                 </p>
-                <h3 className="font-display mt-3 text-2xl">Share Access</h3>
+                <h3 className="font-display mt-3 text-2xl">Your Account</h3>
               </div>
               <button
                 type="button"
@@ -577,37 +623,26 @@ const App: React.FC = () => {
               </button>
             </div>
 
-            <p className="text-sm text-[var(--color-text)]/82">
-              Share your access link or code with trusted testers. This is outside the design workflow so the studio stays focused.
-            </p>
-
-            <div className="mt-4 rounded-xl border border-[var(--color-border)] bg-white/80 px-3 py-2 text-xs text-[var(--color-text)]/80">
-              Access code: <code>{betaAccessCode}</code>
-            </div>
-            <div className="mt-2 rounded-xl border border-[var(--color-border)] bg-white/80 px-3 py-2 text-xs text-[var(--color-text)]/80 break-all">
-              Link: <code>{betaInviteLink}</code>
-            </div>
-
-            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => copyValue('link')}
-                className="cta-secondary min-h-[44px] rounded-xl px-3 py-2 text-xs font-semibold inline-flex items-center justify-center gap-1.5"
-              >
-                {copiedField === 'link' ? <Check size={13} /> : <Copy size={13} />} Copy Access Link
-              </button>
-              <button
-                type="button"
-                onClick={() => copyValue('code')}
-                className="cta-secondary min-h-[44px] rounded-xl px-3 py-2 text-xs font-semibold inline-flex items-center justify-center gap-1.5"
-              >
-                {copiedField === 'code' ? <Check size={13} /> : <Copy size={13} />} Copy Access Code
-              </button>
+            <div className="flex items-center gap-4 mt-4 p-4 rounded-xl border border-[var(--color-border)] bg-white/80">
+              <img
+                src={googleUser.picture}
+                alt={googleUser.name}
+                className="h-12 w-12 rounded-full object-cover"
+                referrerPolicy="no-referrer"
+              />
+              <div className="min-w-0">
+                <p className="font-semibold text-sm text-[var(--color-ink)] truncate">{googleUser.name}</p>
+                <p className="text-xs text-[var(--color-text)]/70 truncate">{googleUser.email}</p>
+              </div>
             </div>
 
-            <p className="mt-4 text-xs text-[var(--color-text)]/75">
-              High-res enhancement: <strong>{proUnlocked ? 'Unlocked' : 'Locked'}</strong>
-            </p>
+            <button
+              type="button"
+              onClick={() => { handleSignOut(); setShowAccessPanel(false); }}
+              className="mt-4 cta-secondary w-full min-h-[44px] rounded-xl px-3 py-2 text-sm font-semibold inline-flex items-center justify-center gap-2"
+            >
+              <LogOut size={15} /> Sign Out
+            </button>
           </div>
         </div>
       )}
@@ -623,7 +658,7 @@ const App: React.FC = () => {
                 Studio<span className="text-[var(--color-primary)]">AI</span>
               </h1>
               <p className="hidden sm:block text-[11px] uppercase tracking-[0.18em] text-[var(--color-text)]/70">
-                Invite-Only Beta
+                Real Estate Design Studio
               </p>
             </div>
           </div>
@@ -657,10 +692,15 @@ const App: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowAccessPanel(true)}
-              className="cta-secondary rounded-xl px-3 py-2 text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5 min-h-[44px]"
+              className="rounded-full overflow-hidden h-9 w-9 border-2 border-[var(--color-border)] hover:border-[var(--color-primary)] transition-colors"
+              title={googleUser.name}
             >
-              <Copy size={14} />
-              <span className="hidden sm:inline">Access</span>
+              <img
+                src={googleUser.picture}
+                alt={googleUser.name}
+                className="h-full w-full object-cover"
+                referrerPolicy="no-referrer"
+              />
             </button>
             {generatedImage && (
               <>
@@ -683,21 +723,15 @@ const App: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    if (!proUnlocked) return;
                     if (hasProKey) setShowProConfirm(true);
                     else setShowKeyPrompt(true);
                   }}
-                  disabled={isEnhancing || !proUnlocked}
-                  className={`rounded-xl px-3 py-2 text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5 min-h-[44px] disabled:opacity-55 ${proUnlocked
-                    ? hasProKey
-                      ? 'cta-primary'
-                      : 'cta-secondary'
-                    : 'border border-amber-300/70 bg-amber-50 text-amber-900'
-                    }`}
+                  disabled={isEnhancing}
+                  className={`rounded-xl px-3 py-2 text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5 min-h-[44px] disabled:opacity-55 ${hasProKey ? 'cta-primary' : 'cta-secondary'}`}
                 >
-                  {proUnlocked ? <Zap size={14} className={isEnhancing ? 'animate-pulse' : ''} /> : <Lock size={14} />}
+                  <Zap size={14} className={isEnhancing ? 'animate-pulse' : ''} />
                   <span className="hidden sm:inline">
-                    {proUnlocked ? (hasProKey ? 'Enhance' : 'Enable Enhance') : 'Locked'}
+                    {hasProKey ? 'Enhance' : 'Enable Enhance'}
                   </span>
                 </button>
               </>
@@ -727,7 +761,7 @@ const App: React.FC = () => {
           <section className="px-6 pb-14 pt-10 sm:px-12 lg:px-16 lg:pt-14 flex items-center">
             <div className="max-w-2xl w-full">
               <div className="mb-6 inline-flex items-center gap-2 rounded-full cta-secondary px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-primary)]">
-                <Sparkles size={14} /> Invite-Only Staging Beta
+                <Sparkles size={14} /> AI-Powered Design Studio
               </div>
               <h2 className="font-display text-[clamp(2.3rem,7vw,5.3rem)] leading-[0.92] font-semibold text-[var(--color-ink)]">
                 Re-stage interiors with editorial precision.
@@ -1009,11 +1043,11 @@ const App: React.FC = () => {
                     stagedFurnitureCount={0}
                     stageMode={stageMode}
                     generatedImage={generatedImage}
-                    betaUserId={betaAccessCode ? `access-${betaAccessCode}` : ''}
-                    referralCode={betaAccessCode}
+                    betaUserId={googleUser?.sub || ''}
+                    referralCode=""
                     acceptedInvites={0}
                     insiderUnlocked={false}
-                    pro2kUnlocked={proUnlocked}
+                    pro2kUnlocked={false}
                   />
                 </div>
               </div>
@@ -1044,11 +1078,11 @@ const App: React.FC = () => {
               stagedFurnitureCount={0}
               stageMode={stageMode}
               generatedImage={generatedImage}
-              betaUserId={betaAccessCode ? `access-${betaAccessCode}` : ''}
-              referralCode={betaAccessCode}
+              betaUserId={googleUser?.sub || ''}
+              referralCode=""
               acceptedInvites={0}
               insiderUnlocked={false}
-              pro2kUnlocked={proUnlocked}
+              pro2kUnlocked={false}
             />
           </div>
         </div>

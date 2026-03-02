@@ -12,28 +12,27 @@ export interface ColorData {
   fill: string;
 }
 
-export type RenovationCategory = 
-  | 'Flooring' 
-  | 'Walls & Trim' 
-  | 'Ceiling' 
-  | 'Kitchen' 
+export type RenovationCategory =
+  | 'Flooring'
+  | 'Walls & Trim'
+  | 'Ceiling'
+  | 'Kitchen'
   | 'Bathroom';
 
-export type FurnitureRoomType = 
-  | 'Living Room' 
-  | 'Bedroom' 
-  | 'Dining Room' 
-  | 'Office' 
-  | 'Kitchen' 
+export type FurnitureRoomType =
+  | 'Living Room'
+  | 'Bedroom'
+  | 'Dining Room'
+  | 'Office'
+  | 'Kitchen'
   | 'Primary Bedroom'
   | 'Exterior';
 
-export type StylePreset = 
-  | 'Coastal Modern' 
-  | 'Urban Loft' 
-  | 'Farmhouse Chic' 
-  | 'Minimalist' 
-  | 'Traditional'
+export type StylePreset =
+  | 'Coastal Modern'
+  | 'Urban Loft'
+  | 'Farmhouse Chic'
+  | 'Minimalist'
   | 'Mid-Century Modern'
   | 'Scandinavian'
   | 'Bohemian';

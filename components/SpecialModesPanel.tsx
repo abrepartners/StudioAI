@@ -26,6 +26,7 @@ interface SpecialModesPanelProps {
     generatedImage: string | null;
     selectedRoom: FurnitureRoomType;
     onNewImage: (imageBase64: string) => void;
+    onRequireKey: () => void;
 }
 
 type SkyStyle = 'blue' | 'dramatic' | 'golden' | 'stormy';
@@ -37,6 +38,7 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
     generatedImage,
     selectedRoom,
     onNewImage,
+    onRequireKey,
 }) => {
     const [loading, setLoading] = useState<SectionId | null>(null);
     const [openSection, setOpenSection] = useState<SectionId | null>(null);
@@ -64,7 +66,11 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
         try {
             await fn();
         } catch (e: any) {
-            setError(e?.message || 'Something went wrong. Try again.');
+            if (e.message === 'API_KEY_REQUIRED') {
+                onRequireKey();
+            } else {
+                setError(e?.message || 'Something went wrong. Try again.');
+            }
         } finally {
             setLoading(null);
         }
@@ -83,7 +89,7 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
     }) => {
         const open = openSection === id;
         return (
-            <div className="premium-surface rounded-3xl overflow-hidden">
+            <div className="premium-surface rounded-2xl overflow-hidden">
                 <button
                     type="button"
                     onClick={() => setOpenSection(open ? null : id)}

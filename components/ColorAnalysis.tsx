@@ -10,7 +10,7 @@ interface ColorAnalysisProps {
 const ColorAnalysis: React.FC<ColorAnalysisProps> = ({ colors, isLoading }) => {
   if (isLoading) {
     return (
-      <div className="premium-surface rounded-3xl p-5 w-full animate-pulse">
+      <div className="premium-surface rounded-2xl p-5 w-full animate-pulse">
         <div className="mb-4 flex items-center gap-3">
           <div className="h-9 w-9 rounded-xl bg-[var(--color-bg-deep)]" />
           <div className="h-3.5 w-40 rounded-full bg-[var(--color-bg-deep)]" />
@@ -28,7 +28,7 @@ const ColorAnalysis: React.FC<ColorAnalysisProps> = ({ colors, isLoading }) => {
   if (colors.length === 0) return null;
 
   return (
-    <div className="premium-surface rounded-3xl p-5 w-full">
+    <div className="premium-surface rounded-2xl p-5 w-full">
       <div className="mb-4 flex items-center gap-3">
         <div className="subtle-card rounded-xl p-2 text-[var(--color-primary)]">
           <Palette size={16} />

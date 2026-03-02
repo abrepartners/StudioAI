@@ -5,6 +5,9 @@ import {
   detectRoomType,
   createChatSession,
   sendMessageToChat,
+  saveApiKey,
+  hasApiKey,
+  getActiveApiKey,
 } from './services/geminiService';
 import ImageUploader from './components/ImageUploader';
 import CompareSlider from './components/CompareSlider';
@@ -108,6 +111,9 @@ const App: React.FC = () => {
   const [showRoomPicker, setShowRoomPicker] = useState(false);
   const [hasProKey, setHasProKey] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(true);
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [apiKeyError, setApiKeyError] = useState('');
+  const [apiKeyConfigured, setApiKeyConfigured] = useState(hasApiKey);
   const [showFeedbackCheckpoint, setShowFeedbackCheckpoint] = useState(false);
   const [generationsSinceFeedback, setGenerationsSinceFeedback] = useState(0);
   const [toastMessage, setToastMessage] = useState<{ icon: React.ReactNode; label: string } | null>(null);
@@ -328,14 +334,20 @@ const App: React.FC = () => {
     }
   };
 
-  const handleApiKeySelection = async () => {
-    const aiStudio = (window as any)?.aistudio;
-    if (!aiStudio?.openSelectKey) {
-      alert('API key selector is unavailable in this environment. Set GEMINI_API_KEY for local use.');
+  const handleSaveApiKey = () => {
+    const key = apiKeyInput.trim();
+    if (!key) {
+      setApiKeyError('Please enter your Gemini API key.');
       return;
     }
-    await aiStudio.openSelectKey();
-    await refreshProKeyStatus();
+    if (!key.startsWith('AIza')) {
+      setApiKeyError('That doesn\'t look like a valid Gemini API key. It should start with "AIza".');
+      return;
+    }
+    saveApiKey(key);
+    setApiKeyConfigured(true);
+    setApiKeyError('');
+    setApiKeyInput('');
     setShowKeyPrompt(false);
   };
   const handleSamplePhoto = async () => {
@@ -362,22 +374,19 @@ const App: React.FC = () => {
   };
   const handleGenerate = async (prompt: string, highRes = false) => {
     if (!originalImage) return;
+
+    // Require API key before anything else
+    if (!hasApiKey()) {
+      setShowKeyPrompt(true);
+      return;
+    }
+
     if (showFeedbackCheckpoint) {
       alert('Please complete the quick feedback checkpoint to continue generating.');
       return;
     }
 
-    if (highRes && !hasProKey) {
-      setShowKeyPrompt(true);
-      return;
-    }
-
     if (highRes) {
-      const hasKey = hasProKey || (await refreshProKeyStatus());
-      if (!hasKey) {
-        setShowKeyPrompt(true);
-        return;
-      }
       setIsEnhancing(true);
       setShowProConfirm(false);
     } else {
@@ -413,12 +422,15 @@ const App: React.FC = () => {
         setGenerationsSinceFeedback((prev) => prev + 1);
       }
     } catch (error: any) {
-      if (error.message === 'API_KEY_REQUIRED' || error.message?.includes('Requested entity was not found')) {
+      if (
+        error.message === 'API_KEY_REQUIRED' ||
+        error.message?.includes('Requested entity was not found') ||
+        error.message?.toLowerCase().includes('api key') ||
+        error.message?.includes('API_KEY_INVALID')
+      ) {
         setShowKeyPrompt(true);
-      } else if (error.message?.toLowerCase().includes('api key')) {
-        alert('Missing API key. Add GEMINI_API_KEY for local generation, then retry.');
       } else {
-        alert('Generation failed. Check your connection.');
+        alert('Generation failed. Check your connection and try again.');
       }
     } finally {
       setIsGenerating(false);
@@ -664,30 +676,87 @@ const App: React.FC = () => {
     <div className="studio-shell min-h-[100dvh] lg:h-screen overflow-x-hidden lg:overflow-hidden flex flex-col">
       {showKeyPrompt && (
         <div className="fixed inset-0 z-[100] grid place-items-center modal-overlay p-4 animate-fade-in">
-          <div className="modal-panel w-full max-w-md rounded-2xl p-8 text-center animate-scale-in">
-            <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
-              <Key size={26} />
-            </div>
-            <h2 className="font-display text-2xl font-bold">High-Res Rendering</h2>
-            <p className="mt-2 text-sm text-[var(--color-text)] leading-relaxed">
-              Select a Gemini API key from a paid GCP project to enable high-resolution enhancement.
-            </p>
-            <div className="mt-6 space-y-2.5">
+          <div className="modal-panel w-full max-w-md rounded-2xl p-8 animate-scale-in">
+            <div className="flex items-start justify-between mb-5">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+                  <Key size={22} />
+                </div>
+                <div>
+                  <h2 className="font-display text-xl font-bold">Gemini API Key</h2>
+                  <p className="text-xs text-[var(--color-text)]">Required for AI image generation</p>
+                </div>
+              </div>
               <button
                 type="button"
-                onClick={handleApiKeySelection}
+                onClick={() => { setShowKeyPrompt(false); setApiKeyError(''); setApiKeyInput(''); }}
+                className="rounded-lg p-1.5 text-[var(--color-text)] transition hover:bg-[var(--color-bg)]"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {apiKeyConfigured && (
+              <div className="mb-4 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-800">
+                <Check size={14} className="shrink-0" />
+                <span>Key saved: <code className="font-mono text-xs">{getActiveApiKey().slice(0, 8)}••••••••</code></span>
+              </div>
+            )}
+
+            <p className="text-sm text-[var(--color-text)] leading-relaxed mb-4">
+              Get a free API key from{' '}
+              <a
+                href="https://aistudio.google.com/apikey"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[var(--color-primary)] font-medium hover:underline inline-flex items-center gap-0.5"
+              >
+                Google AI Studio <ArrowRight size={12} />
+              </a>{' '}
+              then paste it below. Your key is stored locally and never sent to our servers.
+            </p>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--color-text)] mb-1.5 block">
+                  API Key
+                </label>
+                <input
+                  type="password"
+                  value={apiKeyInput}
+                  onChange={(e) => { setApiKeyInput(e.target.value); setApiKeyError(''); }}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSaveApiKey()}
+                  placeholder="AIza..."
+                  className="w-full rounded-xl border border-[var(--color-border-strong)] bg-white px-3 py-2.5 text-sm font-mono text-[var(--color-ink)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+                  autoFocus
+                />
+                {apiKeyError && (
+                  <p className="mt-1.5 text-xs text-rose-600">{apiKeyError}</p>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={handleSaveApiKey}
                 className="cta-primary w-full rounded-xl py-3 text-sm font-semibold"
               >
-                Select API Key
+                Save & Continue
               </button>
-              <button
-                type="button"
-                onClick={() => setShowKeyPrompt(false)}
-                className="cta-secondary w-full rounded-xl py-3 text-sm"
-              >
-                Cancel
-              </button>
+
+              {apiKeyConfigured && (
+                <button
+                  type="button"
+                  onClick={() => { setShowKeyPrompt(false); setApiKeyError(''); setApiKeyInput(''); }}
+                  className="cta-secondary w-full rounded-xl py-2.5 text-sm"
+                >
+                  Keep existing key
+                </button>
+              )}
             </div>
+
+            <p className="mt-4 text-xs text-[var(--color-text)] leading-relaxed">
+              The free tier includes generous usage. Enable billing on your GCP project only if you need high-res renders.
+            </p>
           </div>
         </div>
       )}
@@ -836,6 +905,15 @@ const App: React.FC = () => {
                 </button>
               </>
             )}
+            <button
+              type="button"
+              onClick={() => { setApiKeyInput(''); setApiKeyError(''); setShowKeyPrompt(true); }}
+              className={`rounded-lg px-2.5 py-1.5 text-xs font-medium inline-flex items-center gap-1.5 transition ${apiKeyConfigured ? 'text-[var(--color-primary)] hover:bg-[var(--color-bg)]' : 'cta-secondary border-amber-300 text-amber-700 hover:border-amber-400'}`}
+              title={apiKeyConfigured ? 'API key configured — click to update' : 'Set Gemini API key'}
+            >
+              <Key size={12} />
+              <span className="hidden sm:inline">{apiKeyConfigured ? 'API Key' : 'Add Key'}</span>
+            </button>
             <div className="h-5 w-px bg-[var(--color-border)] mx-0.5" />
             <button
               type="button"
@@ -866,19 +944,30 @@ const App: React.FC = () => {
             </button>
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={() => setShowAccessPanel(true)}
-            className="rounded-full overflow-hidden h-8 w-8 ring-2 ring-[var(--color-border)] hover:ring-[var(--color-primary)] transition-all"
-            title={googleUser.name}
-          >
-            <img
-              src={googleUser.picture}
-              alt={googleUser.name}
-              className="h-full w-full object-cover"
-              referrerPolicy="no-referrer"
-            />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => { setApiKeyInput(''); setApiKeyError(''); setShowKeyPrompt(true); }}
+              className={`rounded-lg px-2.5 py-1.5 text-xs font-medium inline-flex items-center gap-1.5 transition ${apiKeyConfigured ? 'text-[var(--color-primary)] hover:bg-[var(--color-bg)]' : 'cta-secondary border-amber-300 text-amber-700 hover:border-amber-400'}`}
+              title={apiKeyConfigured ? 'API key configured — click to update' : 'Set Gemini API key'}
+            >
+              <Key size={12} />
+              <span className="hidden sm:inline">{apiKeyConfigured ? 'API Key' : 'Add Key'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAccessPanel(true)}
+              className="rounded-full overflow-hidden h-8 w-8 ring-2 ring-[var(--color-border)] hover:ring-[var(--color-primary)] transition-all"
+              title={googleUser.name}
+            >
+              <img
+                src={googleUser.picture}
+                alt={googleUser.name}
+                className="h-full w-full object-cover"
+                referrerPolicy="no-referrer"
+              />
+            </button>
+          </div>
         )}
       </header>
 

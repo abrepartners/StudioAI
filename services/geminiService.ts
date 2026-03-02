@@ -2,16 +2,39 @@
 import { GoogleGenAI, Type, Chat, GenerateContentResponse } from "@google/genai";
 import { ColorData, StagedFurniture, FurnitureRoomType } from "../types";
 
-// API key resolved from environment — Vite define block or import.meta.env.
-const RESOLVED_API_KEY =
+// API key storage key
+const API_KEY_STORAGE = 'studioai_gemini_key';
+
+// Env fallback (set in .env.local for local dev)
+const ENV_API_KEY =
   process.env.API_KEY ||
   import.meta.env.VITE_GEMINI_API_KEY ||
   '';
 
+// Get the active API key — user-saved key takes priority over env
+export const getActiveApiKey = (): string => {
+  try {
+    const saved = localStorage.getItem(API_KEY_STORAGE);
+    if (saved && saved.trim()) return saved.trim();
+  } catch { /* ignore */ }
+  return ENV_API_KEY;
+};
+
+export const saveApiKey = (key: string) => {
+  localStorage.setItem(API_KEY_STORAGE, key.trim());
+};
+
+export const clearApiKey = () => {
+  localStorage.removeItem(API_KEY_STORAGE);
+};
+
+export const hasApiKey = (): boolean => !!getActiveApiKey();
+
 // Helper to get fresh AI instance
 const getAI = () => {
-  if (!RESOLVED_API_KEY) throw new Error('API_KEY_REQUIRED');
-  return new GoogleGenAI({ apiKey: RESOLVED_API_KEY });
+  const key = getActiveApiKey();
+  if (!key) throw new Error('API_KEY_REQUIRED');
+  return new GoogleGenAI({ apiKey: key });
 };
 
 /**

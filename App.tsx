@@ -640,12 +640,6 @@ const App: React.FC = () => {
               Skip sign-in (Dev Mode)
             </button>
 
-            {!GOOGLE_CLIENT_ID && (
-              <div className="mt-6 rounded-xl px-4 py-3 text-xs" style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c' }}>
-                Missing VITE_GOOGLE_CLIENT_ID. Add it to your .env.local file.
-              </div>
-            )}
-
             <div className="mt-10 pt-8" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }}>
               <p className="text-xs mb-4 font-medium" style={{ color: '#52525b' }}>What you get access to:</p>
               <div className="space-y-3">

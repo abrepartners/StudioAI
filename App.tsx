@@ -621,25 +621,6 @@ const App: React.FC = () => {
               </button>
             </div>
 
-            {/* Dev bypass for local testing */}
-            <button
-              type="button"
-              onClick={() => {
-                const devUser: GoogleUser = {
-                  name: 'Dev User',
-                  email: 'dev@studioai.local',
-                  picture: '',
-                  sub: 'dev-local-001',
-                };
-                setGoogleUser(devUser);
-                localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(devUser));
-              }}
-              className="mt-3 text-xs font-medium transition-colors"
-              style={{ color: '#a1a1aa' }}
-            >
-              Skip sign-in (Dev Mode)
-            </button>
-
             <div className="mt-10 pt-8" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }}>
               <p className="text-xs mb-4 font-medium" style={{ color: '#52525b' }}>What you get access to:</p>
               <div className="space-y-3">

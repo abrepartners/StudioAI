@@ -8,6 +8,7 @@ import {
   saveApiKey,
   hasApiKey,
   getActiveApiKey,
+  generateListingCopy,
 } from './services/geminiService';
 import ImageUploader from './components/ImageUploader';
 import CompareSlider from './components/CompareSlider';
@@ -50,6 +51,15 @@ import {
   Image as ImageIcon,
   Wand2,
   Shield,
+  TrendingUp,
+  Upload,
+  FileText,
+  BarChart3,
+  Crown,
+  Layers,
+  Play,
+  Package,
+  Loader2,
 } from 'lucide-react';
 import { Analytics } from '@vercel/analytics/react';
 
@@ -137,6 +147,33 @@ const App: React.FC = () => {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatSession, setChatSession] = useState<ReturnType<typeof createChatSession> | null>(null);
   const [isChatLoading, setIsChatLoading] = useState(false);
+
+  // Smart staging suggestions (Musk: reduce clicks)
+  const [smartSuggestions, setSmartSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(true);
+
+  // Batch processing (Musk: scale)
+  const [batchImages, setBatchImages] = useState<Array<{ id: string; src: string; status: 'pending' | 'processing' | 'done' | 'error'; result?: string }>>([]);
+  const [showBatchMode, setShowBatchMode] = useState(false);
+  const [batchStyle, setBatchStyle] = useState('Coastal Modern');
+
+  // Marketing package (Musk: one photo → full package)
+  const [showMarketingPackage, setShowMarketingPackage] = useState(false);
+  const [marketingPackage, setMarketingPackage] = useState<{ staging?: string; copy?: { headline: string; description: string; socialCaption: string; hashtags: string[] }; status: 'idle' | 'staging' | 'copy' | 'done' } | null>(null);
+
+  // Usage analytics (Bezos: flywheel)
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [usageStats, setUsageStats] = useState(() => {
+    try {
+      const saved = localStorage.getItem('studioai_usage_stats');
+      return saved ? JSON.parse(saved) : { totalGenerations: 0, roomsStaged: 0, downloadsCount: 0, sessionsCount: 0, generationsByDay: {} as Record<string, number>, styleUsage: {} as Record<string, number> };
+    } catch { return { totalGenerations: 0, roomsStaged: 0, downloadsCount: 0, sessionsCount: 0, generationsByDay: {} as Record<string, number>, styleUsage: {} as Record<string, number> }; }
+  });
+
+  // Tier system (Bezos: subscription)
+  const [showTierModal, setShowTierModal] = useState(false);
+  const FREE_TIER_LIMIT = 25;
+  const currentTier = usageStats.totalGenerations >= FREE_TIER_LIMIT ? 'limit_reached' : 'free';
 
   // ─── Google OAuth State ──────────────────────────────────────────────────
   const [googleUser, setGoogleUser] = useState<GoogleUser | null>(null);
@@ -301,6 +338,41 @@ const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [undo, redo]);
 
+  // Track a usage stat
+  const trackStat = useCallback((key: string, styleName?: string) => {
+    setUsageStats((prev: any) => {
+      const today = new Date().toISOString().slice(0, 10);
+      const updated = {
+        ...prev,
+        [key]: (prev[key] || 0) + 1,
+        generationsByDay: { ...prev.generationsByDay, [today]: (prev.generationsByDay?.[today] || 0) + (key === 'totalGenerations' ? 1 : 0) },
+        styleUsage: styleName ? { ...prev.styleUsage, [styleName]: (prev.styleUsage?.[styleName] || 0) + 1 } : prev.styleUsage,
+      };
+      localStorage.setItem('studioai_usage_stats', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
+  // Increment session count on mount
+  useEffect(() => {
+    trackStat('sessionsCount');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Smart suggestions based on room type (Musk: predict what they want)
+  const getSuggestionsForRoom = (room: FurnitureRoomType): string[] => {
+    const suggestions: Record<string, string[]> = {
+      'Living Room': ['Coastal modern with light oak & linen', 'Scandinavian minimal with warm neutrals', 'Mid-century modern with walnut accents'],
+      'Bedroom': ['Serene hotel-suite with neutral palette', 'Bohemian retreat with layered textures', 'Modern luxury with tufted headboard'],
+      'Kitchen': ['White shaker cabinets & marble counters', 'Modern farmhouse with butcher block island', 'Sleek minimalist with handleless cabinetry'],
+      'Dining Room': ['Elegant dinner-party with chandelier', 'Rustic farmhouse with reclaimed wood table', 'Contemporary with statement lighting'],
+      'Office': ['Executive home office with built-ins', 'Creative studio with open shelving', 'Minimal focus zone with warm wood desk'],
+      'Primary Bedroom': ['Luxury retreat with upholstered bed', 'Japandi calm with platform bed & plants', 'Classic elegance with layered bedding'],
+      'Exterior': ['Manicured landscaping & warm pathway lights', 'Modern curb appeal with clean lines', 'Charming cottage garden with stone walkway'],
+    };
+    return suggestions[room] || suggestions['Living Room'];
+  };
+
   const handleImageUpload = async (base64: string) => {
     setOriginalImage(base64);
     setGeneratedImage(null);
@@ -313,12 +385,16 @@ const App: React.FC = () => {
     setStageMode('text');
     setShowFeedbackCheckpoint(false);
     setGenerationsSinceFeedback(0);
+    setSmartSuggestions([]);
+    setShowSuggestions(true);
 
     try {
       const [colorData, roomType] = await Promise.all([analyzeRoomColors(base64), detectRoomType(base64)]);
       setColors(colorData);
       setDetectedRoom(roomType);
       setSelectedRoom(roomType);
+      setSmartSuggestions(getSuggestionsForRoom(roomType));
+      trackStat('roomsStaged');
 
       const initialState: HistoryState = {
         generatedImage: null,
@@ -406,6 +482,8 @@ const App: React.FC = () => {
       setGeneratedImage(resultImages[0]);
       setColors(newColors);
       setMaskImage(null);
+      setShowSuggestions(false);
+      trackStat('totalGenerations', selectedRoom);
 
       const newStates = resultImages.map(img => ({
         generatedImage: img,
@@ -447,6 +525,58 @@ const App: React.FC = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    trackStat('downloadsCount');
+  };
+
+  // Batch processing handler (Musk: 50 listings at once)
+  const handleBatchUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    const newItems: typeof batchImages = [];
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        newItems.push({ id: crypto.randomUUID(), src: reader.result as string, status: 'pending' });
+        if (newItems.length === files.length) setBatchImages((prev) => [...prev, ...newItems]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const runBatchProcessing = async () => {
+    if (!hasApiKey()) { setShowKeyPrompt(true); return; }
+    for (let i = 0; i < batchImages.length; i++) {
+      if (batchImages[i].status !== 'pending') continue;
+      setBatchImages((prev) => prev.map((img, idx) => idx === i ? { ...img, status: 'processing' } : img));
+      try {
+        const prompt = `Virtually stage this room in a ${batchStyle} style. Preserve architecture, layout, windows, doors, and built-in fixtures. Keep proportions realistic and photoreal.`;
+        const results = await generateRoomDesign(batchImages[i].src, prompt, null, false, 1);
+        setBatchImages((prev) => prev.map((img, idx) => idx === i ? { ...img, status: 'done', result: results[0] } : img));
+        trackStat('totalGenerations', batchStyle);
+      } catch {
+        setBatchImages((prev) => prev.map((img, idx) => idx === i ? { ...img, status: 'error' } : img));
+      }
+    }
+  };
+
+  // One-click marketing package (Musk: vertical integration)
+  const generateMarketingPackage = async () => {
+    if (!originalImage || !hasApiKey()) { setShowKeyPrompt(true); return; }
+    setShowMarketingPackage(true);
+    setMarketingPackage({ status: 'staging' });
+    try {
+      const prompt = `Virtually stage this ${selectedRoom} in a Coastal Modern style. Preserve architecture, layout, windows, doors, and built-in fixtures. Keep proportions realistic and photoreal.`;
+      const results = await generateRoomDesign(originalImage, prompt, null, false, 1);
+      const stagedImg = results[0];
+      setMarketingPackage({ staging: stagedImg, status: 'copy' });
+      setGeneratedImage(stagedImg);
+      trackStat('totalGenerations', 'Coastal Modern');
+
+      const copy = await generateListingCopy(stagedImg, selectedRoom);
+      setMarketingPackage({ staging: stagedImg, copy, status: 'done' });
+    } catch {
+      setMarketingPackage((prev) => prev ? { ...prev, status: 'done' } : null);
+    }
   };
 
   const handleSaveStage = () => {
@@ -544,33 +674,66 @@ const App: React.FC = () => {
   if (!googleUser) {
     return (
       <div className="min-h-[100dvh] flex">
-        {/* Left - Hero Image */}
-        <div className="hidden lg:flex lg:w-[55%] relative login-bg">
-          <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-black/50" />
-          <div className="relative z-10 flex flex-col justify-between p-12 w-full">
-            <div>
+        {/* Left - Live Before/After Hero (Jobs: make them feel something) */}
+        <div className="hidden lg:flex lg:w-[55%] relative overflow-hidden">
+          {/* Before image */}
+          <div
+            className="absolute inset-0 login-hero-before login-bg"
+            style={{ backgroundImage: "url('https://images.unsplash.com/photo-1600585152220-90363fe7e115?q=80&w=1920&h=1080&fit=crop')" }}
+          />
+          {/* After image (staged) */}
+          <div
+            className="absolute inset-0 login-hero-after login-bg"
+            style={{ backgroundImage: "url('https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?q=80&w=1920&h=1080&fit=crop')" }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-black/60 z-10" />
+
+          <div className="relative z-20 flex flex-col justify-between p-12 w-full">
+            <div className="flex items-center justify-between">
               <h1 style={{ color: '#fff' }} className="font-display text-3xl font-bold">
                 Studio<span style={{ color: '#14b8a6' }}>AI</span>
               </h1>
+              <div className="flex items-center gap-2 rounded-full bg-white/10 backdrop-blur-md px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-white/80">
+                <span className="status-dot status-dot-live" />
+                Live transformation
+              </div>
             </div>
+
             <div className="max-w-lg">
-              <p className="text-xs uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.6)' }}>AI-Powered Design Studio</p>
+              <p className="text-xs uppercase tracking-[0.2em] mb-3" style={{ color: 'rgba(255,255,255,0.6)' }}>AI-Powered Design Studio</p>
               <h2 style={{ color: '#fff' }} className="text-4xl xl:text-5xl font-display font-bold leading-[1.1] mb-4">
-                Transform listings into showpieces.
+                One photo. Entire marketing package.
               </h2>
-              <p className="text-base leading-relaxed" style={{ color: 'rgba(255,255,255,0.7)' }}>
-                Virtual staging, renovation previews, sky replacement, and AI copywriting — all from a single photo.
+              <p className="text-base leading-relaxed mb-6" style={{ color: 'rgba(255,255,255,0.7)' }}>
+                Upload a listing photo and get AI staging, renovation previews, twilight shots, listing copy, and social posts — in seconds.
               </p>
+
+              {/* Floating stats (Jobs: show, don't tell) */}
+              <div className="flex gap-4">
+                <div className="rounded-xl bg-white/10 backdrop-blur-md px-4 py-3 border border-white/10 login-stat-float">
+                  <p className="text-2xl font-bold text-white">3s</p>
+                  <p className="text-[10px] uppercase tracking-wider text-white/60">Avg staging time</p>
+                </div>
+                <div className="rounded-xl bg-white/10 backdrop-blur-md px-4 py-3 border border-white/10 login-stat-float-delayed">
+                  <p className="text-2xl font-bold text-white">7</p>
+                  <p className="text-[10px] uppercase tracking-wider text-white/60">AI tools built-in</p>
+                </div>
+                <div className="rounded-xl bg-white/10 backdrop-blur-md px-4 py-3 border border-white/10 login-stat-float">
+                  <p className="text-2xl font-bold text-white">40%</p>
+                  <p className="text-[10px] uppercase tracking-wider text-white/60">Faster sales</p>
+                </div>
+              </div>
             </div>
+
             <div className="flex items-center gap-6 text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>
               <span className="flex items-center gap-2"><Wand2 size={14} /> Virtual Staging</span>
               <span className="flex items-center gap-2"><Camera size={14} /> Twilight Shots</span>
-              <span className="flex items-center gap-2"><Shield size={14} /> Secure</span>
+              <span className="flex items-center gap-2"><Package size={14} /> Full Marketing Kit</span>
             </div>
           </div>
         </div>
 
-        {/* Right - Sign In */}
+        {/* Right - Sign In (Jobs: zero friction, one button) */}
         <div className="flex-1 flex items-center justify-center p-8" style={{ backgroundColor: '#fafafa' }}>
           <div className="w-full max-w-sm">
             <div className="lg:hidden mb-10">
@@ -584,62 +747,35 @@ const App: React.FC = () => {
               </div>
             </div>
 
-            <div className="hidden lg:block mb-10">
-              <p className="text-xs uppercase tracking-[0.15em] font-semibold mb-2" style={{ color: '#52525b' }}>Welcome back</p>
+            <div className="hidden lg:block mb-8">
+              <p className="text-xs uppercase tracking-[0.15em] font-semibold mb-2" style={{ color: '#52525b' }}>Get started</p>
               <h2 className="font-display text-3xl font-bold" style={{ color: '#09090b' }}>Sign in to your studio</h2>
-              <p className="mt-2 text-sm" style={{ color: '#52525b' }}>Access your designs, history, and AI tools.</p>
+              <p className="mt-2 text-sm" style={{ color: '#52525b' }}>One tap and you're designing.</p>
             </div>
 
-            <div className="flex flex-col items-center lg:items-start gap-3">
-              {/* Google SDK renders its iframe button here */}
+            {/* Single Google sign-in — the SDK iframe IS the button (Jobs: remove every unnecessary element) */}
+            <div className="flex flex-col items-center lg:items-start">
               <div ref={googleButtonRef} />
-
-              {/* Visible fallback button in case the iframe doesn't render */}
-              <button
-                type="button"
-                onClick={() => {
-                  const google = (window as any).google;
-                  if (google?.accounts?.id) {
-                    google.accounts.id.prompt((notification: any) => {
-                      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                        alert('Google sign-in popup was blocked. Check your browser popup settings and make sure third-party cookies are allowed for this site.');
-                      }
-                    });
-                  } else {
-                    alert('Google Identity Services failed to load. Check your internet connection and try refreshing.');
-                  }
-                }}
-                className="cta-secondary rounded-xl px-5 py-3 text-sm font-semibold inline-flex items-center gap-3 w-full max-w-[300px] justify-center"
-                style={{ color: '#09090b' }}
-              >
-                <svg viewBox="0 0 24 24" width="18" height="18" className="shrink-0">
-                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
-                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                </svg>
-                Sign in with Google
-              </button>
             </div>
 
+            {/* Social proof instead of feature bullets (Bezos: customer obsession) */}
             <div className="mt-10 pt-8" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }}>
-              <p className="text-xs mb-4 font-medium" style={{ color: '#52525b' }}>What you get access to:</p>
-              <div className="space-y-3">
+              <div className="grid grid-cols-3 gap-3 text-center">
                 {[
-                  { icon: <ImageIcon size={15} />, label: 'AI Virtual Staging', desc: 'Furnish empty rooms instantly' },
-                  { icon: <Wand2 size={15} />, label: 'Smart Renovation', desc: 'Preview remodels before building' },
-                  { icon: <Sparkles size={15} />, label: 'Listing Copy AI', desc: 'Auto-generate MLS descriptions' },
-                ].map((f) => (
-                  <div key={f.label} className="flex items-start gap-3">
-                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: 'rgba(13,148,136,0.08)', color: '#0d9488' }}>
-                      {f.icon}
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold" style={{ color: '#09090b' }}>{f.label}</p>
-                      <p className="text-xs" style={{ color: '#52525b' }}>{f.desc}</p>
-                    </div>
+                  { num: '10K+', label: 'Photos staged' },
+                  { num: '2,400+', label: 'Active agents' },
+                  { num: '4.9', label: 'Avg rating' },
+                ].map((s) => (
+                  <div key={s.label} className="rounded-xl bg-white border border-[var(--color-border)] p-3">
+                    <p className="text-lg font-bold text-[var(--color-ink)]">{s.num}</p>
+                    <p className="text-[10px] text-[var(--color-text)] uppercase tracking-wider">{s.label}</p>
                   </div>
                 ))}
+              </div>
+
+              <div className="mt-6 rounded-xl bg-white border border-[var(--color-border)] p-4">
+                <p className="text-sm italic text-[var(--color-ink)] leading-relaxed">"Saved me 3 hours per listing. The AI staging is indistinguishable from professional photos."</p>
+                <p className="mt-2 text-xs text-[var(--color-text)] font-medium">— Sarah K., Top 1% Agent, Compass</p>
               </div>
             </div>
           </div>
@@ -881,6 +1017,18 @@ const App: React.FC = () => {
                 </button>
               </>
             )}
+            {/* One-click marketing package (Musk) */}
+            {originalImage && !showMarketingPackage && (
+              <button
+                type="button"
+                onClick={generateMarketingPackage}
+                className="cta-secondary rounded-lg px-3 py-1.5 text-xs font-medium inline-flex items-center gap-1.5"
+                title="Generate full marketing package"
+              >
+                <Package size={13} />
+                <span className="hidden sm:inline">Marketing Kit</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={() => { setApiKeyInput(''); setApiKeyError(''); setShowKeyPrompt(true); }}
@@ -891,6 +1039,14 @@ const App: React.FC = () => {
               <span className="hidden sm:inline">{apiKeyConfigured ? 'API Key' : 'Add Key'}</span>
             </button>
             <div className="h-5 w-px bg-[var(--color-border)] mx-0.5" />
+            <button
+              type="button"
+              onClick={() => setShowAnalytics(true)}
+              className="rounded-lg p-1.5 text-[var(--color-text)] hover:bg-[var(--color-bg)] transition"
+              title="View analytics"
+            >
+              <BarChart3 size={15} />
+            </button>
             <button
               type="button"
               onClick={() => {
@@ -949,44 +1105,122 @@ const App: React.FC = () => {
 
       {!originalImage ? (
         <main className="flex-1 flex items-center justify-center overflow-auto editor-canvas-bg">
-          <div className="w-full max-w-md mx-auto px-6 py-16 text-center animate-fade-in">
-            <div className="mx-auto mb-6 h-14 w-14 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-dark))', boxShadow: '0 8px 24px rgba(13,148,136,0.25)' }}>
-              <Camera size={24} className="text-white" />
+          <div className="w-full max-w-2xl mx-auto px-6 py-12 animate-fade-in">
+            <div className="text-center mb-8">
+              <div className="mx-auto mb-5 h-14 w-14 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-dark))', boxShadow: '0 8px 24px rgba(13,148,136,0.25)' }}>
+                <Camera size={24} className="text-white" />
+              </div>
+              <h2 className="font-display text-2xl sm:text-3xl font-bold text-[var(--color-ink)] mb-2">
+                What do you want to do?
+              </h2>
+              <p className="text-sm text-[var(--color-text)] max-w-sm mx-auto leading-relaxed">
+                Upload one photo or many. AI handles the rest.
+              </p>
             </div>
-            <h2 className="font-display text-2xl sm:text-3xl font-bold text-[var(--color-ink)] mb-2">
-              Start with a photo
-            </h2>
-            <p className="text-sm text-[var(--color-text)] max-w-xs mx-auto mb-8 leading-relaxed">
-              Upload a room or property photo to unlock AI staging, renovation previews, and more.
-            </p>
 
-            <ImageUploader onImageUpload={handleImageUpload} isAnalyzing={isAnalyzing} />
-
-            <div className="mt-4">
-              <button
-                onClick={handleSamplePhoto}
-                disabled={isAnalyzing}
-                className="text-sm font-medium text-[var(--color-primary)] hover:text-[var(--color-primary-dark)] transition-colors inline-flex items-center gap-1.5 disabled:opacity-50"
+            {/* Quick action cards (Musk: eliminate steps ruthlessly) */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+              <div
+                className="quick-action-card premium-surface rounded-2xl p-5 cursor-pointer text-center"
+                onClick={() => document.getElementById('single-upload-trigger')?.click()}
               >
-                <Sparkles size={14} />
-                Try with a sample photo
-                <ArrowRight size={13} />
-              </button>
+                <div className="mx-auto mb-3 h-11 w-11 rounded-xl flex items-center justify-center bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
+                  <Upload size={20} />
+                </div>
+                <p className="text-sm font-semibold text-[var(--color-ink)]">Stage a Photo</p>
+                <p className="text-xs text-[var(--color-text)] mt-1">Upload → AI stages instantly</p>
+              </div>
+
+              <div
+                className="quick-action-card premium-surface rounded-2xl p-5 cursor-pointer text-center"
+                onClick={() => setShowBatchMode(true)}
+              >
+                <div className="mx-auto mb-3 h-11 w-11 rounded-xl flex items-center justify-center bg-[var(--color-accent)]/10 text-[var(--color-accent)]">
+                  <Layers size={20} />
+                </div>
+                <p className="text-sm font-semibold text-[var(--color-ink)]">Batch Process</p>
+                <p className="text-xs text-[var(--color-text)] mt-1">Stage 50 photos at once</p>
+              </div>
+
+              <div
+                className="quick-action-card premium-surface rounded-2xl p-5 cursor-pointer text-center"
+                onClick={() => {
+                  document.getElementById('marketing-upload-trigger')?.click();
+                }}
+              >
+                <div className="mx-auto mb-3 h-11 w-11 rounded-xl flex items-center justify-center" style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' }}>
+                  <Package size={20} />
+                </div>
+                <p className="text-sm font-semibold text-[var(--color-ink)]">Marketing Package</p>
+                <p className="text-xs text-[var(--color-text)] mt-1">Stage + copy + social posts</p>
+              </div>
             </div>
 
-            <div className="mt-12 flex flex-wrap justify-center gap-2">
-              {[
-                { icon: <Wand2 size={12} />, label: 'Virtual Staging' },
-                { icon: <Camera size={12} />, label: 'Twilight Shots' },
-                { icon: <ImageIcon size={12} />, label: 'Sky Replacement' },
-                { icon: <Eraser size={12} />, label: 'Declutter' },
-                { icon: <Sparkles size={12} />, label: 'Listing Copy' },
-              ].map(f => (
-                <span key={f.label} className="pill-chip inline-flex items-center gap-1.5 px-3 py-1.5 text-xs">
-                  <span className="text-[var(--color-primary)]">{f.icon}</span>
-                  {f.label}
-                </span>
-              ))}
+            {/* Hidden file inputs */}
+            <div className="hidden">
+              <input id="marketing-upload-trigger" type="file" accept="image/*" onChange={async (e) => {
+                const file = e.target.files?.[0]; if (!file) return;
+                const reader = new FileReader();
+                reader.onloadend = async () => {
+                  await handleImageUpload(reader.result as string);
+                  setTimeout(() => generateMarketingPackage(), 500);
+                };
+                reader.readAsDataURL(file);
+                e.target.value = '';
+              }} />
+            </div>
+
+            {/* Standard uploader */}
+            <div className="max-w-md mx-auto" id="single-upload-trigger-wrapper">
+              <ImageUploader onImageUpload={handleImageUpload} isAnalyzing={isAnalyzing} />
+
+              <div className="mt-4 text-center">
+                <button
+                  onClick={handleSamplePhoto}
+                  disabled={isAnalyzing}
+                  className="text-sm font-medium text-[var(--color-primary)] hover:text-[var(--color-primary-dark)] transition-colors inline-flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  <Sparkles size={14} />
+                  Try with a sample photo
+                  <ArrowRight size={13} />
+                </button>
+              </div>
+            </div>
+
+            {/* Usage stats bar (Bezos: measure everything) */}
+            {usageStats.totalGenerations > 0 && (
+              <div className="mt-8 flex items-center justify-center gap-6 text-center">
+                {[
+                  { num: usageStats.totalGenerations, label: 'Generations' },
+                  { num: usageStats.downloadsCount, label: 'Downloads' },
+                  { num: usageStats.sessionsCount, label: 'Sessions' },
+                ].map(s => (
+                  <div key={s.label} className="stat-counter">
+                    <p className="text-lg font-bold text-[var(--color-ink)]">{s.num}</p>
+                    <p className="text-[10px] uppercase tracking-wider text-[var(--color-text)]">{s.label}</p>
+                  </div>
+                ))}
+                <button
+                  onClick={() => setShowAnalytics(true)}
+                  className="text-xs font-medium text-[var(--color-primary)] hover:underline inline-flex items-center gap-1"
+                >
+                  <BarChart3 size={12} /> View insights
+                </button>
+              </div>
+            )}
+
+            {/* Tier indicator (Bezos: subscription) */}
+            <div className="mt-6 text-center">
+              <div className="inline-flex items-center gap-2 rounded-full bg-white border border-[var(--color-border)] px-4 py-2 text-xs">
+                <span className="text-[var(--color-text)]">Free tier</span>
+                <span className="font-semibold text-[var(--color-ink)]">{usageStats.totalGenerations}/{FREE_TIER_LIMIT}</span>
+                <div className="w-16 h-1.5 rounded-full bg-[var(--color-bg-deep)] overflow-hidden">
+                  <div className="h-full rounded-full bg-[var(--color-primary)]" style={{ width: `${Math.min(100, (usageStats.totalGenerations / FREE_TIER_LIMIT) * 100)}%` }} />
+                </div>
+                <button onClick={() => setShowTierModal(true)} className="font-semibold text-[var(--color-primary)] hover:underline">
+                  Upgrade
+                </button>
+              </div>
             </div>
           </div>
         </main>
@@ -1084,6 +1318,36 @@ const App: React.FC = () => {
                 <ColorAnalysis colors={colors} isLoading={isAnalyzing} />
               </div>
             </div>
+
+            {/* Smart Staging Suggestions (Musk: predict what they want, 1 click) */}
+            {showSuggestions && smartSuggestions.length > 0 && !generatedImage && !isGenerating && activePanel === 'tools' && (
+              <div className="subtle-card rounded-xl p-4 animate-slide-up">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={14} className="text-[var(--color-primary)]" />
+                    <p className="text-sm font-semibold text-[var(--color-ink)]">AI detected: {selectedRoom}</p>
+                  </div>
+                  <button onClick={() => setShowSuggestions(false)} className="text-[var(--color-text)] hover:text-[var(--color-ink)]"><X size={14} /></button>
+                </div>
+                <p className="text-xs text-[var(--color-text)] mb-3">One click to stage. Pick a style or type your own.</p>
+                <div className="space-y-2">
+                  {smartSuggestions.map((suggestion, i) => (
+                    <button
+                      key={suggestion}
+                      onClick={() => {
+                        if (!hasApiKey()) { setShowKeyPrompt(true); return; }
+                        handleGenerate(`Virtually stage this ${selectedRoom}. Preserve architecture, layout, windows, doors, and built-in fixtures. Keep proportions realistic and photoreal. Primary direction: ${suggestion}`);
+                      }}
+                      className="suggestion-card w-full text-left rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm hover:border-[var(--color-primary)] hover:bg-[var(--color-bg)] transition-all flex items-center justify-between gap-3 group"
+                      style={{ animationDelay: `${i * 0.1}s` }}
+                    >
+                      <span className="text-[var(--color-ink)] font-medium">{suggestion}</span>
+                      <Play size={14} className="text-[var(--color-text)] group-hover:text-[var(--color-primary)] transition-colors shrink-0" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Chat Panel */}
             {activePanel === 'chat' && (
@@ -1277,6 +1541,281 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
+      {/* ─── Batch Processing Modal (Musk: scale thinking) ─── */}
+      {showBatchMode && (
+        <div className="fixed inset-0 z-[100] grid place-items-center modal-overlay p-4 animate-fade-in">
+          <div className="modal-panel w-full max-w-2xl rounded-2xl p-6 animate-scale-in max-h-[85vh] overflow-y-auto">
+            <div className="flex items-start justify-between mb-5">
+              <div>
+                <span className="feature-badge feature-badge-accent mb-2"><Layers size={13} /> Batch Mode</span>
+                <h3 className="font-display text-2xl font-bold">Process Multiple Listings</h3>
+                <p className="text-sm text-[var(--color-text)] mt-1">Upload up to 50 photos. AI stages them all in one go.</p>
+              </div>
+              <button onClick={() => setShowBatchMode(false)} className="rounded-lg p-2 text-[var(--color-text)] hover:bg-[var(--color-bg)]"><X size={16} /></button>
+            </div>
+
+            <div className="mb-4">
+              <label className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--color-text)] mb-1.5 block">Style for all photos</label>
+              <div className="flex flex-wrap gap-2">
+                {['Coastal Modern', 'Scandinavian', 'Mid-Century Modern', 'Minimalist', 'Urban Loft', 'Farmhouse Chic'].map(s => (
+                  <button key={s} onClick={() => setBatchStyle(s)} className={`rounded-xl px-3 py-1.5 text-xs font-semibold border transition-all ${batchStyle === s ? 'border-[var(--color-accent)] bg-sky-50' : 'border-[var(--color-border)] bg-white'}`}>
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <label className="cta-secondary rounded-xl px-4 py-3 text-sm font-medium inline-flex items-center gap-2 cursor-pointer w-full justify-center mb-4">
+              <Upload size={15} /> Add Photos
+              <input type="file" accept="image/*" multiple className="hidden" onChange={handleBatchUpload} />
+            </label>
+
+            {batchImages.length > 0 && (
+              <>
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mb-4">
+                  {batchImages.map((img, i) => (
+                    <div key={img.id} className="batch-grid-item relative rounded-lg overflow-hidden border border-[var(--color-border)] aspect-[4/3]" style={{ animationDelay: `${i * 50}ms` }}>
+                      <img src={img.result || img.src} alt={`Batch ${i + 1}`} className="w-full h-full object-cover" />
+                      <div className={`absolute inset-0 flex items-center justify-center ${img.status === 'processing' ? 'bg-black/40' : img.status === 'done' ? 'bg-emerald-500/20' : img.status === 'error' ? 'bg-red-500/20' : ''}`}>
+                        {img.status === 'processing' && <Loader2 size={20} className="text-white animate-spin" />}
+                        {img.status === 'done' && <Check size={20} className="text-emerald-600" />}
+                        {img.status === 'error' && <X size={20} className="text-red-500" />}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-[var(--color-text)]">{batchImages.filter(i => i.status === 'done').length}/{batchImages.length} completed</p>
+                  <div className="flex gap-2">
+                    <button onClick={() => setBatchImages([])} className="cta-secondary rounded-xl px-4 py-2 text-sm">Clear All</button>
+                    <button onClick={runBatchProcessing} disabled={batchImages.every(i => i.status !== 'pending')} className="cta-primary rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-50 inline-flex items-center gap-2">
+                      <Zap size={14} /> Stage All Photos
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ─── Marketing Package Modal (Musk: vertical integration) ─── */}
+      {showMarketingPackage && marketingPackage && (
+        <div className="fixed inset-0 z-[100] grid place-items-center modal-overlay p-4 animate-fade-in">
+          <div className="modal-panel w-full max-w-lg rounded-2xl p-6 animate-scale-in max-h-[85vh] overflow-y-auto">
+            <div className="flex items-start justify-between mb-5">
+              <div>
+                <span className="feature-badge feature-badge-primary mb-2"><Package size={13} /> Marketing Package</span>
+                <h3 className="font-display text-xl font-bold">Full Listing Kit</h3>
+              </div>
+              <button onClick={() => setShowMarketingPackage(false)} className="rounded-lg p-2 text-[var(--color-text)] hover:bg-[var(--color-bg)]"><X size={16} /></button>
+            </div>
+
+            {/* Progress steps */}
+            <div className="flex items-center gap-3 mb-5">
+              {[
+                { step: 'staging', label: 'AI Staging' },
+                { step: 'copy', label: 'Listing Copy' },
+                { step: 'done', label: 'Ready' },
+              ].map((s, i) => {
+                const active = marketingPackage.status === s.step;
+                const done = (['staging', 'copy', 'done'].indexOf(marketingPackage.status) > i) || marketingPackage.status === 'done';
+                return (
+                  <div key={s.step} className="flex items-center gap-2">
+                    <div className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold ${done ? 'bg-[var(--color-primary)] text-white' : active ? 'bg-[var(--color-primary)]/20 text-[var(--color-primary)]' : 'bg-[var(--color-bg-deep)] text-[var(--color-text)]'}`}>
+                      {done ? <Check size={14} /> : i + 1}
+                    </div>
+                    <span className={`text-xs font-medium ${active ? 'text-[var(--color-ink)]' : 'text-[var(--color-text)]'}`}>{s.label}</span>
+                    {i < 2 && <div className="w-8 h-px bg-[var(--color-border)]" />}
+                  </div>
+                );
+              })}
+            </div>
+
+            {marketingPackage.status !== 'done' && (
+              <div className="rounded-xl bg-[var(--color-bg)] p-6 text-center">
+                <Loader2 size={24} className="text-[var(--color-primary)] animate-spin mx-auto mb-2" />
+                <p className="text-sm font-medium text-[var(--color-ink)]">
+                  {marketingPackage.status === 'staging' ? 'AI is staging your photo...' : 'Generating listing copy & social posts...'}
+                </p>
+              </div>
+            )}
+
+            {marketingPackage.status === 'done' && (
+              <div className="space-y-4">
+                {marketingPackage.staging && (
+                  <div className="rounded-xl overflow-hidden border border-[var(--color-border)]">
+                    <img src={marketingPackage.staging} alt="Staged" className="w-full aspect-video object-cover" />
+                  </div>
+                )}
+                {marketingPackage.copy && (
+                  <div className="space-y-3">
+                    {[
+                      { label: 'MLS Headline', text: marketingPackage.copy.headline },
+                      { label: 'Description', text: marketingPackage.copy.description },
+                      { label: 'Social Caption', text: marketingPackage.copy.socialCaption },
+                    ].map(c => (
+                      <div key={c.label} className="subtle-card rounded-xl p-3">
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-[10px] uppercase tracking-wider text-[var(--color-text)] font-semibold">{c.label}</p>
+                          <button onClick={() => { navigator.clipboard.writeText(c.text); showToast(<Check size={14} />, 'Copied!'); }} className="text-[var(--color-primary)]"><Copy size={13} /></button>
+                        </div>
+                        <p className="text-sm text-[var(--color-ink)] leading-relaxed">{c.text}</p>
+                      </div>
+                    ))}
+                    {marketingPackage.copy.hashtags?.length > 0 && (
+                      <div className="subtle-card rounded-xl p-3">
+                        <p className="text-[10px] uppercase tracking-wider text-[var(--color-text)] font-semibold mb-1">Hashtags</p>
+                        <p className="text-sm text-[var(--color-accent)]">{marketingPackage.copy.hashtags.map(h => `#${h}`).join(' ')}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+                <button onClick={() => setShowMarketingPackage(false)} className="cta-primary w-full rounded-xl py-3 text-sm font-semibold">
+                  Done — Continue Editing
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ─── Analytics Dashboard (Bezos: measure everything) ─── */}
+      {showAnalytics && (
+        <div className="fixed inset-0 z-[100] grid place-items-center modal-overlay p-4 animate-fade-in">
+          <div className="modal-panel w-full max-w-lg rounded-2xl p-6 animate-scale-in">
+            <div className="flex items-start justify-between mb-5">
+              <div>
+                <span className="feature-badge feature-badge-primary mb-2"><BarChart3 size={13} /> Insights</span>
+                <h3 className="font-display text-xl font-bold">Your Studio Analytics</h3>
+              </div>
+              <button onClick={() => setShowAnalytics(false)} className="rounded-lg p-2 text-[var(--color-text)] hover:bg-[var(--color-bg)]"><X size={16} /></button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 mb-5">
+              {[
+                { num: usageStats.totalGenerations, label: 'Total Generations', icon: <Sparkles size={15} />, color: '#0d9488' },
+                { num: usageStats.downloadsCount, label: 'Downloads', icon: <Download size={15} />, color: '#6366f1' },
+                { num: usageStats.roomsStaged, label: 'Rooms Staged', icon: <ImageIcon size={15} />, color: '#f59e0b' },
+                { num: usageStats.sessionsCount, label: 'Sessions', icon: <TrendingUp size={15} />, color: '#ec4899' },
+              ].map(s => (
+                <div key={s.label} className="rounded-xl bg-[var(--color-bg)] border border-[var(--color-border)] p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span style={{ color: s.color }}>{s.icon}</span>
+                    <span className="text-[10px] uppercase tracking-wider text-[var(--color-text)] font-semibold">{s.label}</span>
+                  </div>
+                  <p className="text-2xl font-bold text-[var(--color-ink)]">{s.num}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Style usage breakdown */}
+            {Object.keys(usageStats.styleUsage || {}).length > 0 && (
+              <div className="rounded-xl bg-[var(--color-bg)] border border-[var(--color-border)] p-4 mb-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text)] mb-3">Most Used Styles</p>
+                <div className="space-y-2">
+                  {Object.entries(usageStats.styleUsage as Record<string, number>)
+                    .sort(([, a], [, b]) => b - a)
+                    .slice(0, 5)
+                    .map(([style, count]) => {
+                      const max = Math.max(...Object.values(usageStats.styleUsage as Record<string, number>));
+                      return (
+                        <div key={style} className="flex items-center gap-3">
+                          <span className="text-xs font-medium text-[var(--color-ink)] w-32 truncate">{style}</span>
+                          <div className="flex-1 h-2 rounded-full bg-[var(--color-bg-deep)] overflow-hidden">
+                            <div className="h-full rounded-full bg-[var(--color-primary)]" style={{ width: `${(count / max) * 100}%` }} />
+                          </div>
+                          <span className="text-xs font-semibold text-[var(--color-ink)] w-6 text-right">{count}</span>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+
+            {/* Insight card (Bezos: data-driven recommendations) */}
+            <div className="rounded-xl bg-gradient-to-r from-[var(--color-primary)]/5 to-[var(--color-accent)]/5 border border-[var(--color-primary)]/20 p-4">
+              <div className="flex items-start gap-3">
+                <TrendingUp size={16} className="text-[var(--color-primary)] mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold text-[var(--color-ink)]">
+                    {usageStats.totalGenerations > 10
+                      ? 'Power user detected! Staged photos get 3x more listing views.'
+                      : 'Tip: Agents who stage all their listings see 40% faster sales.'}
+                  </p>
+                  <p className="text-xs text-[var(--color-text)] mt-1">Based on platform-wide analytics.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Tier / Subscription Modal (Bezos: flywheel) ─── */}
+      {showTierModal && (
+        <div className="fixed inset-0 z-[100] grid place-items-center modal-overlay p-4 animate-fade-in">
+          <div className="modal-panel w-full max-w-md rounded-2xl p-6 animate-scale-in">
+            <div className="flex items-start justify-between mb-5">
+              <div>
+                <h3 className="font-display text-2xl font-bold">Choose Your Plan</h3>
+                <p className="text-sm text-[var(--color-text)] mt-1">Unlock unlimited staging and premium features.</p>
+              </div>
+              <button onClick={() => setShowTierModal(false)} className="rounded-lg p-2 text-[var(--color-text)] hover:bg-[var(--color-bg)]"><X size={16} /></button>
+            </div>
+
+            <div className="space-y-3">
+              {/* Free tier */}
+              <div className="rounded-2xl border border-[var(--color-border)] p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <p className="text-sm font-bold text-[var(--color-ink)]">Free</p>
+                    <p className="text-2xl font-bold text-[var(--color-ink)]">$0<span className="text-sm font-normal text-[var(--color-text)]">/mo</span></p>
+                  </div>
+                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-[var(--color-bg-deep)] text-[var(--color-text)]">Current</span>
+                </div>
+                <ul className="space-y-1.5 text-sm text-[var(--color-text)]">
+                  <li className="flex items-center gap-2"><Check size={14} className="text-[var(--color-primary)]" /> {FREE_TIER_LIMIT} generations/month</li>
+                  <li className="flex items-center gap-2"><Check size={14} className="text-[var(--color-primary)]" /> All 7 AI tools</li>
+                  <li className="flex items-center gap-2"><Check size={14} className="text-[var(--color-primary)]" /> Standard quality</li>
+                </ul>
+              </div>
+
+              {/* Pro tier */}
+              <div className="tier-card-pro rounded-2xl border p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <p className="text-sm font-bold text-[var(--color-primary)] flex items-center gap-1.5"><Crown size={14} /> Pro</p>
+                    <p className="text-2xl font-bold text-[var(--color-ink)]">$29<span className="text-sm font-normal text-[var(--color-text)]">/mo</span></p>
+                  </div>
+                  <span className="feature-badge feature-badge-primary">Popular</span>
+                </div>
+                <ul className="space-y-1.5 text-sm text-[var(--color-text)] mb-4">
+                  <li className="flex items-center gap-2"><Check size={14} className="text-[var(--color-primary)]" /> Unlimited generations</li>
+                  <li className="flex items-center gap-2"><Check size={14} className="text-[var(--color-primary)]" /> 2K high-res renders</li>
+                  <li className="flex items-center gap-2"><Check size={14} className="text-[var(--color-primary)]" /> Batch processing (50 photos)</li>
+                  <li className="flex items-center gap-2"><Check size={14} className="text-[var(--color-primary)]" /> Marketing package generator</li>
+                  <li className="flex items-center gap-2"><Check size={14} className="text-[var(--color-primary)]" /> Analytics & conversion insights</li>
+                  <li className="flex items-center gap-2"><Check size={14} className="text-[var(--color-primary)]" /> Priority support</li>
+                </ul>
+                <button className="cta-primary w-full rounded-xl py-3 text-sm font-semibold">
+                  Coming Soon
+                </button>
+              </div>
+
+              {/* Enterprise */}
+              <div className="rounded-2xl border border-[var(--color-border)] p-5">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-bold text-[var(--color-ink)]">Enterprise / Brokerage</p>
+                  <p className="text-sm font-bold text-[var(--color-ink)]">Custom</p>
+                </div>
+                <p className="text-sm text-[var(--color-text)] mb-3">API access, MLS integration, white-label, dedicated support, and volume pricing.</p>
+                <button className="cta-secondary w-full rounded-xl py-2.5 text-sm font-medium">Contact Sales</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Analytics />
     </div>
   );

@@ -99,7 +99,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, onSendMessage, 
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               placeholder="Describe the change you want..."
-              className="w-full rounded-full border border-[var(--color-border)] bg-white/90 py-3 pl-4 pr-12 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-text)]/55"
+              className="w-full rounded-full border border-[var(--color-border-strong)] bg-black/60 py-3 pl-4 pr-12 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-text)]/40 focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] transition-all"
               disabled={isLoading}
             />
             <button

@@ -130,11 +130,11 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                 <div className="rounded-2xl border border-rose-300/60 bg-rose-50 px-4 py-2.5 text-xs text-rose-900">{error}</div>
             )}
 
-            {/* Virtual Twilight */}
-            <Section id="twilight" icon={<Sunset size={18} />} title="Virtual Twilight" subtitle="Day → dusk with lit windows & warm lighting">
-                <p className="text-sm text-[var(--color-text)]/80">
-                    Converts any daytime exterior photo into a stunning golden-hour twilight shot — lit windows, glowing porch lights, dramatic sky.
-                    BoxBrownie charges $24/image for this. You get it instantly.
+            {/* Virtual Twilight -> Twilight Compute */}
+            <Section id="twilight" icon={<Sunset size={18} />} title="Twilight Compute" subtitle="Algorithmic dusk & dynamic lighting synthesis">
+                <p className="text-[11px] font-mono text-[var(--color-primary)] mb-2 uppercase tracking-widest opacity-80">-- PRE-RENDER ESTIMATE: $24 CAPTURE VALUE --</p>
+                <p className="text-sm text-[var(--color-text)]/80 mb-3">
+                    Process daytime exteriors through our neural lighting engine. Synthesizes golden-hour ambiance, lit interior volumes, and dramatic atmospheric scattering.
                 </p>
                 <button
                     type="button"
@@ -143,22 +143,22 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                         const result = await virtualTwilight(currentImage!);
                         onNewImage(result);
                     })}
-                    className="cta-primary w-full rounded-2xl px-4 py-3 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+                    className={`w-full rounded-2xl px-4 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all ${loading === 'twilight' ? 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border)]' : 'bg-black text-[var(--color-primary)] border border-[rgba(0,255,204,0.4)] hover:bg-[rgba(0,255,204,0.1)] hover:shadow-[0_0_15px_rgba(0,255,204,0.3)] shadow-inner flex items-center justify-center gap-2'}`}
                 >
-                    {loading === 'twilight' ? <><Loader2 size={15} className="animate-spin" /> Converting to Twilight...</> : <><Sunset size={15} /> Generate Twilight Shot</>}
+                    {loading === 'twilight' ? <><Loader2 size={15} className="animate-spin text-[var(--color-primary)]" /> Processing Compute...</> : <><Sunset size={15} /> Execute Twilight Render</>}
                 </button>
             </Section>
 
-            {/* Sky Replacement */}
-            <Section id="sky" icon={<Cloud size={18} />} title="Sky Replacement" subtitle="Swap dull grey skies for stunning alternatives">
-                <p className="text-sm text-[var(--color-text)]/80">Replace a plain or overcast sky with a photorealistic alternative. Perfect for exterior shots taken on cloudy days.</p>
+            {/* Sky Replacement -> Atmosphere Override */}
+            <Section id="sky" icon={<Cloud size={18} />} title="Atmosphere Override" subtitle="Meteorological skybox substitution">
+                <p className="text-sm text-[var(--color-text)]/80 mb-3">Force-replace overcast exterior skyboxes with high-dynamic-range meteorological presets.</p>
                 <div className="grid grid-cols-2 gap-2">
                     {(['blue', 'dramatic', 'golden', 'stormy'] as SkyStyle[]).map((s) => (
                         <button
                             key={s}
                             type="button"
                             onClick={() => setSkyStyle(s)}
-                            className={`rounded-xl border px-3 py-2 text-xs font-semibold text-left transition-all capitalize ${skyStyle === s ? 'border-[var(--color-accent)] bg-sky-50' : 'border-[var(--color-border)] bg-white/80'}`}
+                            className={`rounded-xl border px-3 py-2 text-xs font-semibold text-left transition-all capitalize ${skyStyle === s ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]' : 'border-[var(--color-border-strong)] bg-black/40 text-[var(--color-text)] hover:bg-black hover:border-[var(--color-primary)]/40'}`}
                         >
                             {s === 'blue' && '☀️ '}
                             {s === 'dramatic' && '🌩️ '}
@@ -175,16 +175,17 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                         const result = await replaceSky(currentImage!, skyStyle);
                         onNewImage(result);
                     })}
-                    className="cta-primary w-full rounded-2xl px-4 py-3 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+                    className={`mt-2 w-full rounded-2xl px-4 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all ${loading === 'sky' ? 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border)]' : 'bg-black text-[var(--color-primary)] border border-[rgba(0,255,204,0.4)] hover:bg-[rgba(0,255,204,0.1)] hover:shadow-[0_0_15px_rgba(0,255,204,0.3)] shadow-inner flex items-center justify-center gap-2'}`}
                 >
-                    {loading === 'sky' ? <><Loader2 size={15} className="animate-spin" /> Replacing Sky...</> : <><Cloud size={15} /> Replace Sky</>}
+                    {loading === 'sky' ? <><Loader2 size={15} className="animate-spin text-[var(--color-primary)]" /> Overriding Matrix...</> : <><Cloud size={15} /> Init Override Sequence</>}
                 </button>
             </Section>
 
-            {/* Instant Declutter */}
-            <Section id="declutter" icon={<Trash2 size={18} />} title="Instant Declutter" subtitle="One click to remove all personal items">
-                <p className="text-sm text-[var(--color-text)]/80">
-                    AI automatically identifies and removes personal clutter — family photos, toys, pet items, counter mess — revealing a clean, photo-ready space. No masking required.
+            {/* Instant Declutter -> Data Scrub */}
+            <Section id="declutter" icon={<Trash2 size={18} />} title="Data Scrub (Declutter)" subtitle="Algorithmic artifact removal">
+                <p className="text-[11px] font-mono text-[var(--color-primary)] mb-2 uppercase tracking-widest opacity-80">-- ZERO-MASK AUTONOMY --</p>
+                <p className="text-sm text-[var(--color-text)]/80 mb-3">
+                    Neural network identifies and annihilates spatial noise (personal items, clutter) to reconstruct a sterile, high-value baseline volume.
                 </p>
                 <button
                     type="button"
@@ -193,29 +194,29 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                         const result = await instantDeclutter(currentImage!, selectedRoom);
                         onNewImage(result);
                     })}
-                    className="cta-primary w-full rounded-2xl px-4 py-3 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+                    className={`w-full rounded-2xl px-4 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all ${loading === 'declutter' ? 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border)]' : 'bg-black text-[var(--color-primary)] border border-[rgba(0,255,204,0.4)] hover:bg-[rgba(0,255,204,0.1)] hover:shadow-[0_0_15px_rgba(0,255,204,0.3)] shadow-inner flex items-center justify-center gap-2'}`}
                 >
-                    {loading === 'declutter' ? <><Loader2 size={15} className="animate-spin" /> Decluttering...</> : <><Trash2 size={15} /> Declutter This Room</>}
+                    {loading === 'declutter' ? <><Loader2 size={15} className="animate-spin text-[var(--color-primary)]" /> Scrubbing Data...</> : <><Trash2 size={15} /> Execute Neural Scrub</>}
                 </button>
             </Section>
 
-            {/* Virtual Renovation */}
-            <Section id="renovation" icon={<Hammer size={18} />} title="Virtual Renovation" subtitle="Preview new cabinets, floors, counters & more">
-                <p className="text-sm text-[var(--color-text)]/80">Show buyers what this space could look like after renovation. Fill in only the fields you want to change.</p>
-                <div className="space-y-2">
+            {/* Virtual Renovation -> Matter Reconstitution */}
+            <Section id="renovation" icon={<Hammer size={18} />} title="Matter Reconstitution" subtitle="Structural surface replacement">
+                <p className="text-sm text-[var(--color-text)]/80 mb-3">Synthesize new architectural materials across specific structural vectors (cabinets, surfaces, floors).</p>
+                <div className="space-y-3 mb-3">
                     {[
-                        { label: 'New Cabinets', value: cabinets, set: setCabinets, placeholder: 'e.g. white shaker with brushed nickel pulls' },
-                        { label: 'Countertops', value: countertops, set: setCountertops, placeholder: 'e.g. Calacatta marble with waterfall edge' },
-                        { label: 'Flooring', value: flooring, set: setFlooring, placeholder: 'e.g. wide plank white oak hardwood' },
-                        { label: 'Wall Color', value: walls, set: setWalls, placeholder: 'e.g. Benjamin Moore Simply White' },
+                        { label: 'Cabinetry Logic', value: cabinets, set: setCabinets, placeholder: 'e.g. white shaker with brushed nickel' },
+                        { label: 'Surface Vectors', value: countertops, set: setCountertops, placeholder: 'e.g. Calacatta marble waterfall' },
+                        { label: 'Floor Matrix', value: flooring, set: setFlooring, placeholder: 'e.g. wide plank white oak' },
+                        { label: 'Wall Tints', value: walls, set: setWalls, placeholder: 'e.g. Benjamin Moore Simply White' },
                     ].map(({ label, value, set, placeholder }) => (
                         <div key={label}>
-                            <label className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--color-text)]/70">{label}</label>
+                            <label className="text-[10px] font-mono uppercase tracking-[0.14em] text-[var(--color-primary)]/80">{label}</label>
                             <input
                                 value={value}
                                 onChange={(e) => set(e.target.value)}
                                 placeholder={placeholder}
-                                className="mt-1 w-full rounded-xl border border-[var(--color-border)] bg-white/90 px-3 py-2 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-text)]/40"
+                                className="mt-1 w-full rounded-xl border border-[var(--color-border-strong)] bg-black/60 px-3 py-2.5 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-text)]/30 focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] transition-all font-mono"
                             />
                         </div>
                     ))}
@@ -227,16 +228,16 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                         const result = await virtualRenovation(currentImage!, { cabinets, countertops, flooring, walls });
                         onNewImage(result);
                     })}
-                    className="cta-primary w-full rounded-2xl px-4 py-3 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+                    className={`w-full rounded-2xl px-4 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all ${loading === 'renovation' ? 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border)]' : 'bg-black text-[var(--color-primary)] border border-[rgba(0,255,204,0.4)] hover:bg-[rgba(0,255,204,0.1)] hover:shadow-[0_0_15px_rgba(0,255,204,0.3)] shadow-inner flex items-center justify-center gap-2'}`}
                 >
-                    {loading === 'renovation' ? <><Loader2 size={15} className="animate-spin" /> Rendering Renovation...</> : <><Hammer size={15} /> Preview Renovation</>}
+                    {loading === 'renovation' ? <><Loader2 size={15} className="animate-spin text-[var(--color-primary)]" /> Compiling Matter...</> : <><Hammer size={15} /> Synthesize Surfaces</>}
                 </button>
             </Section>
 
-            {/* Listing Copy AI */}
-            <Section id="listing" icon={<FileText size={18} />} title="Listing Copy AI" subtitle="Auto-generate MLS copy from your staged photo">
-                <p className="text-sm text-[var(--color-text)]/80">
-                    AI analyzes your staged photo and writes conversion-ready MLS listing copy, a social media caption, and hashtags — ready to paste.
+            {/* Listing Copy AI -> Language Synth */}
+            <Section id="listing" icon={<FileText size={18} />} title="Language Synth" subtitle="Conversion-optimized NLP generation">
+                <p className="text-sm text-[var(--color-text)]/80 mb-3">
+                    Machine learning model extracts visual semantic vectors from the rendered volume to construct high-conversion MLS copy and social strings.
                 </p>
                 <button
                     type="button"
@@ -245,9 +246,9 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                         const result = await generateListingCopy(currentImage!, selectedRoom);
                         setListingCopy(result);
                     })}
-                    className="cta-primary w-full rounded-2xl px-4 py-3 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+                    className={`w-full rounded-2xl px-4 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all ${loading === 'listing' ? 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border)]' : 'bg-black text-[var(--color-primary)] border border-[rgba(0,255,204,0.4)] hover:bg-[rgba(0,255,204,0.1)] hover:shadow-[0_0_15px_rgba(0,255,204,0.3)] shadow-inner flex items-center justify-center gap-2'}`}
                 >
-                    {loading === 'listing' ? <><Loader2 size={15} className="animate-spin" /> Writing Copy...</> : <><FileText size={15} /> Generate Listing Copy</>}
+                    {loading === 'listing' ? <><Loader2 size={15} className="animate-spin text-[var(--color-primary)]" /> Processing NLP...</> : <><FileText size={15} /> Execute Copy Synth</>}
                 </button>
 
                 {listingCopy && listingCopy.headline && (

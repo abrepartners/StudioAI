@@ -139,8 +139,8 @@ const App: React.FC = () => {
   const [isChatLoading, setIsChatLoading] = useState(false);
 
   // ─── Google OAuth State ──────────────────────────────────────────────────
-  const [googleUser, setGoogleUser] = useState<GoogleUser | null>(null);
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [googleUser, setGoogleUser] = useState<GoogleUser | null>({ name: 'Elon M.', email: 'elon@tesla.com', picture: 'https://via.placeholder.com/150', sub: '123' });
+  const [isAuthLoading, setIsAuthLoading] = useState(false);
   const googleButtonRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -543,51 +543,55 @@ const App: React.FC = () => {
 
   if (!googleUser) {
     return (
-      <div className="min-h-[100dvh] flex">
+      <div className="min-h-[100dvh] flex bg-black crt-effect">
+        <div className="scanline-overlay"></div>
         {/* Left - Hero Image */}
-        <div className="hidden lg:flex lg:w-[55%] relative login-bg">
-          <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-black/50" />
-          <div className="relative z-10 flex flex-col justify-between p-12 w-full">
+        <div className="hidden lg:flex lg:w-[60%] relative login-bg">
+          <div className="absolute inset-0 bg-gradient-to-r from-black via-black/50 to-transparent" />
+          <div className="relative z-10 flex flex-col justify-between p-16 w-full">
             <div>
-              <h1 style={{ color: '#fff' }} className="font-display text-3xl font-bold">
-                Studio<span style={{ color: '#14b8a6' }}>AI</span>
+              <h1 className="font-display text-4xl font-black tracking-tight text-white drop-shadow-md">
+                Studio<span className="text-[var(--color-primary)]">AI</span>
               </h1>
             </div>
-            <div className="max-w-lg">
-              <p className="text-xs uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.6)' }}>AI-Powered Design Studio</p>
-              <h2 style={{ color: '#fff' }} className="text-4xl xl:text-5xl font-display font-bold leading-[1.1] mb-4">
-                Transform listings into showpieces.
+            <div className="max-w-2xl">
+              <p className="text-sm uppercase tracking-[0.3em] font-bold text-[var(--color-primary)] mb-4">The Future of Real Estate</p>
+              <h2 className="text-5xl xl:text-7xl font-display font-black leading-[1.05] text-white tracking-tighter mb-6 drop-shadow-lg">
+                Render Reality.
               </h2>
-              <p className="text-base leading-relaxed" style={{ color: 'rgba(255,255,255,0.7)' }}>
-                Virtual staging, renovation previews, sky replacement, and AI copywriting — all from a single photo.
+              <p className="text-lg leading-relaxed text-zinc-300 font-medium max-w-xl">
+                Advanced neural staging, instant renovation synthesis, and hyper-realistic asset generation. 
               </p>
             </div>
-            <div className="flex items-center gap-6 text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>
-              <span className="flex items-center gap-2"><Wand2 size={14} /> Virtual Staging</span>
-              <span className="flex items-center gap-2"><Camera size={14} /> Twilight Shots</span>
-              <span className="flex items-center gap-2"><Shield size={14} /> Secure</span>
+            <div className="flex items-center gap-8 text-sm font-semibold text-zinc-400">
+              <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse shadow-[0_0_10px_var(--color-primary)]"/> Neural Staging</span>
+              <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse shadow-[0_0_10px_var(--color-primary)] delay-75"/> Synthesis</span>
+              <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse shadow-[0_0_10px_var(--color-primary)] delay-150"/> Encrypted</span>
             </div>
           </div>
         </div>
 
         {/* Right - Sign In */}
-        <div className="flex-1 flex items-center justify-center p-8" style={{ backgroundColor: '#fafafa' }}>
-          <div className="w-full max-w-sm">
-            <div className="lg:hidden mb-10">
-              <div className="flex items-center gap-3 mb-1">
-                <div className="h-10 w-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#0d9488' }}>
-                  <Camera size={18} className="text-white" />
-                </div>
-                <h1 className="font-display text-2xl font-bold" style={{ color: '#09090b' }}>
-                  Studio<span style={{ color: '#0d9488' }}>AI</span>
-                </h1>
+        <div className="flex-1 flex items-center justify-center p-8 bg-black">
+          <div className="w-full max-w-md login-glass p-10 rounded-3xl border border-[var(--color-border-strong)] relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-accent)]"></div>
+            
+            <div className="lg:hidden mb-12 flex flex-col items-center text-center">
+              <div className="h-16 w-16 mb-6 rounded-2xl flex items-center justify-center bg-black border border-[var(--color-primary-dark)] shadow-[0_0_30px_rgba(0,255,204,0.3)]">
+                <Camera size={28} className="text-[var(--color-primary)]" />
               </div>
+              <h1 className="font-display text-4xl font-black text-white tracking-tight">
+                Studio<span className="text-[var(--color-primary)]" style={{ textShadow: '0 0 20px rgba(0,255,204,0.5)' }}>AI</span>
+              </h1>
             </div>
 
-            <div className="hidden lg:block mb-10">
-              <p className="text-xs uppercase tracking-[0.15em] font-semibold mb-2" style={{ color: '#52525b' }}>Welcome back</p>
-              <h2 className="font-display text-3xl font-bold" style={{ color: '#09090b' }}>Sign in to your studio</h2>
-              <p className="mt-2 text-sm" style={{ color: '#52525b' }}>Access your designs, history, and AI tools.</p>
+            <div className="hidden lg:block mb-12">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[rgba(0,255,204,0.1)] border border-[rgba(0,255,204,0.2)] mb-6">
+                <div className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse"></div>
+                <span className="text-xs font-bold uppercase tracking-widest text-[var(--color-primary)]">System Online</span>
+              </div>
+              <h2 className="font-display text-4xl font-black text-white tracking-tight">Authenticate</h2>
+              <p className="mt-3 text-sm text-zinc-400 font-medium">Initialize secure terminal session.</p>
             </div>
 
             <div className="flex flex-col items-center lg:items-start gap-3">
@@ -609,10 +613,9 @@ const App: React.FC = () => {
                     alert('Google Identity Services failed to load. Check your internet connection and try refreshing.');
                   }
                 }}
-                className="cta-secondary rounded-xl px-5 py-3 text-sm font-semibold inline-flex items-center gap-3 w-full max-w-[300px] justify-center"
-                style={{ color: '#09090b' }}
+                className="cta-secondary rounded-xl px-5 py-3 text-sm font-semibold inline-flex items-center justify-center gap-3 w-full max-w-[300px] bg-white hover:bg-zinc-100 text-black border-transparent shadow-[0_4px_14px_0_rgba(255,255,255,0.2)] transition-all hover:shadow-[0_6px_20px_rgba(255,255,255,0.23)] hover:-translate-y-0.5"
               >
-                <svg viewBox="0 0 24 24" width="18" height="18" className="shrink-0">
+                <svg viewBox="0 0 24 24" width="18" height="18" className="shrink-0 bg-white rounded-full p-0.5">
                   <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
                   <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
                   <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
@@ -622,21 +625,21 @@ const App: React.FC = () => {
               </button>
             </div>
 
-            <div className="mt-10 pt-8" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }}>
-              <p className="text-xs mb-4 font-medium" style={{ color: '#52525b' }}>What you get access to:</p>
-              <div className="space-y-3">
+            <div className="mt-12 pt-8 border-t border-[var(--color-border-strong)]">
+              <p className="text-xs mb-5 font-bold tracking-widest uppercase text-zinc-500">Modules</p>
+              <div className="space-y-4">
                 {[
-                  { icon: <ImageIcon size={15} />, label: 'AI Virtual Staging', desc: 'Furnish empty rooms instantly' },
-                  { icon: <Wand2 size={15} />, label: 'Smart Renovation', desc: 'Preview remodels before building' },
-                  { icon: <Sparkles size={15} />, label: 'Listing Copy AI', desc: 'Auto-generate MLS descriptions' },
+                  { icon: <ImageIcon size={16} />, label: 'Neural Staging', desc: 'Synthesize furniture in milliseconds' },
+                  { icon: <Wand2 size={16} />, label: 'Structural Morph', desc: 'Real-time architectural previews' },
+                  { icon: <Sparkles size={16} />, label: 'Language Matrix', desc: 'Automated description drafting' },
                 ].map((f) => (
-                  <div key={f.label} className="flex items-start gap-3">
-                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: 'rgba(13,148,136,0.08)', color: '#0d9488' }}>
+                  <div key={f.label} className="flex items-start gap-4 p-3 rounded-xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
+                    <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-black border border-[var(--color-primary-dark)] text-[var(--color-primary)] shadow-[inset_0_0_10px_rgba(0,255,204,0.1)]">
                       {f.icon}
                     </div>
                     <div>
-                      <p className="text-sm font-semibold" style={{ color: '#09090b' }}>{f.label}</p>
-                      <p className="text-xs" style={{ color: '#52525b' }}>{f.desc}</p>
+                      <p className="text-sm font-bold text-white tracking-wide">{f.label}</p>
+                      <p className="text-xs text-zinc-400 mt-1">{f.desc}</p>
                     </div>
                   </div>
                 ))}
@@ -649,7 +652,8 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="studio-shell min-h-[100dvh] lg:h-screen overflow-x-hidden lg:overflow-hidden flex flex-col">
+    <div className="studio-shell min-h-[100dvh] lg:h-screen overflow-x-hidden lg:overflow-hidden flex flex-col crt-effect">
+      <div className="scanline-overlay"></div>
       {showKeyPrompt && (
         <div className="fixed inset-0 z-[100] grid place-items-center modal-overlay p-4 animate-fade-in">
           <div className="modal-panel w-full max-w-md rounded-2xl p-8 animate-scale-in">
@@ -807,14 +811,14 @@ const App: React.FC = () => {
         </div>
       )}
 
-      <header className="shrink-0 bg-white border-b border-[var(--color-border)] px-4 py-2.5 sm:px-5 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="bg-[var(--color-primary)] flex h-9 w-9 items-center justify-center rounded-xl">
-              <Camera size={17} className="text-white" />
+      <header className="shrink-0 bg-black border-b-[2px] border-[var(--color-primary-dark)] px-6 py-3 flex items-center justify-between gap-3 relative z-50 shadow-[0_4px_30px_rgba(0,255,204,0.15)]">
+        <div className="flex items-center gap-4 min-w-0">
+          <div className="flex items-center gap-3 min-w-0 pr-4 border-r border-[var(--color-border-strong)]">
+            <div className="bg-black border border-[var(--color-primary)] shadow-[0_0_15px_rgba(0,255,204,0.3)] flex h-10 w-10 items-center justify-center rounded-xl">
+              <Camera size={18} className="text-[var(--color-primary)]" />
             </div>
-            <h1 className="font-display text-lg font-bold leading-none whitespace-nowrap text-[var(--color-ink)]">
-              Studio<span className="text-[var(--color-primary)]">AI</span>
+            <h1 className="font-display text-xl font-black leading-none whitespace-nowrap text-white tracking-tight">
+              Studio<span className="text-[var(--color-primary)] drop-shadow-[0_0_8px_rgba(0,255,204,0.8)]">AI</span>
             </h1>
           </div>
 
@@ -872,11 +876,11 @@ const App: React.FC = () => {
                     else setShowKeyPrompt(true);
                   }}
                   disabled={isEnhancing}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-medium inline-flex items-center gap-1.5 disabled:opacity-50 ${hasProKey ? 'cta-primary' : 'cta-secondary'}`}
+                  className={`rounded-lg px-4 py-1.5 text-[10px] uppercase tracking-widest font-black inline-flex items-center gap-2 disabled:opacity-50 transition-all ${hasProKey ? 'bg-[var(--color-primary)] text-black shadow-[0_0_15px_rgba(0,255,204,0.6)] hover:bg-white hover:shadow-[0_0_25px_rgba(255,255,255,0.8)]' : 'cta-secondary'}`}
                 >
-                  <Zap size={13} className={isEnhancing ? 'animate-pulse' : ''} />
+                  <Zap size={14} className={isEnhancing ? 'animate-pulse text-white' : ''} />
                   <span className="hidden sm:inline">
-                    {hasProKey ? 'Enhance' : 'Enhance'}
+                    {hasProKey ? 'Neural Enhance' : 'Unlock Enhance'}
                   </span>
                 </button>
               </>
@@ -948,41 +952,42 @@ const App: React.FC = () => {
       </header>
 
       {!originalImage ? (
-        <main className="flex-1 flex items-center justify-center overflow-auto editor-canvas-bg">
-          <div className="w-full max-w-md mx-auto px-6 py-16 text-center animate-fade-in">
-            <div className="mx-auto mb-6 h-14 w-14 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-dark))', boxShadow: '0 8px 24px rgba(13,148,136,0.25)' }}>
-              <Camera size={24} className="text-white" />
+        <main className="flex-1 flex items-center justify-center overflow-auto editor-canvas-bg relative z-10">
+          <div className="w-full max-w-lg mx-auto px-8 py-20 text-center animate-fade-in glass-overlay rounded-[2.5rem] border border-[var(--color-border-strong)] shadow-2xl relative overflow-hidden">
+            <div className="absolute top-[-50px] left-1/2 -translate-x-1/2 w-[300px] h-[100px] bg-[var(--color-primary)] blur-[100px] opacity-20 pointer-events-none"></div>
+            
+            <div className="mx-auto mb-8 h-20 w-20 rounded-3xl flex items-center justify-center bg-black border border-[var(--color-primary)] shadow-[0_0_40px_rgba(0,255,204,0.2)]">
+              <Camera size={32} className="text-[var(--color-primary)]" />
             </div>
-            <h2 className="font-display text-2xl sm:text-3xl font-bold text-[var(--color-ink)] mb-2">
-              Start with a photo
+            <h2 className="font-display text-4xl sm:text-5xl font-black text-white tracking-tighter mb-4 drop-shadow-md">
+              INITIALIZE <span className="text-[var(--color-primary)]">UPLOAD</span>
             </h2>
-            <p className="text-sm text-[var(--color-text)] max-w-xs mx-auto mb-8 leading-relaxed">
-              Upload a room or property photo to unlock AI staging, renovation previews, and more.
+            <p className="text-base text-zinc-400 max-w-sm mx-auto mb-10 leading-relaxed font-medium">
+              Provide visual data. The neural engine will reconstruct reality.
             </p>
 
             <ImageUploader onImageUpload={handleImageUpload} isAnalyzing={isAnalyzing} />
 
-            <div className="mt-4">
+            <div className="mt-6">
               <button
                 onClick={handleSamplePhoto}
                 disabled={isAnalyzing}
-                className="text-sm font-medium text-[var(--color-primary)] hover:text-[var(--color-primary-dark)] transition-colors inline-flex items-center gap-1.5 disabled:opacity-50"
+                className="text-sm font-bold uppercase tracking-wider text-[var(--color-primary)] hover:text-white transition-colors inline-flex items-center gap-2 disabled:opacity-50"
               >
-                <Sparkles size={14} />
-                Try with a sample photo
-                <ArrowRight size={13} />
+                <Sparkles size={16} />
+                Execute Demo Sequence
+                <ArrowRight size={16} />
               </button>
             </div>
 
-            <div className="mt-12 flex flex-wrap justify-center gap-2">
+            <div className="mt-16 flex flex-wrap justify-center gap-3">
               {[
-                { icon: <Wand2 size={12} />, label: 'Virtual Staging' },
-                { icon: <Camera size={12} />, label: 'Twilight Shots' },
-                { icon: <ImageIcon size={12} />, label: 'Sky Replacement' },
-                { icon: <Eraser size={12} />, label: 'Declutter' },
-                { icon: <Sparkles size={12} />, label: 'Listing Copy' },
+                { icon: <Wand2 size={14} />, label: 'Neural Staging' },
+                { icon: <Camera size={14} />, label: 'Twilight Compute' },
+                { icon: <ImageIcon size={14} />, label: 'Sky Replacement' },
+                { icon: <Eraser size={14} />, label: 'Data Scrub' },
               ].map(f => (
-                <span key={f.label} className="pill-chip inline-flex items-center gap-1.5 px-3 py-1.5 text-xs">
+                <span key={f.label} className="pill-chip inline-flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider bg-black border-[var(--color-primary-dark)] text-zinc-300">
                   <span className="text-[var(--color-primary)]">{f.icon}</span>
                   {f.label}
                 </span>
@@ -991,9 +996,11 @@ const App: React.FC = () => {
           </div>
         </main>
       ) : (
-        <div className="flex-1 min-h-0 flex lg:flex-row overflow-hidden relative">
-          <nav className="hidden lg:flex shrink-0 w-[180px] bg-white border-r border-[var(--color-border)] flex-col gap-1 p-3 order-1">
-            <p className="px-2 py-2 text-[10px] uppercase tracking-[0.14em] text-[var(--color-text)] font-semibold">Workspace</p>
+        <div className="flex-1 min-h-0 flex lg:flex-row overflow-hidden relative z-10 bg-[#050505]">
+          <nav className="hidden lg:flex shrink-0 w-[64px] hover:w-[220px] transition-all duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] glass-overlay border border-[var(--color-border-strong)] rounded-2xl flex-col gap-1.5 p-2 mx-4 my-6 group z-20 shadow-[0_0_20px_rgba(0,0,0,0.8)] self-start sticky top-6">
+            <div className="w-full flex justify-center mb-2 mt-2">
+              <div className="w-8 h-1 bg-[var(--color-primary-dark)] rounded-full opacity-50"></div>
+            </div>
             {navItems.map((item) => {
               const active = activePanel === item.id;
               return (
@@ -1007,19 +1014,36 @@ const App: React.FC = () => {
                     showToast(item.icon, item.label);
                   }}
                   title={item.available ? item.label : `${item.label} (Coming Soon)`}
-                  className={`nav-item ${active && item.available ? 'active' : ''} ${!item.available ? 'opacity-40 cursor-not-allowed' : ''}`}
+                  className={`nav-item ${active && item.available ? 'active' : ''} ${!item.available ? 'opacity-40 cursor-not-allowed' : ''} group/item relative overflow-hidden`}
                 >
-                  {item.icon}
-                  <span className="text-xs">{item.label}</span>
+                  <div className="shrink-0 flex items-center justify-center w-6 h-6 relative z-10 transition-transform duration-300 group-hover/item:scale-110">{item.icon}</div>
+                  <span className="text-xs font-bold uppercase tracking-widest whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-300 absolute left-12 z-0 translate-x-[-10px] group-hover:translate-x-0">{item.label}</span>
                 </button>
               );
             })}
           </nav>
 
-          <main className="order-1 lg:order-2 flex-1 min-h-0 overflow-y-auto editor-canvas-bg p-3 sm:p-5 lg:p-6 pb-[58vh] lg:pb-6">
-            <div className="mx-auto w-full max-w-5xl space-y-4">
-              <div className="canvas-frame p-1.5 sm:p-2">
-                <div className="relative overflow-hidden rounded-xl bg-zinc-900 aspect-[4/3] sm:aspect-video">
+          <main className="order-1 lg:order-2 flex-1 min-h-0 overflow-y-auto editor-canvas-bg p-3 sm:p-5 lg:p-6 pb-[58vh] lg:pb-6 relative z-10">
+            <div className="mx-auto w-full max-w-6xl space-y-4">
+              <div className="canvas-frame p-1 sm:p-2 rounded-2xl glass-overlay border border-[var(--color-border-strong)] shadow-[0_0_40px_rgba(0,0,0,0.5)]">
+                <div className="relative overflow-hidden rounded-[14px] bg-black aspect-[4/3] sm:aspect-video border border-[var(--color-border-strong)]">
+                  {isGenerating && (
+                    <div className="absolute inset-0 z-10 bg-black/70 backdrop-blur-sm pointer-events-none flex flex-col items-center justify-center crt-effect">
+                      <div className="scanline-overlay"></div>
+                      <div className="text-center space-y-4 w-full max-w-md px-6">
+                        <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full border border-[var(--color-primary-dark)] bg-black shadow-[0_0_20px_rgba(0,255,204,0.2)]">
+                          <BrainCircuit size={18} className="text-[var(--color-primary)] animate-pulse" />
+                          <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-primary)]">NEURAL UPLINK ACTIVE</span>
+                        </div>
+                        <div className="font-mono text-center space-y-2 relative h-16 w-full mask-linear-gradient-bottom">
+                          <p className="text-[10px] sm:text-xs text-[var(--color-primary)] opacity-40 typing-effect">-- ANALYZING SPATIAL DEPTH --</p>
+                          <p className="text-[10px] sm:text-xs text-[var(--color-primary)] opacity-70 typing-effect" style={{animationDelay: '0.8s'}}>-- MAPPING AMBIENT OCCLUSION --</p>
+                          <p className="text-[10px] sm:text-xs font-bold text-white typing-effect" style={{animationDelay: '1.6s'}}>SYNTHESIZING RENDER REALITY...</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {activePanel === 'cleanup' ? (
                     <MaskCanvas
                       key={generatedImage || 'no-gen'}
@@ -1058,7 +1082,7 @@ const App: React.FC = () => {
                     </button>
 
                     {showRoomPicker && (
-                      <div className="mt-1.5 w-48 rounded-xl bg-white border border-[var(--color-border)] shadow-lg p-1 animate-slide-down">
+                      <div className="mt-1.5 w-48 rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border-strong)] shadow-lg p-1 animate-slide-down">
                         {roomOptions.map((room) => (
                           <button
                             key={room}
@@ -1073,9 +1097,16 @@ const App: React.FC = () => {
                     )}
                   </div>
 
-                  <div className="absolute right-2.5 top-2.5 z-20 flex items-center gap-1.5 rounded-full bg-black/60 px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-white backdrop-blur-md">
-                    <span className={`status-dot ${isGenerating ? 'status-dot-rendering' : 'status-dot-live'}`} />
-                    {isGenerating ? 'Rendering' : activePanel === 'cleanup' ? 'Mask Mode' : 'Live'}
+                  <div className="absolute right-3 top-3 z-20 flex items-center gap-2 rounded-full bg-black/80 border border-[rgba(0,255,204,0.3)] shadow-[0_0_15px_rgba(0,0,0,0.8)] px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[#00FFCC] backdrop-blur-xl">
+                    <span className={`status-dot ${isGenerating ? 'bg-[#FF0055] shadow-[0_0_10px_#FF0055] animate-pulse' : 'bg-[#00FFCC] shadow-[0_0_10px_#00FFCC]'}`} />
+                    {isGenerating ? (
+                      <span className="flex items-center gap-2">
+                        PROCESSING NEURAL GRAPH 
+                        <span className="inline-block overflow-hidden h-[12px] w-[50px] relative font-mono text-[8px] leading-[12px] text-zinc-500">
+                          <span className="absolute left-0 w-full animate-data-stream">01011001 10101010 11001100 00110011 11110000 00001111</span>
+                        </span>
+                      </span>
+                    ) : activePanel === 'cleanup' ? 'MASK OVERRIDE' : 'SYSTEM IDLE'}
                   </div>
                 </div>
               </div>
@@ -1105,14 +1136,14 @@ const App: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setHistoryTab('recent')}
-                      className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${historyTab === 'recent' ? 'bg-white shadow-sm text-[var(--color-ink)]' : 'text-[var(--color-text)]'}`}
+                      className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${historyTab === 'recent' ? 'bg-[var(--color-primary)]/15 border border-[var(--color-primary)]/30 text-[var(--color-primary)]' : 'text-[var(--color-text)] hover:text-white'}`}
                     >
                       Recent
                     </button>
                     <button
                       type="button"
                       onClick={() => setHistoryTab('saved')}
-                      className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${historyTab === 'saved' ? 'bg-white shadow-sm text-[var(--color-ink)]' : 'text-[var(--color-text)]'}`}
+                      className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${historyTab === 'saved' ? 'bg-[var(--color-primary)]/15 border border-[var(--color-primary)]/30 text-[var(--color-primary)]' : 'text-[var(--color-text)] hover:text-white'}`}
                     >
                       Saved
                     </button>
@@ -1177,15 +1208,16 @@ const App: React.FC = () => {
 
           </main>
 
-          <aside className={`mobile-control-sheet order-3 lg:order-3 lg:w-[400px] lg:shrink-0 lg:border-l border-[var(--color-border)] bg-white ${sheetOpen ? 'open' : ''} ${activePanel === 'cleanup' ? 'cleanup-active' : ''}`}>
+          <aside className={`mobile-control-sheet order-3 lg:order-3 lg:w-[400px] lg:shrink-0 lg:my-6 lg:mr-6 lg:rounded-[2rem] glass-overlay border lg:border-[var(--color-border-strong)] bg-black/90 shadow-[0_0_30px_rgba(0,0,0,0.8)] relative z-20 ${sheetOpen ? 'open' : ''} ${activePanel === 'cleanup' ? 'cleanup-active' : ''}`}>
+            <div className="hidden lg:block absolute top-[24px] left-[-20px] w-1 h-12 bg-[var(--color-primary-dark)] rounded-full opacity-50 blur-[2px]"></div>
             <button
               type="button"
               onClick={() => setSheetOpen((prev) => !prev)}
-              className="mobile-sheet-toggle lg:hidden"
+              className="mobile-sheet-toggle lg:hidden bg-[#0A0A0A] border-b border-[var(--color-border-strong)]"
             >
-              <span className="mobile-sheet-handle" />
-              <span className="text-[10px] uppercase tracking-[0.12em] text-[var(--color-text)] font-medium">
-                {sheetOpen ? 'Hide Controls' : 'Show Controls'}
+              <span className="mobile-sheet-handle bg-zinc-600" />
+              <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-400 font-bold">
+                {sheetOpen ? 'TERMINATE UI' : 'INITIALIZE UI'}
               </span>
             </button>
 

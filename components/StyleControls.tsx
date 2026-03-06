@@ -14,6 +14,7 @@ import {
   Eraser,
   ShieldCheck,
   FilePenLine,
+  Loader2,
 } from 'lucide-react';
 
 type StageMode = 'text' | 'packs' | 'furniture';
@@ -137,46 +138,65 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
 
   return (
     <div className="space-y-4">
+      {/* 1-Click Auto-Pilot (Bezos) */}
+      <div className="premium-surface rounded-2xl p-1 shadow-[0_0_20px_rgba(0,255,204,0.15)] bg-gradient-to-r from-[var(--color-bg-deep)] to-black border border-[var(--color-primary-dark)]">
+        <button
+          type="button"
+          onClick={() => {
+            setStageMode('text');
+            setCustomPrompt('Contemporary luxury with high-end textures, warm layered lighting, and perfectly balanced composition.');
+            // We simulate a fast path, but rely on the user clicking Generate, or we could auto-trigger. 
+            // For now, it aggressively populates the ultimate prompt.
+          }}
+          disabled={isGenerating}
+          className="w-full rounded-xl bg-black border border-[rgba(0,255,204,0.4)] px-4 py-4 text-center group hover:bg-[rgba(0,255,204,0.05)] transition-all overflow-hidden relative"
+        >
+          <div className="absolute inset-0 scanline-overlay opacity-20 pointer-events-none group-hover:opacity-40 transition-opacity"></div>
+          <div className="flex items-center justify-center gap-2 mb-1 relative z-10">
+            <Sparkles size={18} className="text-[var(--color-primary)] animate-pulse" />
+            <span className="font-display font-black tracking-[0.15em] uppercase text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.5)] bg-clip-text">Auto-Pilot</span>
+          </div>
+          <p className="text-[10px] text-[var(--color-primary)] font-mono opacity-80 group-hover:opacity-100 uppercase tracking-widest relative z-10">1-Click Optimal Staging</p>
+        </button>
+      </div>
+
       <div className="premium-surface rounded-2xl p-5">
-        <div className="mb-3">
+        <div className="mb-4">
           <h3 className="font-display text-lg font-semibold">Mode</h3>
           <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-text)]/70">Pick one path for this render</p>
         </div>
-        <div className="grid grid-cols-3 gap-2">
+        
+        {/* Apple-Style Segmented Control (Jobs) */}
+        <div className="relative flex p-1.5 rounded-xl bg-black/60 border border-[var(--color-border-strong)] shadow-inner">
+          <div
+            className="absolute top-1.5 bottom-1.5 rounded-lg bg-[var(--color-primary)]/15 border border-[var(--color-primary)]/30 drop-shadow-[0_0_10px_rgba(0,255,204,0.2)] transition-all duration-300 ease-spring"
+            style={{
+              width: 'calc(33.333% - 6px)',
+              left: `calc(${['text', 'packs', 'furniture'].indexOf(stageMode)} * 33.333% + 5px)`,
+            }}
+          />
           <button
             type="button"
             onClick={() => setStageMode('text')}
-            className={`rounded-2xl border px-3 py-2 text-left text-sm font-semibold transition-all ${stageMode === 'text'
-              ? 'border-[var(--color-accent)] bg-sky-50 shadow-[0_8px_20px_rgba(3,105,161,0.14)]'
-              : 'border-[var(--color-border)] bg-white/80 hover:bg-white'
-              }`}
+            className={`relative z-10 flex-1 py-2 text-xs font-bold uppercase tracking-wider transition-colors ${stageMode === 'text' ? 'text-[var(--color-primary)]' : 'text-[var(--color-text)]/60 hover:text-white'}`}
           >
             Text
           </button>
           <button
             type="button"
             onClick={() => setStageMode('packs')}
-            className={`rounded-2xl border px-3 py-2 text-left text-sm font-semibold transition-all ${stageMode === 'packs'
-              ? 'border-[var(--color-accent)] bg-sky-50 shadow-[0_8px_20px_rgba(3,105,161,0.14)]'
-              : 'border-[var(--color-border)] bg-white/80 hover:bg-white'
-              }`}
+            className={`relative z-10 flex-1 py-2 text-xs font-bold uppercase tracking-wider transition-colors ${stageMode === 'packs' ? 'text-[var(--color-primary)]' : 'text-[var(--color-text)]/60 hover:text-white'}`}
           >
             Packs
           </button>
           <button
             type="button"
             disabled
-            className="cursor-not-allowed rounded-2xl border border-[var(--color-border)] bg-slate-100/70 px-3 py-2 text-left text-sm font-semibold text-slate-500"
+            className="relative z-10 flex-1 py-2 text-xs font-bold uppercase tracking-wider text-[var(--color-text)]/30 cursor-not-allowed flex items-center justify-center gap-1"
           >
-            <span className="block">Furniture</span>
-            <span className="mt-1 inline-flex rounded-full border border-amber-300/80 bg-amber-100/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-amber-800">
-              Coming Soon
-            </span>
+            Furnish <span className="text-[8px] bg-amber-500/10 text-amber-500 px-1 rounded border border-amber-500/20">SOON</span>
           </button>
         </div>
-        <p className="mt-3 text-xs text-[var(--color-text)]/72">
-          Curated furniture staging is coming soon and is intentionally disabled in this beta.
-        </p>
       </div>
 
       {stageMode === 'text' && (
@@ -198,7 +218,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
             onChange={(e) => setCustomPrompt(e.target.value)}
             placeholder="e.g. warm oak flooring, sculptural lamp, linen drapes"
             rows={4}
-            className="w-full rounded-2xl border border-[var(--color-border)] bg-white/85 px-3 py-2.5 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-text)]/45"
+            className="w-full rounded-2xl border border-[var(--color-border-strong)] bg-black/60 px-3 py-2.5 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-text)]/40 focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] transition-all font-mono"
           />
           <div className="mt-3 flex flex-wrap gap-2">
             {[
@@ -211,7 +231,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
                 key={suggestion}
                 type="button"
                 onClick={() => setCustomPrompt(suggestion)}
-                className="text-[10px] font-semibold uppercase tracking-wide px-3 py-1.5 rounded-full border border-[var(--color-border)] bg-white/50 hover:bg-white hover:border-[var(--color-accent)] transition-all text-[var(--color-text)]/80 hover:text-[var(--color-primary)] shadow-sm"
+                className="text-[10px] font-semibold uppercase tracking-wide px-3 py-1.5 rounded-full border border-[var(--color-border-strong)] bg-black/40 hover:bg-[var(--color-primary)]/10 hover:border-[var(--color-primary)]/50 transition-all text-[var(--color-text)]/70 hover:text-[var(--color-primary)]"
               >
                 {suggestion}
               </button>
@@ -241,21 +261,22 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
                   key={preset.id}
                   type="button"
                   onClick={() => setSelectedPreset(preset.id)}
-                  className={`rounded-2xl border px-3 py-2 text-left transition-all ${active
-                    ? 'border-[var(--color-accent)] bg-sky-50 shadow-[0_8px_20px_rgba(3,105,161,0.14)]'
-                    : 'border-[var(--color-border)] bg-white/80 hover:bg-white'
+                  className={`relative overflow-hidden rounded-2xl border px-3 py-3 text-left transition-all duration-300 ${active
+                    ? 'border-[var(--color-primary)] bg-[rgba(0,255,204,0.05)] shadow-[0_0_15px_rgba(0,255,204,0.2)] scale-[1.02]'
+                    : 'border-[var(--color-border)] bg-black/40 hover:bg-black hover:border-[var(--color-border-strong)] hover:scale-[1.01]'
                     }`}
                 >
-                  <div className="flex items-center gap-2.5">
+                  {active && <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-primary)]/10 to-transparent pointer-events-none"></div>}
+                  <div className="flex items-center gap-3 relative z-10">
                     <span
-                      className={`flex h-8 w-8 items-center justify-center rounded-lg ${active ? 'bg-[var(--color-accent)] text-white' : 'subtle-card text-[var(--color-text)]'
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${active ? 'bg-[var(--color-primary)] text-black shadow-[0_0_10px_rgba(0,255,204,0.5)]' : 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border-strong)]'
                         }`}
                     >
                       {preset.icon}
                     </span>
-                    <span>
-                      <span className="block text-sm font-semibold text-[var(--color-ink)]">{preset.id}</span>
-                      <span className="block text-xs text-[var(--color-text)]/70">{preset.description}</span>
+                    <span className="min-w-0">
+                      <span className={`block text-sm font-bold truncate transition-colors ${active ? 'text-white' : 'text-[var(--color-ink)]'}`}>{preset.id}</span>
+                      <span className={`block text-[10px] uppercase tracking-wider truncate transition-colors ${active ? 'text-[var(--color-primary)]' : 'text-[var(--color-text)]/60'}`}>{preset.description}</span>
                     </span>
                   </div>
                 </button>
@@ -286,9 +307,18 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
           type="button"
           onClick={buildPrompt}
           disabled={isGenerating || !canGenerate}
-          className="cta-primary min-h-[46px] w-full rounded-2xl px-4 py-3.5 text-sm font-semibold tracking-wide disabled:cursor-not-allowed disabled:opacity-50"
+          className={`w-full rounded-2xl px-4 py-4 text-sm font-black uppercase tracking-widest disabled:cursor-not-allowed transition-all duration-300 relative overflow-hidden group ${
+            isGenerating || !canGenerate 
+            ? 'bg-black/40 text-[var(--color-text)]/30 border border-[var(--color-border-strong)] shadow-inner' 
+            : 'bg-[var(--color-primary)] text-black border border-[#00FFCC] shadow-[0_0_20px_rgba(0,255,204,0.4)] hover:shadow-[0_0_35px_rgba(0,255,204,0.7)] hover:bg-[#00ffd5] scale-100 hover:scale-[1.02]'
+          }`}
         >
-          {isGenerating ? 'Rendering Design...' : hasGenerated ? 'Re-generate Design' : 'Generate Design'}
+          {(!isGenerating && canGenerate) && (
+             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full group-hover:animate-shimmer pointer-events-none"></div>
+          )}
+          <span className="relative z-10 flex items-center justify-center gap-2">
+             {isGenerating ? <><Loader2 size={18} className="animate-spin text-[var(--color-primary)]" /> NEURAL UPLINK ACTIVE...</> : hasGenerated ? <><Wand2 size={18} /> RE-INITIALIZE RENDER</> : <><Sparkles size={18} className="animate-pulse" /> INITIATE NEURAL RENDER</>}
+          </span>
         </button>
         <p className="text-center text-xs text-[var(--color-text)]/72">
           {feedbackRequired

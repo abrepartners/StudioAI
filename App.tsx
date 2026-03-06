@@ -64,7 +64,7 @@ interface GoogleUser {
 const GOOGLE_CLIENT_ID =
   process.env.GOOGLE_CLIENT_ID ||
   import.meta.env.VITE_GOOGLE_CLIENT_ID ||
-  '';
+  '114715484927-pbu0mro7f5imhbo5q77k1imqi5etc2a3.apps.googleusercontent.com';
 
 const AUTH_STORAGE_KEY = 'studioai_google_user';
 

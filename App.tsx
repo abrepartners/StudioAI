@@ -51,6 +51,7 @@ import {
   Wand2,
   Shield,
 } from 'lucide-react';
+import { Analytics } from '@vercel/analytics/react';
 
 // ─── Google OAuth Types ──────────────────────────────────────────────────────
 interface GoogleUser {
@@ -1274,18 +1275,10 @@ const App: React.FC = () => {
               pro2kUnlocked={false}
             />
           </div>
-        </div>
-      )}
-
-      {toastMessage && (
-        <div className="toast-container">
-          <div className="toast-notification animate-toast">
-            <span className="toast-icon">{toastMessage.icon}</span>
-            <span className="toast-label">{toastMessage.label}</span>
-          </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+      <Analytics />
+    </div >
   );
 };
 

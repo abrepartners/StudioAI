@@ -1275,10 +1275,10 @@ const App: React.FC = () => {
               pro2kUnlocked={false}
             />
           </div>
-        )
-      }
+        </div>
+      )}
       <Analytics />
-    </div >
+    </div>
   );
 };
 

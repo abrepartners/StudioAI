@@ -1,6 +1,7 @@
 
 import { GoogleGenAI, Type, Chat, GenerateContentResponse } from "@google/genai";
 import { ColorData, StagedFurniture, FurnitureRoomType } from "../types";
+import { cleanBase64, extractImageFromResponse, extractAllImagesFromResponse } from "./geminiHelpers";
 
 // API key storage key
 const API_KEY_STORAGE = 'studioai_gemini_key';
@@ -64,7 +65,7 @@ const detectAspectRatioFromBase64 = (base64: string): Promise<"1:1" | "3:4" | "4
 export const detectRoomType = async (imageBase64: string): Promise<FurnitureRoomType> => {
   try {
     const ai = getAI();
-    const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
+    const clean = cleanBase64(imageBase64);
 
     const response: GenerateContentResponse = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -76,7 +77,7 @@ export const detectRoomType = async (imageBase64: string): Promise<FurnitureRoom
           {
             inlineData: {
               mimeType: 'image/jpeg',
-              data: cleanBase64
+              data: clean
             }
           }
         ]
@@ -102,7 +103,7 @@ export const generateRoomDesign = async (
   try {
     const ai = getAI();
     const modelName = isHighRes ? 'gemini-3-pro-image-preview' : 'gemini-2.5-flash-image';
-    const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
+    const clean = cleanBase64(imageBase64);
 
     const isRemovalTask = prompt.toLowerCase().includes('remove') ||
       prompt.toLowerCase().includes('clear') ||
@@ -149,13 +150,13 @@ export const generateRoomDesign = async (
       {
         inlineData: {
           mimeType: 'image/jpeg',
-          data: cleanBase64
+          data: clean
         }
       }
     ];
 
     if (maskImageBase64) {
-      const cleanMask = maskImageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
+      const cleanMask = cleanBase64(maskImageBase64);
       parts.push({
         text: "MASK INSTRUCTION: Only the RED areas in this mask should be modified. Everything else MUST be preserved exactly from the original."
       });
@@ -170,7 +171,7 @@ export const generateRoomDesign = async (
     const config: any = {};
     if (isHighRes) {
       // Detect aspect ratio from the image dimensions before sending.
-      const detectedRatio = await detectAspectRatioFromBase64(cleanBase64);
+      const detectedRatio = await detectAspectRatioFromBase64(clean);
       config.imageConfig = {
         imageSize: "2K",
         aspectRatio: detectedRatio,
@@ -188,17 +189,8 @@ export const generateRoomDesign = async (
       config
     });
 
-    const images: string[] = [];
-    for (const part of response.candidates?.[0]?.content?.parts || []) {
-      if (part.inlineData?.data) {
-        images.push(`data:image/png;base64,${part.inlineData.data}`);
-      }
-    }
-
-    if (images.length > 0) {
-      return images;
-    }
-
+    const images = extractAllImagesFromResponse(response);
+    if (images.length > 0) return images;
     throw new Error("No image generated.");
   } catch (error: any) {
     if (error.message?.includes("Requested entity was not found")) throw new Error("API_KEY_REQUIRED");
@@ -213,7 +205,7 @@ export const autoArrangeLayout = async (
 ): Promise<Record<string, StagedFurniture['orientation']>> => {
   try {
     const ai = getAI();
-    const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
+    const clean = cleanBase64(imageBase64);
     const itemNames = items.map(i => i.name).join(', ');
 
     const response: GenerateContentResponse = await ai.models.generateContent({
@@ -221,14 +213,14 @@ export const autoArrangeLayout = async (
       contents: {
         parts: [
           {
-            text: `Analyze this room image for a ${roomType}. 
+            text: `Analyze this room image for a ${roomType}.
             Suggest the optimal 3D orientation for these furniture items: ${itemNames}.
             Return a JSON object: { "Item Name": "Orientation" }.`
           },
           {
             inlineData: {
               mimeType: 'image/jpeg',
-              data: cleanBase64
+              data: clean
             }
           }
         ]
@@ -254,7 +246,7 @@ export const autoArrangeLayout = async (
 export const analyzeRoomColors = async (imageBase64: string): Promise<ColorData[]> => {
   try {
     const ai = getAI();
-    const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
+    const clean = cleanBase64(imageBase64);
 
     const response: GenerateContentResponse = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -266,7 +258,7 @@ export const analyzeRoomColors = async (imageBase64: string): Promise<ColorData[
           {
             inlineData: {
               mimeType: 'image/jpeg',
-              data: cleanBase64
+              data: clean
             }
           }
         ]
@@ -371,8 +363,7 @@ export const createChatSession = (): Chat => {
 export const sendMessageToChat = async (chat: Chat, message: string, currentImageBase64: string | null) => {
   const parts: any[] = [{ text: message }];
   if (currentImageBase64) {
-    const cleanBase64 = currentImageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
-    parts.push({ inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } });
+    parts.push({ inlineData: { mimeType: 'image/jpeg', data: cleanBase64(currentImageBase64) } });
   }
   const response = await chat.sendMessage({ message: parts });
   return response.text || "";
@@ -387,7 +378,7 @@ export const sendMessageToChat = async (chat: Chat, message: string, currentImag
  */
 export const virtualTwilight = async (imageBase64: string): Promise<string> => {
   const ai = getAI();
-  const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
+  const clean = cleanBase64(imageBase64);
 
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash-image',
@@ -403,17 +394,14 @@ export const virtualTwilight = async (imageBase64: string): Promise<string> => {
         - Keep all architecture, landscaping, driveway exactly as they appear
         - Photorealistic professional real estate twilight photo quality`
           },
-          { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
+          { inlineData: { mimeType: 'image/jpeg', data: clean } },
         ],
       }
     ],
   });
 
-  for (const part of response.candidates?.[0]?.content?.parts || []) {
-    if (part.inlineData?.data) {
-      return `data:image/png;base64,${part.inlineData.data}`;
-    }
-  }
+  const image = extractImageFromResponse(response);
+  if (image) return image;
   throw new Error('No twilight image generated');
 };
 
@@ -425,7 +413,7 @@ export const virtualTwilight = async (imageBase64: string): Promise<string> => {
  */
 export const replaceSky = async (imageBase64: string, skyStyle: 'blue' | 'dramatic' | 'golden' | 'stormy' = 'blue'): Promise<string> => {
   const ai = getAI();
-  const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
+  const clean = cleanBase64(imageBase64);
 
   const skyDescriptions: Record<typeof skyStyle, string> = {
     blue: 'a vibrant, deep blue sky with a few fluffy white clouds and brilliant golden sunlight',
@@ -440,17 +428,14 @@ export const replaceSky = async (imageBase64: string, skyStyle: 'blue' | 'dramat
       {
         parts: [
           { text: `Replace ONLY the sky in this exterior real estate photo with ${skyDescriptions[skyStyle]}. PRESERVE EVERYTHING else. Horizon line must be perfect.` },
-          { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
+          { inlineData: { mimeType: 'image/jpeg', data: clean } },
         ],
       }
     ],
   });
 
-  for (const part of response.candidates?.[0]?.content?.parts || []) {
-    if (part.inlineData?.data) {
-      return `data:image/png;base64,${part.inlineData.data}`;
-    }
-  }
+  const image = extractImageFromResponse(response);
+  if (image) return image;
   throw new Error('No sky replacement image returned');
 };
 
@@ -461,7 +446,7 @@ export const replaceSky = async (imageBase64: string, skyStyle: 'blue' | 'dramat
  */
 export const instantDeclutter = async (imageBase64: string, selectedRoom: string): Promise<string> => {
   const ai = getAI();
-  const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
+  const clean = cleanBase64(imageBase64);
 
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash-image',
@@ -473,17 +458,14 @@ export const instantDeclutter = async (imageBase64: string, selectedRoom: string
         REMOVE: photos, toys, pet items, counter clutter, laundry, trash.
         KEEP: furniture, appliances, windows, doors, lighting.`
           },
-          { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
+          { inlineData: { mimeType: 'image/jpeg', data: clean } },
         ],
       }
     ],
   });
 
-  for (const part of response.candidates?.[0]?.content?.parts || []) {
-    if (part.inlineData?.data) {
-      return `data:image/png;base64,${part.inlineData.data}`;
-    }
-  }
+  const image = extractImageFromResponse(response);
+  if (image) return image;
   throw new Error('No decluttered image returned');
 };
 
@@ -497,7 +479,7 @@ export const virtualRenovation = async (
   changes: { cabinets?: string; countertops?: string; flooring?: string; walls?: string; fixtures?: string }
 ): Promise<string> => {
   const ai = getAI();
-  const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
+  const clean = cleanBase64(imageBase64);
 
   const changesList = [
     changes.cabinets && `Cabinets: ${changes.cabinets}`,
@@ -513,17 +495,14 @@ export const virtualRenovation = async (
       {
         parts: [
           { text: `Apply renovation changes: ${changesList}. Preserve room layout and lighting.` },
-          { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
+          { inlineData: { mimeType: 'image/jpeg', data: clean } },
         ],
       }
     ],
   });
 
-  for (const part of response.candidates?.[0]?.content?.parts || []) {
-    if (part.inlineData?.data) {
-      return `data:image/png;base64,${part.inlineData.data}`;
-    }
-  }
+  const image = extractImageFromResponse(response);
+  if (image) return image;
   throw new Error('No renovation image returned');
 };
 
@@ -539,7 +518,7 @@ export const generateListingCopy = async (imageBase64: string, selectedRoom: str
   hashtags: string[];
 }> => {
   const ai = getAI();
-  const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
+  const clean = cleanBase64(imageBase64);
 
   const response = await ai.models.generateContent({
     model: 'gemini-3.1-pro',
@@ -558,7 +537,7 @@ export const generateListingCopy = async (imageBase64: string, selectedRoom: str
         }
         
         Return ONLY the JSON, no other text.` },
-        { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
+        { inlineData: { mimeType: 'image/jpeg', data: clean } },
       ],
     }],
   });
@@ -570,5 +549,147 @@ export const generateListingCopy = async (imageBase64: string, selectedRoom: str
   } catch {
     return { headline: '', description: text, socialCaption: '', hashtags: [] };
   }
+};
+
+// ─── Competitive Feature: Style Advisor ──────────────────────────────────────
+
+export interface StyleRecommendation {
+  style: string;
+  confidence: number;
+  reasoning: string;
+  promptSuggestion: string;
+}
+
+/**
+ * Analyzes a room photo and returns the top 3 design style recommendations
+ * with reasoning and ready-to-use prompt suggestions.
+ */
+export const analyzeAndRecommendStyles = async (
+  imageBase64: string,
+  roomType: string
+): Promise<StyleRecommendation[]> => {
+  const ai = getAI();
+  const clean = cleanBase64(imageBase64);
+
+  const response: GenerateContentResponse = await ai.models.generateContent({
+    model: 'gemini-3-flash-preview',
+    contents: {
+      parts: [
+        {
+          text: `You are an elite interior design consultant. Analyze this ${roomType} photo and recommend the TOP 3 design styles that would maximize its appeal for real estate listings.
+
+For each style, provide:
+- "style": The design style name (e.g., "Coastal Modern", "Mid-Century Modern", "Scandinavian", "Urban Loft", "Farmhouse Chic", "Minimalist", "Bohemian", "Art Deco", "Japandi", "Industrial")
+- "confidence": A score from 0-100 indicating how well this style suits the room's proportions, lighting, and architecture
+- "reasoning": A 1-2 sentence explanation of WHY this style works for this specific room
+- "promptSuggestion": A ready-to-use staging prompt for this style (detailed, actionable)
+
+Return a JSON array of exactly 3 objects, sorted by confidence (highest first).`
+        },
+        {
+          inlineData: {
+            mimeType: 'image/jpeg',
+            data: clean
+          }
+        }
+      ]
+    },
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            style: { type: Type.STRING },
+            confidence: { type: Type.NUMBER },
+            reasoning: { type: Type.STRING },
+            promptSuggestion: { type: Type.STRING }
+          },
+          required: ["style", "confidence", "reasoning", "promptSuggestion"]
+        }
+      }
+    }
+  });
+
+  return response.text ? JSON.parse(response.text) : [];
+};
+
+// ─── Competitive Feature: Quality Score ──────────────────────────────────────
+
+export interface QualityScoreResult {
+  overall: number;
+  architecture: number;
+  lighting: number;
+  realism: number;
+  perspective: number;
+  summary: string;
+}
+
+/**
+ * Evaluates a generated staging image against quality criteria.
+ * Returns scores (0-100) for architectural integrity, lighting consistency,
+ * furniture realism, and perspective accuracy, plus an overall score.
+ */
+export const scoreGeneratedImage = async (
+  originalBase64: string,
+  generatedBase64: string,
+  roomType: string
+): Promise<QualityScoreResult> => {
+  const ai = getAI();
+  const cleanOriginal = cleanBase64(originalBase64);
+  const cleanGenerated = cleanBase64(generatedBase64);
+
+  const response: GenerateContentResponse = await ai.models.generateContent({
+    model: 'gemini-3-flash-preview',
+    contents: {
+      parts: [
+        {
+          text: `You are a professional real estate photo quality auditor. Compare the ORIGINAL photo (first image) with the AI-STAGED version (second image) of this ${roomType}.
+
+Score the staged image on these criteria (0-100 each):
+- "architecture": Are doors, windows, ceiling fixtures, vents, and structural elements preserved exactly? Any hallucinated or removed architecture = low score.
+- "lighting": Does the lighting direction, temperature, and shadow consistency match the original? Are furniture shadows realistic?
+- "realism": Do added furniture, materials, and textures look photorealistic? Any floating objects, warped surfaces, or cartoonish elements = low score.
+- "perspective": Do vanishing points, lens distortion, and depth-of-field match the original? Any perspective misalignment = low score.
+- "overall": Weighted average factoring all criteria (architecture weighted 2x).
+- "summary": One sentence describing the most notable quality issue, or "Excellent staging quality" if score > 85.
+
+Return ONLY a JSON object with these 6 fields.`
+        },
+        {
+          inlineData: {
+            mimeType: 'image/jpeg',
+            data: cleanOriginal
+          }
+        },
+        {
+          inlineData: {
+            mimeType: 'image/jpeg',
+            data: cleanGenerated
+          }
+        }
+      ]
+    },
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          overall: { type: Type.NUMBER },
+          architecture: { type: Type.NUMBER },
+          lighting: { type: Type.NUMBER },
+          realism: { type: Type.NUMBER },
+          perspective: { type: Type.NUMBER },
+          summary: { type: Type.STRING }
+        },
+        required: ["overall", "architecture", "lighting", "realism", "perspective", "summary"]
+      }
+    }
+  });
+
+  return response.text
+    ? JSON.parse(response.text)
+    : { overall: 0, architecture: 0, lighting: 0, realism: 0, perspective: 0, summary: 'Score unavailable' };
 };
 

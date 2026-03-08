@@ -5,32 +5,12 @@ import {
   toPublicUser,
 } from './betaStore.js';
 
-const json = (res: any, status: number, body: Record<string, unknown>) => {
-  res.status(status).setHeader('Content-Type', 'application/json');
-  res.send(JSON.stringify(body));
-};
-
-const getAuthToken = (req: any): string => {
-  const header = req.headers.authorization || req.headers.Authorization;
-  if (!header || typeof header !== 'string') return '';
-  if (!header.startsWith('Bearer ')) return '';
-  return header.slice('Bearer '.length).trim();
-};
+import { json, setCors, handleOptions, rejectMethod, getAuthToken } from './utils.js';
 
 export default async function handler(req: any, res: any) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
-
-  if (req.method === 'OPTIONS') {
-    res.status(204).end();
-    return;
-  }
-
-  if (req.method !== 'GET') {
-    json(res, 405, { ok: false, error: 'Method not allowed' });
-    return;
-  }
+  setCors(res, 'GET,OPTIONS');
+  if (handleOptions(req, res)) return;
+  if (rejectMethod(req, res, 'GET')) return;
 
   try {
     const token = getAuthToken(req);

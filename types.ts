@@ -71,6 +71,23 @@ export interface RenovationSelection {
   item: string;
 }
 
+export type CleanupMode =
+  | 'personal-items'
+  | 'trash-clutter'
+  | 'clear-room'
+  | 'outdoor'
+  | 'eyesores'
+  | 'precision';
+
+export interface CleanupPreset {
+  id: CleanupMode;
+  label: string;
+  description: string;
+  iconName: string;
+  prompt: string;
+  requiresMask: boolean;
+}
+
 export interface GenerationConfig {
   prompt: string;
   maskImage?: string; // Base64 of the mask

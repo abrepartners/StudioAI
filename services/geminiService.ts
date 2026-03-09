@@ -1,52 +1,112 @@
-import { GoogleGenerativeAI, GenerateContentResponse } from "@google/generative-ai";
-import { ColorData, StagedFurniture, FurnitureRoomType } from "../types";
 
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+import { GoogleGenAI, Type, Chat, GenerateContentResponse } from "@google/genai";
+import { ColorData, StagedFurniture, FurnitureRoomType, CleanupMode, CleanupPreset } from "../types";
 
-let genAI: any = null;
+export const CLEANUP_PRESETS: CleanupPreset[] = [
+  {
+    id: 'personal-items',
+    label: 'Personal Items',
+    description: 'Photos, wall art, personal decor',
+    iconName: 'ImageOff',
+    requiresMask: false,
+    prompt: `AUTO-DETECT CLEANUP — PERSONAL ITEMS:
+Scan the entire image and identify ALL personal items including: framed photographs, family pictures, personalized wall art, name plaques, monogrammed items, fridge magnets, children's drawings, personal memorabilia, religious icons, and any decor that identifies the occupant.
+Remove every identified item. Replace each with neutral wall/surface texture sampled from the surrounding area. Maintain lighting consistency and shadow direction. Do NOT remove or alter structural elements (doors, windows, ceiling lights, vents, outlets).`,
+  },
+  {
+    id: 'trash-clutter',
+    label: 'Trash & Clutter',
+    description: 'Bins, cups, cords, loose items',
+    iconName: 'Trash2',
+    requiresMask: false,
+    prompt: `AUTO-DETECT CLEANUP — TRASH & CLUTTER:
+Scan the entire image and identify ALL trash and clutter including: trash cans, waste bins, recycling bins, loose cups/mugs/bottles, visible cords/cables/chargers, stacked mail/papers, shoes left out, pet bowls, random small objects on counters or floors, and any general mess or clutter.
+Remove every identified item. Fill each gap with clean floor/counter/surface texture sampled from surrounding clean areas. Produce a tidy, listing-ready result. Do NOT remove or alter structural elements.`,
+  },
+  {
+    id: 'clear-room',
+    label: 'Clear Room',
+    description: 'Strip to bare walls and floors',
+    iconName: 'Home',
+    requiresMask: false,
+    prompt: `AUTO-DETECT CLEANUP — CLEAR ROOM:
+Remove ALL movable furniture, personal belongings, decorations, rugs, curtains, and any non-permanent items from the room. Strip it down to the bare architectural shell: walls, floors, ceiling, and permanent fixtures only (doors, windows, built-in lighting, vents, outlets).
+Sample wall and floor textures from visible areas to seamlessly fill all gaps. The result must look like a clean, vacant home ready for a new owner. Maintain perspective, depth, and lighting throughout.`,
+  },
+  {
+    id: 'outdoor',
+    label: 'Outdoor Cleanup',
+    description: 'Oil stains, debris, yard junk',
+    iconName: 'TreePine',
+    requiresMask: false,
+    prompt: `AUTO-DETECT CLEANUP — OUTDOOR:
+Scan the entire exterior image and identify ALL outdoor eyesores including: oil stains on driveways/concrete, yard debris, outdoor trash bins/cans, dead plants, brown patches, garden hoses left out, scattered tools, broken pots, visible junk, and any exterior mess.
+Remove every identified item. Replace oil stains with clean concrete/asphalt texture. Replace dead plants or brown patches with healthy green grass/plants sampled from nearby clean areas. Maintain shadow consistency with the sun direction. Do NOT remove or alter the house structure, fences, or permanent landscaping features.`,
+  },
+  {
+    id: 'eyesores',
+    label: 'General Eyesores',
+    description: 'Stains, damage, messy wiring',
+    iconName: 'Eye',
+    requiresMask: false,
+    prompt: `AUTO-DETECT CLEANUP — GENERAL EYESORES:
+Scan the entire image and identify anything that makes this real estate listing photo look unprofessional including: wall stains, ceiling water marks, visible damage or cracks, messy exposed wiring, pet items (beds, gates, litter boxes), dated or broken fixtures, cluttered countertops, visible cleaning supplies, laundry, and any visual distraction.
+Remove or correct every identified eyesore. Replace each area with clean, neutral texture from surrounding surfaces. The result must look like a professionally prepared listing photograph. Do NOT remove or alter structural elements.`,
+  },
+  {
+    id: 'precision',
+    label: 'Precision Edit',
+    description: 'Manually mask specific items',
+    iconName: 'Eraser',
+    requiresMask: true,
+    prompt: 'Architectural Restoration: Precisely remove only the masked items. Keep all doors, ceiling lights, and structural openings exactly as they appear in the original. Reveal the floor or hallway behind the mask. DO NOT cover hallways with new walls.',
+  },
+];
 
-const getAI = () => {
-  if (!genAI) {
-    if (!API_KEY) throw new Error("API_KEY_REQUIRED");
-    genAI = new GoogleGenerativeAI(API_KEY);
-  }
-  return genAI;
-};
+const FALLBACK_BETA_API_KEY = "AIzaSyBZs7gw_x2kauRi5Fdbfu9ViQtMwrNvAuA";
+const RESOLVED_API_KEY =
+  process.env.API_KEY ||
+  (import.meta as any)?.env?.VITE_GEMINI_API_KEY ||
+  FALLBACK_BETA_API_KEY;
 
-const detectAspectRatioFromBase64 = (base64: string): Promise<"1:1" | "3:4" | "4:3" | "9:16" | "16:9"> => {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      const ratio = img.width / img.height;
-      if (Math.abs(ratio - 1) < 0.1) resolve("1:1");
-      else if (Math.abs(ratio - 0.75) < 0.1) resolve("3:4");
-      else if (Math.abs(ratio - 1.33) < 0.1) resolve("4:3");
-      else if (Math.abs(ratio - 0.56) < 0.1) resolve("9:16");
-      else if (Math.abs(ratio - 1.77) < 0.1) resolve("16:9");
-      else resolve("4:3");
-    };
-    img.onerror = () => resolve("4:3");
-    img.src = base64;
-  });
+// Helper to get fresh AI instance
+const getAI = () => new GoogleGenAI({ apiKey: RESOLVED_API_KEY });
+
+/**
+ * Maps an image's dimensions to the closest supported Gemini aspect ratio.
+ */
+const getSupportedAspectRatio = (width: number, height: number): "1:1" | "3:4" | "4:3" | "9:16" | "16:9" => {
+  const ratio = width / height;
+  if (ratio > 1.5) return "16:9";
+  if (ratio > 1.1) return "4:3";
+  if (ratio < 0.6) return "9:16";
+  if (ratio < 0.9) return "3:4";
+  return "1:1";
 };
 
 export const detectRoomType = async (imageBase64: string): Promise<FurnitureRoomType> => {
   try {
     const ai = getAI();
-    const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
     const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
 
-    const response = await model.generateContent({
-      contents: [{
-        role: 'user',
+    const response: GenerateContentResponse = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: {
         parts: [
-          { text: "Detect the room type in this photo. Return ONLY one of: Living Room, Bedroom, Dining Room, Office, Kitchen, Primary Bedroom, Exterior." },
-          { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } }
+          {
+            text: "Analyze this room and identify the primary room type. Choose from: 'Living Room', 'Bedroom', 'Dining Room', 'Office', 'Kitchen', 'Primary Bedroom', or 'Exterior'. Return only the room type name."
+          },
+          {
+            inlineData: {
+              mimeType: 'image/jpeg',
+              data: cleanBase64
+            }
+          }
         ]
-      }]
+      }
     });
 
-    const text = response.response.text().trim() as FurnitureRoomType;
+    const text = response.text?.trim() as FurnitureRoomType;
     const validRooms: FurnitureRoomType[] = ['Living Room', 'Bedroom', 'Dining Room', 'Office', 'Kitchen', 'Primary Bedroom', 'Exterior'];
     return validRooms.includes(text) ? text : 'Living Room';
   } catch (error) {
@@ -60,18 +120,20 @@ export const generateRoomDesign = async (
   prompt: string,
   maskImageBase64?: string | null,
   isHighRes: boolean = false,
-  count: number = 1
-): Promise<string | string[]> => {
+  cleanupMode?: CleanupMode | null
+): Promise<string> => {
   try {
     const ai = getAI();
     const modelName = isHighRes ? 'gemini-3-pro-image-preview' : 'gemini-2.5-flash-image';
     const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
-
-    const isRemovalTask = prompt.toLowerCase().includes('remove') ||
-      prompt.toLowerCase().includes('clear') ||
-      prompt.toLowerCase().includes('erase') ||
-      prompt.toLowerCase().includes('restore') ||
-      prompt.toLowerCase().includes('cleanup');
+    
+    const isAutoDetectCleanup = cleanupMode && cleanupMode !== 'precision';
+    const isRemovalTask = isAutoDetectCleanup ||
+                         prompt.toLowerCase().includes('remove') ||
+                         prompt.toLowerCase().includes('clear') ||
+                         prompt.toLowerCase().includes('erase') ||
+                         prompt.toLowerCase().includes('restore') ||
+                         prompt.toLowerCase().includes('cleanup');
 
     const isGrassTask = prompt.toLowerCase().includes('grass') || prompt.toLowerCase().includes('turf') || prompt.toLowerCase().includes('landscape');
 
@@ -79,17 +141,33 @@ export const generateRoomDesign = async (
       {
         text: `Act as a Master Architectural Photo Editor for Real Estate.
         Current Assignment: ${prompt}. 
+        
+        CRITICAL ARCHITECTURAL INTEGRITY RULES:
+        1. **PERMANENT FIXTURES**: Do NOT modify or remove doors, window frames, ceiling lights, fans, vents, or outlets unless they are specifically covered by a RED MASK. If they are not masked, keep them exactly as they are in the original photo.
+        2. **REVEAL THE TRUTH**: If removing an object, reveal the original background (hallways, doorways, open spaces). Do NOT "hallucinate" a new wall over a doorway or hallway.
+        3. **DEPTH & PERSPECTIVE**: Maintain the room's original 3D structure.
 
-        CORE DIRECTIVES:
-        - Maintain pixel-perfect structure of existing walls, windows, and floors.
-        - Lighting must match context exactly (color temp, direction, intensity).
-        - Use ultra-high quality textures for any added elements.
-        ${isRemovalTask ? `- REMOVAL MODE: Smoothly patch areas where items are removed using surrounding textures.` : ''}
-        ${isGrassTask ? `- Exterior: Replace brown/patchy grass with lush, vibrant green Bermuda or Kentucky Bluegrass. Edge naturally against walkways.` : ''}
-        ${prompt.toLowerCase().includes('declutter') ? `
-        - DECLUTTER PROTOCOL:
-        - Remove small items, personal effects, and mess.
+        ${isGrassTask ? `
+        LANDSCAPING REALISM PROTOCOL:
+        - When adding grass or turf, it MUST look natural, photorealistic, and organic. 
+        - DO NOT USE: Flat green colors, cartoonish textures, or uniform synthetic patterns.
+        - INCLUDE: Micro-variations in blade height, "tan/brown thatch" layers at the root base, and multi-tonal greens.
+        - LIGHTING: Grass must cast micro-shadows and have realistic specularity matching the scene's light source.
+        - BORDERS: Natural blending with mulch, dirt, or concrete edges.` : ''}
+
+        ${isRemovalTask ? `
+        RESTORATION PROTOCOL:
+        - Sample the floor and wall textures from the original image to fill gaps.
         - Prioritize "Vacant Home" look—clean, empty, and spacious.` : ''}
+
+        ${isAutoDetectCleanup ? `
+        AUTO-DETECT CLEANUP PROTOCOL:
+        - You must SCAN the entire image and identify ALL objects matching the cleanup category described above.
+        - Remove every identified item. Do NOT require a mask — you are the detector.
+        - For each removed item, sample surrounding wall/floor/surface textures to fill the gap seamlessly.
+        - Maintain lighting direction, shadow consistency, and perspective.
+        - Do NOT remove or alter: doors, windows, ceiling lights, built-in fixtures, or structural elements.
+        - The final result must look like a professional listing photograph.` : ''}
 
         STAGING PROTOCOL:
         - Only add furniture that aligns with the vanishing points of the existing floor.
@@ -103,7 +181,7 @@ export const generateRoomDesign = async (
       }
     ];
 
-    if (maskImageBase64) {
+    if (maskImageBase64 && !isAutoDetectCleanup) {
       const cleanMask = maskImageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
       parts.push({
         text: "MASK INSTRUCTION: Only the RED areas in this mask should be modified. Everything else MUST be preserved exactly from the original."
@@ -118,38 +196,30 @@ export const generateRoomDesign = async (
 
     const config: any = {};
     if (isHighRes) {
-      const detectedRatio = await detectAspectRatioFromBase64(imageBase64);
+      // Determine Aspect Ratio to maintain export consistency
+      // In a real app, we'd get this from the image element, 
+      // here we assume common real estate 4:3 or 16:9 or detect from data.
+      // For safety in this environment, we attempt to stay as neutral as possible 
+      // or default to common ratios if detection is complex.
       config.imageConfig = {
         imageSize: "2K",
-        aspectRatio: detectedRatio,
-        numberOfImages: count
-      };
-    } else {
-      config.imageConfig = {
-        numberOfImages: count
+        aspectRatio: "4:3" // Defaulting to high-quality real estate standard
       };
     }
 
-    const response: GenerateContentResponse = await ai.getGenerativeModel({ model: modelName }).generateContent({
-      contents: [{ role: 'user', parts }],
-      generationConfig: config
+    const response: GenerateContentResponse = await ai.models.generateContent({
+      model: modelName,
+      contents: { parts },
+      config
     });
 
-    const results: string[] = [];
-    if (response.response.candidates) {
-      for (const candidate of response.response.candidates) {
-        if (candidate.content?.parts) {
-          for (const part of candidate.content.parts) {
-            if (part.inlineData?.data) {
-              results.push(`data:image/png;base64,${part.inlineData.data}`);
-            }
-          }
-        }
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
+      if (part.inlineData?.data) {
+        return `data:image/png;base64,${part.inlineData.data}`;
       }
     }
-
-    if (results.length === 0) throw new Error("No image generated.");
-    return results.length === 1 ? results[0] : results;
+    
+    throw new Error("No image generated.");
   } catch (error: any) {
     if (error.message?.includes("Requested entity was not found")) throw new Error("API_KEY_REQUIRED");
     throw error;
@@ -166,10 +236,9 @@ export const autoArrangeLayout = async (
     const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
     const itemNames = items.map(i => i.name).join(', ');
 
-    const model = ai.getGenerativeModel({ model: 'gemini-3-flash-preview' });
-    const response = await model.generateContent({
-      contents: [{
-        role: 'user',
+    const response: GenerateContentResponse = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: {
         parts: [
           {
             text: `Analyze this room image for a ${roomType}. 
@@ -183,14 +252,21 @@ export const autoArrangeLayout = async (
             }
           }
         ]
-      }]
+      },
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          additionalProperties: {
+            type: Type.STRING,
+            enum: ['Default', 'Angled Left', 'Angled Right', 'Facing Away', 'Profile View']
+          }
+        }
+      }
     });
 
-    const text = response.response.text();
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    return JSON.parse(jsonMatch?.[0] || '{}');
+    return response.text ? JSON.parse(response.text) : {};
   } catch (error) {
-    console.error("Auto-arrange failed:", error);
     return {};
   }
 };
@@ -198,72 +274,61 @@ export const autoArrangeLayout = async (
 export const analyzeRoomColors = async (imageBase64: string): Promise<ColorData[]> => {
   try {
     const ai = getAI();
-    const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
     const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
 
-    const response = await model.generateContent({
-      contents: [{
-        role: 'user',
+    const response: GenerateContentResponse = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: {
         parts: [
-          { text: "Analyze the colors in this room. Return a JSON array of dominant material/paint colors with 'name', 'value' (0-100), and 'fill' (hex)." },
-          { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } }
+          {
+            text: "Analyze the colors in this room. Return a JSON array of dominant material/paint colors with 'name', 'value' (0-100), and 'fill' (hex)."
+          },
+          {
+            inlineData: {
+              mimeType: 'image/jpeg',
+              data: cleanBase64
+            }
+          }
         ]
-      }]
+      },
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              name: { type: Type.STRING },
+              value: { type: Type.NUMBER },
+              fill: { type: Type.STRING }
+            },
+            required: ["name", "value", "fill"]
+          }
+        }
+      }
     });
 
-    const text = response.response.text();
-    const jsonMatch = text.match(/\[[\s\S]*\]/);
-    return JSON.parse(jsonMatch?.[0] || []);
+    return response.text ? JSON.parse(response.text) : [];
   } catch (error) {
-    console.log("Using local color analysis fallback...");
-    return getLocalColorPalette(imageBase64);
+    return [];
   }
 };
 
-const getLocalColorPalette = (imageBase64: string): Promise<ColorData[]> => {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = "Anonymous";
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return resolve([]);
-      canvas.width = 10;
-      canvas.height = 10;
-      ctx.drawImage(img, 0, 0, 10, 10);
-      const data = ctx.getImageData(0, 0, 10, 10).data;
-      const palette = [
-        { name: 'Primary', value: 40, fill: `rgb(${data[0]},${data[1]},${data[2]})` },
-        { name: 'Secondary', value: 30, fill: `rgb(${data[4]},${data[5]},${data[6]})` },
-        { name: 'Accent', value: 20, fill: `rgb(${data[8]},${data[9]},${data[10]})` },
-        { name: 'Detail', value: 10, fill: `rgb(${data[12]},${data[13]},${data[14]})` }
-      ];
-      resolve(palette);
-    };
-    img.onerror = () => resolve([]);
-    img.src = imageBase64;
+export const createChatSession = (): Chat => {
+  return getAI().chats.create({
+    model: 'gemini-3.1-pro-preview',
+    config: {
+      systemInstruction: `You are a Real Estate Design Consultant. Preservation of doors, windows, and light fixtures is your top priority. If asked to remove objects, reveal the space behind them. For landscaping, prioritize photorealism. Use [EDIT: prompt] for image tasks.`,
+    }
   });
 };
 
-export const createChatSession = () => {
-  const ai = getAI();
-  const model = ai.getGenerativeModel({
-    model: "gemini-1.5-flash",
-    systemInstruction: "You are a Master Real Estate Design Assistant. Help users refine their design prompts, suggest styles, and coordinate materials. If the user wants to apply a change, include [EDIT: description of change] in your final sentence."
-  });
-  return model.startChat({
-    history: [],
-    generationConfig: { maxOutputTokens: 500 }
-  });
-};
-
-export const sendMessageToChat = async (chat: any, message: string, currentImageBase64?: string | null) => {
+export const sendMessageToChat = async (chat: Chat, message: string, currentImageBase64: string | null) => {
   const parts: any[] = [{ text: message }];
   if (currentImageBase64) {
     const cleanBase64 = currentImageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
     parts.push({ inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } });
   }
-  const result = await chat.sendMessage(parts);
-  const response = await result.response;
-  return response.text();
+  const response = await chat.sendMessage({ message: parts });
+  return response.text || "";
 };

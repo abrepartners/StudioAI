@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { FurnitureRoomType, StylePreset } from '../types';
+import { FurnitureRoomType, StylePreset, CleanupMode } from '../types';
+import { CLEANUP_PRESETS } from '../services/geminiService';
 import {
   Wand2,
   Sofa,
@@ -14,22 +15,36 @@ import {
   Eraser,
   ShieldCheck,
   FilePenLine,
+  ImageOff,
+  Trash2,
+  Home,
+  TreePine,
+  Eye,
+  BrainCircuit,
 } from 'lucide-react';
 
 type StageMode = 'text' | 'packs' | 'furniture';
+
+const CLEANUP_ICONS: Record<string, React.ReactNode> = {
+  ImageOff: <ImageOff size={16} />,
+  Trash2: <Trash2 size={16} />,
+  Home: <Home size={16} />,
+  TreePine: <TreePine size={16} />,
+  Eye: <Eye size={16} />,
+  Eraser: <Eraser size={16} />,
+};
 
 interface RenovationControlsProps {
   activeMode: 'cleanup' | 'design';
   hasGenerated: boolean;
   onGenerate: (prompt: string) => void;
   onStageModeChange?: (mode: StageMode) => void;
+  onCleanupModeChange?: (mode: CleanupMode | null) => void;
   isGenerating: boolean;
   hasMask: boolean;
   selectedRoom: FurnitureRoomType;
   feedbackRequired?: boolean;
   compactMobile?: boolean;
-  isMultiGen: boolean;
-  onMultiGenChange: (multiGen: boolean) => void;
 }
 
 const RenovationControls: React.FC<RenovationControlsProps> = ({
@@ -37,75 +52,176 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
   hasGenerated,
   onGenerate,
   onStageModeChange,
+  onCleanupModeChange,
   isGenerating,
   hasMask,
   selectedRoom,
   feedbackRequired = false,
   compactMobile = false,
-  isMultiGen,
-  onMultiGenChange,
 }) => {
   const [selectedPreset, setSelectedPreset] = useState<StylePreset | null>(null);
   const [customPrompt, setCustomPrompt] = useState('');
   const [stageMode, setStageMode] = useState<StageMode>('text');
+  const [selectedCleanupMode, setSelectedCleanupMode] = useState<CleanupMode | null>(null);
 
   const presets: Array<{ id: StylePreset; icon: React.ReactNode; description: string }> = [
     { id: 'Coastal Modern', icon: <Palmtree size={16} />, description: 'Light and airy flow' },
     { id: 'Urban Loft', icon: <Factory size={16} />, description: 'Industrial edge' },
-    { id: 'Scandi Boho', icon: <Flower2 size={16} />, description: 'Warm and eclectic' },
-    { id: 'Modern Farmhouse', icon: <Wheat size={16} />, description: 'Rustic luxury' },
-    { id: 'Japandi', icon: <Library size={16} />, description: 'Minimalist serenity' },
-    { id: 'Dark Academia', icon: <Layers size={16} />, description: 'Moody and sophisticated' },
-    { id: 'Luxe Art Deco', icon: <Sparkles size={16} />, description: 'Opulent gold accents' },
-    { id: 'Organic Modern', icon: <Cloud size={16} />, description: 'Natural textures' },
+    { id: 'Farmhouse Chic', icon: <Wheat size={16} />, description: 'Rustic warmth' },
+    { id: 'Minimalist', icon: <Sparkles size={16} />, description: 'Quiet simplicity' },
+    { id: 'Traditional', icon: <Library size={16} />, description: 'Layered classic' },
+    { id: 'Mid-Century Modern', icon: <Layers size={16} />, description: 'Retro balance' },
+    { id: 'Scandinavian', icon: <Cloud size={16} />, description: 'Natural calm' },
+    { id: 'Bohemian', icon: <Flower2 size={16} />, description: 'Textured eclectic' },
   ];
 
-  const buildPrompt = () => {
-    if (activeMode === 'cleanup') {
-      onGenerate('cleanup');
-      return;
-    }
-
-    if (stageMode === 'text') {
-      if (!customPrompt.trim()) return;
-      onGenerate(customPrompt);
-    } else if (stageMode === 'packs') {
-      if (!selectedPreset) return;
-      onGenerate(selectedPreset);
-    }
-  };
-
-  const canGenerate = (stageMode === 'text' ? !!customPrompt.trim() : !!selectedPreset) || activeMode === 'cleanup';
+  useEffect(() => {
+    onStageModeChange?.(stageMode);
+  }, [onStageModeChange, stageMode]);
 
   useEffect(() => {
-    if (onStageModeChange) onStageModeChange(stageMode);
-  }, [stageMode, onStageModeChange]);
+    onCleanupModeChange?.(selectedCleanupMode);
+  }, [onCleanupModeChange, selectedCleanupMode]);
+
+  const handleApplyCleanup = () => {
+    if (!selectedCleanupMode) return;
+    const preset = CLEANUP_PRESETS.find((p) => p.id === selectedCleanupMode);
+    if (preset) onGenerate(preset.prompt);
+  };
+
+  const trimmedPrompt = customPrompt.trim();
+  const canGenerate =
+    !feedbackRequired &&
+    (stageMode === 'text' ? trimmedPrompt.length > 0 : stageMode === 'packs' ? Boolean(selectedPreset) : false);
+
+  const buildPrompt = () => {
+    if (stageMode === 'furniture') return;
+
+    let prompt = '';
+
+    if (stageMode === 'text') {
+      prompt = `Virtually stage this ${selectedRoom}. Preserve architecture, layout, windows, doors, and built-in fixtures. Keep proportions realistic and photoreal. Primary direction: ${trimmedPrompt}`;
+    }
+
+    if (stageMode === 'packs') {
+      if (!selectedPreset) return;
+      prompt = `Virtually stage this ${selectedRoom} in a ${selectedPreset} pack direction. Preserve architecture, layout, windows, doors, and built-in fixtures. Keep proportions realistic and photoreal.`;
+    }
+
+    if (hasMask) {
+      prompt += ' ONLY update the masked area, keeping the rest of the image identical.';
+    }
+
+    onGenerate(prompt);
+  };
 
   if (activeMode === 'cleanup') {
-    return (
-      <div className="premium-surface rounded-3xl p-5">
-        <div className="mb-4 flex items-center gap-3">
-          <div className="subtle-card rounded-xl p-2 text-[var(--color-primary)]">
-            <Eraser size={18} />
-          </div>
-          <div>
-            <h3 className="font-display text-lg font-semibold">Smart Cleanup</h3>
-            <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-text)]/70">Remove items or imperfections</p>
-          </div>
-        </div>
+    const activePreset = CLEANUP_PRESETS.find((p) => p.id === selectedCleanupMode);
+    const isPrecision = selectedCleanupMode === 'precision';
+    const canClean = isPrecision ? hasMask : !!selectedCleanupMode;
 
-        <div className="rounded-2xl bg-amber-50 p-4 border border-amber-100">
-          <p className="text-xs text-amber-800 leading-relaxed font-medium">
-            Use the brush to mask areas you want to remove. Our AI will seamlessly fill in the space based on the surrounding textures.
+    return (
+      <div className="space-y-5">
+        <div className="premium-surface rounded-3xl p-5">
+          <div className="mb-3 flex items-center gap-3">
+            <div className="subtle-card rounded-xl p-2 text-[var(--color-primary)]">
+              <Eraser size={18} />
+            </div>
+            <div>
+              <h3 className="font-display text-lg font-semibold">Smart Cleanup</h3>
+              <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-text)]/70">Choose what to remove</p>
+            </div>
+          </div>
+          <p className="text-sm leading-relaxed text-[var(--color-text)]/85">
+            Select a category and AI will auto-detect and remove matching items, or use Precision Edit to mask specific areas.
           </p>
         </div>
 
-        <div className="mt-5 rounded-2xl bg-sky-50 p-4 border border-sky-100 flex items-start gap-3">
-          <div className="text-[var(--color-primary)] mt-0.5">
-            <ShieldCheck size={16} />
+        <div className="premium-surface rounded-3xl p-5">
+          <div className="mb-4 flex items-center gap-3">
+            <div className="subtle-card rounded-xl p-2 text-[var(--color-primary)]">
+              <BrainCircuit size={18} />
+            </div>
+            <div>
+              <h3 className="font-display text-lg font-semibold">Cleanup Mode</h3>
+              <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-text)]/70">Select a category</p>
+            </div>
           </div>
-          <p className="text-[11px] text-sky-900 leading-relaxed">
-            <strong>Pro Tip:</strong> Smaller brush strokes for fine details like wires or debris work best.
+
+          <div className="grid grid-cols-2 gap-2">
+            {CLEANUP_PRESETS.map((preset) => {
+              const active = selectedCleanupMode === preset.id;
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => setSelectedCleanupMode(active ? null : preset.id)}
+                  className={`rounded-2xl border px-2.5 py-2 text-left transition-all ${
+                    active
+                      ? 'border-[var(--color-accent)] bg-sky-50 shadow-[0_8px_20px_rgba(3,105,161,0.14)]'
+                      : 'border-[var(--color-border)] bg-white/80 hover:bg-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span
+                      className={`flex h-8 w-8 items-center justify-center rounded-lg ${
+                        active ? 'bg-[var(--color-accent)] text-white' : 'subtle-card text-[var(--color-text)]'
+                      }`}
+                    >
+                      {CLEANUP_ICONS[preset.iconName] || <Eraser size={16} />}
+                    </span>
+                    <span>
+                      <span className="block text-sm font-semibold text-[var(--color-ink)]">{preset.label}</span>
+                      <span className="block text-xs text-[var(--color-text)]/70">{preset.description}</span>
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {selectedCleanupMode && !isPrecision && (
+          <div className="rounded-2xl border border-sky-300/45 bg-sky-50/70 px-4 py-3 text-sm text-sky-900">
+            <p className="flex items-start gap-2">
+              <BrainCircuit size={16} className="mt-0.5 shrink-0" />
+              AI will auto-detect and remove {activePreset?.label.toLowerCase()} items. No masking needed.
+            </p>
+          </div>
+        )}
+
+        {isPrecision && (
+          <div className="rounded-2xl border border-emerald-300/45 bg-emerald-50/70 px-4 py-3 text-sm text-emerald-900">
+            <p className="flex items-start gap-2">
+              <ShieldCheck size={16} className="mt-0.5 shrink-0" />
+              Paint over items on the canvas. Structural fixtures are protected unless specifically masked.
+            </p>
+          </div>
+        )}
+
+        <div className="premium-surface-strong rounded-3xl p-5 sticky bottom-5">
+          <button
+            type="button"
+            onClick={handleApplyCleanup}
+            disabled={isGenerating || !canClean}
+            className="cta-primary w-full rounded-2xl px-4 py-3.5 text-sm font-semibold tracking-wide disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isGenerating
+              ? 'Processing...'
+              : isPrecision
+                ? 'Remove and Reveal'
+                : selectedCleanupMode
+                  ? `Auto-Clean ${activePreset?.label}`
+                  : 'Select a Mode'}
+          </button>
+          <p className="mt-3 text-center text-xs text-[var(--color-text)]/70">
+            {!selectedCleanupMode
+              ? 'Choose a cleanup category above to get started.'
+              : isPrecision
+                ? hasMask
+                  ? 'Mask detected. Ready to process.'
+                  : 'Draw over an area on the canvas to enable cleanup.'
+                : 'AI will scan and clean the photo automatically.'}
           </p>
         </div>
       </div>
@@ -123,20 +239,22 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
           <button
             type="button"
             onClick={() => setStageMode('text')}
-            className={`rounded-2xl border px-2.5 py-2 text-left text-sm font-semibold transition-all ${stageMode === 'text'
-              ? 'border-[var(--color-accent)] bg-sky-50 shadow-[0_8px_20px_rgba(3,105,161,0.14)]'
-              : 'border-[var(--color-border)] bg-white/80 hover:bg-white'
-              }`}
+            className={`rounded-2xl border px-2.5 py-2 text-left text-sm font-semibold transition-all ${
+              stageMode === 'text'
+                ? 'border-[var(--color-accent)] bg-sky-50 shadow-[0_8px_20px_rgba(3,105,161,0.14)]'
+                : 'border-[var(--color-border)] bg-white/80 hover:bg-white'
+            }`}
           >
             Text
           </button>
           <button
             type="button"
             onClick={() => setStageMode('packs')}
-            className={`rounded-2xl border px-2.5 py-2 text-left text-sm font-semibold transition-all ${stageMode === 'packs'
-              ? 'border-[var(--color-accent)] bg-sky-50 shadow-[0_8px_20px_rgba(3,105,161,0.14)]'
-              : 'border-[var(--color-border)] bg-white/80 hover:bg-white'
-              }`}
+            className={`rounded-2xl border px-2.5 py-2 text-left text-sm font-semibold transition-all ${
+              stageMode === 'packs'
+                ? 'border-[var(--color-accent)] bg-sky-50 shadow-[0_8px_20px_rgba(3,105,161,0.14)]'
+                : 'border-[var(--color-border)] bg-white/80 hover:bg-white'
+            }`}
           >
             Packs
           </button>
@@ -160,28 +278,29 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
 
       {stageMode === 'text' && (
         <div className="premium-surface rounded-3xl p-5">
-          <div className="mb-4 flex items-center gap-3">
+          <div className="mb-3 flex items-center gap-3">
             <div className="subtle-card rounded-xl p-2 text-[var(--color-primary)]">
               <FilePenLine size={18} />
             </div>
             <div>
-              <h3 className="font-display text-lg font-semibold">Custom Design</h3>
-              <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-text)]/70">Prompt your vision</p>
+              <h3 className="font-display text-lg font-semibold">Design Direction</h3>
+              <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-text)]/70">Primary generation input</p>
             </div>
           </div>
-          <div className="group relative">
-            <textarea
-              value={customPrompt}
-              onChange={(e) => setCustomPrompt(e.target.value)}
-              placeholder="e.g. A modern living room with a navy velvet sofa and gold accents..."
-              className="h-32 w-full resize-none rounded-2xl border border-[var(--color-border)] bg-white/80 p-4 text-sm transition-all focus:border-[var(--color-accent)] focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-100"
-            />
-          </div>
-          {!compactMobile && (
-            <p className="mt-3 text-[11px] leading-relaxed text-[var(--color-text)]/60">
-              Be specific about textures (velvet, oak, linen) and colors for the best results.
-            </p>
-          )}
+          <p className="mb-3 text-sm text-[var(--color-text)]/80">
+            {hasGenerated
+              ? 'Update your direction, then re-generate for a fresh composition.'
+              : compactMobile
+                ? 'Describe the first design.'
+                : 'Describe the first design you want to generate.'}
+          </p>
+          <textarea
+            value={customPrompt}
+            onChange={(e) => setCustomPrompt(e.target.value)}
+            placeholder="e.g. warm oak flooring, sculptural lamp, linen drapes"
+            rows={compactMobile ? 3 : 4}
+            className="w-full rounded-2xl border border-[var(--color-border)] bg-white/85 px-3 py-2.5 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-text)]/45"
+          />
         </div>
       )}
 
@@ -206,15 +325,17 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
                   key={preset.id}
                   type="button"
                   onClick={() => setSelectedPreset(preset.id)}
-                  className={`rounded-2xl border px-2.5 py-2 text-left transition-all hover-lift ${active
-                    ? 'border-[var(--color-accent)] bg-sky-50 shadow-[0_8px_20px_rgba(3,105,161,0.14)]'
-                    : 'border-[var(--color-border)] bg-white/80 hover:bg-white'
-                    }`}
+                  className={`rounded-2xl border px-2.5 py-2 text-left transition-all ${
+                    active
+                      ? 'border-[var(--color-accent)] bg-sky-50 shadow-[0_8px_20px_rgba(3,105,161,0.14)]'
+                      : 'border-[var(--color-border)] bg-white/80 hover:bg-white'
+                  }`}
                 >
                   <div className="flex items-center gap-2.5">
                     <span
-                      className={`flex h-8 w-8 items-center justify-center rounded-lg ${active ? 'bg-[var(--color-accent)] text-white' : 'subtle-card text-[var(--color-text)]'
-                        }`}
+                      className={`flex h-8 w-8 items-center justify-center rounded-lg ${
+                        active ? 'bg-[var(--color-accent)] text-white' : 'subtle-card text-[var(--color-text)]'
+                      }`}
                     >
                       {preset.icon}
                     </span>
@@ -239,28 +360,13 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
             : 'premium-surface-strong rounded-3xl p-5 sticky bottom-2 space-y-3'
         }
       >
-        <label className="flex items-center gap-3 p-1 cursor-pointer group">
-          <div className={`flex w-9 h-5 items-center rounded-full p-1 transition-colors ${isMultiGen ? 'bg-[var(--color-accent)]' : 'bg-slate-300'}`}>
-            <div className={`h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform ${isMultiGen ? 'translate-x-3.5' : 'translate-x-0'}`} />
-          </div>
-          <div>
-            <span className="block text-xs font-semibold text-[var(--color-ink)]">Enable Multi-Gen</span>
-            <span className="block text-[10px] text-[var(--color-text)]/70">Generate 2 variations at once (Uses more credits)</span>
-          </div>
-          <input
-            type="checkbox"
-            className="hidden"
-            checked={isMultiGen}
-            onChange={(e) => onMultiGenChange(e.target.checked)}
-          />
-        </label>
-
         <button
           type="button"
           onClick={buildPrompt}
           disabled={isGenerating || !canGenerate}
-          className={`cta-primary w-full rounded-2xl px-4 py-3.5 text-sm font-semibold tracking-wide disabled:cursor-not-allowed disabled:opacity-50 ${compactMobile ? 'min-h-[52px]' : 'min-h-[46px]'
-            }`}
+          className={`cta-primary w-full rounded-2xl px-4 py-3.5 text-sm font-semibold tracking-wide disabled:cursor-not-allowed disabled:opacity-50 ${
+            compactMobile ? 'min-h-[52px]' : 'min-h-[46px]'
+          }`}
         >
           {isGenerating ? 'Rendering Design...' : hasGenerated ? 'Re-generate Design' : 'Generate Design'}
         </button>

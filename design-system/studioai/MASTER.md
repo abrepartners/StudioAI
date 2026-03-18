@@ -17,14 +17,22 @@
 ### Color Palette
 
 | Role | Hex | CSS Variable |
-|------|-----|--------------|
-| Primary | `#0F766E` | `--color-primary` |
-| Secondary | `#14B8A6` | `--color-secondary` |
-| CTA/Accent | `#0369A1` | `--color-cta` |
-| Background | `#F0FDFA` | `--color-background` |
-| Text | `#134E4A` | `--color-text` |
+|------|-----|-------------|
+| Primary | #00FFCC | --color-primary |
+| Primary Light | #33FFD6 | --color-primary-light |
+| Primary Dark | #0F766E | --color-primary-dark |
+| Accent | #FF0055 | --color-accent |
+| Accent Light | #FF3377 | --color-accent-light |
+| Background | #000000 | --color-bg |
+| Background Deep | #050505 | --color-bg-deep |
+| Text | #A1A1AA | --color-text |
+| Ink (Headings) | #FFFFFF | --color-ink |
+| Surface | #0A0A0A | --color-surface |
+| Surface Elevated | #111111 | --color-surface-elevated |
+| Border | rgba(255,255,255,0.1) | --color-border |
+| Border Strong | rgba(255,255,255,0.2) | --color-border-strong |
 
-**Color Notes:** Trust teal + professional blue
+**Color Notes:** Cyberpunk dark theme — neon cyan primary, hot pink accent, pure black backgrounds. Trust is established through precision UI, not warm tones.
 
 ### Typography
 
@@ -99,7 +107,7 @@
 
 ```css
 .card {
-  background: #F0FDFA;
+  background: #000000;
   border-radius: 12px;
   padding: 24px;
   box-shadow: var(--shadow-md);

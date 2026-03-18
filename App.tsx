@@ -385,7 +385,7 @@ const App: React.FC = () => {
     }
 
     if (showFeedbackCheckpoint) {
-      alert('Please complete the quick feedback checkpoint to continue generating.');
+      setShowFeedbackCheckpoint(true);
       return;
     }
 
@@ -1016,6 +1016,7 @@ const App: React.FC = () => {
                     showToast(item.icon, item.label);
                   }}
                   title={item.available ? item.label : `${item.label} (Coming Soon)`}
+                    aria-label={item.label}
                   className={`nav-item ${active && item.available ? 'active' : ''} ${!item.available ? 'opacity-40 cursor-not-allowed' : ''} group/item relative overflow-hidden`}
                 >
                   <div className="shrink-0 flex items-center justify-center w-6 h-6 relative z-10 transition-transform duration-300 group-hover/item:scale-110">{item.icon}</div>
@@ -1099,22 +1100,39 @@ const App: React.FC = () => {
                     )}
                   </div>
 
+                  {(isGenerating || isAnalyzing || activePanel === 'cleanup') && (
                   <div className="absolute right-3 top-3 z-20 flex items-center gap-2 rounded-full bg-black/80 border border-[rgba(0,255,204,0.3)] shadow-[0_0_15px_rgba(0,0,0,0.8)] px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[#00FFCC] backdrop-blur-xl">
                     <span className={`status-dot ${isGenerating ? 'bg-[#FF0055] shadow-[0_0_10px_#FF0055] animate-pulse' : 'bg-[#00FFCC] shadow-[0_0_10px_#00FFCC]'}`} />
-                    {isGenerating ? (
-                      <span className="flex items-center gap-2">
-                        PROCESSING NEURAL GRAPH 
-                        <span className="inline-block overflow-hidden h-[12px] w-[50px] relative font-mono text-[8px] leading-[12px] text-zinc-500">
-                          <span className="absolute left-0 w-full animate-data-stream">01011001 10101010 11001100 00110011 11110000 00001111</span>
-                        </span>
-                      </span>
-                    ) : activePanel === 'cleanup' ? 'MASK OVERRIDE' : 'SYSTEM IDLE'}
+                    {isGenerating ? 'Generating...' : isAnalyzing ? 'Detecting Room...' : 'Mask Mode'}
                   </div>
+                  )}
                 </div>
               </div>
 
               <div className="w-full">
-                <ColorAnalysis colors={colors} isLoading={isAnalyzing} />
+                {isAnalyzing ? (
+                  <div className="premium-surface rounded-2xl p-5 space-y-4 animate-pulse">
+                    <div className="flex items-center gap-3">
+                      <div className="h-6 w-6 rounded-full bg-[var(--color-surface-elevated)]" />
+                      <div>
+                        <div className="h-4 w-32 rounded bg-[var(--color-surface-elevated)] mb-1" />
+                        <div className="h-3 w-24 rounded bg-[var(--color-surface-elevated)]" />
+                      </div>
+                    </div>
+                    <div className="h-3 w-full rounded-full bg-[var(--color-surface-elevated)]" />
+                    {[1,2,3,4].map(i => (
+                      <div key={i} className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="h-4 w-4 rounded-full bg-[var(--color-surface-elevated)]" />
+                          <div className="h-3 w-28 rounded bg-[var(--color-surface-elevated)]" />
+                        </div>
+                        <div className="h-3 w-8 rounded bg-[var(--color-surface-elevated)]" />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <ColorAnalysis colors={colors} isLoading={isAnalyzing} />
+                )}
               </div>
 
               <QualityScore

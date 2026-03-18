@@ -139,7 +139,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
   return (
     <div className="space-y-4">
       {/* 1-Click Auto-Pilot (Bezos) */}
-      <div className="premium-surface rounded-2xl p-1 shadow-[0_0_20px_rgba(0,255,204,0.15)] bg-gradient-to-r from-[var(--color-bg-deep)] to-black border border-[var(--color-primary-dark)]">
+      <div className="premium-surface rounded-2xl p-1 shadow-md bg-gradient-to-r from-[var(--color-bg-deep)] to-black border border-[var(--color-primary-dark)]">
         <button
           type="button"
           onClick={() => {
@@ -160,12 +160,12 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
             onGenerate(autoPilotPrompt);
           }}
           disabled={isGenerating}
-          className="w-full rounded-xl bg-black border border-[rgba(0,255,204,0.4)] px-4 py-4 text-center group hover:bg-[rgba(0,255,204,0.05)] transition-all overflow-hidden relative"
+          className="w-full rounded-xl bg-black border border-[rgba(10,132,255,0.4)] px-4 py-4 text-center group hover:bg-[rgba(10,132,255,0.05)] transition-all overflow-hidden relative"
         >
-          <div className="absolute inset-0 scanline-overlay opacity-20 pointer-events-none group-hover:opacity-40 transition-opacity"></div>
+          <div className="absolute inset-0 hidden opacity-20 pointer-events-none group-hover:opacity-40 transition-opacity"></div>
           <div className="flex items-center justify-center gap-2 mb-1 relative z-10">
             <Sparkles size={18} className="text-[var(--color-primary)] animate-pulse" />
-            <span className="font-display font-black tracking-[0.15em] uppercase text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.5)] bg-clip-text">Auto-Pilot</span>
+            <span className="font-display font-black tracking-[0.15em] uppercase text-white drop-shadow-sm bg-clip-text">Auto-Pilot</span>
           </div>
           <p className="text-[10px] text-[var(--color-primary)] font-mono opacity-80 group-hover:opacity-100 uppercase tracking-widest relative z-10">1-Click Optimal Staging</p>
         </button>
@@ -180,7 +180,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
         {/* Apple-Style Segmented Control (Jobs) */}
         <div className="relative flex p-1.5 rounded-xl bg-black/60 border border-[var(--color-border-strong)] shadow-inner">
           <div
-            className="absolute top-1.5 bottom-1.5 rounded-lg bg-[var(--color-primary)]/15 border border-[var(--color-primary)]/30 drop-shadow-[0_0_10px_rgba(0,255,204,0.2)] transition-all duration-300 ease-spring"
+            className="absolute top-1.5 bottom-1.5 rounded-lg bg-[var(--color-primary)]/15 border border-[var(--color-primary)]/30 drop-shadow-md transition-all duration-300 ease-spring"
             style={{
               width: 'calc(33.333% - 6px)',
               left: `calc(${['text', 'packs', 'furniture'].indexOf(stageMode)} * 33.333% + 5px)`,
@@ -273,14 +273,14 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
                   type="button"
                   onClick={() => setSelectedPreset(preset.id)}
                   className={`relative overflow-hidden rounded-2xl border px-3 py-3 text-left transition-all duration-300 ${active
-                    ? 'border-[var(--color-primary)] bg-[rgba(0,255,204,0.05)] shadow-[0_0_15px_rgba(0,255,204,0.2)] scale-[1.02]'
+                    ? 'border-[var(--color-primary)] bg-[rgba(10,132,255,0.05)] shadow-md scale-[1.02]'
                     : 'border-[var(--color-border)] bg-black/40 hover:bg-black hover:border-[var(--color-border-strong)] hover:scale-[1.01]'
                     }`}
                 >
                   {active && <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-primary)]/10 to-transparent pointer-events-none"></div>}
                   <div className="flex items-center gap-3 relative z-10">
                     <span
-                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${active ? 'bg-[var(--color-primary)] text-black shadow-[0_0_10px_rgba(0,255,204,0.5)]' : 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border-strong)]'
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${active ? 'bg-[var(--color-primary)] text-black shadow-md' : 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border-strong)]'
                         }`}
                     >
                       {preset.icon}
@@ -321,7 +321,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
           className={`w-full rounded-2xl px-4 py-4 text-sm font-black uppercase tracking-widest disabled:cursor-not-allowed transition-all duration-300 relative overflow-hidden group ${
             isGenerating || !canGenerate 
             ? 'bg-black/40 text-[var(--color-text)]/30 border border-[var(--color-border-strong)] shadow-inner' 
-            : 'bg-[var(--color-primary)] text-black border border-[#00FFCC] shadow-[0_0_20px_rgba(0,255,204,0.4)] hover:shadow-[0_0_35px_rgba(0,255,204,0.7)] hover:bg-[#00ffd5] scale-100 hover:scale-[1.02]'
+            : 'bg-[var(--color-primary)] text-black border border-[#0A84FF] shadow-lg hover:shadow-xl hover:bg-[#00ffd5] scale-100 hover:scale-[1.02]'
           }`}
         >
           {(!isGenerating && canGenerate) && (

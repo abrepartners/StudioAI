@@ -545,8 +545,8 @@ const App: React.FC = () => {
 
   if (!googleUser) {
     return (
-      <div className="min-h-[100dvh] flex bg-black crt-effect">
-        <div className="scanline-overlay"></div>
+      <div className="min-h-[100dvh] flex bg-black">
+        
         {/* Left - Hero Image */}
         <div className="hidden lg:flex lg:w-[60%] relative login-bg">
           <div className="absolute inset-0 bg-gradient-to-r from-black via-black/50 to-transparent" />
@@ -559,16 +559,16 @@ const App: React.FC = () => {
             <div className="max-w-2xl">
               <p className="text-sm uppercase tracking-[0.3em] font-bold text-[var(--color-primary)] mb-4">The Future of Real Estate</p>
               <h2 className="text-5xl xl:text-7xl font-display font-black leading-[1.05] text-white tracking-tighter mb-6 drop-shadow-lg">
-                Render Reality.
+                Design, Elevated..
               </h2>
               <p className="text-lg leading-relaxed text-zinc-300 font-medium max-w-xl">
                 Advanced neural staging, instant renovation synthesis, and hyper-realistic asset generation. 
               </p>
             </div>
             <div className="flex items-center gap-8 text-sm font-semibold text-zinc-400">
-              <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse shadow-[0_0_10px_var(--color-primary)]"/> Neural Staging</span>
-              <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse shadow-[0_0_10px_var(--color-primary)] delay-75"/> Synthesis</span>
-              <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse shadow-[0_0_10px_var(--color-primary)] delay-150"/> Encrypted</span>
+              <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse shadow-md"/> AI Staging</span>
+              <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse shadow-md delay-75"/> Synthesis</span>
+              <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse shadow-md delay-150"/> Encrypted</span>
             </div>
           </div>
         </div>
@@ -579,16 +579,16 @@ const App: React.FC = () => {
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-accent)]"></div>
             
             <div className="lg:hidden mb-12 flex flex-col items-center text-center">
-              <div className="h-16 w-16 mb-6 rounded-2xl flex items-center justify-center bg-black border border-[var(--color-primary-dark)] shadow-[0_0_30px_rgba(0,255,204,0.3)]">
+              <div className="h-16 w-16 mb-6 rounded-2xl flex items-center justify-center bg-black border border-[var(--color-primary-dark)] shadow-lg">
                 <Camera size={28} className="text-[var(--color-primary)]" />
               </div>
               <h1 className="font-display text-4xl font-black text-white tracking-tight">
-                Studio<span className="text-[var(--color-primary)]" style={{ textShadow: '0 0 20px rgba(0,255,204,0.5)' }}>AI</span>
+                Studio<span className="text-[var(--color-primary)]" style={{ textShadow: '0 0 20px rgba(10,132,255,0.5)' }}>AI</span>
               </h1>
             </div>
 
             <div className="hidden lg:block mb-12">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[rgba(0,255,204,0.1)] border border-[rgba(0,255,204,0.2)] mb-6">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[rgba(10,132,255,0.1)] border border-[rgba(10,132,255,0.2)] mb-6">
                 <div className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse"></div>
                 <span className="text-xs font-bold uppercase tracking-widest text-[var(--color-primary)]">System Online</span>
               </div>
@@ -631,12 +631,12 @@ const App: React.FC = () => {
               <p className="text-xs mb-5 font-bold tracking-widest uppercase text-zinc-500">Modules</p>
               <div className="space-y-4">
                 {[
-                  { icon: <ImageIcon size={16} />, label: 'Neural Staging', desc: 'Synthesize furniture in milliseconds' },
+                  { icon: <ImageIcon size={16} />, label: 'AI Staging', desc: 'Synthesize furniture in milliseconds' },
                   { icon: <Wand2 size={16} />, label: 'Structural Morph', desc: 'Real-time architectural previews' },
                   { icon: <Sparkles size={16} />, label: 'Language Matrix', desc: 'Automated description drafting' },
                 ].map((f) => (
                   <div key={f.label} className="flex items-start gap-4 p-3 rounded-xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
-                    <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-black border border-[var(--color-primary-dark)] text-[var(--color-primary)] shadow-[inset_0_0_10px_rgba(0,255,204,0.1)]">
+                    <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-black border border-[var(--color-primary-dark)] text-[var(--color-primary)] shadow-[inset_0_0_10px_rgba(10,132,255,0.1)]">
                       {f.icon}
                     </div>
                     <div>
@@ -654,8 +654,8 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="studio-shell min-h-[100dvh] lg:h-screen overflow-x-hidden lg:overflow-hidden flex flex-col crt-effect">
-      <div className="scanline-overlay"></div>
+    <div className="studio-shell min-h-[100dvh] lg:h-screen overflow-x-hidden lg:overflow-hidden flex flex-col">
+      
       {showKeyPrompt && (
         <div className="fixed inset-0 z-[100] grid place-items-center modal-overlay p-4 animate-fade-in">
           <div className="modal-panel w-full max-w-md rounded-2xl p-8 animate-scale-in">
@@ -813,14 +813,14 @@ const App: React.FC = () => {
         </div>
       )}
 
-      <header className="shrink-0 bg-black border-b-[2px] border-[var(--color-primary-dark)] px-6 py-3 flex items-center justify-between gap-3 relative z-50 shadow-[0_4px_30px_rgba(0,255,204,0.15)]">
+      <header className="shrink-0 bg-black border-b-[2px] border-[var(--color-primary-dark)] px-6 py-3 flex items-center justify-between gap-3 relative z-50 shadow-[0_4px_30px_rgba(10,132,255,0.15)]">
         <div className="flex items-center gap-4 min-w-0">
           <div className="flex items-center gap-3 min-w-0 pr-4 border-r border-[var(--color-border-strong)]">
-            <div className="bg-black border border-[var(--color-primary)] shadow-[0_0_15px_rgba(0,255,204,0.3)] flex h-10 w-10 items-center justify-center rounded-xl">
+            <div className="bg-black border border-[var(--color-primary)] shadow-md flex h-10 w-10 items-center justify-center rounded-xl">
               <Camera size={18} className="text-[var(--color-primary)]" />
             </div>
             <h1 className="font-display text-xl font-black leading-none whitespace-nowrap text-white tracking-tight">
-              Studio<span className="text-[var(--color-primary)] drop-shadow-[0_0_8px_rgba(0,255,204,0.8)]">AI</span>
+              Studio<span className="text-[var(--color-primary)] drop-shadow-md">AI</span>
             </h1>
           </div>
 
@@ -878,7 +878,7 @@ const App: React.FC = () => {
                     else setShowKeyPrompt(true);
                   }}
                   disabled={isEnhancing}
-                  className={`rounded-lg px-4 py-1.5 text-[10px] uppercase tracking-widest font-black inline-flex items-center gap-2 disabled:opacity-50 transition-all ${hasProKey ? 'bg-[var(--color-primary)] text-black shadow-[0_0_15px_rgba(0,255,204,0.6)] hover:bg-white hover:shadow-[0_0_25px_rgba(255,255,255,0.8)]' : 'cta-secondary'}`}
+                  className={`rounded-lg px-4 py-1.5 text-[10px] uppercase tracking-widest font-black inline-flex items-center gap-2 disabled:opacity-50 transition-all ${hasProKey ? 'bg-[var(--color-primary)] text-black shadow-md hover:bg-white hover:shadow-xl' : 'cta-secondary'}`}
                 >
                   <Zap size={14} className={isEnhancing ? 'animate-pulse text-white' : ''} />
                   <span className="hidden sm:inline">
@@ -958,11 +958,11 @@ const App: React.FC = () => {
           <div className="w-full max-w-lg mx-auto px-8 py-20 text-center animate-fade-in glass-overlay rounded-[2.5rem] border border-[var(--color-border-strong)] shadow-2xl relative overflow-hidden">
             <div className="absolute top-[-50px] left-1/2 -translate-x-1/2 w-[300px] h-[100px] bg-[var(--color-primary)] blur-[100px] opacity-20 pointer-events-none"></div>
             
-            <div className="mx-auto mb-8 h-20 w-20 rounded-3xl flex items-center justify-center bg-black border border-[var(--color-primary)] shadow-[0_0_40px_rgba(0,255,204,0.2)]">
+            <div className="mx-auto mb-8 h-20 w-20 rounded-3xl flex items-center justify-center bg-black border border-[var(--color-primary)] shadow-xl">
               <Camera size={32} className="text-[var(--color-primary)]" />
             </div>
             <h2 className="font-display text-4xl sm:text-5xl font-black text-white tracking-tighter mb-4 drop-shadow-md">
-              INITIALIZE <span className="text-[var(--color-primary)]">UPLOAD</span>
+              Upload Your Space
             </h2>
             <p className="text-base text-zinc-400 max-w-sm mx-auto mb-10 leading-relaxed font-medium">
               Provide visual data. The neural engine will reconstruct reality.
@@ -984,7 +984,7 @@ const App: React.FC = () => {
 
             <div className="mt-16 flex flex-wrap justify-center gap-3">
               {[
-                { icon: <Wand2 size={14} />, label: 'Neural Staging' },
+                { icon: <Wand2 size={14} />, label: 'AI Staging' },
                 { icon: <Camera size={14} />, label: 'Twilight Compute' },
                 { icon: <ImageIcon size={14} />, label: 'Sky Replacement' },
                 { icon: <Eraser size={14} />, label: 'Data Scrub' },
@@ -999,7 +999,7 @@ const App: React.FC = () => {
         </main>
       ) : (
         <div className="flex-1 min-h-0 flex lg:flex-row overflow-hidden relative z-10 bg-[#050505]">
-          <nav className="hidden lg:flex shrink-0 w-[64px] hover:w-[220px] transition-all duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] glass-overlay border border-[var(--color-border-strong)] rounded-2xl flex-col gap-1.5 p-2 mx-4 my-6 group z-20 shadow-[0_0_20px_rgba(0,0,0,0.8)] self-start sticky top-6">
+          <nav className="hidden lg:flex shrink-0 w-[64px] hover:w-[220px] transition-all duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] glass-overlay border border-[var(--color-border-strong)] rounded-2xl flex-col gap-1.5 p-2 mx-4 my-6 group z-20 shadow-xl self-start sticky top-6">
             <div className="w-full flex justify-center mb-2 mt-2">
               <div className="w-8 h-1 bg-[var(--color-primary-dark)] rounded-full opacity-50"></div>
             </div>
@@ -1028,15 +1028,15 @@ const App: React.FC = () => {
 
           <main className="order-1 lg:order-2 flex-1 min-h-0 overflow-y-auto editor-canvas-bg p-3 sm:p-5 lg:p-6 pb-[58vh] lg:pb-6 relative z-10">
             <div className="mx-auto w-full max-w-6xl space-y-4">
-              <div className="canvas-frame p-1 sm:p-2 rounded-2xl glass-overlay border border-[var(--color-border-strong)] shadow-[0_0_40px_rgba(0,0,0,0.5)]">
+              <div className="canvas-frame p-1 sm:p-2 rounded-2xl glass-overlay border border-[var(--color-border-strong)] shadow-2xl">
                 <div className="relative overflow-hidden rounded-[14px] bg-black aspect-[4/3] sm:aspect-video border border-[var(--color-border-strong)]">
                   {isGenerating && (
-                    <div className="absolute inset-0 z-10 bg-black/70 backdrop-blur-sm pointer-events-none flex flex-col items-center justify-center crt-effect">
-                      <div className="scanline-overlay"></div>
+                    <div className="absolute inset-0 z-10 bg-black/70 backdrop-blur-sm pointer-events-none flex flex-col items-center justify-center">
+                      
                       <div className="text-center space-y-4 w-full max-w-md px-6">
-                        <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full border border-[var(--color-primary-dark)] bg-black shadow-[0_0_20px_rgba(0,255,204,0.2)]">
+                        <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full border border-[var(--color-primary-dark)] bg-black shadow-lg">
                           <BrainCircuit size={18} className="text-[var(--color-primary)] animate-pulse" />
-                          <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-primary)]">NEURAL UPLINK ACTIVE</span>
+                          <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-primary)]">Generating Design</span>
                         </div>
                         <div className="font-mono text-center space-y-2 relative h-16 w-full mask-linear-gradient-bottom">
                           <p className="text-[10px] sm:text-xs text-[var(--color-primary)] opacity-40 typing-effect">-- ANALYZING SPATIAL DEPTH --</p>
@@ -1101,8 +1101,8 @@ const App: React.FC = () => {
                   </div>
 
                   {(isGenerating || isAnalyzing || activePanel === 'cleanup') && (
-                  <div className="absolute right-3 top-3 z-20 flex items-center gap-2 rounded-full bg-black/80 border border-[rgba(0,255,204,0.3)] shadow-[0_0_15px_rgba(0,0,0,0.8)] px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[#00FFCC] backdrop-blur-xl">
-                    <span className={`status-dot ${isGenerating ? 'bg-[#FF0055] shadow-[0_0_10px_#FF0055] animate-pulse' : 'bg-[#00FFCC] shadow-[0_0_10px_#00FFCC]'}`} />
+                  <div className="absolute right-3 top-3 z-20 flex items-center gap-2 rounded-full bg-black/80 border border-[rgba(10,132,255,0.3)] shadow-lg px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[#0A84FF] backdrop-blur-xl">
+                    <span className={`status-dot ${isGenerating ? 'bg-[#FF375F] shadow-md animate-pulse' : 'bg-[#0A84FF] shadow-md'}`} />
                     {isGenerating ? 'Generating...' : isAnalyzing ? 'Detecting Room...' : 'Mask Mode'}
                   </div>
                   )}
@@ -1234,7 +1234,7 @@ const App: React.FC = () => {
 
           </main>
 
-          <aside className={`mobile-control-sheet order-3 lg:order-3 lg:w-[400px] lg:shrink-0 lg:my-6 lg:mr-6 lg:rounded-[2rem] glass-overlay border lg:border-[var(--color-border-strong)] bg-black/90 shadow-[0_0_30px_rgba(0,0,0,0.8)] relative z-20 ${sheetOpen ? 'open' : ''} ${activePanel === 'cleanup' ? 'cleanup-active' : ''}`}>
+          <aside className={`mobile-control-sheet order-3 lg:order-3 lg:w-[400px] lg:shrink-0 lg:my-6 lg:mr-6 lg:rounded-[2rem] glass-overlay border lg:border-[var(--color-border-strong)] bg-black/90 shadow-2xl relative z-20 ${sheetOpen ? 'open' : ''} ${activePanel === 'cleanup' ? 'cleanup-active' : ''}`}>
             <div className="hidden lg:block absolute top-[24px] left-[-20px] w-1 h-12 bg-[var(--color-primary-dark)] rounded-full opacity-50 blur-[2px]"></div>
             <button
               type="button"
@@ -1243,7 +1243,7 @@ const App: React.FC = () => {
             >
               <span className="mobile-sheet-handle bg-zinc-600" />
               <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-400 font-bold">
-                {sheetOpen ? 'TERMINATE UI' : 'INITIALIZE UI'}
+                {sheetOpen ? 'Close Panel' : 'Open Panel'}
               </span>
             </button>
 

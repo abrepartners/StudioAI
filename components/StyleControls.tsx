@@ -143,7 +143,17 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
         <button
           type="button"
           onClick={() => {
-            const autoPilotPrompt = `Virtually stage this ${selectedRoom}. Contemporary luxury with high-end textures, warm layered lighting, and perfectly balanced composition. Preserve architecture, layout, windows, doors, and built-in fixtures. Keep proportions photorealistic.`;
+            const roomFurniture: Record<string, string> = {
+              'Living Room': 'sofa, coffee table, accent chairs, area rug, floor lamp, and decorative shelving',
+              'Bedroom': 'bed with upholstered headboard, nightstands, dresser, accent chair, and soft area rug',
+              'Primary Bedroom': 'king bed with upholstered headboard, nightstands, bench, dresser, and layered textiles',
+              'Dining Room': 'dining table, upholstered chairs, sideboard, pendant lighting, and table setting',
+              'Office': 'desk, ergonomic chair, bookshelf, task lamp, and storage credenza',
+              'Kitchen': 'bar stools, pendant lights, countertop accessories, and fresh greenery',
+              'Exterior': 'outdoor seating, planters, pathway lighting, and landscaping accents',
+            };
+            const furniture = roomFurniture[selectedRoom] || 'furniture appropriate for this room';
+            const autoPilotPrompt = `Virtually stage this ${selectedRoom} with ${furniture}. Contemporary luxury style with high-end textures, warm layered lighting, and perfectly balanced composition. Preserve architecture, layout, windows, doors, and built-in fixtures. Do NOT add furniture from other room types. Keep proportions photorealistic.`;
             setStageMode('text');
             setCustomPrompt(autoPilotPrompt);
             // True 1-click: immediately trigger generation

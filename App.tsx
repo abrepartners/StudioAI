@@ -17,6 +17,8 @@ import ColorAnalysis from './components/ColorAnalysis';
 import ChatInterface from './components/ChatInterface';
 import BetaFeedbackForm from './components/BetaFeedbackForm';
 import SpecialModesPanel from './components/SpecialModesPanel';
+import StyleAdvisor from './components/StyleAdvisor';
+import QualityScore from './components/QualityScore';
 import {
   ColorData,
   StagedFurniture,
@@ -1114,6 +1116,12 @@ const App: React.FC = () => {
               <div className="w-full">
                 <ColorAnalysis colors={colors} isLoading={isAnalyzing} />
               </div>
+
+              <QualityScore
+                originalImage={originalImage}
+                generatedImage={generatedImage}
+                roomType={selectedRoom}
+              />
             </div>
 
             {/* Chat Panel */}
@@ -1236,6 +1244,11 @@ const App: React.FC = () => {
                       feedbackRequired={showFeedbackCheckpoint}
                       isMultiGen={isMultiGen}
                       onMultiGenChange={setIsMultiGen}
+                    />
+                    <StyleAdvisor
+                      imageBase64={originalImage}
+                      roomType={selectedRoom}
+                      onApplyStyle={(p) => handleGenerate(p, false)}
                     />
                     <SpecialModesPanel
                       originalImage={originalImage}

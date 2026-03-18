@@ -15,38 +15,12 @@ import {
   toPublicUser,
 } from './betaStore.js';
 
-const json = (res: any, status: number, body: Record<string, unknown>) => {
-  res.status(status).setHeader('Content-Type', 'application/json');
-  res.send(JSON.stringify(body));
-};
-
-const parseBody = (rawBody: unknown): any => {
-  if (!rawBody) return {};
-  if (typeof rawBody === 'string') {
-    try {
-      return JSON.parse(rawBody);
-    } catch {
-      return {};
-    }
-  }
-  if (typeof rawBody === 'object') return rawBody;
-  return {};
-};
+import { json, setCors, handleOptions, rejectMethod, parseBody } from './utils.js';
 
 export default async function handler(req: any, res: any) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') {
-    res.status(204).end();
-    return;
-  }
-
-  if (req.method !== 'POST') {
-    json(res, 405, { ok: false, error: 'Method not allowed' });
-    return;
-  }
+  setCors(res, 'POST,OPTIONS');
+  if (handleOptions(req, res)) return;
+  if (rejectMethod(req, res, 'POST')) return;
 
   try {
     const body = parseBody(req.body);

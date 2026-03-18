@@ -143,10 +143,11 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
         <button
           type="button"
           onClick={() => {
+            const autoPilotPrompt = `Virtually stage this ${selectedRoom}. Contemporary luxury with high-end textures, warm layered lighting, and perfectly balanced composition. Preserve architecture, layout, windows, doors, and built-in fixtures. Keep proportions photorealistic.`;
             setStageMode('text');
-            setCustomPrompt('Contemporary luxury with high-end textures, warm layered lighting, and perfectly balanced composition.');
-            // We simulate a fast path, but rely on the user clicking Generate, or we could auto-trigger. 
-            // For now, it aggressively populates the ultimate prompt.
+            setCustomPrompt(autoPilotPrompt);
+            // True 1-click: immediately trigger generation
+            onGenerate(autoPilotPrompt);
           }}
           disabled={isGenerating}
           className="w-full rounded-xl bg-black border border-[rgba(0,255,204,0.4)] px-4 py-4 text-center group hover:bg-[rgba(0,255,204,0.05)] transition-all overflow-hidden relative"
@@ -253,7 +254,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
           </div>
           <p className="mb-4 text-sm text-[var(--color-text)]/80">Choose one pack to generate a complete staging direction.</p>
 
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <div className="max-h-[280px] overflow-y-auto pr-1 grid grid-cols-1 gap-2 sm:grid-cols-2">
             {presets.map((preset) => {
               const active = selectedPreset === preset.id;
               return (
@@ -275,7 +276,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
                       {preset.icon}
                     </span>
                     <span className="min-w-0">
-                      <span className={`block text-sm font-bold truncate transition-colors ${active ? 'text-white' : 'text-[var(--color-ink)]'}`}>{preset.id}</span>
+                      <span className={`block text-sm font-bold transition-colors ${active ? 'text-white' : 'text-[var(--color-ink)]'}`}>{preset.id}</span>
                       <span className={`block text-[10px] uppercase tracking-wider truncate transition-colors ${active ? 'text-[var(--color-primary)]' : 'text-[var(--color-text)]/60'}`}>{preset.description}</span>
                     </span>
                   </div>
@@ -317,7 +318,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full group-hover:animate-shimmer pointer-events-none"></div>
           )}
           <span className="relative z-10 flex items-center justify-center gap-2">
-             {isGenerating ? <><Loader2 size={18} className="animate-spin text-[var(--color-primary)]" /> NEURAL UPLINK ACTIVE...</> : hasGenerated ? <><Wand2 size={18} /> RE-INITIALIZE RENDER</> : <><Sparkles size={18} className="animate-pulse" /> INITIATE NEURAL RENDER</>}
+             {isGenerating ? <><Loader2 size={18} className="animate-spin text-[var(--color-primary)]" /> Generating...</> : hasGenerated ? <><Wand2 size={18} /> Re-Generate Design</> : <><Sparkles size={18} className="animate-pulse" /> Generate Design</>}
           </span>
         </button>
         <p className="text-center text-xs text-[var(--color-text)]/72">

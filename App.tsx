@@ -19,6 +19,10 @@ import BetaFeedbackForm from './components/BetaFeedbackForm';
 import SpecialModesPanel from './components/SpecialModesPanel';
 import StyleAdvisor from './components/StyleAdvisor';
 import QualityScore from './components/QualityScore';
+import BrandKit from './components/BrandKit';
+import MLSExport from './components/MLSExport';
+import ListingDescription from './components/ListingDescription';
+import ListingDashboard from './components/ListingDashboard';
 import {
   ColorData,
   StagedFurniture,
@@ -52,6 +56,7 @@ import {
   Image as ImageIcon,
   Wand2,
   Shield,
+  Settings,
 } from 'lucide-react';
 import { Analytics } from '@vercel/analytics/react';
 
@@ -104,7 +109,7 @@ const App: React.FC = () => {
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [maskImage, setMaskImage] = useState<string | null>(null);
 
-  const [activePanel, setActivePanel] = useState<'tools' | 'chat' | 'history' | 'cleanup'>('tools');
+  const [activePanel, setActivePanel] = useState<'tools' | 'chat' | 'history' | 'cleanup' | 'listings' | 'settings'>('tools');
   const [stageMode, setStageMode] = useState<StageMode>('text');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isEnhancing, setIsEnhancing] = useState(false);
@@ -515,15 +520,17 @@ const App: React.FC = () => {
 
 
   const navItems: Array<{
-    id: 'tools' | 'cleanup' | 'chat' | 'history';
+    id: 'tools' | 'cleanup' | 'listings' | 'chat' | 'history' | 'settings';
     label: string;
     icon: React.ReactNode;
     available: boolean;
   }> = [
       { id: 'tools', label: 'Design Studio', icon: <LayoutGrid size={21} />, available: true },
       { id: 'cleanup', label: 'Cleanup', icon: <Eraser size={21} />, available: true },
+      { id: 'listings', label: 'Listings', icon: <ImageIcon size={21} />, available: true },
       { id: 'chat', label: 'Chat', icon: <MessageSquare size={21} />, available: true },
       { id: 'history', label: 'History', icon: <HistoryIcon size={21} />, available: true },
+      { id: 'settings', label: 'Settings', icon: <Settings size={21} />, available: true },
     ];
 
 
@@ -1140,7 +1147,25 @@ const App: React.FC = () => {
                 generatedImage={generatedImage}
                 roomType={selectedRoom}
               />
+
+              {generatedImage && (
+                <>
+                  <MLSExport
+                    images={[{ id: '1', source: generatedImage, label: detectedRoom || 'Room' }]}
+                  />
+                  <ListingDescription
+                    roomTypes={detectedRoom ? [detectedRoom] : []}
+                  />
+                </>
+              )}
             </div>
+
+            {/* Listings Panel */}
+            {activePanel === 'listings' && (
+              <div className="mx-auto w-full max-w-6xl">
+                <ListingDashboard />
+              </div>
+            )}
 
             {/* Chat Panel */}
             {activePanel === 'chat' && (
@@ -1300,6 +1325,18 @@ const App: React.FC = () => {
                         : 'Browse your render history below.'}
                     </p>
                   </div>
+                )}
+
+                {activePanel === 'listings' && (
+                  <div className="premium-surface rounded-2xl p-5 text-center">
+                    <p className="text-sm text-[var(--color-text)]">
+                      Manage your listings in the main panel.
+                    </p>
+                  </div>
+                )}
+
+                {activePanel === 'settings' && (
+                  <BrandKit />
                 )}
               </div>
             </div>

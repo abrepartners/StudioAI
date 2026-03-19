@@ -141,7 +141,7 @@ const App: React.FC = () => {
   const [isChatLoading, setIsChatLoading] = useState(false);
 
   // ─── Google OAuth State ──────────────────────────────────────────────────
-  const [googleUser, setGoogleUser] = useState<GoogleUser | null>({ name: 'Elon M.', email: 'elon@tesla.com', picture: 'https://via.placeholder.com/150', sub: '123' });
+  const [googleUser, setGoogleUser] = useState<GoogleUser | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(false);
   const googleButtonRef = useRef<HTMLDivElement>(null);
 
@@ -562,13 +562,13 @@ const App: React.FC = () => {
                 Design, Elevated..
               </h2>
               <p className="text-lg leading-relaxed text-zinc-300 font-medium max-w-xl">
-                Advanced neural staging, instant renovation synthesis, and hyper-realistic asset generation. 
+                Professional virtual staging, instant renovation previews, and photo-realistic results. 
               </p>
             </div>
             <div className="flex items-center gap-8 text-sm font-semibold text-zinc-400">
               <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse shadow-md"/> AI Staging</span>
-              <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse shadow-md delay-75"/> Synthesis</span>
-              <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse shadow-md delay-150"/> Encrypted</span>
+              <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse shadow-md delay-75"/> Smart Cleanup</span>
+              <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse shadow-md delay-150"/> Secure</span>
             </div>
           </div>
         </div>
@@ -631,9 +631,9 @@ const App: React.FC = () => {
               <p className="text-xs mb-5 font-bold tracking-widest uppercase text-zinc-500">Modules</p>
               <div className="space-y-4">
                 {[
-                  { icon: <ImageIcon size={16} />, label: 'AI Staging', desc: 'Synthesize furniture in milliseconds' },
-                  { icon: <Wand2 size={16} />, label: 'Structural Morph', desc: 'Real-time architectural previews' },
-                  { icon: <Sparkles size={16} />, label: 'Language Matrix', desc: 'Automated description drafting' },
+                  { icon: <ImageIcon size={16} />, label: 'AI Staging', desc: 'Professional staging in seconds' },
+                  { icon: <Wand2 size={16} />, label: 'Virtual Renovation', desc: 'Preview new finishes instantly' },
+                  { icon: <Sparkles size={16} />, label: 'Listing Copy', desc: 'AI-written MLS descriptions' },
                 ].map((f) => (
                   <div key={f.label} className="flex items-start gap-4 p-3 rounded-xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
                     <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-black border border-[var(--color-primary-dark)] text-[var(--color-primary)] shadow-[inset_0_0_10px_rgba(10,132,255,0.1)]">
@@ -882,7 +882,7 @@ const App: React.FC = () => {
                 >
                   <Zap size={14} className={isEnhancing ? 'animate-pulse text-white' : ''} />
                   <span className="hidden sm:inline">
-                    {hasProKey ? 'Neural Enhance' : 'Unlock Enhance'}
+                    {hasProKey ? 'Enhance' : 'Unlock Enhance'}
                   </span>
                 </button>
               </>
@@ -965,7 +965,7 @@ const App: React.FC = () => {
               Upload Your Space
             </h2>
             <p className="text-base text-zinc-400 max-w-sm mx-auto mb-10 leading-relaxed font-medium">
-              Provide visual data. The neural engine will reconstruct reality.
+              Upload a listing photo to get started.
             </p>
 
             <ImageUploader onImageUpload={handleImageUpload} isAnalyzing={isAnalyzing} />
@@ -985,9 +985,9 @@ const App: React.FC = () => {
             <div className="mt-16 flex flex-wrap justify-center gap-3">
               {[
                 { icon: <Wand2 size={14} />, label: 'AI Staging' },
-                { icon: <Camera size={14} />, label: 'Twilight Compute' },
+                { icon: <Camera size={14} />, label: 'Day to Dusk' },
                 { icon: <ImageIcon size={14} />, label: 'Sky Replacement' },
-                { icon: <Eraser size={14} />, label: 'Data Scrub' },
+                { icon: <Eraser size={14} />, label: 'Smart Cleanup' },
               ].map(f => (
                 <span key={f.label} className="pill-chip inline-flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider bg-black border-[var(--color-primary-dark)] text-zinc-300">
                   <span className="text-[var(--color-primary)]">{f.icon}</span>

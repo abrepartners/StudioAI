@@ -167,7 +167,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
             <Sparkles size={18} className="text-[var(--color-primary)] animate-pulse" />
             <span className="font-display font-black tracking-[0.15em] uppercase text-white drop-shadow-sm bg-clip-text">Auto-Pilot</span>
           </div>
-          <p className="text-[10px] text-[var(--color-primary)] font-mono opacity-80 group-hover:opacity-100 uppercase tracking-widest relative z-10">1-Click Optimal Staging</p>
+          <p className="text-[10px] text-[var(--color-primary)] font-mono opacity-80 group-hover:opacity-100 uppercase tracking-widest relative z-10">One-click staging</p>
         </button>
       </div>
 
@@ -218,7 +218,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
             </div>
             <div>
               <h3 className="font-display text-lg font-semibold">Design Direction</h3>
-              <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-text)]/70">Primary generation input</p>
+              <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-text)]/70">Describe the look you want</p>
             </div>
           </div>
           <p className="mb-3 text-sm text-[var(--color-text)]/80">

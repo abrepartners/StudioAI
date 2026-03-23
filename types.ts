@@ -75,3 +75,51 @@ export interface GenerationConfig {
   prompt: string;
   maskImage?: string; // Base64 of the mask
 }
+
+// ─── Brand Kit ──────────────────────────────────────────────────────────────
+
+export interface BrandKit {
+  logo: string | null;
+  headshot: string | null;
+  primaryColor: string;
+  secondaryColor: string;
+  agentName: string;
+  brokerageName: string;
+  phone: string;
+  email: string;
+  website: string;
+  tagline: string;
+}
+
+// ─── MLS Export ─────────────────────────────────────────────────────────────
+
+export interface WatermarkConfig {
+  type: 'text' | 'logo';
+  text?: string;
+  logoBase64?: string;
+  opacity?: number;
+  position?: 'bottom-right' | 'bottom-left';
+}
+
+export interface MLSPreset {
+  label: string;
+  width: number;
+  height: number;
+}
+
+// ─── Listing Description ────────────────────────────────────────────────────
+
+export interface PropertyDetails {
+  address?: string;
+  beds?: number;
+  baths?: number;
+  sqft?: number;
+  price?: number;
+  notes?: string;
+}
+
+export interface ListingDescriptions {
+  luxury: string;
+  casual: string;
+  investment: string;
+}

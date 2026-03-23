@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type, Chat, GenerateContentResponse } from "@google/genai";
-import { ColorData, StagedFurniture, FurnitureRoomType } from "../types";
+import { ColorData, StagedFurniture, FurnitureRoomType, PropertyDetails, ListingDescriptions } from "../types";
 import { cleanBase64, extractImageFromResponse, extractAllImagesFromResponse } from "./geminiHelpers";
 
 // API key storage key
@@ -691,5 +691,71 @@ Return ONLY a JSON object with these 6 fields.`
   return response.text
     ? JSON.parse(response.text)
     : { overall: 0, architecture: 0, lighting: 0, realism: 0, perspective: 0, summary: 'Score unavailable' };
+};
+
+// ─── Multi-Tone Listing Descriptions ────────────────────────────────────────
+
+/**
+ * Generates property descriptions in three tones: luxury, casual, and investment.
+ * Uses a single API call with structured JSON output.
+ */
+export const generateListingDescriptions = async (
+  imageBase64: string,
+  roomType: string,
+  propertyDetails: PropertyDetails,
+  agentNotes?: string,
+): Promise<ListingDescriptions> => {
+  const ai = getAI();
+  const clean = cleanBase64(imageBase64);
+
+  const detailStr = [
+    propertyDetails.address && `Address: ${propertyDetails.address}`,
+    propertyDetails.beds && `${propertyDetails.beds} beds`,
+    propertyDetails.baths && `${propertyDetails.baths} baths`,
+    propertyDetails.sqft && `${propertyDetails.sqft} sq ft`,
+    propertyDetails.price && `$${propertyDetails.price.toLocaleString()}`,
+  ].filter(Boolean).join(' | ') || 'Details not provided';
+
+  const response: GenerateContentResponse = await ai.models.generateContent({
+    model: 'gemini-3-flash-preview',
+    contents: [{
+      role: 'user',
+      parts: [
+        {
+          text: `You are a professional real estate copywriter. Analyze this ${roomType} photo and generate three property descriptions in different tones.
+
+Property: ${detailStr}
+${agentNotes ? `Agent notes: ${agentNotes}` : ''}
+
+Generate THREE descriptions:
+
+1. "luxury" — Sophisticated, elevated vocabulary. Emphasize craftsmanship, materials, architectural details. Paint a lifestyle narrative with sensory language. 800-1200 characters.
+
+2. "casual" — Conversational and warm. Focus on livability, daily routines, practical benefits. Use "you/your" to help buyers picture life here. 600-1000 characters.
+
+3. "investment" — Data-driven and strategic. Highlight ROI potential, value-add features, premium finishes, market positioning. Concise and professional. 600-1000 characters.
+
+Return ONLY a JSON object with these 3 fields: luxury, casual, investment. Each value is the description string.`
+        },
+        { inlineData: { mimeType: 'image/jpeg', data: clean } },
+      ],
+    }],
+    config: {
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          luxury: { type: Type.STRING },
+          casual: { type: Type.STRING },
+          investment: { type: Type.STRING },
+        },
+        required: ['luxury', 'casual', 'investment'],
+      },
+    },
+  });
+
+  return response.text
+    ? JSON.parse(response.text)
+    : { luxury: '', casual: '', investment: '' };
 };
 

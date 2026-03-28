@@ -143,6 +143,7 @@ const App: React.FC = () => {
   // ─── Google OAuth State ──────────────────────────────────────────────────
   const [googleUser, setGoogleUser] = useState<GoogleUser | null>({ name: 'Elon M.', email: 'elon@tesla.com', picture: 'https://via.placeholder.com/150', sub: '123' });
   const [isAuthLoading, setIsAuthLoading] = useState(false);
+  const [gisLoaded, setGisLoaded] = useState(false);
   const googleButtonRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -191,6 +192,7 @@ const App: React.FC = () => {
           shape: 'pill',
           width: 300,
         });
+        setGisLoaded(true);
       }
     };
     // Script may still be loading
@@ -545,8 +547,7 @@ const App: React.FC = () => {
 
   if (!googleUser) {
     return (
-      <div className="min-h-[100dvh] flex bg-black crt-effect">
-        <div className="scanline-overlay"></div>
+      <div className="min-h-[100dvh] flex bg-black">
         {/* Left - Hero Image */}
         <div className="hidden lg:flex lg:w-[60%] relative login-bg">
           <div className="absolute inset-0 bg-gradient-to-r from-black via-black/50 to-transparent" />
@@ -600,8 +601,8 @@ const App: React.FC = () => {
               {/* Google SDK renders its iframe button here */}
               <div ref={googleButtonRef} />
 
-              {/* Visible fallback button in case the iframe doesn't render */}
-              <button
+              {/* Fallback button — hidden once GIS iframe renders */}
+              {!gisLoaded && <button
                 type="button"
                 onClick={() => {
                   const google = (window as any).google;
@@ -624,7 +625,7 @@ const App: React.FC = () => {
                   <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
                 </svg>
                 Sign in with Google
-              </button>
+              </button>}
             </div>
 
             <div className="mt-12 pt-8 border-t border-[var(--color-border-strong)]">

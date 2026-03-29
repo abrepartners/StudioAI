@@ -208,9 +208,10 @@ const App: React.FC = () => {
       google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
         callback: handleGoogleCredential,
-        auto_select: true,
       });
       if (googleButtonRef.current) {
+        // Clear any previously rendered button to prevent duplicates
+        googleButtonRef.current.innerHTML = '';
         google.accounts.id.renderButton(googleButtonRef.current, {
           type: 'standard',
           theme: 'outline',
@@ -1274,7 +1275,7 @@ const App: React.FC = () => {
             })}
           </nav>
 
-          <main className="order-1 lg:order-2 flex-1 min-h-0 overflow-y-auto editor-canvas-bg p-3 sm:p-5 lg:p-6 pb-[52vh] sm:pb-[56vh] lg:pb-6">
+          <main className="order-1 lg:order-2 flex-1 min-h-0 overflow-y-auto editor-canvas-bg p-3 sm:p-5 lg:p-6 pb-[44vh] sm:pb-[48vh] lg:pb-6">
             <div className="mx-auto w-full max-w-5xl space-y-4">
               <div className="canvas-frame p-1.5 sm:p-2">
                 <div className="relative overflow-hidden rounded-xl bg-zinc-900 aspect-[4/3] sm:aspect-video">
@@ -1288,10 +1289,10 @@ const App: React.FC = () => {
                   ) : generatedImage ? (
                     <CompareSlider originalImage={originalImage} generatedImage={generatedImage} />
                   ) : (
-                    <MaskCanvas
-                      imageSrc={originalImage}
-                      onMaskChange={setMaskImage}
-                      isActive={false}
+                    <img
+                      src={originalImage}
+                      alt="Uploaded room"
+                      className="absolute inset-0 h-full w-full object-contain"
                     />
                   )}
 

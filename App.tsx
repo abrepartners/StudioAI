@@ -36,8 +36,8 @@ import {
   Download,
   X,
   BrainCircuit,
-  ChevronDown,
   Eraser,
+  MoreHorizontal,
   Undo2,
   Redo2,
   LayoutGrid,
@@ -52,7 +52,6 @@ import {
   BarChart3,
   Crown,
   Layers,
-  Play,
   Package,
   Loader2,
   Copy,
@@ -99,8 +98,6 @@ const roomOptions: FurnitureRoomType[] = [
   'Exterior',
 ];
 
-type StageMode = 'text' | 'packs' | 'furniture';
-
 const FEEDBACK_REQUIRED_INTERVAL = 3;
 
 const App: React.FC = () => {
@@ -108,14 +105,12 @@ const App: React.FC = () => {
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [maskImage, setMaskImage] = useState<string | null>(null);
 
-  const [activePanel, setActivePanel] = useState<'tools' | 'chat' | 'history' | 'cleanup'>('tools');
-  const [stageMode, setStageMode] = useState<StageMode>('text');
+  const [activePanel, setActivePanel] = useState<'tools' | 'special' | 'chat' | 'history' | 'cleanup'>('tools');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [showKeyPrompt, setShowKeyPrompt] = useState(false);
   const [showProConfirm, setShowProConfirm] = useState(false);
   const [showAccessPanel, setShowAccessPanel] = useState(false);
-  const [showRoomPicker, setShowRoomPicker] = useState(false);
   const [hasProKey, setHasProKey] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(true);
   const [apiKeyInput, setApiKeyInput] = useState('');
@@ -168,13 +163,13 @@ const App: React.FC = () => {
 
   // Tier system (Bezos: subscription)
   const [showTierModal, setShowTierModal] = useState(false);
+  const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   const FREE_TIER_LIMIT = 25;
 
   // ─── Google OAuth State ──────────────────────────────────────────────────
   const [googleUser, setGoogleUser] = useState<GoogleUser | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const googleButtonRef = useRef<HTMLDivElement>(null);
-  const singleUploadRef = useRef<HTMLInputElement>(null);
   const marketingUploadRef = useRef<HTMLInputElement>(null);
   const pendingMarketingRef = useRef(false);
 
@@ -607,7 +602,6 @@ const App: React.FC = () => {
     pushToHistory();
     setDetectedRoom(room);
     setSelectedRoom(room);
-    setShowRoomPicker(false);
   };
 
 
@@ -650,17 +644,21 @@ const App: React.FC = () => {
 
 
 
-  const navItems: Array<{
-    id: 'tools' | 'cleanup' | 'chat' | 'history';
+  const primaryNavItems: Array<{
+    id: 'tools' | 'special' | 'cleanup' | 'chat' | 'history';
     label: string;
     icon: React.ReactNode;
     available: boolean;
+    secondary?: boolean;
   }> = [
       { id: 'tools', label: 'Design Studio', icon: <LayoutGrid size={21} />, available: true },
-      { id: 'cleanup', label: 'Cleanup', icon: <Eraser size={21} />, available: true },
-      { id: 'chat', label: 'Chat', icon: <MessageSquare size={21} />, available: true },
-      { id: 'history', label: 'History', icon: <HistoryIcon size={21} />, available: true },
+      { id: 'special', label: 'Pro Tools', icon: <Sparkles size={21} />, available: true },
+      ...(generatedImage ? [{ id: 'cleanup' as const, label: 'Cleanup', icon: <Eraser size={21} />, available: true }] : []),
     ];
+  const secondaryNavItems: typeof primaryNavItems = [
+    { id: 'chat', label: 'Chat', icon: <MessageSquare size={21} />, available: true, secondary: true },
+    { id: 'history', label: 'History', icon: <HistoryIcon size={21} />, available: true, secondary: true },
+  ];
 
 
   // ─── Auth gate: require Google sign-in ───────────────────────────────────
@@ -1025,7 +1023,7 @@ const App: React.FC = () => {
                 </button>
               </>
             )}
-            {/* One-click marketing package — hidden on small screens to prevent overflow */}
+            {/* Desktop-only action buttons */}
             {originalImage && !showMarketingPackage && (
               <button
                 type="button"
@@ -1034,19 +1032,19 @@ const App: React.FC = () => {
                 title="Generate full marketing package"
               >
                 <Package size={13} />
-                <span className="hidden sm:inline">Marketing Kit</span>
+                Marketing Kit
               </button>
             )}
             <button
               type="button"
               onClick={() => { setApiKeyInput(''); setApiKeyError(''); setShowKeyPrompt(true); }}
-              className={`rounded-lg px-2.5 py-1.5 text-xs font-medium inline-flex items-center gap-1.5 transition ${apiKeyConfigured ? 'text-[var(--color-primary)] hover:bg-[var(--color-bg)]' : 'cta-secondary border-amber-300 text-amber-700 hover:border-amber-400'}`}
+              className={`hidden sm:inline-flex rounded-lg px-2.5 py-1.5 text-xs font-medium items-center gap-1.5 transition ${apiKeyConfigured ? 'text-[var(--color-primary)] hover:bg-[var(--color-bg)]' : 'cta-secondary border-amber-300 text-amber-700 hover:border-amber-400'}`}
               title={apiKeyConfigured ? 'API key configured — click to update' : 'Set Gemini API key'}
             >
               <Key size={12} />
-              <span className="hidden sm:inline">{apiKeyConfigured ? 'API Key' : 'Add Key'}</span>
+              {apiKeyConfigured ? 'API Key' : 'Add Key'}
             </button>
-            <div className="h-5 w-px bg-[var(--color-border)] mx-0.5" />
+            <div className="hidden sm:block h-5 w-px bg-[var(--color-border)] mx-0.5" />
             <button
               type="button"
               onClick={() => setShowAnalytics(true)}
@@ -1060,15 +1058,44 @@ const App: React.FC = () => {
               onClick={() => {
                 setOriginalImage(null);
                 setGeneratedImage(null);
-                setStageMode('text');
                 setShowFeedbackCheckpoint(false);
                 setGenerationsSinceFeedback(0);
               }}
-              className="rounded-lg p-1.5 text-[var(--color-text)] hover:bg-[var(--color-bg)] transition"
+              className="hidden sm:flex rounded-lg p-1.5 text-[var(--color-text)] hover:bg-[var(--color-bg)] transition"
               title="Start over"
             >
               <RefreshCcw size={15} />
             </button>
+
+            {/* Mobile overflow menu */}
+            <div className="relative sm:hidden">
+              <button
+                type="button"
+                onClick={() => setShowHeaderMenu(prev => !prev)}
+                className="rounded-lg p-2 text-[var(--color-text)] hover:bg-[var(--color-bg)] transition"
+              >
+                <MoreHorizontal size={16} />
+              </button>
+              {showHeaderMenu && (
+                <div className="header-overflow-menu animate-slide-down">
+                  {!showMarketingPackage && (
+                    <button type="button" onClick={() => { generateMarketingPackage(); setShowHeaderMenu(false); }} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-medium text-[var(--color-ink)] hover:bg-[var(--color-bg)] rounded-lg transition">
+                      <Package size={14} /> Marketing Kit
+                    </button>
+                  )}
+                  <button type="button" onClick={() => { setApiKeyInput(''); setApiKeyError(''); setShowKeyPrompt(true); setShowHeaderMenu(false); }} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-medium text-[var(--color-ink)] hover:bg-[var(--color-bg)] rounded-lg transition">
+                    <Key size={14} /> {apiKeyConfigured ? 'Update API Key' : 'Add API Key'}
+                  </button>
+                  <button type="button" onClick={() => { setShowAnalytics(true); setShowHeaderMenu(false); }} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-medium text-[var(--color-ink)] hover:bg-[var(--color-bg)] rounded-lg transition">
+                    <BarChart3 size={14} /> Analytics
+                  </button>
+                  <button type="button" onClick={() => { setOriginalImage(null); setGeneratedImage(null); setShowFeedbackCheckpoint(false); setGenerationsSinceFeedback(0); setShowHeaderMenu(false); }} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-lg transition">
+                    <RefreshCcw size={14} /> Start Over
+                  </button>
+                </div>
+              )}
+            </div>
+
             <button
               type="button"
               onClick={() => setShowAccessPanel(true)}
@@ -1126,61 +1153,8 @@ const App: React.FC = () => {
               </p>
             </div>
 
-            {/* Quick action cards (Musk: eliminate steps ruthlessly) */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-              <div
-                className="quick-action-card premium-surface rounded-2xl p-5 cursor-pointer text-center"
-                onClick={() => singleUploadRef.current?.click()}
-              >
-                <div className="mx-auto mb-3 h-11 w-11 rounded-xl flex items-center justify-center bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
-                  <Upload size={20} />
-                </div>
-                <p className="text-sm font-semibold text-[var(--color-ink)]">Stage a Photo</p>
-                <p className="text-xs text-[var(--color-text)] mt-1">Upload → AI stages instantly</p>
-              </div>
-
-              <div
-                className="quick-action-card premium-surface rounded-2xl p-5 cursor-pointer text-center"
-                onClick={() => setShowBatchMode(true)}
-              >
-                <div className="mx-auto mb-3 h-11 w-11 rounded-xl flex items-center justify-center bg-[var(--color-accent)]/10 text-[var(--color-accent)]">
-                  <Layers size={20} />
-                </div>
-                <p className="text-sm font-semibold text-[var(--color-ink)]">Batch Process</p>
-                <p className="text-xs text-[var(--color-text)] mt-1">Stage 50 photos at once</p>
-              </div>
-
-              <div
-                className="quick-action-card premium-surface rounded-2xl p-5 cursor-pointer text-center"
-                onClick={() => marketingUploadRef.current?.click()}
-              >
-                <div className="mx-auto mb-3 h-11 w-11 rounded-xl flex items-center justify-center" style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' }}>
-                  <Package size={20} />
-                </div>
-                <p className="text-sm font-semibold text-[var(--color-ink)]">Marketing Package</p>
-                <p className="text-xs text-[var(--color-text)] mt-1">Stage + copy + social posts</p>
-              </div>
-            </div>
-
-            {/* Hidden file inputs for quick-action cards */}
-            <input ref={singleUploadRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
-              const file = e.target.files?.[0]; if (!file) return;
-              const reader = new FileReader();
-              reader.onloadend = () => handleImageUpload(reader.result as string);
-              reader.readAsDataURL(file);
-              e.target.value = '';
-            }} />
-            <input ref={marketingUploadRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
-              const file = e.target.files?.[0]; if (!file) return;
-              pendingMarketingRef.current = true;
-              const reader = new FileReader();
-              reader.onloadend = () => handleImageUpload(reader.result as string);
-              reader.readAsDataURL(file);
-              e.target.value = '';
-            }} />
-
-            {/* Standard uploader */}
-            <div className="max-w-md mx-auto" id="single-upload-trigger-wrapper">
+            {/* Single unified uploader */}
+            <div className="max-w-md mx-auto">
               <ImageUploader onImageUpload={handleImageUpload} isAnalyzing={isAnalyzing} />
 
               <div className="mt-4 text-center">
@@ -1194,6 +1168,37 @@ const App: React.FC = () => {
                   <ArrowRight size={13} />
                 </button>
               </div>
+
+              {/* Secondary workflows */}
+              <div className="mt-4 flex items-center justify-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => setShowBatchMode(true)}
+                  className="text-xs font-medium text-[var(--color-text)] hover:text-[var(--color-primary)] transition-colors inline-flex items-center gap-1.5"
+                >
+                  <Layers size={13} /> Batch Process (50 photos)
+                </button>
+                <span className="text-[var(--color-border)]">|</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    pendingMarketingRef.current = true;
+                    marketingUploadRef.current?.click();
+                  }}
+                  className="text-xs font-medium text-[var(--color-text)] hover:text-[var(--color-primary)] transition-colors inline-flex items-center gap-1.5"
+                >
+                  <Package size={13} /> Marketing Package
+                </button>
+              </div>
+
+              {/* Hidden file input for marketing package */}
+              <input ref={marketingUploadRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
+                const file = e.target.files?.[0]; if (!file) return;
+                const reader = new FileReader();
+                reader.onloadend = () => handleImageUpload(reader.result as string);
+                reader.readAsDataURL(file);
+                e.target.value = '';
+              }} />
             </div>
 
             {/* Usage stats bar (Bezos: measure everything) */}
@@ -1237,20 +1242,30 @@ const App: React.FC = () => {
         <div className="flex-1 min-h-0 flex lg:flex-row overflow-hidden relative">
           <nav className="hidden lg:flex shrink-0 w-[180px] bg-white border-r border-[var(--color-border)] flex-col gap-1 p-3 order-1">
             <p className="px-2 py-2 text-[10px] uppercase tracking-[0.14em] text-[var(--color-text)] font-semibold">Workspace</p>
-            {navItems.map((item) => {
+            {primaryNavItems.map((item) => {
               const active = activePanel === item.id;
               return (
                 <button
                   key={item.id}
                   type="button"
-                  disabled={!item.available}
-                  onClick={() => {
-                    if (!item.available) return;
-                    setActivePanel(item.id);
-                    showToast(item.icon, item.label);
-                  }}
-                  title={item.available ? item.label : `${item.label} (Coming Soon)`}
-                  className={`nav-item ${active && item.available ? 'active' : ''} ${!item.available ? 'opacity-40 cursor-not-allowed' : ''}`}
+                  onClick={() => { setActivePanel(item.id); showToast(item.icon, item.label); }}
+                  className={`nav-item ${active ? 'active' : ''}`}
+                >
+                  {item.icon}
+                  <span className="text-xs">{item.label}</span>
+                </button>
+              );
+            })}
+            <div className="nav-section-divider" />
+            <p className="nav-section-label">More</p>
+            {secondaryNavItems.map((item) => {
+              const active = activePanel === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => { setActivePanel(item.id); showToast(item.icon, item.label); }}
+                  className={`nav-item ${active ? 'active' : ''}`}
                 >
                   {item.icon}
                   <span className="text-xs">{item.label}</span>
@@ -1281,37 +1296,24 @@ const App: React.FC = () => {
                   )}
 
                   <div className="absolute left-2.5 top-2.5 z-20">
-                    <button
-                      type="button"
-                      onClick={() => setShowRoomPicker((prev) => !prev)}
-                      className="pill-chip inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-2.5 sm:py-1 text-xs font-medium"
-                    >
-                      {detectedRoom ? (
-                        <>
-                          <BrainCircuit size={13} className="text-[var(--color-primary)]" />
-                          <span>{selectedRoom}</span>
-                          <ChevronDown size={12} className={`transition-transform ${showRoomPicker ? 'rotate-180' : ''}`} />
-                        </>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5">
-                          <span className="status-dot status-dot-rendering" />
-                          <span className="text-[var(--color-text)]">Detecting...</span>
-                        </span>
-                      )}
-                    </button>
-
-                    {showRoomPicker && (
-                      <div className="mt-1.5 w-48 max-w-[calc(100vw-3rem)] rounded-xl bg-white border border-[var(--color-border)] shadow-lg p-1 animate-slide-down z-30">
-                        {roomOptions.map((room) => (
-                          <button
-                            key={room}
-                            type="button"
-                            onClick={() => changeDetectedRoom(room)}
-                            className={`w-full rounded-lg px-3 py-1.5 text-left text-xs font-medium transition hover:bg-[var(--color-bg)] ${selectedRoom === room ? 'text-[var(--color-primary)] bg-[var(--color-bg)]' : 'text-[var(--color-ink)]'}`}
-                          >
-                            {room}
-                          </button>
-                        ))}
+                    {detectedRoom ? (
+                      <div className="pill-chip inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-2.5 sm:py-1 text-xs font-medium">
+                        <BrainCircuit size={13} className="text-[var(--color-primary)]" />
+                        <select
+                          value={selectedRoom}
+                          onChange={(e) => changeDetectedRoom(e.target.value as FurnitureRoomType)}
+                          className="bg-transparent border-none text-xs font-medium text-[var(--color-ink)] focus:outline-none cursor-pointer appearance-none pr-4"
+                          style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0 center' }}
+                        >
+                          {roomOptions.map((room) => (
+                            <option key={room} value={room}>{room}</option>
+                          ))}
+                        </select>
+                      </div>
+                    ) : (
+                      <div className="pill-chip inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-2.5 sm:py-1 text-xs font-medium">
+                        <span className="status-dot status-dot-rendering" />
+                        <span className="text-[var(--color-text)]">Detecting...</span>
                       </div>
                     )}
                   </div>
@@ -1327,36 +1329,6 @@ const App: React.FC = () => {
                 <ColorAnalysis colors={colors} isLoading={isAnalyzing} />
               </div>
             </div>
-
-            {/* Smart Staging Suggestions (Musk: predict what they want, 1 click) */}
-            {showSuggestions && smartSuggestions.length > 0 && !generatedImage && !isGenerating && activePanel === 'tools' && (
-              <div className="subtle-card rounded-xl p-4 animate-slide-up">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <Sparkles size={14} className="text-[var(--color-primary)]" />
-                    <p className="text-sm font-semibold text-[var(--color-ink)]">AI detected: {selectedRoom}</p>
-                  </div>
-                  <button onClick={() => setShowSuggestions(false)} className="text-[var(--color-text)] hover:text-[var(--color-ink)]"><X size={14} /></button>
-                </div>
-                <p className="text-xs text-[var(--color-text)] mb-3">One click to stage. Pick a style or type your own.</p>
-                <div className="space-y-2">
-                  {smartSuggestions.map((suggestion, i) => (
-                    <button
-                      key={suggestion}
-                      onClick={() => {
-                        if (!hasApiKey()) { setShowKeyPrompt(true); return; }
-                        handleGenerate(`Virtually stage this ${selectedRoom}. Preserve architecture, layout, windows, doors, and built-in fixtures. Keep proportions realistic and photoreal. Primary direction: ${suggestion}`);
-                      }}
-                      className="suggestion-card w-full text-left rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm hover:border-[var(--color-primary)] hover:bg-[var(--color-bg)] transition-all flex items-center justify-between gap-3 group"
-                      style={{ animationDelay: `${i * 0.1}s` }}
-                    >
-                      <span className="text-[var(--color-ink)] font-medium">{suggestion}</span>
-                      <Play size={14} className="text-[var(--color-text)] group-hover:text-[var(--color-primary)] transition-colors shrink-0" />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
 
             {/* Chat Panel */}
             {activePanel === 'chat' && (
@@ -1466,11 +1438,37 @@ const App: React.FC = () => {
               <div className="p-4 sm:p-5 space-y-4 sm:space-y-3 pb-[max(1.2rem,env(safe-area-inset-bottom))]">
                 {activePanel === 'tools' && (
                   <>
+                    {/* Smart suggestions — shown before first generation */}
+                    {showSuggestions && smartSuggestions.length > 0 && !generatedImage && !isGenerating && (
+                      <div className="premium-surface rounded-2xl p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-xs font-semibold text-[var(--color-ink)]">
+                            <Sparkles size={12} className="inline mr-1.5 text-[var(--color-primary)]" />
+                            Quick start for {selectedRoom}
+                          </p>
+                          <button type="button" onClick={() => setShowSuggestions(false)} className="text-[var(--color-text)] hover:text-[var(--color-ink)]"><X size={12} /></button>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {smartSuggestions.map((suggestion) => (
+                            <button
+                              key={suggestion}
+                              type="button"
+                              onClick={() => {
+                                if (!hasApiKey()) { setShowKeyPrompt(true); return; }
+                                handleGenerate(`Virtually stage this ${selectedRoom}. Preserve architecture, layout, windows, doors, and built-in fixtures. Keep proportions realistic and photoreal. Primary direction: ${suggestion}`);
+                              }}
+                              className="text-[10px] font-semibold uppercase tracking-wide px-3 py-1.5 rounded-full border border-[var(--color-border)] bg-white/50 hover:bg-white hover:border-[var(--color-accent)] transition-all text-[var(--color-text)]/80 hover:text-[var(--color-primary)] shadow-sm"
+                            >
+                              {suggestion}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     <RenovationControls
                       activeMode="design"
                       hasGenerated={!!generatedImage}
                       onGenerate={(p) => handleGenerate(p, false)}
-                      onStageModeChange={setStageMode}
                       isGenerating={isGenerating}
                       hasMask={!!maskImage}
                       selectedRoom={selectedRoom}
@@ -1478,14 +1476,17 @@ const App: React.FC = () => {
                       isMultiGen={isMultiGen}
                       onMultiGenChange={setIsMultiGen}
                     />
-                    <SpecialModesPanel
-                      originalImage={originalImage}
-                      generatedImage={generatedImage}
-                      selectedRoom={selectedRoom}
-                      onNewImage={(img) => { pushToHistory(); setGeneratedImage(img); }}
-                      onRequireKey={() => setShowKeyPrompt(true)}
-                    />
                   </>
+                )}
+
+                {activePanel === 'special' && (
+                  <SpecialModesPanel
+                    originalImage={originalImage}
+                    generatedImage={generatedImage}
+                    selectedRoom={selectedRoom}
+                    onNewImage={(img) => { pushToHistory(); setGeneratedImage(img); }}
+                    onRequireKey={() => setShowKeyPrompt(true)}
+                  />
                 )}
 
                 {activePanel === 'cleanup' && (
@@ -1539,7 +1540,7 @@ const App: React.FC = () => {
               selectedRoom={selectedRoom}
               hasGenerated={!!generatedImage}
               stagedFurnitureCount={0}
-              stageMode={stageMode}
+              stageMode="text"
               generatedImage={generatedImage}
               betaUserId={googleUser?.sub || ''}
               referralCode=""

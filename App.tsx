@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   generateRoomDesign,
   analyzeRoomColors,
@@ -20,7 +20,6 @@ import BetaFeedbackForm from './components/BetaFeedbackForm';
 import SpecialModesPanel from './components/SpecialModesPanel';
 import {
   ColorData,
-  StagedFurniture,
   FurnitureRoomType,
   SavedStage,
   HistoryState,
@@ -42,24 +41,21 @@ import {
   Undo2,
   Redo2,
   LayoutGrid,
-  Copy,
   Check,
-  Lock,
   Heart,
   LogOut,
   ArrowRight,
   Image as ImageIcon,
   Wand2,
-  Shield,
   TrendingUp,
   Upload,
-  FileText,
   BarChart3,
   Crown,
   Layers,
   Play,
   Package,
   Loader2,
+  Copy,
 } from 'lucide-react';
 import { Analytics } from '@vercel/analytics/react';
 
@@ -173,12 +169,14 @@ const App: React.FC = () => {
   // Tier system (Bezos: subscription)
   const [showTierModal, setShowTierModal] = useState(false);
   const FREE_TIER_LIMIT = 25;
-  const currentTier = usageStats.totalGenerations >= FREE_TIER_LIMIT ? 'limit_reached' : 'free';
 
   // ─── Google OAuth State ──────────────────────────────────────────────────
   const [googleUser, setGoogleUser] = useState<GoogleUser | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const googleButtonRef = useRef<HTMLDivElement>(null);
+  const singleUploadRef = useRef<HTMLInputElement>(null);
+  const marketingUploadRef = useRef<HTMLInputElement>(null);
+  const pendingMarketingRef = useRef(false);
 
   useEffect(() => {
     const savedS = localStorage.getItem('realestate_ai_stages');
@@ -388,6 +386,10 @@ const App: React.FC = () => {
     setSmartSuggestions([]);
     setShowSuggestions(true);
 
+    // Check if a marketing package was requested before upload
+    const shouldRunMarketing = pendingMarketingRef.current;
+    pendingMarketingRef.current = false;
+
     try {
       const [colorData, roomType] = await Promise.all([analyzeRoomColors(base64), detectRoomType(base64)]);
       setColors(colorData);
@@ -404,6 +406,11 @@ const App: React.FC = () => {
       };
       setHistory([initialState]);
       setHistoryIndex(0);
+
+      // Trigger marketing package if it was pending (pass base64 directly to avoid stale closure)
+      if (shouldRunMarketing) {
+        generateMarketingPackage(base64);
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -533,7 +540,7 @@ const App: React.FC = () => {
     const files = e.target.files;
     if (!files) return;
     const newItems: typeof batchImages = [];
-    Array.from(files).forEach((file) => {
+    Array.from(files).forEach((file: File) => {
       const reader = new FileReader();
       reader.onloadend = () => {
         newItems.push({ id: crypto.randomUUID(), src: reader.result as string, status: 'pending' });
@@ -560,13 +567,14 @@ const App: React.FC = () => {
   };
 
   // One-click marketing package (Musk: vertical integration)
-  const generateMarketingPackage = async () => {
-    if (!originalImage || !hasApiKey()) { setShowKeyPrompt(true); return; }
+  const generateMarketingPackage = async (imageOverride?: string) => {
+    const img = imageOverride || originalImage;
+    if (!img || !hasApiKey()) { setShowKeyPrompt(true); return; }
     setShowMarketingPackage(true);
     setMarketingPackage({ status: 'staging' });
     try {
       const prompt = `Virtually stage this ${selectedRoom} in a Coastal Modern style. Preserve architecture, layout, windows, doors, and built-in fixtures. Keep proportions realistic and photoreal.`;
-      const results = await generateRoomDesign(originalImage, prompt, null, false, 1);
+      const results = await generateRoomDesign(img, prompt, null, false, 1);
       const stagedImg = results[0];
       setMarketingPackage({ staging: stagedImg, status: 'copy' });
       setGeneratedImage(stagedImg);
@@ -1122,7 +1130,7 @@ const App: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
               <div
                 className="quick-action-card premium-surface rounded-2xl p-5 cursor-pointer text-center"
-                onClick={() => document.getElementById('single-upload-trigger')?.click()}
+                onClick={() => singleUploadRef.current?.click()}
               >
                 <div className="mx-auto mb-3 h-11 w-11 rounded-xl flex items-center justify-center bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
                   <Upload size={20} />
@@ -1144,9 +1152,7 @@ const App: React.FC = () => {
 
               <div
                 className="quick-action-card premium-surface rounded-2xl p-5 cursor-pointer text-center"
-                onClick={() => {
-                  document.getElementById('marketing-upload-trigger')?.click();
-                }}
+                onClick={() => marketingUploadRef.current?.click()}
               >
                 <div className="mx-auto mb-3 h-11 w-11 rounded-xl flex items-center justify-center" style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' }}>
                   <Package size={20} />
@@ -1156,19 +1162,22 @@ const App: React.FC = () => {
               </div>
             </div>
 
-            {/* Hidden file inputs */}
-            <div className="hidden">
-              <input id="marketing-upload-trigger" type="file" accept="image/*" onChange={async (e) => {
-                const file = e.target.files?.[0]; if (!file) return;
-                const reader = new FileReader();
-                reader.onloadend = async () => {
-                  await handleImageUpload(reader.result as string);
-                  setTimeout(() => generateMarketingPackage(), 500);
-                };
-                reader.readAsDataURL(file);
-                e.target.value = '';
-              }} />
-            </div>
+            {/* Hidden file inputs for quick-action cards */}
+            <input ref={singleUploadRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
+              const file = e.target.files?.[0]; if (!file) return;
+              const reader = new FileReader();
+              reader.onloadend = () => handleImageUpload(reader.result as string);
+              reader.readAsDataURL(file);
+              e.target.value = '';
+            }} />
+            <input ref={marketingUploadRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
+              const file = e.target.files?.[0]; if (!file) return;
+              pendingMarketingRef.current = true;
+              const reader = new FileReader();
+              reader.onloadend = () => handleImageUpload(reader.result as string);
+              reader.readAsDataURL(file);
+              e.target.value = '';
+            }} />
 
             {/* Standard uploader */}
             <div className="max-w-md mx-auto" id="single-upload-trigger-wrapper">
@@ -1588,6 +1597,24 @@ const App: React.FC = () => {
                   <p className="text-xs text-[var(--color-text)]">{batchImages.filter(i => i.status === 'done').length}/{batchImages.length} completed</p>
                   <div className="flex gap-2">
                     <button onClick={() => setBatchImages([])} className="cta-secondary rounded-xl px-4 py-2 text-sm">Clear All</button>
+                    {batchImages.some(i => i.status === 'done' && i.result) && (
+                      <button
+                        onClick={() => {
+                          batchImages.filter(i => i.status === 'done' && i.result).forEach((img, idx) => {
+                            const link = document.createElement('a');
+                            link.href = img.result!;
+                            link.download = `staged_batch_${idx + 1}_${Date.now()}.png`;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                          });
+                          trackStat('downloadsCount');
+                        }}
+                        className="cta-secondary rounded-xl px-4 py-2 text-sm inline-flex items-center gap-2"
+                      >
+                        <Download size={14} /> Download All
+                      </button>
+                    )}
                     <button onClick={runBatchProcessing} disabled={batchImages.every(i => i.status !== 'pending')} className="cta-primary rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-50 inline-flex items-center gap-2">
                       <Zap size={14} /> Stage All Photos
                     </button>

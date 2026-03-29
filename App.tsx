@@ -768,15 +768,15 @@ const App: React.FC = () => {
 
             {/* Social proof instead of feature bullets (Bezos: customer obsession) */}
             <div className="mt-10 pt-8" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }}>
-              <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3 text-center">
                 {[
                   { num: '10K+', label: 'Photos staged' },
                   { num: '2,400+', label: 'Active agents' },
                   { num: '4.9', label: 'Avg rating' },
                 ].map((s) => (
-                  <div key={s.label} className="rounded-xl bg-white border border-[var(--color-border)] p-3">
-                    <p className="text-lg font-bold text-[var(--color-ink)]">{s.num}</p>
-                    <p className="text-[10px] text-[var(--color-text)] uppercase tracking-wider">{s.label}</p>
+                  <div key={s.label} className="rounded-xl bg-white border border-[var(--color-border)] p-2 sm:p-3">
+                    <p className="text-base sm:text-lg font-bold text-[var(--color-ink)]">{s.num}</p>
+                    <p className="text-[9px] sm:text-[10px] text-[var(--color-text)] uppercase tracking-wider">{s.label}</p>
                   </div>
                 ))}
               </div>
@@ -796,7 +796,7 @@ const App: React.FC = () => {
     <div className="studio-shell min-h-[100dvh] lg:h-screen overflow-x-hidden lg:overflow-hidden flex flex-col">
       {showKeyPrompt && (
         <div className="fixed inset-0 z-[100] grid place-items-center modal-overlay p-4 animate-fade-in">
-          <div className="modal-panel w-full max-w-md rounded-2xl p-8 animate-scale-in">
+          <div className="modal-panel w-full max-w-md rounded-2xl p-6 sm:p-8 animate-scale-in">
             <div className="flex items-start justify-between mb-5">
               <div className="flex items-center gap-3">
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
@@ -883,7 +883,7 @@ const App: React.FC = () => {
 
       {showProConfirm && (
         <div className="fixed inset-0 z-[100] grid place-items-center modal-overlay p-4 animate-fade-in">
-          <div className="modal-panel w-full max-w-md rounded-2xl p-8 animate-scale-in">
+          <div className="modal-panel w-full max-w-md rounded-2xl p-6 sm:p-8 animate-scale-in">
             <div className="mb-5 flex items-start justify-between">
               <div>
                 <span className="feature-badge feature-badge-primary mb-3">
@@ -970,7 +970,7 @@ const App: React.FC = () => {
                   type="button"
                   onClick={undo}
                   disabled={historyIndex <= 0 || isGenerating}
-                  className="rounded-lg p-1.5 text-[var(--color-text)] transition hover:bg-[var(--color-bg)] disabled:opacity-30"
+                  className="rounded-lg p-2 sm:p-1.5 text-[var(--color-text)] transition hover:bg-[var(--color-bg)] disabled:opacity-30"
                   title="Undo (Ctrl+Z)"
                 >
                   <Undo2 size={15} />
@@ -979,7 +979,7 @@ const App: React.FC = () => {
                   type="button"
                   onClick={redo}
                   disabled={historyIndex >= history.length - 1 || isGenerating}
-                  className="rounded-lg p-1.5 text-[var(--color-text)] transition hover:bg-[var(--color-bg)] disabled:opacity-30"
+                  className="rounded-lg p-2 sm:p-1.5 text-[var(--color-text)] transition hover:bg-[var(--color-bg)] disabled:opacity-30"
                   title="Redo (Ctrl+Y)"
                 >
                   <Redo2 size={15} />
@@ -990,13 +990,13 @@ const App: React.FC = () => {
         </div>
 
         {originalImage ? (
-          <div className="flex items-center gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             {generatedImage && (
               <>
                 <button
                   type="button"
                   onClick={handleDownload}
-                  className="cta-secondary rounded-lg px-3 py-1.5 text-xs font-medium inline-flex items-center gap-1.5"
+                  className="cta-secondary rounded-lg px-2.5 sm:px-3 py-2 sm:py-1.5 text-xs font-medium inline-flex items-center gap-1.5"
                 >
                   <Download size={13} />
                   <span className="hidden sm:inline">Export</span>
@@ -1004,7 +1004,7 @@ const App: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleSaveStage}
-                  className="cta-secondary rounded-lg px-3 py-1.5 text-xs font-medium inline-flex items-center gap-1.5"
+                  className="cta-secondary rounded-lg px-2.5 sm:px-3 py-2 sm:py-1.5 text-xs font-medium inline-flex items-center gap-1.5"
                 >
                   <Heart size={13} className={savedStages.some(s => s.generatedImage === generatedImage) ? 'fill-[var(--color-primary)] text-[var(--color-primary)]' : ''} />
                   <span className="hidden sm:inline">Save</span>
@@ -1016,7 +1016,7 @@ const App: React.FC = () => {
                     else setShowKeyPrompt(true);
                   }}
                   disabled={isEnhancing}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-medium inline-flex items-center gap-1.5 disabled:opacity-50 ${hasProKey ? 'cta-primary' : 'cta-secondary'}`}
+                  className={`rounded-lg px-2.5 sm:px-3 py-2 sm:py-1.5 text-xs font-medium inline-flex items-center gap-1.5 disabled:opacity-50 ${hasProKey ? 'cta-primary' : 'cta-secondary'}`}
                 >
                   <Zap size={13} className={isEnhancing ? 'animate-pulse' : ''} />
                   <span className="hidden sm:inline">
@@ -1025,12 +1025,12 @@ const App: React.FC = () => {
                 </button>
               </>
             )}
-            {/* One-click marketing package (Musk) */}
+            {/* One-click marketing package — hidden on small screens to prevent overflow */}
             {originalImage && !showMarketingPackage && (
               <button
                 type="button"
                 onClick={generateMarketingPackage}
-                className="cta-secondary rounded-lg px-3 py-1.5 text-xs font-medium inline-flex items-center gap-1.5"
+                className="hidden sm:inline-flex cta-secondary rounded-lg px-3 py-1.5 text-xs font-medium items-center gap-1.5"
                 title="Generate full marketing package"
               >
                 <Package size={13} />
@@ -1050,7 +1050,7 @@ const App: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowAnalytics(true)}
-              className="rounded-lg p-1.5 text-[var(--color-text)] hover:bg-[var(--color-bg)] transition"
+              className="hidden sm:flex rounded-lg p-1.5 text-[var(--color-text)] hover:bg-[var(--color-bg)] transition"
               title="View analytics"
             >
               <BarChart3 size={15} />
@@ -1259,7 +1259,7 @@ const App: React.FC = () => {
             })}
           </nav>
 
-          <main className="order-1 lg:order-2 flex-1 min-h-0 overflow-y-auto editor-canvas-bg p-3 sm:p-5 lg:p-6 pb-[58vh] lg:pb-6">
+          <main className="order-1 lg:order-2 flex-1 min-h-0 overflow-y-auto editor-canvas-bg p-3 sm:p-5 lg:p-6 pb-[52vh] sm:pb-[56vh] lg:pb-6">
             <div className="mx-auto w-full max-w-5xl space-y-4">
               <div className="canvas-frame p-1.5 sm:p-2">
                 <div className="relative overflow-hidden rounded-xl bg-zinc-900 aspect-[4/3] sm:aspect-video">
@@ -1284,7 +1284,7 @@ const App: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setShowRoomPicker((prev) => !prev)}
-                      className="pill-chip inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium"
+                      className="pill-chip inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-2.5 sm:py-1 text-xs font-medium"
                     >
                       {detectedRoom ? (
                         <>
@@ -1301,7 +1301,7 @@ const App: React.FC = () => {
                     </button>
 
                     {showRoomPicker && (
-                      <div className="mt-1.5 w-48 rounded-xl bg-white border border-[var(--color-border)] shadow-lg p-1 animate-slide-down">
+                      <div className="mt-1.5 w-48 max-w-[calc(100vw-3rem)] rounded-xl bg-white border border-[var(--color-border)] shadow-lg p-1 animate-slide-down z-30">
                         {roomOptions.map((room) => (
                           <button
                             key={room}
@@ -1463,7 +1463,7 @@ const App: React.FC = () => {
             </button>
 
             <div className="mobile-sheet-scroll scrollbar-hide">
-              <div className="p-4 sm:p-5 space-y-3 pb-[max(1.2rem,env(safe-area-inset-bottom))]">
+              <div className="p-4 sm:p-5 space-y-4 sm:space-y-3 pb-[max(1.2rem,env(safe-area-inset-bottom))]">
                 {activePanel === 'tools' && (
                   <>
                     <RenovationControls

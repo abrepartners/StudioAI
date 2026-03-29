@@ -56,7 +56,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, onSendMessage, 
                 </div>
               )}
               <div
-                className={`max-w-[84%] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm ${
+                className={`max-w-[90%] sm:max-w-[84%] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm ${
                   msg.role === 'user'
                     ? 'cta-primary text-white rounded-br-sm'
                     : 'subtle-card text-[var(--color-ink)] rounded-bl-sm'
@@ -105,7 +105,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, onSendMessage, 
             <button
               type="submit"
               disabled={isLoading || !inputText.trim()}
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full cta-primary flex items-center justify-center disabled:opacity-50"
+              className="absolute right-1 top-1/2 -translate-y-1/2 h-11 w-11 sm:h-9 sm:w-9 rounded-full cta-primary flex items-center justify-center disabled:opacity-50"
             >
               <Send size={15} />
             </button>

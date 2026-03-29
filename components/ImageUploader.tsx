@@ -72,14 +72,14 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload, isAnalyzin
             <button
               type="button"
               onClick={triggerFileUpload}
-              className="cta-primary rounded-xl px-4 py-2.5 text-sm font-semibold inline-flex items-center justify-center gap-2"
+              className="cta-primary rounded-xl px-4 py-3 sm:py-2.5 text-sm font-semibold inline-flex items-center justify-center gap-2"
             >
               <Upload size={14} /> Upload
             </button>
             <button
               type="button"
               onClick={triggerCameraUpload}
-              className="cta-secondary rounded-xl px-4 py-2.5 text-sm font-semibold inline-flex items-center justify-center gap-2"
+              className="cta-secondary rounded-xl px-4 py-3 sm:py-2.5 text-sm font-semibold inline-flex items-center justify-center gap-2"
             >
               <Camera size={14} /> Camera
             </button>

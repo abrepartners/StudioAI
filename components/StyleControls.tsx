@@ -146,7 +146,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
           <button
             type="button"
             onClick={() => setStageMode('text')}
-            className={`rounded-2xl border px-3 py-2 text-left text-sm font-semibold transition-all ${stageMode === 'text'
+            className={`rounded-2xl border px-3 py-3 sm:py-2 text-left text-sm font-semibold transition-all ${stageMode === 'text'
               ? 'border-[var(--color-accent)] bg-sky-50 shadow-[0_8px_20px_rgba(3,105,161,0.14)]'
               : 'border-[var(--color-border)] bg-white/80 hover:bg-white'
               }`}
@@ -156,7 +156,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
           <button
             type="button"
             onClick={() => setStageMode('packs')}
-            className={`rounded-2xl border px-3 py-2 text-left text-sm font-semibold transition-all ${stageMode === 'packs'
+            className={`rounded-2xl border px-3 py-3 sm:py-2 text-left text-sm font-semibold transition-all ${stageMode === 'packs'
               ? 'border-[var(--color-accent)] bg-sky-50 shadow-[0_8px_20px_rgba(3,105,161,0.14)]'
               : 'border-[var(--color-border)] bg-white/80 hover:bg-white'
               }`}
@@ -166,7 +166,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
           <button
             type="button"
             disabled
-            className="cursor-not-allowed rounded-2xl border border-[var(--color-border)] bg-slate-100/70 px-3 py-2 text-left text-sm font-semibold text-slate-500"
+            className="cursor-not-allowed rounded-2xl border border-[var(--color-border)] bg-slate-100/70 px-3 py-3 sm:py-2 text-left text-sm font-semibold text-slate-500"
           >
             <span className="block">Furniture</span>
             <span className="mt-1 inline-flex rounded-full border border-amber-300/80 bg-amber-100/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-amber-800">
@@ -241,7 +241,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
                   key={preset.id}
                   type="button"
                   onClick={() => setSelectedPreset(preset.id)}
-                  className={`rounded-2xl border px-3 py-2 text-left transition-all ${active
+                  className={`rounded-2xl border px-3 py-3 sm:py-2 text-left transition-all ${active
                     ? 'border-[var(--color-accent)] bg-sky-50 shadow-[0_8px_20px_rgba(3,105,161,0.14)]'
                     : 'border-[var(--color-border)] bg-white/80 hover:bg-white'
                     }`}

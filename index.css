@@ -223,11 +223,11 @@ a:focus-visible {
     right: 0;
     bottom: 0;
     z-index: 40;
-    height: min(62vh, calc(100dvh - 72px));
+    height: clamp(45vh, 58vh, calc(100dvh - 80px));
     border-top: 1px solid var(--color-border-strong);
     box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.12);
     border-radius: 1.25rem 1.25rem 0 0;
-    transform: translateY(calc(100% - 40px));
+    transform: translateY(calc(100% - 44px));
     transition: transform var(--transition-smooth);
   }
 
@@ -599,6 +599,17 @@ a:focus-visible {
 
 .mobile-control-sheet.cleanup-active .mobile-sheet-handle {
   background: var(--color-primary);
+}
+
+/* ─── Mobile: disable decorative login animations (battery saving) ── */
+
+@media (max-width: 1023px) {
+  .login-hero-before,
+  .login-hero-after,
+  .login-stat-float,
+  .login-stat-float-delayed {
+    animation: none;
+  }
 }
 
 /* ─── Reduced Motion ───────────────────────────────────────────── */

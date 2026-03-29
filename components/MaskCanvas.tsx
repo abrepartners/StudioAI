@@ -174,15 +174,15 @@ const MaskCanvas: React.FC<MaskCanvasProps> = ({ imageSrc, onMaskChange, isActiv
       />
 
       {isActive && (
-        <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-full bg-[var(--color-ink)]/84 px-3 py-2 text-white shadow-[0_20px_36px_rgba(15,23,42,0.4)] backdrop-blur-md">
-          <div className="rounded-full bg-white/12 px-2 py-1">
-            <div className="flex items-center gap-1">
+        <div className="absolute bottom-3 sm:bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 sm:gap-2 rounded-full bg-[var(--color-ink)]/84 px-2.5 sm:px-3 py-1.5 sm:py-2 text-white shadow-[0_20px_36px_rgba(15,23,42,0.4)] backdrop-blur-md">
+          <div className="rounded-full bg-white/12 px-1.5 sm:px-2 py-1">
+            <div className="flex items-center gap-0.5 sm:gap-1">
               {[20, 40, 80].map((size) => (
                 <button
                   key={size}
                   type="button"
                   onClick={() => setBrushSize(size)}
-                  className={`flex h-7 w-7 items-center justify-center rounded-full transition-all ${
+                  className={`flex h-9 w-9 sm:h-7 sm:w-7 items-center justify-center rounded-full transition-all ${
                     brushSize === size ? 'bg-[var(--color-secondary)] text-[var(--color-ink)]' : 'hover:bg-white/20'
                   }`}
                   aria-label={`Set brush size ${size}`}
@@ -197,7 +197,7 @@ const MaskCanvas: React.FC<MaskCanvasProps> = ({ imageSrc, onMaskChange, isActiv
             type="button"
             onClick={undo}
             disabled={historyIndex <= 0}
-            className="rounded-full p-2 transition-all hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-35"
+            className="rounded-full p-2.5 sm:p-2 transition-all hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-35"
             aria-label="Undo mask stroke"
           >
             <Undo2 size={16} />
@@ -206,7 +206,7 @@ const MaskCanvas: React.FC<MaskCanvasProps> = ({ imageSrc, onMaskChange, isActiv
             type="button"
             onClick={redo}
             disabled={historyIndex >= history.length - 1}
-            className="rounded-full p-2 transition-all hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-35"
+            className="rounded-full p-2.5 sm:p-2 transition-all hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-35"
             aria-label="Redo mask stroke"
           >
             <Redo2 size={16} />
@@ -215,7 +215,7 @@ const MaskCanvas: React.FC<MaskCanvasProps> = ({ imageSrc, onMaskChange, isActiv
           <button
             type="button"
             onClick={clearCanvas}
-            className="rounded-full p-2 transition-all hover:bg-rose-400/30"
+            className="rounded-full p-2.5 sm:p-2 transition-all hover:bg-rose-400/30"
             aria-label="Clear mask"
           >
             <Trash2 size={16} />

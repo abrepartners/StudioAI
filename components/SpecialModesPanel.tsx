@@ -158,7 +158,7 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                             key={s}
                             type="button"
                             onClick={() => setSkyStyle(s)}
-                            className={`rounded-xl border px-3 py-2 text-xs font-semibold text-left transition-all capitalize ${skyStyle === s ? 'border-[var(--color-accent)] bg-sky-50' : 'border-[var(--color-border)] bg-white/80'}`}
+                            className={`rounded-xl border px-3 py-2.5 sm:py-2 text-xs font-semibold text-left transition-all capitalize ${skyStyle === s ? 'border-[var(--color-accent)] bg-sky-50' : 'border-[var(--color-border)] bg-white/80'}`}
                         >
                             {s === 'blue' && '☀️ '}
                             {s === 'dramatic' && '🌩️ '}
@@ -215,7 +215,7 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                                 value={value}
                                 onChange={(e) => set(e.target.value)}
                                 placeholder={placeholder}
-                                className="mt-1 w-full rounded-xl border border-[var(--color-border)] bg-white/90 px-3 py-2 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-text)]/40"
+                                className="mt-1 w-full rounded-xl border border-[var(--color-border)] bg-white/90 px-3 py-2.5 sm:py-2 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-text)]/40"
                             />
                         </div>
                     ))}

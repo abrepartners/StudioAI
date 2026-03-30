@@ -185,9 +185,9 @@ const App: React.FC = () => {
       google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
         callback: handleGoogleCredential,
-        auto_select: true,
       });
       if (googleButtonRef.current) {
+        googleButtonRef.current.innerHTML = '';
         google.accounts.id.renderButton(googleButtonRef.current, {
           type: 'standard',
           theme: 'outline',
@@ -603,56 +603,8 @@ const App: React.FC = () => {
               <p className="mt-3 text-sm text-zinc-400 font-medium">Initialize secure terminal session.</p>
             </div>
 
-            <div className="flex flex-col items-center lg:items-start gap-3">
-              {/* Google SDK renders its iframe button here */}
+            <div className="flex flex-col items-center lg:items-start">
               <div ref={googleButtonRef} />
-
-              {/* Visible fallback button in case the iframe doesn't render */}
-              <button
-                type="button"
-                onClick={() => {
-                  const google = (window as any).google;
-                  if (google?.accounts?.id) {
-                    google.accounts.id.prompt((notification: any) => {
-                      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                        alert('Google sign-in popup was blocked. Check your browser popup settings and make sure third-party cookies are allowed for this site.');
-                      }
-                    });
-                  } else {
-                    alert('Google Identity Services failed to load. Check your internet connection and try refreshing.');
-                  }
-                }}
-                className="cta-secondary rounded-xl px-5 py-3 text-sm font-semibold inline-flex items-center justify-center gap-3 w-full max-w-[300px] bg-white hover:bg-zinc-100 text-black border-transparent shadow-[0_4px_14px_0_rgba(255,255,255,0.2)] transition-all hover:shadow-[0_6px_20px_rgba(255,255,255,0.23)] hover:-translate-y-0.5"
-              >
-                <svg viewBox="0 0 24 24" width="18" height="18" className="shrink-0 bg-white rounded-full p-0.5">
-                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
-                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                </svg>
-                Sign in with Google
-              </button>
-            </div>
-
-            <div className="mt-12 pt-8 border-t border-[var(--color-border-strong)]">
-              <p className="text-xs mb-5 font-bold tracking-widest uppercase text-zinc-500">Modules</p>
-              <div className="space-y-4">
-                {[
-                  { icon: <ImageIcon size={16} />, label: 'AI Staging', desc: 'Professional staging in seconds' },
-                  { icon: <Wand2 size={16} />, label: 'Virtual Renovation', desc: 'Preview new finishes instantly' },
-                  { icon: <Sparkles size={16} />, label: 'Listing Copy', desc: 'AI-written MLS descriptions' },
-                ].map((f) => (
-                  <div key={f.label} className="flex items-start gap-4 p-3 rounded-xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
-                    <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-black border border-[var(--color-primary-dark)] text-[var(--color-primary)] shadow-[inset_0_0_10px_rgba(10,132,255,0.1)]">
-                      {f.icon}
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-white tracking-wide">{f.label}</p>
-                      <p className="text-xs text-zinc-400 mt-1">{f.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
             </div>
           </div>
         </div>
@@ -1033,7 +985,7 @@ const App: React.FC = () => {
             })}
           </nav>
 
-          <main className="order-1 lg:order-2 flex-1 min-h-0 overflow-y-auto editor-canvas-bg p-3 sm:p-5 lg:p-6 pb-[58vh] lg:pb-6 relative z-10">
+          <main className="order-1 lg:order-2 flex-1 min-h-0 overflow-y-auto editor-canvas-bg p-3 sm:p-5 lg:p-6 pb-[44vh] lg:pb-6 relative z-10">
             <div className="mx-auto w-full max-w-6xl space-y-4">
               <div className="canvas-frame p-1 sm:p-2 rounded-2xl glass-overlay border border-[var(--color-border-strong)] shadow-2xl">
                 <div className="relative overflow-hidden rounded-[14px] bg-black aspect-[4/3] sm:aspect-video border border-[var(--color-border-strong)]">
@@ -1064,10 +1016,10 @@ const App: React.FC = () => {
                   ) : generatedImage ? (
                     <CompareSlider originalImage={originalImage} generatedImage={generatedImage} />
                   ) : (
-                    <MaskCanvas
-                      imageSrc={originalImage}
-                      onMaskChange={setMaskImage}
-                      isActive={false}
+                    <img
+                      src={originalImage}
+                      alt="Uploaded room"
+                      className="absolute inset-0 h-full w-full object-contain"
                     />
                   )}
 

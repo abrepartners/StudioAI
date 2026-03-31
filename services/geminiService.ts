@@ -102,7 +102,7 @@ export const generateRoomDesign = async (
 ): Promise<string[]> => {
   try {
     const ai = getAI();
-    const modelName = isHighRes ? 'gemini-3-pro-image-preview' : 'gemini-2.5-flash-image';
+    const modelName = 'gemini-3.1-flash-image-preview';
     const clean = cleanBase64(imageBase64);
 
     const isRemovalTask = prompt.toLowerCase().includes('remove') ||
@@ -169,19 +169,12 @@ export const generateRoomDesign = async (
     }
 
     const config: any = {};
-    if (isHighRes) {
-      // Detect aspect ratio from the image dimensions before sending.
-      const detectedRatio = await detectAspectRatioFromBase64(clean);
-      config.imageConfig = {
-        imageSize: "2K",
-        aspectRatio: detectedRatio,
-        numberOfImages: count
-      };
-    } else {
-      config.imageConfig = {
-        numberOfImages: count
-      };
-    }
+    const detectedRatio = await detectAspectRatioFromBase64(clean);
+    config.imageConfig = {
+      imageSize: "2K",
+      aspectRatio: detectedRatio,
+      numberOfImages: count
+    };
 
     const response: GenerateContentResponse = await ai.models.generateContent({
       model: modelName,
@@ -381,7 +374,7 @@ export const virtualTwilight = async (imageBase64: string): Promise<string> => {
   const clean = cleanBase64(imageBase64);
 
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-image',
+    model: 'gemini-3.1-flash-image-preview',
     contents: [
       {
         parts: [
@@ -423,7 +416,7 @@ export const replaceSky = async (imageBase64: string, skyStyle: 'blue' | 'dramat
   };
 
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-image',
+    model: 'gemini-3.1-flash-image-preview',
     contents: [
       {
         parts: [
@@ -449,7 +442,7 @@ export const instantDeclutter = async (imageBase64: string, selectedRoom: string
   const clean = cleanBase64(imageBase64);
 
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-image',
+    model: 'gemini-3.1-flash-image-preview',
     contents: [
       {
         parts: [
@@ -490,7 +483,7 @@ export const virtualRenovation = async (
   ].filter(Boolean).join(', ');
 
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-image',
+    model: 'gemini-3.1-flash-image-preview',
     contents: [
       {
         parts: [

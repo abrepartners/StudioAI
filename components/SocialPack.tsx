@@ -25,6 +25,7 @@ import {
   type ExportFile,
 } from '../utils/imageExport';
 import { getActiveApiKey } from '../services/geminiService';
+import { generateSocialCaptionsPrompt } from '../src/prompts/socialCaptions';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -88,32 +89,18 @@ const SocialPack: React.FC<SocialPackProps> = ({ images, propertyDetails }) => {
       const { GoogleGenAI } = await import('@google/genai');
       const ai = new GoogleGenAI({ apiKey });
 
-      const prompt = `You are a real estate social media expert. Generate platform-specific captions for this property listing:
-
-Address: ${propertyDetails.address}
-Beds: ${propertyDetails.beds} | Baths: ${propertyDetails.baths} | Sqft: ${propertyDetails.sqft.toLocaleString()}
-Price: $${propertyDetails.price.toLocaleString()}
-
-Generate captions for each platform. Each caption should match the platform's tone and character limits:
-
-1. INSTAGRAM FEED (max 2200 chars): Engaging, emoji-friendly, lifestyle-focused. Include 20-30 relevant hashtags at the end.
-2. INSTAGRAM STORY: Very short hook (1-2 lines) + CTA like "Link in bio" or "DM for details"
-3. FACEBOOK POST (max 500 chars): Professional but warm, neighborhood context, direct CTA to schedule showing.
-4. TWITTER/X (max 280 chars): Punchy, highlight the best feature, include price and key stat.
-
-Format your response EXACTLY like this (no other text):
----INSTAGRAM_FEED---
-[caption here]
----INSTAGRAM_STORY---
-[caption here]
----FACEBOOK_POST---
-[caption here]
----TWITTER_POST---
-[caption here]`;
+      const prompt = generateSocialCaptionsPrompt({
+        address: propertyDetails.address,
+        beds: propertyDetails.beds,
+        baths: propertyDetails.baths,
+        sqft: propertyDetails.sqft,
+        price: propertyDetails.price,
+      });
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.0-flash',
+        model: 'gemini-3-flash-preview',
         contents: prompt,
+        config: { temperature: 0.8 },
       });
 
       const text = response.text || '';
@@ -123,6 +110,10 @@ Format your response EXACTLY like this (no other text):
       for (let i = 0; i < sections.length - 1; i += 2) {
         const key = sections[i].trim().toLowerCase().replace(/_/g, '-');
         parsed[key] = sections[i + 1].trim();
+      }
+      // Map linkedin-post to match the platform key used in PLATFORMS
+      if (parsed['linkedin-post'] && !parsed['linkedin']) {
+        parsed['linkedin'] = parsed['linkedin-post'];
       }
 
       setCaptions(parsed);

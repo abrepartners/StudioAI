@@ -38,6 +38,15 @@ const getAI = () => {
   return new GoogleGenAI({ apiKey: key });
 };
 
+// Temperature presets by task type — lower = more deterministic, higher = more creative
+const TEMPERATURE = {
+  CLASSIFICATION: 0.1,   // Room detection, binary decisions
+  SCORING: 0.2,          // Quality scores, color analysis
+  ANALYSIS: 0.4,         // Style recommendations, layout analysis
+  CREATIVE_TEXT: 0.8,    // Listing copy, descriptions, captions
+  // Image generation: omit temperature — Gemini manages this internally
+} as const;
+
 /**
  * Maps an image's dimensions to the closest supported Gemini aspect ratio.
  */
@@ -81,7 +90,8 @@ export const detectRoomType = async (imageBase64: string): Promise<FurnitureRoom
             }
           }
         ]
-      }
+      },
+      config: { temperature: TEMPERATURE.CLASSIFICATION }
     });
 
     const text = response.text?.trim() as FurnitureRoomType;
@@ -219,6 +229,7 @@ export const autoArrangeLayout = async (
         ]
       },
       config: {
+        temperature: TEMPERATURE.ANALYSIS,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -257,6 +268,7 @@ export const analyzeRoomColors = async (imageBase64: string): Promise<ColorData[
         ]
       },
       config: {
+        temperature: TEMPERATURE.SCORING,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.ARRAY,
@@ -340,7 +352,21 @@ export const createChatSession = (): Chat => {
       - When removing objects, always reveal the original space behind them — never hallucinate new walls.
       - For landscaping tasks, always generate photorealistic, organic results with natural textures.
       - When users ask for design changes, respond with clear, actionable suggestions.
-      - Use the format [EDIT: <detailed prompt>] whenever you identify an image edit task so the app can process it.
+
+      HOW TO TRIGGER IMAGE EDITS:
+      When the user requests a visual change, include [EDIT: <detailed prompt>] in your response. The app will detect this pattern and automatically apply the edit to the current image.
+
+      EXAMPLES:
+      - User: "Can you add some furniture to this living room?"
+        You: "Great choice! This space has wonderful natural light and open proportions. I'd recommend a contemporary layout to complement the architecture. [EDIT: Virtually stage this Living Room with a modern sectional sofa in light gray, a walnut coffee table, two accent chairs, an area rug, and a floor lamp. Contemporary luxury style with warm layered lighting. Preserve all architecture, windows, and doors.]"
+
+      - User: "The sky looks gray and boring"
+        You: "Let's brighten that up with a dramatic sky! [EDIT: Replace the sky with a vibrant blue sky with fluffy white clouds and golden sunlight. Preserve all architecture, trees, and landscaping with clean edges.]"
+
+      - User: "Remove all the clutter from the kitchen counter"
+        You: "I'll clean that up for a fresh, staged look. [EDIT: Remove all personal clutter from the kitchen countertops including bottles, mail, small items, and food containers. Keep all appliances and architecture. Fill gaps with matching countertop texture.]"
+
+      IMPORTANT: Always include specific, detailed instructions in your [EDIT:] tags — the more detail, the better the result. Always mention preserving architecture and windows.
 
       SPECIALTY MODES you can assist with:
       - Virtual Staging: Furnishing empty or sparsely furnished rooms
@@ -348,7 +374,13 @@ export const createChatSession = (): Chat => {
       - Declutter/Cleanup: Removing personal items and clutter to reveal clean spaces
       - Sky Replacement: Swapping bland skies with dramatic alternatives
       - Virtual Renovation: Previewing cabinet, countertop, or flooring changes
-      - Style Pack Application: Applying curated design aesthetics (Coastal Modern, Urban Loft, etc.)`,
+      - Style Pack Application: Applying curated design aesthetics (Coastal Modern, Urban Loft, etc.)
+
+      CONVERSATION GUIDELINES:
+      - For simple requests, include the [EDIT:] tag directly in your first response.
+      - For ambiguous requests, ask ONE clarifying question first, then include [EDIT:] in your follow-up.
+      - Always briefly explain what you're doing and why before the [EDIT:] tag — this builds agent confidence.
+      - If the user describes a problem (e.g., "this room feels dark"), suggest a solution AND include the edit.`,
     }
   });
 };
@@ -420,7 +452,18 @@ export const replaceSky = async (imageBase64: string, skyStyle: 'blue' | 'dramat
     contents: [
       {
         parts: [
-          { text: `Replace ONLY the sky in this exterior real estate photo with ${skyDescriptions[skyStyle]}. PRESERVE EVERYTHING else. Horizon line must be perfect.` },
+          { text: `Replace ONLY the sky in this exterior real estate photo with ${skyDescriptions[skyStyle]}.
+
+PRESERVATION RULES:
+- PRESERVE all architecture, rooflines, chimneys, antennas, and structural elements with pixel-perfect edges.
+- PRESERVE all trees, landscaping, and foliage — maintain their exact silhouettes against the new sky.
+- PRESERVE the ground plane entirely: driveway, walkways, lawn, fencing, vehicles.
+
+BLENDING REQUIREMENTS:
+- The horizon line and roofline edges must be razor-sharp with no halos, fringing, or ghosting artifacts.
+- Tree branches and leaves must have natural, clean edges against the new sky — no color bleeding.
+- The new sky's lighting must affect the building subtly: a golden sky should cast warm tones on light-colored surfaces; a stormy sky should slightly cool the building's appearance.
+- Ensure cloud scale and perspective match the camera's focal length and angle.` },
           { inlineData: { mimeType: 'image/jpeg', data: clean } },
         ],
       }
@@ -447,9 +490,29 @@ export const instantDeclutter = async (imageBase64: string, selectedRoom: string
       {
         parts: [
           {
-            text: `You are an expert real estate photo editor. Remove ALL personal clutter from this ${selectedRoom} photo while preserving all furniture and architecture.
-        REMOVE: photos, toys, pet items, counter clutter, laundry, trash.
-        KEEP: furniture, appliances, windows, doors, lighting.`
+            text: `You are an expert real estate photo editor specializing in pre-listing photo preparation. Remove ALL personal clutter and lived-in items from this ${selectedRoom} to create a clean, move-in-ready appearance.
+
+REMOVE (be thorough):
+- Personal photos, artwork with faces, children's drawings on walls or fridge
+- Toys, pet beds, pet bowls, baby items, playpens
+- Laundry, shoes, bags, coats draped on furniture
+- Countertop clutter: mail, keys, bottles, cups, food containers, small appliances (toasters, coffee makers can stay)
+- Bathroom toiletries, towels on hooks (leave towel bars), trash cans
+- Desk clutter: papers, cables, monitors (if home office staging, leave desk itself)
+- Floor clutter: rugs with stains, random items, visible cords
+- Refrigerator magnets, sticky notes, calendars with personal info
+
+KEEP (do not remove):
+- ALL furniture: sofas, tables, chairs, beds, dressers, desks
+- ALL architecture: doors, windows, ceiling fans, vents, outlets, trim, molding
+- ALL built-in appliances: ovens, dishwashers, microwaves, refrigerators
+- Light fixtures, lamps, curtains/blinds
+- Decorative items that stage well: vases, plants, throw pillows, books (neat stacks only)
+
+RESTORATION:
+- Where items are removed, sample the surrounding floor and wall textures to fill gaps seamlessly.
+- Maintain consistent lighting — no dark patches where objects were removed.
+- The result should look like a professionally prepared vacant or model-home staging.`
           },
           { inlineData: { mimeType: 'image/jpeg', data: clean } },
         ],
@@ -487,7 +550,17 @@ export const virtualRenovation = async (
     contents: [
       {
         parts: [
-          { text: `Apply renovation changes: ${changesList}. Preserve room layout and lighting.` },
+          { text: `Act as a Master Architectural Photo Editor specializing in virtual renovation previews for real estate.
+
+RENOVATION ASSIGNMENT: ${changesList}
+
+CRITICAL RULES:
+1. **ARCHITECTURAL INTEGRITY**: Preserve ALL doors, windows, ceiling fixtures, vents, outlets, and structural elements exactly as they appear. Do NOT modify the room layout, dimensions, or structural shell.
+2. **MATERIAL REALISM**: New materials must show realistic detail — wood grain direction, stone veining patterns, grout lines, edge profiles, and surface reflections appropriate to the material type.
+3. **LIGHTING CONTINUITY**: New surfaces must reflect the existing ambient light direction and temperature. Glossy countertops reflect windows. Matte surfaces absorb light naturally. Shadows under cabinets must match the original light source.
+4. **SEAMLESS TRANSITIONS**: Where new materials meet existing elements (e.g., new countertop meets existing backsplash), the junction must look architecturally correct with proper trim, caulk lines, or edge treatments.
+5. **PERSPECTIVE MATCH**: New elements must follow the original vanishing points and lens distortion exactly. Cabinet doors must align with the room's perspective grid.
+6. **COLOR HARMONY**: New materials should look plausible in the existing room's color temperature. Warm-toned wood in a cool-lit room needs subtle color adaptation to look natural.` },
           { inlineData: { mimeType: 'image/jpeg', data: clean } },
         ],
       }
@@ -514,34 +587,40 @@ export const generateListingCopy = async (imageBase64: string, selectedRoom: str
   const clean = cleanBase64(imageBase64);
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3.1-pro',
+    model: 'gemini-3-flash-preview',
     contents: [{
       role: 'user',
       parts: [
         {
           text: `You are an expert real estate copywriter. Analyze this ${selectedRoom} photo${styleNotes ? ` (design notes: ${styleNotes})` : ''} and generate professional listing copy.
-        
-        Return a JSON object with EXACTLY these fields:
-        {
-          "headline": "A punchy, 8-12 word MLS headline that highlights the best feature",
-          "description": "A 3-4 sentence MLS description paragraph that is conversational, emotional, and conversion-focused. Describe the space authentically without clichés.",
-          "socialCaption": "An Instagram/Facebook caption 2-3 sentences with emojis that creates FOMO and drives engagement",
-          "hashtags": ["10-12 relevant real estate hashtags without the # symbol"]
-        }
-        
-        Return ONLY the JSON, no other text.` },
+
+Generate:
+- "headline": A punchy, 8-12 word MLS headline that highlights the best feature
+- "description": A 3-4 sentence MLS description paragraph that is conversational, emotional, and conversion-focused. Describe the space authentically without clichés.
+- "socialCaption": An Instagram/Facebook caption 2-3 sentences with emojis that creates FOMO and drives engagement
+- "hashtags": 10-12 relevant real estate hashtags without the # symbol` },
         { inlineData: { mimeType: 'image/jpeg', data: clean } },
       ],
     }],
+    config: {
+      temperature: TEMPERATURE.CREATIVE_TEXT,
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          headline: { type: Type.STRING },
+          description: { type: Type.STRING },
+          socialCaption: { type: Type.STRING },
+          hashtags: { type: Type.ARRAY, items: { type: Type.STRING } }
+        },
+        required: ['headline', 'description', 'socialCaption', 'hashtags']
+      }
+    },
   });
 
-  const text = response.text || '{}';
-  try {
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    return JSON.parse(jsonMatch?.[0] || '{}');
-  } catch {
-    return { headline: '', description: text, socialCaption: '', hashtags: [] };
-  }
+  return response.text
+    ? JSON.parse(response.text)
+    : { headline: '', description: '', socialCaption: '', hashtags: [] };
 };
 
 // ─── Competitive Feature: Style Advisor ──────────────────────────────────────
@@ -588,6 +667,7 @@ Return a JSON array of exactly 3 objects, sorted by confidence (highest first).`
       ]
     },
     config: {
+      temperature: TEMPERATURE.ANALYSIS,
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.ARRAY,
@@ -665,6 +745,7 @@ Return ONLY a JSON object with these 6 fields.`
       ]
     },
     config: {
+      temperature: TEMPERATURE.SCORING,
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,
@@ -715,7 +796,7 @@ export const generateListingDescriptions = async (
       role: 'user',
       parts: [
         {
-          text: `You are a professional real estate copywriter. Analyze this ${roomType} photo and generate three property descriptions in different tones.
+          text: `You are a professional real estate copywriter. Carefully analyze the provided ${roomType} photo — note specific visual details like flooring materials, lighting quality, window views, architectural features, color palette, and spatial proportions. Weave these observed details into your descriptions to make them feel authentic and grounded in this specific property, not generic.
 
 Property: ${detailStr}
 ${agentNotes ? `Agent notes: ${agentNotes}` : ''}
@@ -734,6 +815,7 @@ Return ONLY a JSON object with these 3 fields: luxury, casual, investment. Each 
       ],
     }],
     config: {
+      temperature: TEMPERATURE.CREATIVE_TEXT,
       responseMimeType: 'application/json',
       responseSchema: {
         type: Type.OBJECT,

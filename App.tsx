@@ -822,7 +822,7 @@ const App: React.FC = () => {
           </div>
         </main>
       ) : (
-        <div className="flex-1 min-h-0 flex lg:flex-row overflow-hidden relative z-10 bg-[#050505]">
+        <div className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-hidden relative z-10 bg-[#050505]">
           <nav className="hidden lg:flex shrink-0 w-[64px] hover:w-[220px] transition-all duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] glass-overlay border border-[var(--color-border-strong)] rounded-2xl flex-col gap-1.5 p-2 mx-4 my-6 group z-20 shadow-xl self-start sticky top-6">
             <div className="w-full flex justify-center mb-2 mt-2">
               <div className="w-8 h-1 bg-[var(--color-primary-dark)] rounded-full opacity-50"></div>
@@ -873,10 +873,10 @@ const App: React.FC = () => {
             })}
           </nav>
 
-          <main className="order-1 lg:order-2 flex-1 min-h-0 overflow-y-auto editor-canvas-bg p-3 sm:p-5 lg:p-6 pb-[52vh] sm:pb-[44vh] lg:pb-6 relative z-10">
+          <main className="order-1 lg:order-2 flex-1 min-h-0 overflow-y-auto editor-canvas-bg p-3 sm:p-5 lg:p-6 pb-24 lg:pb-6 relative z-10">
             <div className="mx-auto w-full max-w-6xl space-y-4">
               <div className="canvas-frame p-1 sm:p-2 rounded-2xl glass-overlay border border-[var(--color-border-strong)] shadow-2xl">
-                <div className="relative overflow-hidden rounded-[14px] bg-black aspect-[4/3] sm:aspect-video border border-[var(--color-border-strong)]">
+                <div className="relative overflow-hidden rounded-[14px] bg-black aspect-video border border-[var(--color-border-strong)]">
                   {isGenerating && (
                     <div className="absolute inset-0 z-10 bg-black/70 backdrop-blur-sm pointer-events-none flex flex-col items-center justify-center">
                       
@@ -956,43 +956,46 @@ const App: React.FC = () => {
                 </div>
               </div>
 
-              <div className="w-full">
-                {isAnalyzing ? (
-                  <div className="premium-surface rounded-2xl p-5 space-y-4 animate-pulse">
-                    <div className="flex items-center gap-3">
-                      <div className="h-6 w-6 rounded-full bg-[var(--color-surface-elevated)]" />
-                      <div>
-                        <div className="h-4 w-32 rounded bg-[var(--color-surface-elevated)] mb-1" />
-                        <div className="h-3 w-24 rounded bg-[var(--color-surface-elevated)]" />
-                      </div>
-                    </div>
-                    <div className="h-3 w-full rounded-full bg-[var(--color-surface-elevated)]" />
-                    {[1,2,3,4].map(i => (
-                      <div key={i} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="h-4 w-4 rounded-full bg-[var(--color-surface-elevated)]" />
-                          <div className="h-3 w-28 rounded bg-[var(--color-surface-elevated)]" />
+              {/* Hide inline analysis panels on mobile — accessible via side panel */}
+              <div className="hidden lg:block space-y-4">
+                <div className="w-full">
+                  {isAnalyzing ? (
+                    <div className="premium-surface rounded-2xl p-5 space-y-4 animate-pulse">
+                      <div className="flex items-center gap-3">
+                        <div className="h-6 w-6 rounded-full bg-[var(--color-surface-elevated)]" />
+                        <div>
+                          <div className="h-4 w-32 rounded bg-[var(--color-surface-elevated)] mb-1" />
+                          <div className="h-3 w-24 rounded bg-[var(--color-surface-elevated)]" />
                         </div>
-                        <div className="h-3 w-8 rounded bg-[var(--color-surface-elevated)]" />
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <ColorAnalysis colors={colors} isLoading={isAnalyzing} />
+                      <div className="h-3 w-full rounded-full bg-[var(--color-surface-elevated)]" />
+                      {[1,2,3,4].map(i => (
+                        <div key={i} className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="h-4 w-4 rounded-full bg-[var(--color-surface-elevated)]" />
+                            <div className="h-3 w-28 rounded bg-[var(--color-surface-elevated)]" />
+                          </div>
+                          <div className="h-3 w-8 rounded bg-[var(--color-surface-elevated)]" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <ColorAnalysis colors={colors} isLoading={isAnalyzing} />
+                  )}
+                </div>
+
+                <QualityScore
+                  originalImage={originalImage}
+                  generatedImage={generatedImage}
+                  roomType={selectedRoom}
+                />
+
+                {generatedImage && (
+                  <MLSExport
+                    images={[{ id: '1', source: generatedImage, label: detectedRoom || 'Room' }]}
+                  />
                 )}
               </div>
-
-              <QualityScore
-                originalImage={originalImage}
-                generatedImage={generatedImage}
-                roomType={selectedRoom}
-              />
-
-              {generatedImage && (
-                <MLSExport
-                  images={[{ id: '1', source: generatedImage, label: detectedRoom || 'Room' }]}
-                />
-              )}
             </div>
 
             {/* Listings Panel */}

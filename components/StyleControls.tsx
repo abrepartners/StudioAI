@@ -189,23 +189,23 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
           <button
             type="button"
             onClick={() => setStageMode('text')}
-            className={`relative z-10 flex-1 py-2 text-xs font-bold uppercase tracking-wider transition-colors ${stageMode === 'text' ? 'text-[var(--color-primary)]' : 'text-[var(--color-text)]/60 hover:text-white'}`}
+            className={`relative z-10 flex-1 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider transition-colors ${stageMode === 'text' ? 'text-[var(--color-primary)]' : 'text-[var(--color-text)]/60 hover:text-white'}`}
           >
             Text
           </button>
           <button
             type="button"
             onClick={() => setStageMode('packs')}
-            className={`relative z-10 flex-1 py-2 text-xs font-bold uppercase tracking-wider transition-colors ${stageMode === 'packs' ? 'text-[var(--color-primary)]' : 'text-[var(--color-text)]/60 hover:text-white'}`}
+            className={`relative z-10 flex-1 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider transition-colors ${stageMode === 'packs' ? 'text-[var(--color-primary)]' : 'text-[var(--color-text)]/60 hover:text-white'}`}
           >
             Packs
           </button>
           <button
             type="button"
             disabled
-            className="relative z-10 flex-1 py-2 text-xs font-bold uppercase tracking-wider text-[var(--color-text)]/30 cursor-not-allowed flex items-center justify-center gap-1"
+            className="relative z-10 flex-1 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-[var(--color-text)]/30 cursor-not-allowed flex items-center justify-center gap-1"
           >
-            Furnish <span className="text-[8px] bg-amber-500/10 text-amber-500 px-1 rounded border border-amber-500/20">SOON</span>
+            Furnish <span className="text-[8px] bg-amber-500/10 text-amber-500 px-1 rounded border border-amber-500/20 hidden sm:inline">SOON</span>
           </button>
         </div>
       </div>
@@ -318,7 +318,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
           type="button"
           onClick={buildPrompt}
           disabled={isGenerating || !canGenerate}
-          className={`w-full rounded-2xl px-4 py-4 text-sm font-black uppercase tracking-widest disabled:cursor-not-allowed transition-all duration-300 relative overflow-hidden group ${
+          className={`w-full rounded-2xl px-3 py-3 sm:px-4 sm:py-4 text-xs sm:text-sm font-black uppercase tracking-widest disabled:cursor-not-allowed transition-all duration-300 relative overflow-hidden group ${
             isGenerating || !canGenerate 
             ? 'bg-black/40 text-[var(--color-text)]/30 border border-[var(--color-border-strong)] shadow-inner' 
             : 'bg-[var(--color-primary)] text-black border border-[#0A84FF] shadow-lg hover:shadow-xl hover:bg-[#00ffd5] scale-100 hover:scale-[1.02]'

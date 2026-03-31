@@ -30,9 +30,7 @@ function getStoredGenerationCount(): number {
       return 0;
     }
     return parseInt(localStorage.getItem(GEN_COUNT_KEY) || '0', 10);
-  } catch {
-    return 0;
-  }
+  } catch { return 0; }
 }
 
 function incrementStoredGenerationCount(): number {
@@ -41,50 +39,33 @@ function incrementStoredGenerationCount(): number {
   try {
     localStorage.setItem(GEN_COUNT_KEY, String(next));
     localStorage.setItem(GEN_PERIOD_KEY, getCurrentPeriod());
-  } catch { /* ignore */ }
+  } catch {}
   return next;
 }
 
 export function useSubscription(userEmail: string | null) {
   const [state, setState] = useState<SubscriptionState>({
-    loading: true,
-    plan: 'free',
-    subscribed: false,
-    generationsUsed: getStoredGenerationCount(),
-    generationsLimit: 5,
-    canGenerate: true,
+    loading: true, plan: 'free', subscribed: false,
+    generationsUsed: getStoredGenerationCount(), generationsLimit: 5, canGenerate: true,
   });
 
   const checkStatus = useCallback(async () => {
-    if (!userEmail) {
-      setState(prev => ({ ...prev, loading: false }));
-      return;
-    }
-
+    if (!userEmail) { setState(prev => ({ ...prev, loading: false })); return; }
     try {
       const res = await fetch(`/api/stripe-status?email=${encodeURIComponent(userEmail)}`);
       const data = await res.json();
-
       if (data.ok) {
         const genCount = getStoredGenerationCount();
         const limit = data.generationsLimit ?? 5;
         setState({
-          loading: false,
-          plan: data.plan || 'free',
-          subscribed: data.subscribed || false,
-          generationsUsed: genCount,
-          generationsLimit: limit,
+          loading: false, plan: data.plan || 'free', subscribed: data.subscribed || false,
+          generationsUsed: genCount, generationsLimit: limit,
           canGenerate: limit === -1 || genCount < limit,
-          customerId: data.customerId,
-          subscriptionId: data.subscriptionId,
+          customerId: data.customerId, subscriptionId: data.subscriptionId,
           currentPeriodEnd: data.currentPeriodEnd,
         });
-      } else {
-        setState(prev => ({ ...prev, loading: false }));
-      }
-    } catch {
-      setState(prev => ({ ...prev, loading: false }));
-    }
+      } else { setState(prev => ({ ...prev, loading: false })); }
+    } catch { setState(prev => ({ ...prev, loading: false })); }
   }, [userEmail]);
 
   useEffect(() => { checkStatus(); }, [checkStatus]);
@@ -106,8 +87,7 @@ export function useSubscription(userEmail: string | null) {
   const recordGeneration = useCallback(() => {
     const newCount = incrementStoredGenerationCount();
     setState(prev => ({
-      ...prev,
-      generationsUsed: newCount,
+      ...prev, generationsUsed: newCount,
       canGenerate: prev.generationsLimit === -1 || newCount < prev.generationsLimit,
     }));
   }, []);
@@ -116,53 +96,26 @@ export function useSubscription(userEmail: string | null) {
     if (!userEmail) return;
     try {
       const res = await fetch('/api/stripe-checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: userEmail,
-          userId,
-          plan: 'pro',
-          returnUrl: window.location.origin,
-        }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: userEmail, userId, plan: 'pro', returnUrl: window.location.origin }),
       });
       const data = await res.json();
-      if (data.already_subscribed) {
-        checkStatus();
-        return;
-      }
-      if (data.url) {
-        window.location.href = data.url;
-      }
-    } catch (err) {
-      console.error('Checkout error:', err);
-    }
+      if (data.already_subscribed) { checkStatus(); return; }
+      if (data.url) { window.location.href = data.url; }
+    } catch (err) { console.error('Checkout error:', err); }
   }, [userEmail, checkStatus]);
 
   const openPortal = useCallback(async () => {
     if (!userEmail) return;
     try {
       const res = await fetch('/api/stripe-portal', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: userEmail,
-          returnUrl: window.location.origin,
-        }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: userEmail, returnUrl: window.location.origin }),
       });
       const data = await res.json();
-      if (data.url) {
-        window.open(data.url, '_blank');
-      }
-    } catch (err) {
-      console.error('Portal error:', err);
-    }
+      if (data.url) { window.open(data.url, '_blank'); }
+    } catch (err) { console.error('Portal error:', err); }
   }, [userEmail]);
 
-  return {
-    ...state,
-    recordGeneration,
-    startCheckout,
-    openPortal,
-    refresh: checkStatus,
-  };
+  return { ...state, recordGeneration, startCheckout, openPortal, refresh: checkStatus };
 }

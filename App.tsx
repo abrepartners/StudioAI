@@ -5,9 +5,6 @@ import {
   detectRoomType,
   createChatSession,
   sendMessageToChat,
-  saveApiKey,
-  hasApiKey,
-  getActiveApiKey,
 } from './services/geminiService';
 import ImageUploader from './components/ImageUploader';
 import CompareSlider from './components/CompareSlider';
@@ -31,12 +28,12 @@ import {
   HistoryState,
   ChatMessage,
 } from './types';
+import { useSubscription } from './hooks/useSubscription';
 import {
   RefreshCcw,
   Camera,
   Sparkles,
-  Zap,
-  Key,
+  CreditCard,
   MessageSquare,
   History as HistoryIcon,
   Download,
@@ -57,6 +54,7 @@ import {
   Wand2,
   Shield,
   Settings,
+  Crown,
 } from 'lucide-react';
 import { Analytics } from '@vercel/analytics/react';
 
@@ -112,16 +110,9 @@ const App: React.FC = () => {
   const [activePanel, setActivePanel] = useState<'tools' | 'chat' | 'history' | 'cleanup' | 'listings' | 'settings'>('tools');
   const [stageMode, setStageMode] = useState<StageMode>('text');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isEnhancing, setIsEnhancing] = useState(false);
-  const [showKeyPrompt, setShowKeyPrompt] = useState(false);
-  const [showProConfirm, setShowProConfirm] = useState(false);
   const [showAccessPanel, setShowAccessPanel] = useState(false);
   const [showRoomPicker, setShowRoomPicker] = useState(false);
-  const [hasProKey, setHasProKey] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(true);
-  const [apiKeyInput, setApiKeyInput] = useState('');
-  const [apiKeyError, setApiKeyError] = useState('');
-  const [apiKeyConfigured, setApiKeyConfigured] = useState(hasApiKey);
   const [showFeedbackCheckpoint, setShowFeedbackCheckpoint] = useState(false);
   const [generationsSinceFeedback, setGenerationsSinceFeedback] = useState(0);
   const [toastMessage, setToastMessage] = useState<{ icon: React.ReactNode; label: string } | null>(null);
@@ -149,6 +140,10 @@ const App: React.FC = () => {
   const [googleUser, setGoogleUser] = useState<GoogleUser | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(false);
   const googleButtonRef = useRef<HTMLDivElement>(null);
+
+  // ─── Subscription State ─────────────────────────────────────────────────
+  const subscription = useSubscription(googleUser?.email || null);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   useEffect(() => {
     const savedS = localStorage.getItem('realestate_ai_stages');
@@ -221,21 +216,6 @@ const App: React.FC = () => {
     }
   }, []);
 
-  const refreshProKeyStatus = useCallback(async () => {
-    const aiStudio = (window as any)?.aistudio;
-    if (!aiStudio?.hasSelectedApiKey) {
-      setHasProKey(false);
-      return false;
-    }
-    try {
-      const hasKey = await aiStudio.hasSelectedApiKey();
-      setHasProKey(Boolean(hasKey));
-      return Boolean(hasKey);
-    } catch {
-      setHasProKey(false);
-      return false;
-    }
-  }, []);
 
   const showToast = useCallback((icon: React.ReactNode, label: string) => {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
@@ -243,9 +223,6 @@ const App: React.FC = () => {
     toastTimerRef.current = setTimeout(() => setToastMessage(null), 2500);
   }, []);
 
-  useEffect(() => {
-    if (originalImage) refreshProKeyStatus();
-  }, [originalImage, refreshProKeyStatus]);
 
   useEffect(() => {
     if (generationsSinceFeedback >= FEEDBACK_REQUIRED_INTERVAL) {
@@ -342,22 +319,6 @@ const App: React.FC = () => {
     }
   };
 
-  const handleSaveApiKey = () => {
-    const key = apiKeyInput.trim();
-    if (!key) {
-      setApiKeyError('Please enter your Gemini API key.');
-      return;
-    }
-    if (!key.startsWith('AIza')) {
-      setApiKeyError('That doesn\'t look like a valid Gemini API key. It should start with "AIza".');
-      return;
-    }
-    saveApiKey(key);
-    setApiKeyConfigured(true);
-    setApiKeyError('');
-    setApiKeyInput('');
-    setShowKeyPrompt(false);
-  };
   const handleSamplePhoto = async () => {
     // High-quality sample interior
     const SAMPLE_IMG = "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&q=80&w=2000";
@@ -380,12 +341,11 @@ const App: React.FC = () => {
       setIsAnalyzing(false);
     }
   };
-  const handleGenerate = async (prompt: string, highRes = false) => {
+  const handleGenerate = async (prompt: string) => {
     if (!originalImage) return;
 
-    // Require API key before anything else
-    if (!hasApiKey()) {
-      setShowKeyPrompt(true);
+    if (!subscription.canGenerate) {
+      setShowUpgradeModal(true);
       return;
     }
 
@@ -394,19 +354,14 @@ const App: React.FC = () => {
       return;
     }
 
-    if (highRes) {
-      setIsEnhancing(true);
-      setShowProConfirm(false);
-    } else {
-      setIsGenerating(true);
-    }
+    setIsGenerating(true);
 
     try {
       lastPromptRef.current = prompt;
 
       const sourceImage = activePanel === 'cleanup' && generatedImage ? generatedImage : originalImage;
       const count = isMultiGen ? 2 : 1;
-      const resultImages = await generateRoomDesign(sourceImage, prompt, activePanel === 'cleanup' ? maskImage : null, highRes, count);
+      const resultImages = await generateRoomDesign(sourceImage, prompt, activePanel === 'cleanup' ? maskImage : null, false, count);
 
       const newColors = await analyzeRoomColors(resultImages[0]);
 
@@ -426,9 +381,8 @@ const App: React.FC = () => {
         return [...newHistory, ...newStates];
       });
       setHistoryIndex((prev) => prev + newStates.length);
-      if (!highRes) {
-        setGenerationsSinceFeedback((prev) => prev + 1);
-      }
+      setGenerationsSinceFeedback((prev) => prev + 1);
+      subscription.recordGeneration();
     } catch (error: any) {
       if (
         error.message === 'API_KEY_REQUIRED' ||
@@ -436,13 +390,12 @@ const App: React.FC = () => {
         error.message?.toLowerCase().includes('api key') ||
         error.message?.includes('API_KEY_INVALID')
       ) {
-        setShowKeyPrompt(true);
+        alert('Service temporarily unavailable. Please try again in a moment.');
       } else {
         alert('Generation failed. Check your connection and try again.');
       }
     } finally {
       setIsGenerating(false);
-      setIsEnhancing(false);
     }
   };
 
@@ -502,7 +455,7 @@ const App: React.FC = () => {
       // Detect [EDIT: prompt] pattern and auto-trigger generation
       const editMatch = reply.match(/\[EDIT:\s*(.+?)\]/i);
       if (editMatch && editMatch[1]) {
-        await handleGenerate(editMatch[1], false);
+        await handleGenerate(editMatch[1]);
       }
     } catch (err) {
       const errorMsg: ChatMessage = {
@@ -615,121 +568,35 @@ const App: React.FC = () => {
   return (
     <div className="studio-shell min-h-[100dvh] lg:h-screen overflow-x-hidden lg:overflow-hidden flex flex-col">
       
-      {showKeyPrompt && (
+
+
+      {showUpgradeModal && (
         <div className="fixed inset-0 z-[100] grid place-items-center modal-overlay p-4 animate-fade-in">
           <div className="modal-panel w-full max-w-md rounded-2xl p-8 animate-scale-in">
-            <div className="flex items-start justify-between mb-5">
+            <div className="flex items-start justify-between mb-6">
               <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
-                  <Key size={22} />
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[rgba(10,132,255,0.15)] text-[var(--color-primary)]">
+                  <Crown size={22} />
                 </div>
                 <div>
-                  <h2 className="font-display text-xl font-bold">Gemini API Key</h2>
-                  <p className="text-xs text-[var(--color-text)]">Required for AI image generation</p>
+                  <h2 className="font-display text-xl font-bold text-white">Upgrade to Pro</h2>
+                  <p className="text-xs text-zinc-400">Unlimited AI generations</p>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => { setShowKeyPrompt(false); setApiKeyError(''); setApiKeyInput(''); }}
-                className="rounded-lg p-1.5 text-[var(--color-text)] transition hover:bg-[var(--color-bg)]"
-              >
+              <button type="button" onClick={() => setShowUpgradeModal(false)} className="rounded-lg p-1.5 text-zinc-400 transition hover:bg-[var(--color-bg)]">
                 <X size={16} />
               </button>
             </div>
-
-            {apiKeyConfigured && (
-              <div className="mb-4 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-800">
-                <Check size={14} className="shrink-0" />
-                <span>Key saved: <code className="font-mono text-xs">{getActiveApiKey().slice(0, 8)}••••••••</code></span>
+            <div className="mb-6 rounded-xl border border-[rgba(10,132,255,0.3)] bg-[rgba(10,132,255,0.08)] p-4">
+              <div className="flex items-baseline gap-1 mb-3">
+                <span className="text-3xl font-black text-white">$29</span>
+                <span className="text-sm text-zinc-400">/month</span>
               </div>
-            )}
-
-            <p className="text-sm text-[var(--color-text)] leading-relaxed mb-4">
-              Get a free API key from{' '}
-              <a
-                href="https://aistudio.google.com/apikey"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[var(--color-primary)] font-medium hover:underline inline-flex items-center gap-0.5"
-              >
-                Google AI Studio <ArrowRight size={12} />
-              </a>{' '}
-              then paste it below. Your key is stored locally and never sent to our servers.
-            </p>
-
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--color-text)] mb-1.5 block">
-                  API Key
-                </label>
-                <input
-                  type="password"
-                  value={apiKeyInput}
-                  onChange={(e) => { setApiKeyInput(e.target.value); setApiKeyError(''); }}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSaveApiKey()}
-                  placeholder="AIza..."
-                  className="w-full rounded-xl border border-[var(--color-border-strong)] bg-white px-3 py-2.5 text-sm font-mono text-[var(--color-ink)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
-                  autoFocus
-                />
-                {apiKeyError && (
-                  <p className="mt-1.5 text-xs text-rose-600">{apiKeyError}</p>
-                )}
-              </div>
-
-              <button
-                type="button"
-                onClick={handleSaveApiKey}
-                className="cta-primary w-full rounded-xl py-3 text-sm font-semibold"
-              >
-                Save & Continue
-              </button>
-
-              {apiKeyConfigured && (
-                <button
-                  type="button"
-                  onClick={() => { setShowKeyPrompt(false); setApiKeyError(''); setApiKeyInput(''); }}
-                  className="cta-secondary w-full rounded-xl py-2.5 text-sm"
-                >
-                  Keep existing key
-                </button>
-              )}
             </div>
-
-            <p className="mt-4 text-xs text-[var(--color-text)] leading-relaxed">
-              The free tier includes generous usage. Enable billing on your GCP project only if you need high-res renders.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {showProConfirm && (
-        <div className="fixed inset-0 z-[100] grid place-items-center modal-overlay p-4 animate-fade-in">
-          <div className="modal-panel w-full max-w-md rounded-2xl p-8 animate-scale-in">
-            <div className="mb-5 flex items-start justify-between">
-              <div>
-                <span className="feature-badge feature-badge-primary mb-3">
-                  <Zap size={13} /> High-Res
-                </span>
-                <h3 className="font-display text-2xl font-bold">Confirm Enhancement</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowProConfirm(false)}
-                className="rounded-lg p-2 text-[var(--color-text)] transition hover:bg-[var(--color-bg)]"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            <p className="text-sm leading-relaxed text-[var(--color-text)] mb-6">
-              This will trigger a high-detail enhancement render. Keep billing enabled in your connected GCP project.
-            </p>
-            <button
-              type="button"
-              onClick={() => handleGenerate(lastPromptRef.current || 'Finalize with realistic textures.', true)}
-              className="cta-primary w-full rounded-xl py-3 text-sm font-semibold"
-            >
-              Confirm and Enhance
+            <button type="button" onClick={() => { setShowUpgradeModal(false); subscription.startCheckout(googleUser?.sub || ''); }} className="cta-primary w-full rounded-xl py-3.5 text-sm font-bold flex items-center justify-center gap-2">
+              <CreditCard size={16} /> Start Pro Plan
             </button>
+            <p className="mt-3 text-center text-[10px] text-zinc-500">Cancel anytime. Powered by Stripe.</p>
           </div>
         </div>
       )}
@@ -830,31 +697,23 @@ const App: React.FC = () => {
                   <Heart size={13} className={savedStages.some(s => s.generatedImage === generatedImage) ? 'fill-[var(--color-primary)] text-[var(--color-primary)]' : ''} />
                   <span className="hidden sm:inline">Save</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (hasProKey) setShowProConfirm(true);
-                    else setShowKeyPrompt(true);
-                  }}
-                  disabled={isEnhancing}
-                  className={`rounded-lg px-4 py-1.5 text-[10px] uppercase tracking-widest font-black inline-flex items-center gap-2 disabled:opacity-50 transition-all ${hasProKey ? 'bg-[var(--color-primary)] text-black shadow-md hover:bg-white hover:shadow-xl' : 'cta-secondary'}`}
-                >
-                  <Zap size={14} className={isEnhancing ? 'animate-pulse text-white' : ''} />
-                  <span className="hidden sm:inline">
-                    {hasProKey ? 'Enhance' : 'Unlock Enhance'}
-                  </span>
-                </button>
               </>
             )}
-            <button
-              type="button"
-              onClick={() => { setApiKeyInput(''); setApiKeyError(''); setShowKeyPrompt(true); }}
-              className={`rounded-lg px-2.5 py-1.5 text-xs font-medium inline-flex items-center gap-1.5 transition ${apiKeyConfigured ? 'text-[var(--color-primary)] hover:bg-[var(--color-bg)]' : 'cta-secondary border-amber-300 text-amber-700 hover:border-amber-400'}`}
-              title={apiKeyConfigured ? 'API key configured — click to update' : 'Set Gemini API key'}
-            >
-              <Key size={12} />
-              <span className="hidden sm:inline">{apiKeyConfigured ? 'API Key' : 'Add Key'}</span>
-            </button>
+            {subscription.plan === 'free' ? (
+              <button
+                type="button"
+                onClick={() => setShowUpgradeModal(true)}
+                className="rounded-lg px-2.5 py-1.5 text-xs font-bold inline-flex items-center gap-1.5 transition bg-gradient-to-r from-[var(--color-primary)] to-blue-400 text-black hover:opacity-90"
+              >
+                <Crown size={12} />
+                <span className="hidden sm:inline">Upgrade</span>
+              </button>
+            ) : (
+              <span className="rounded-lg px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-widest inline-flex items-center gap-1.5 bg-[rgba(10,132,255,0.15)] text-[var(--color-primary)] border border-[rgba(10,132,255,0.3)]">
+                <Crown size={11} />
+                Pro
+              </span>
+            )}
             <div className="h-5 w-px bg-[var(--color-border)] mx-0.5" />
             <button
               type="button"
@@ -886,15 +745,21 @@ const App: React.FC = () => {
           </div>
         ) : (
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => { setApiKeyInput(''); setApiKeyError(''); setShowKeyPrompt(true); }}
-              className={`rounded-lg px-2.5 py-1.5 text-xs font-medium inline-flex items-center gap-1.5 transition ${apiKeyConfigured ? 'text-[var(--color-primary)] hover:bg-[var(--color-bg)]' : 'cta-secondary border-amber-300 text-amber-700 hover:border-amber-400'}`}
-              title={apiKeyConfigured ? 'API key configured — click to update' : 'Set Gemini API key'}
-            >
-              <Key size={12} />
-              <span className="hidden sm:inline">{apiKeyConfigured ? 'API Key' : 'Add Key'}</span>
-            </button>
+            {subscription.plan === 'free' ? (
+              <button
+                type="button"
+                onClick={() => setShowUpgradeModal(true)}
+                className="rounded-lg px-2.5 py-1.5 text-xs font-bold inline-flex items-center gap-1.5 transition bg-gradient-to-r from-[var(--color-primary)] to-blue-400 text-black hover:opacity-90"
+              >
+                <Crown size={12} />
+                <span className="hidden sm:inline">Upgrade</span>
+              </button>
+            ) : (
+              <span className="rounded-lg px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-widest inline-flex items-center gap-1.5 bg-[rgba(10,132,255,0.15)] text-[var(--color-primary)] border border-[rgba(10,132,255,0.3)]">
+                <Crown size={11} />
+                Pro
+              </span>
+            )}
             <button
               type="button"
               onClick={() => setShowAccessPanel(true)}
@@ -1231,7 +1096,7 @@ const App: React.FC = () => {
                     <RenovationControls
                       activeMode="design"
                       hasGenerated={!!generatedImage}
-                      onGenerate={(p) => handleGenerate(p, false)}
+                      onGenerate={(p) => handleGenerate(p)}
                       onStageModeChange={setStageMode}
                       isGenerating={isGenerating}
                       hasMask={!!maskImage}
@@ -1243,14 +1108,14 @@ const App: React.FC = () => {
                     <StyleAdvisor
                       imageBase64={originalImage}
                       roomType={selectedRoom}
-                      onApplyStyle={(p) => handleGenerate(p, false)}
+                      onApplyStyle={(p) => handleGenerate(p)}
                     />
                     <SpecialModesPanel
                       originalImage={originalImage}
                       generatedImage={generatedImage}
                       selectedRoom={selectedRoom}
                       onNewImage={(img) => { pushToHistory(); setGeneratedImage(img); }}
-                      onRequireKey={() => setShowKeyPrompt(true)}
+                      onRequireKey={() => setShowUpgradeModal(true)}
                     />
                   </>
                 )}
@@ -1259,7 +1124,7 @@ const App: React.FC = () => {
                   <RenovationControls
                     activeMode="cleanup"
                     hasGenerated={!!generatedImage}
-                    onGenerate={(p) => handleGenerate(p, false)}
+                    onGenerate={(p) => handleGenerate(p)}
                     isGenerating={isGenerating}
                     hasMask={!!maskImage}
                     selectedRoom={selectedRoom}

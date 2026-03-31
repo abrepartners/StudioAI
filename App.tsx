@@ -18,7 +18,7 @@ import StyleAdvisor from './components/StyleAdvisor';
 import QualityScore from './components/QualityScore';
 import BrandKit from './components/BrandKit';
 import MLSExport from './components/MLSExport';
-import ListingDescription from './components/ListingDescription';
+// ListingDescription merged into SpecialModesPanel's Listing Copy section
 import ListingDashboard from './components/ListingDashboard';
 import {
   ColorData,
@@ -850,7 +850,30 @@ const App: React.FC = () => {
             })}
           </nav>
 
-          <main className="order-1 lg:order-2 flex-1 min-h-0 overflow-y-auto editor-canvas-bg p-3 sm:p-5 lg:p-6 pb-[44vh] lg:pb-6 relative z-10">
+          {/* Mobile bottom tab bar */}
+          <nav className="fixed bottom-0 inset-x-0 z-50 lg:hidden flex items-center justify-around bg-black/90 backdrop-blur-xl border-t border-[var(--color-border)] px-1 py-1.5 safe-bottom">
+            {navItems.filter(item => item.available).slice(0, 5).map((item) => {
+              const active = activePanel === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    setActivePanel(item.id);
+                    showToast(item.icon, item.label);
+                  }}
+                  className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all ${
+                    active ? 'text-[var(--color-primary)]' : 'text-[var(--color-text)]/50'
+                  }`}
+                >
+                  <div className="w-5 h-5 flex items-center justify-center">{React.cloneElement(item.icon as React.ReactElement, { size: 18 })}</div>
+                  <span className="text-[9px] font-bold uppercase tracking-wider">{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+
+          <main className="order-1 lg:order-2 flex-1 min-h-0 overflow-y-auto editor-canvas-bg p-3 sm:p-5 lg:p-6 pb-[52vh] sm:pb-[44vh] lg:pb-6 relative z-10">
             <div className="mx-auto w-full max-w-6xl space-y-4">
               <div className="canvas-frame p-1 sm:p-2 rounded-2xl glass-overlay border border-[var(--color-border-strong)] shadow-2xl">
                 <div className="relative overflow-hidden rounded-[14px] bg-black aspect-[4/3] sm:aspect-video border border-[var(--color-border-strong)]">
@@ -966,14 +989,9 @@ const App: React.FC = () => {
               />
 
               {generatedImage && (
-                <>
-                  <MLSExport
-                    images={[{ id: '1', source: generatedImage, label: detectedRoom || 'Room' }]}
-                  />
-                  <ListingDescription
-                    roomTypes={detectedRoom ? [detectedRoom] : []}
-                  />
-                </>
+                <MLSExport
+                  images={[{ id: '1', source: generatedImage, label: detectedRoom || 'Room' }]}
+                />
               )}
             </div>
 
@@ -1116,6 +1134,7 @@ const App: React.FC = () => {
                       selectedRoom={selectedRoom}
                       onNewImage={(img) => { pushToHistory(); setGeneratedImage(img); }}
                       onRequireKey={() => setShowUpgradeModal(true)}
+                      savedStages={savedStages}
                     />
                   </>
                 )}

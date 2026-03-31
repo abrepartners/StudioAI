@@ -29,7 +29,8 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
-    const customerId = searchRes.data[0].id;
+    const customer = searchRes.data[0];
+    const customerId = customer.id;
 
     const subs = await fetch(
       `https://api.stripe.com/v1/subscriptions?customer=${customerId}&status=active&limit=1`,
@@ -39,6 +40,13 @@ export default async function handler(req: any, res: any) {
     const isSubscribed = subs.data && subs.data.length > 0;
     const subscription = isSubscribed ? subs.data[0] : null;
 
+    // Read server-side generation count from Stripe customer metadata
+    const currentPeriod = `${new Date().getFullYear()}-${new Date().getMonth()}`;
+    const storedPeriod = customer.metadata?.generation_period || '';
+    const generationsUsed = storedPeriod === currentPeriod
+      ? parseInt(customer.metadata?.generations_used || '0', 10)
+      : 0;
+
     json(res, 200, {
       ok: true,
       subscribed: isSubscribed,
@@ -47,6 +55,7 @@ export default async function handler(req: any, res: any) {
       subscriptionId: subscription?.id || null,
       currentPeriodEnd: subscription?.current_period_end || null,
       generationsLimit: isSubscribed ? -1 : 5,
+      generationsUsed,
     });
   } catch (err: any) {
     console.error('Subscription status error:', err);

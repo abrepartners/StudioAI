@@ -577,7 +577,21 @@ CRITICAL RULES:
  * conversion-optimized MLS listing copy including a headline, description,
  * and social media caption.
  */
-export const generateListingCopy = async (imageBase64: string, selectedRoom: string, styleNotes?: string): Promise<{
+export interface ListingCopyPropertyDetails {
+  address?: string;
+  beds?: number;
+  baths?: number;
+  sqft?: number;
+  price?: number;
+}
+
+export type ListingCopyTone = 'luxury' | 'casual' | 'investment';
+
+export const generateListingCopy = async (
+  imageBase64: string,
+  selectedRoom: string,
+  options?: { styleNotes?: string; propertyDetails?: ListingCopyPropertyDetails; tone?: ListingCopyTone }
+): Promise<{
   headline: string;
   description: string;
   socialCaption: string;
@@ -586,17 +600,34 @@ export const generateListingCopy = async (imageBase64: string, selectedRoom: str
   const ai = getAI();
   const clean = cleanBase64(imageBase64);
 
+  const tone = options?.tone || 'casual';
+  const details = options?.propertyDetails;
+  const styleNotes = options?.styleNotes;
+
+  const toneInstructions: Record<ListingCopyTone, string> = {
+    luxury: 'Write in a sophisticated, elevated tone. Emphasize architectural integrity, premium materials, and exclusivity. Avoid clichés like "stunning", "gorgeous", or "dream home".',
+    casual: 'Write in a warm, approachable tone. Paint a picture of everyday life in this space. Use "you" language. Be genuine, not salesy.',
+    investment: 'Write in a data-driven, analytical tone. Emphasize ROI potential, market position, and investment fundamentals. Use precise terminology.',
+  };
+
+  const propertyContext = details
+    ? `\n\nPROPERTY DETAILS:\n${details.address ? `- Address: ${details.address}` : ''}${details.beds ? `\n- Bedrooms: ${details.beds}` : ''}${details.baths ? `\n- Bathrooms: ${details.baths}` : ''}${details.sqft ? `\n- Square Footage: ${details.sqft.toLocaleString()}` : ''}${details.price ? `\n- Price: $${details.price.toLocaleString()}` : ''}`
+    : '';
+
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: [{
       role: 'user',
       parts: [
         {
-          text: `You are an expert real estate copywriter. Analyze this ${selectedRoom} photo${styleNotes ? ` (design notes: ${styleNotes})` : ''} and generate professional listing copy.
+          text: `You are an expert real estate copywriter. Analyze this ${selectedRoom} photo${styleNotes ? ` (design notes: ${styleNotes})` : ''} and generate professional listing copy.${propertyContext}
+
+TONE: ${tone.toUpperCase()}
+${toneInstructions[tone]}
 
 Generate:
-- "headline": A punchy, 8-12 word MLS headline that highlights the best feature
-- "description": A 3-4 sentence MLS description paragraph that is conversational, emotional, and conversion-focused. Describe the space authentically without clichés.
+- "headline": A punchy, 8-12 word MLS headline that highlights the best feature${details?.address ? ' and references the property' : ''}
+- "description": A 3-4 paragraph MLS description (800-1000 words) that is ${tone === 'luxury' ? 'sophisticated and elevated' : tone === 'investment' ? 'analytical and data-driven' : 'conversational and emotional'}. ${details ? 'Incorporate the property details naturally.' : 'Describe the space authentically without clichés.'}
 - "socialCaption": An Instagram/Facebook caption 2-3 sentences with emojis that creates FOMO and drives engagement
 - "hashtags": 10-12 relevant real estate hashtags without the # symbol` },
         { inlineData: { mimeType: 'image/jpeg', data: clean } },

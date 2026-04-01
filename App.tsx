@@ -125,7 +125,7 @@ const App: React.FC = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [detectedRoom, setDetectedRoom] = useState<FurnitureRoomType | null>(null);
   const [selectedRoom, setSelectedRoom] = useState<FurnitureRoomType>('Living Room');
-  const [isMultiGen, setIsMultiGen] = useState(false);
+
 
   const [history, setHistory] = useState<HistoryState[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -363,8 +363,7 @@ const App: React.FC = () => {
       lastPromptRef.current = prompt;
 
       const sourceImage = activePanel === 'cleanup' && generatedImage ? generatedImage : originalImage;
-      const count = isMultiGen ? 2 : 1;
-      const resultImages = await generateRoomDesign(sourceImage, prompt, activePanel === 'cleanup' ? maskImage : null, false, count);
+      const resultImages = await generateRoomDesign(sourceImage, prompt, activePanel === 'cleanup' ? maskImage : null, false, 1);
 
       const newColors = await analyzeRoomColors(resultImages[0]);
 
@@ -1400,8 +1399,6 @@ const App: React.FC = () => {
                       hasMask={!!maskImage}
                       selectedRoom={selectedRoom}
                       feedbackRequired={showFeedbackCheckpoint}
-                      isMultiGen={isMultiGen}
-                      onMultiGenChange={setIsMultiGen}
                     />
                     <StyleAdvisor
                       imageBase64={originalImage}
@@ -1428,8 +1425,6 @@ const App: React.FC = () => {
                     hasMask={!!maskImage}
                     selectedRoom={selectedRoom}
                     feedbackRequired={showFeedbackCheckpoint}
-                    isMultiGen={isMultiGen}
-                    onMultiGenChange={setIsMultiGen}
                   />
                 )}
 

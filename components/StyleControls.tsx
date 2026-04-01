@@ -28,8 +28,6 @@ interface RenovationControlsProps {
   hasMask: boolean;
   selectedRoom: FurnitureRoomType;
   feedbackRequired?: boolean;
-  isMultiGen: boolean;
-  onMultiGenChange: (multiGen: boolean) => void;
 }
 
 const RenovationControls: React.FC<RenovationControlsProps> = ({
@@ -41,8 +39,6 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
   hasMask,
   selectedRoom,
   feedbackRequired = false,
-  isMultiGen,
-  onMultiGenChange,
 }) => {
   const [selectedPreset, setSelectedPreset] = useState<StylePreset | null>(null);
   const [customPrompt, setCustomPrompt] = useState('');
@@ -298,22 +294,6 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
       )}
 
       <div className="premium-surface-strong rounded-2xl p-5 sticky bottom-2 space-y-3">
-        <label className="hidden lg:flex items-center gap-3 p-1 cursor-pointer group">
-          <div className={`flex w-9 h-5 items-center rounded-full p-1 transition-colors ${isMultiGen ? 'bg-[var(--color-accent)]' : 'bg-slate-300'}`}>
-            <div className={`h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform ${isMultiGen ? 'translate-x-3.5' : 'translate-x-0'}`} />
-          </div>
-          <div>
-            <span className="block text-xs font-semibold text-[var(--color-ink)]">Enable Multi-Gen</span>
-            <span className="block text-[10px] text-[var(--color-text)]/70">Generate 2 variations at once (Uses more credits)</span>
-          </div>
-          <input
-            type="checkbox"
-            className="hidden"
-            checked={isMultiGen}
-            onChange={(e) => onMultiGenChange(e.target.checked)}
-          />
-        </label>
-
         <button
           type="button"
           onClick={buildPrompt}

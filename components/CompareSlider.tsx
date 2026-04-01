@@ -85,13 +85,6 @@ const CompareSlider: React.FC<CompareSliderProps> = ({ originalImage, generatedI
         />
       </div>
 
-      <div className="absolute left-4 top-4 rounded-full glass-overlay px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-white">
-        Before
-      </div>
-      <div className="absolute right-4 top-4 rounded-full glass-overlay px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-white">
-        After
-      </div>
-
       <div
         className="absolute inset-y-0 z-20 w-[2px] bg-white/75 shadow-[0_0_0_1px_rgba(19,78,74,0.15)]"
         style={{ left: `${sliderPosition}%`, transform: 'translateX(-50%)' }}
@@ -101,8 +94,12 @@ const CompareSlider: React.FC<CompareSliderProps> = ({ originalImage, generatedI
         </div>
       </div>
 
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-[var(--color-ink)]/70 px-3 py-1.5 text-[11px] font-medium tracking-wide text-white backdrop-blur">
-        Drag to compare
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-4 rounded-full bg-black/70 backdrop-blur-md px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-white">
+        <span className="text-zinc-400">Before</span>
+        <span className="text-zinc-600">|</span>
+        <span>Drag to compare</span>
+        <span className="text-zinc-600">|</span>
+        <span className="text-zinc-400">After</span>
       </div>
     </div>
   );

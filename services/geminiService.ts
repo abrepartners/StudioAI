@@ -398,8 +398,8 @@ export const sendMessageToChat = async (chat: Chat, message: string, currentImag
 
 /**
  * Virtual Twilight: Converts a daytime exterior photo into a stunning
- * golden-hour / blue-hour dusk shot with lit windows, warm exterior lighting,
- * and a dramatic gradient sky. Preserves all architecture exactly.
+ * golden-hour / blue-hour dusk shot by changing only the sky and ambient lighting.
+ * Preserves all architecture, landscaping, and objects exactly — adds nothing new.
  */
 export const virtualTwilight = async (imageBase64: string): Promise<string> => {
   const ai = getAI();
@@ -411,13 +411,21 @@ export const virtualTwilight = async (imageBase64: string): Promise<string> => {
       {
         parts: [
           {
-            text: `Transform this exterior real estate photo into a stunning virtual twilight / golden-hour dusk shot.
-        REQUIREMENTS:
-        - Convert sky to a dramatic sunset gradient (deep navy → orange → gold horizon glow)
-        - Illuminate ALL windows with warm interior amber/cream light glowing from inside
-        - Add warm exterior accent lighting: porch lights ON, pathway glowing, landscape uplighting
-        - Keep all architecture, landscaping, driveway exactly as they appear
-        - Photorealistic professional real estate twilight photo quality`
+            text: `Convert this daytime exterior real estate photo to a natural twilight / golden-hour dusk look.
+
+        DO:
+        - Replace the sky with a realistic sunset gradient (deep blue up top fading to warm orange/gold at the horizon)
+        - Shift the overall ambient light to match golden hour — warmer tones, softer shadows
+        - Make windows that are already visible glow with warm interior light
+        - If exterior lights (porch lights, sconces, garage lights) already exist in the photo, turn them on
+
+        DO NOT:
+        - Do NOT add any lights, fixtures, or light sources that are not already in the photo
+        - Do NOT add pathway lighting, landscape uplighting, bush lights, string lights, or any new objects
+        - Do NOT change the architecture, landscaping, driveway, walkways, or any physical elements
+        - Do NOT add or remove any objects — only change the lighting and sky
+
+        The result should look like the same photo taken 30 minutes before sunset, not a digitally enhanced version.`
           },
           { inlineData: { mimeType: 'image/jpeg', data: clean } },
         ],

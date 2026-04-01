@@ -12,6 +12,11 @@ export interface SubscriptionState {
   currentPeriodEnd?: number;
 }
 
+const ADMIN_DOMAINS = ['averyandbryant.com'];
+
+const isAdminEmail = (email: string) =>
+  ADMIN_DOMAINS.some(domain => email.toLowerCase().endsWith(`@${domain}`));
+
 export function useSubscription(userEmail: string | null) {
   const [state, setState] = useState<SubscriptionState>({
     loading: true, plan: 'free', subscribed: false,
@@ -20,6 +25,16 @@ export function useSubscription(userEmail: string | null) {
 
   const checkStatus = useCallback(async () => {
     if (!userEmail) { setState(prev => ({ ...prev, loading: false })); return; }
+
+    // Admin bypass — unlimited Pro for team emails
+    if (isAdminEmail(userEmail)) {
+      setState({
+        loading: false, plan: 'pro', subscribed: true,
+        generationsUsed: 0, generationsLimit: -1, canGenerate: true,
+      });
+      return;
+    }
+
     try {
       const res = await fetch(`/api/stripe-status?email=${encodeURIComponent(userEmail)}`);
       const data = await res.json();
@@ -55,6 +70,7 @@ export function useSubscription(userEmail: string | null) {
 
   const recordGeneration = useCallback(async () => {
     if (!userEmail) return;
+    if (isAdminEmail(userEmail)) return; // Admin — no tracking needed
 
     // Optimistic update
     setState(prev => {

@@ -136,9 +136,9 @@ export const generateRoomDesign = async (
         5. **DEPTH & PERSPECTIVE**: Use the original photo's vanishing points. Match the lens distortion and angle perfectly.
 
         VISUAL QUALITY REQUIREMENTS:
-        - **VIBRANCY**: Ensure rich, natural color saturation. Avoid desaturated or "grayish" tones. Enhance the colors to look like professional HDR real estate photography.
-        - **LIGHTING**: Match the direction and temperature of the original ambient light. Add realistic shadows for all new furniture to "anchor" them to the floor.
-        - **TEXTURE**: Use high-resolution realistic materials (leather, wood grain, fabric weave).
+        - **COLOR FIDELITY**: Preserve the original wall colors, floor colors, ceiling colors, and existing surface tones EXACTLY. Do NOT shift, enhance, saturate, or re-grade the colors of existing surfaces. Only new furniture/decor should introduce new colors.
+        - **LIGHTING**: Match the direction and temperature of the original ambient light exactly. Do NOT warm up, cool down, or re-light the scene. Add realistic shadows for new furniture only.
+        - **TEXTURE**: Use high-resolution realistic materials (leather, wood grain, fabric weave) for new items only.
 
         ${isGrassTask ? `
         LANDSCAPING REALISM PROTOCOL:

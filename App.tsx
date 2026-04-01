@@ -361,6 +361,7 @@ const App: React.FC = () => {
 
     try {
       lastPromptRef.current = prompt;
+      console.log('[StudioAI] Generation prompt:', prompt);
 
       const sourceImage = activePanel === 'cleanup' && generatedImage ? generatedImage : originalImage;
       const resultImages = await generateRoomDesign(sourceImage, prompt, activePanel === 'cleanup' ? maskImage : null, false, 1);
@@ -485,7 +486,6 @@ const App: React.FC = () => {
       { id: 'listings', label: 'Listings', icon: <ImageIcon size={21} />, available: true },
       { id: 'chat', label: 'Chat', icon: <MessageSquare size={21} />, available: true },
       { id: 'history', label: 'History', icon: <HistoryIcon size={21} />, available: true },
-      { id: 'settings', label: 'Settings', icon: <Settings size={21} />, available: true },
     ];
 
 
@@ -878,10 +878,10 @@ const App: React.FC = () => {
       )}
 
       {showAccessPanel && (
-        <div className="fixed inset-0 z-[100] grid place-items-center modal-overlay p-4 animate-fade-in">
-          <div className="modal-panel w-full max-w-sm rounded-2xl p-6 animate-scale-in">
+        <div className="fixed inset-0 z-[100] grid place-items-center modal-overlay p-4 animate-fade-in overflow-y-auto">
+          <div className="modal-panel w-full max-w-md rounded-2xl p-6 animate-scale-in my-8">
             <div className="flex items-start justify-between mb-5">
-              <h3 className="font-display text-xl font-bold">Account</h3>
+              <h3 className="font-display text-xl font-bold">Profile & Settings</h3>
               <button
                 type="button"
                 onClick={() => setShowAccessPanel(false)}
@@ -904,10 +904,15 @@ const App: React.FC = () => {
               </div>
             </div>
 
+            {/* Brand Kit Settings */}
+            <div className="mt-5 border-t border-[var(--color-border)] pt-5">
+              <BrandKit />
+            </div>
+
             <button
               type="button"
               onClick={() => { handleSignOut(); setShowAccessPanel(false); }}
-              className="mt-4 cta-secondary w-full rounded-xl px-3 py-2.5 text-sm font-medium inline-flex items-center justify-center gap-2"
+              className="mt-5 cta-secondary w-full rounded-xl px-3 py-2.5 text-sm font-medium inline-flex items-center justify-center gap-2"
             >
               <LogOut size={15} /> Sign Out
             </button>
@@ -1446,9 +1451,6 @@ const App: React.FC = () => {
                   </div>
                 )}
 
-                {activePanel === 'settings' && (
-                  <BrandKit />
-                )}
               </div>
             </div>
           </aside>

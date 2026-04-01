@@ -69,18 +69,29 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
     !feedbackRequired &&
     (stageMode === 'text' ? trimmedPrompt.length > 0 : stageMode === 'packs' ? Boolean(selectedPreset) : false);
 
+  const PACK_DETAILS: Record<string, string> = {
+    'Coastal Modern': 'light wood tones, white and sand-colored upholstery, rattan or woven accents, linen textures, soft blue and seafoam accents only in decor items',
+    'Urban Loft': 'dark leather seating, metal and reclaimed wood, concrete-toned accents, warm Edison-style lighting, muted earth tones in decor',
+    'Farmhouse Chic': 'distressed white wood, warm neutral fabrics, shiplap-compatible pieces, antique brass hardware accents, soft cream and sage decor',
+    'Minimalist': 'clean-lined low-profile furniture, neutral whites and warm grays, no clutter, one or two simple accent pieces maximum',
+    'Mid-Century Modern': 'tapered wood legs, warm walnut tones, mustard or teal accent pillows only, organic curved shapes, clean geometry',
+    'Scandinavian': 'pale birch wood, white and light gray upholstery, simple wool throws, minimal greenery, airy and uncluttered',
+    'Bohemian': 'layered textiles, warm terracotta and cream tones, woven rugs, macrame or rattan accents, natural materials',
+  };
+
   const buildPrompt = () => {
     if (stageMode === 'furniture') return;
 
     let prompt = '';
 
     if (stageMode === 'text') {
-      prompt = `Virtually stage this ${selectedRoom}. Preserve architecture, layout, windows, doors, and built-in fixtures. Keep proportions realistic and photoreal. Primary direction: ${trimmedPrompt}`;
+      prompt = `Virtually stage this ${selectedRoom}. Preserve all architecture, wall colors, floor colors, layout, windows, doors, and built-in fixtures exactly. Do NOT change existing surface colors. Keep the exact same framing and crop. Primary direction: ${trimmedPrompt}`;
     }
 
     if (stageMode === 'packs') {
       if (!selectedPreset) return;
-      prompt = `Virtually stage this ${selectedRoom} in a ${selectedPreset} pack direction. Preserve architecture, layout, windows, doors, and built-in fixtures. Keep proportions realistic and photoreal.`;
+      const details = PACK_DETAILS[selectedPreset] || '';
+      prompt = `Virtually stage this ${selectedRoom} in ${selectedPreset} style. Furniture and decor: ${details}. CRITICAL: Preserve all existing wall colors, floor colors, ceiling, architecture, layout, windows, doors, and built-in fixtures EXACTLY as they are. Do NOT change or color-grade existing surfaces. Keep the exact same framing and crop.`;
     }
 
     if (hasMask) {

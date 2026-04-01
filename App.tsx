@@ -55,6 +55,9 @@ import {
   Shield,
   Settings,
   Crown,
+  Sunset,
+  Cloud,
+  FileText,
 } from 'lucide-react';
 import { Analytics } from '@vercel/analytics/react';
 
@@ -505,62 +508,336 @@ const App: React.FC = () => {
 
   if (!googleUser) {
     return (
-      <div className="min-h-[100dvh] flex bg-black">
-        
-        {/* Left - Hero Image */}
-        <div className="hidden lg:flex lg:w-[60%] relative login-bg">
-          <div className="absolute inset-0 bg-gradient-to-r from-black via-black/50 to-transparent" />
-          <div className="relative z-10 flex flex-col justify-between p-16 w-full">
-            <div>
-              <h1 className="font-display text-4xl font-black tracking-tight text-white drop-shadow-md">
-                Studio<span className="text-[var(--color-primary)]">AI</span>
-              </h1>
+      <div className="h-[100dvh] overflow-y-auto overscroll-contain bg-black">
+        {/* ─── Sticky Nav ─── */}
+        <nav className="sticky top-0 z-50 flex items-center justify-between px-5 sm:px-8 lg:px-12 py-4 bg-black/80 backdrop-blur-xl border-b border-white/[0.06]">
+          <div className="flex items-center gap-2.5">
+            <div className="h-9 w-9 rounded-xl bg-[var(--color-primary)] flex items-center justify-center shadow-lg shadow-blue-500/20">
+              <Camera size={16} className="text-white" />
             </div>
-            <div className="max-w-2xl">
-              <p className="text-sm uppercase tracking-[0.3em] font-bold text-[var(--color-primary)] mb-4">The Future of Real Estate</p>
-              <h2 className="text-5xl xl:text-7xl font-display font-black leading-[1.05] text-white tracking-tighter mb-6 drop-shadow-lg">
-                Design, Elevated..
+            <span className="font-display text-xl font-black text-white tracking-tight">
+              Studio<span className="text-[var(--color-primary)]">AI</span>
+            </span>
+          </div>
+          <div className="hidden sm:flex items-center gap-6 text-[13px] font-semibold text-zinc-400">
+            <a href="#features" className="hover:text-white transition-colors">Features</a>
+            <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
+            <a href="#faq" className="hover:text-white transition-colors">FAQ</a>
+          </div>
+          <div ref={googleButtonRef} className="scale-90 origin-right" />
+        </nav>
+
+        {/* ─── Hero ─── */}
+        <section className="relative px-5 sm:px-8 lg:px-12 pt-16 sm:pt-24 pb-20 sm:pb-32 overflow-hidden">
+          {/* Background glow */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-[radial-gradient(ellipse_at_center,rgba(10,132,255,0.12)_0%,transparent_70%)] pointer-events-none" />
+          <div className="absolute top-40 right-0 w-[400px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(255,55,95,0.06)_0%,transparent_70%)] pointer-events-none" />
+
+          <div className="relative z-10 max-w-5xl mx-auto text-center">
+            {/* Badge */}
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] mb-8 animate-fade-in">
+              <div className="w-1.5 h-1.5 rounded-full bg-[#30D158] animate-pulse" />
+              <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-400">Powered by Gemini AI</span>
+            </div>
+
+            <h1 className="font-display text-[clamp(2.5rem,7vw,5.5rem)] font-black leading-[1.02] tracking-tighter text-white mb-6 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+              Stage Any Room<br className="hidden sm:block" />
+              <span className="bg-gradient-to-r from-[var(--color-primary)] via-[#409CFF] to-[var(--color-accent)] bg-clip-text text-transparent">In Seconds</span>
+            </h1>
+
+            <p className="text-base sm:text-lg text-zinc-400 font-medium max-w-2xl mx-auto mb-10 leading-relaxed animate-fade-in" style={{ animationDelay: '0.2s' }}>
+              Upload a photo. Pick a style. Get photorealistic virtual staging, twilight conversions,
+              sky replacements, and MLS-ready exports — all from one AI-powered workspace.
+            </p>
+
+            {/* Stats row */}
+            <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10 mb-14 animate-fade-in" style={{ animationDelay: '0.3s' }}>
+              {[
+                { value: '15s', label: 'Average render' },
+                { value: '12+', label: 'Design styles' },
+                { value: '4K', label: 'Output quality' },
+              ].map((stat) => (
+                <div key={stat.label} className="text-center">
+                  <div className="text-2xl sm:text-3xl font-black text-white">{stat.value}</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500 mt-0.5">{stat.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Hero image showcase */}
+            <div className="relative max-w-4xl mx-auto animate-fade-in" style={{ animationDelay: '0.4s' }}>
+              <div className="rounded-2xl overflow-hidden border border-white/[0.08] shadow-2xl shadow-black/50">
+                <img
+                  src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?q=80&w=2000&auto=format&fit=crop"
+                  alt="Luxury home — StudioAI virtual staging"
+                  className="w-full aspect-[16/9] object-cover"
+                />
+                {/* Overlay badge */}
+                <div className="absolute bottom-4 left-4 sm:bottom-6 sm:left-6 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/70 backdrop-blur-md border border-white/10">
+                  <Sparkles size={13} className="text-[var(--color-primary)]" />
+                  <span className="text-[11px] font-bold text-white uppercase tracking-wider">AI Staged</span>
+                </div>
+              </div>
+              {/* Glow under card */}
+              <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-[80%] h-16 bg-[var(--color-primary)] opacity-[0.07] blur-3xl rounded-full" />
+            </div>
+          </div>
+        </section>
+
+        {/* ─── Trusted By / Social Proof ─── */}
+        <section className="px-5 sm:px-8 lg:px-12 py-12 border-t border-white/[0.04]">
+          <p className="text-center text-[11px] font-bold uppercase tracking-[0.25em] text-zinc-600 mb-6">Built for real estate professionals</p>
+          <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-3 text-zinc-500 text-sm font-semibold">
+            {['Agents', 'Brokerages', 'Property Managers', 'Photographers', 'Home Stagers'].map((item) => (
+              <span key={item} className="flex items-center gap-2">
+                <div className="w-1 h-1 rounded-full bg-zinc-600" />
+                {item}
+              </span>
+            ))}
+          </div>
+        </section>
+
+        {/* ─── Features Grid ─── */}
+        <section id="features" className="px-5 sm:px-8 lg:px-12 py-20 sm:py-28 scroll-mt-20">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-14">
+              <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--color-primary)] mb-3">Everything You Need</p>
+              <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight">
+                One Platform. Every Listing Asset.
               </h2>
-              <p className="text-lg leading-relaxed text-zinc-300 font-medium max-w-xl">
-                Professional virtual staging, instant renovation previews, and photo-realistic results. 
-              </p>
             </div>
-            <div className="flex items-center gap-8 text-sm font-semibold text-zinc-400">
-              <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse shadow-md"/> AI Staging</span>
-              <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse shadow-md delay-75"/> Smart Cleanup</span>
-              <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse shadow-md delay-150"/> Secure</span>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[
+                {
+                  icon: <Wand2 size={20} />,
+                  title: 'Virtual Staging',
+                  desc: '12+ design styles from modern minimalist to luxury farmhouse. Auto-detects room type and recommends the best look.',
+                  accent: 'var(--color-primary)',
+                },
+                {
+                  icon: <Eraser size={20} />,
+                  title: 'Smart Cleanup',
+                  desc: 'Remove personal items, clutter, trash, and outdoor eyesores. 6 auto-detect modes for one-click photo perfection.',
+                  accent: '#30D158',
+                },
+                {
+                  icon: <Sunset size={20} />,
+                  title: 'Virtual Twilight',
+                  desc: 'Convert any daytime exterior to a stunning golden-hour dusk shot. Natural sky gradients, warm window glow.',
+                  accent: '#FF9F0A',
+                },
+                {
+                  icon: <Cloud size={20} />,
+                  title: 'Sky Replacement',
+                  desc: 'Swap overcast skies for blue, dramatic, golden, or stormy alternatives. Architecture stays pixel-perfect.',
+                  accent: '#64D2FF',
+                },
+                {
+                  icon: <BrainCircuit size={20} />,
+                  title: 'Style Advisor',
+                  desc: 'AI analyzes your photo and recommends the top 3 staging styles. One-click apply — no guesswork.',
+                  accent: '#BF5AF2',
+                },
+                {
+                  icon: <Download size={20} />,
+                  title: 'MLS Export',
+                  desc: 'One-click exports sized for Zillow, Realtor.com, and ARMLS. EXIF stripped, watermarked, zipped.',
+                  accent: 'var(--color-accent)',
+                },
+                {
+                  icon: <LayoutGrid size={20} />,
+                  title: 'Batch Processing',
+                  desc: 'Upload 25+ photos, apply one style to all. Process an entire listing in minutes, not hours.',
+                  accent: '#FFD60A',
+                },
+                {
+                  icon: <FileText size={20} />,
+                  title: 'Listing Copy',
+                  desc: 'AI-generated MLS descriptions in luxury, casual, and investment tones. Character counts for every platform.',
+                  accent: '#30D158',
+                },
+                {
+                  icon: <Shield size={20} />,
+                  title: 'Quality Score',
+                  desc: 'Every staged image is graded on realism, lighting, perspective, and architectural integrity.',
+                  accent: '#0A84FF',
+                },
+              ].map((feature) => (
+                <div
+                  key={feature.title}
+                  className="group relative p-6 rounded-2xl bg-white/[0.02] border border-white/[0.06] hover:border-white/[0.12] transition-all duration-300 hover:bg-white/[0.04]"
+                >
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center mb-4 transition-transform duration-300 group-hover:scale-110"
+                    style={{ background: `${feature.accent}15`, color: feature.accent }}
+                  >
+                    {feature.icon}
+                  </div>
+                  <h3 className="text-[15px] font-bold text-white mb-1.5">{feature.title}</h3>
+                  <p className="text-[13px] leading-relaxed text-zinc-500">{feature.desc}</p>
+                </div>
+              ))}
             </div>
           </div>
-        </div>
+        </section>
 
-        {/* Right - Sign In */}
-        <div className="flex-1 flex items-center justify-center p-8 bg-black">
-          <div className="w-full max-w-md login-glass p-10 rounded-3xl border border-[var(--color-border-strong)] relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-accent)]"></div>
-            
-            <div className="lg:hidden mb-12 flex flex-col items-center text-center">
-              <div className="h-16 w-16 mb-6 rounded-2xl flex items-center justify-center bg-black border border-[var(--color-primary-dark)] shadow-lg">
-                <Camera size={28} className="text-[var(--color-primary)]" />
-              </div>
-              <h1 className="font-display text-4xl font-black text-white tracking-tight">
-                Studio<span className="text-[var(--color-primary)]" style={{ textShadow: '0 0 20px rgba(10,132,255,0.5)' }}>AI</span>
-              </h1>
+        {/* ─── How It Works ─── */}
+        <section className="px-5 sm:px-8 lg:px-12 py-20 sm:py-28 border-t border-white/[0.04]">
+          <div className="max-w-4xl mx-auto">
+            <div className="text-center mb-14">
+              <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--color-primary)] mb-3">Simple Workflow</p>
+              <h2 className="font-display text-3xl sm:text-4xl font-black text-white tracking-tight">Three Steps. That's It.</h2>
             </div>
 
-            <div className="hidden lg:block mb-12">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[rgba(10,132,255,0.1)] border border-[rgba(10,132,255,0.2)] mb-6">
-                <div className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse"></div>
-                <span className="text-xs font-bold uppercase tracking-widest text-[var(--color-primary)]">System Online</span>
-              </div>
-              <h2 className="font-display text-4xl font-black text-white tracking-tight">Authenticate</h2>
-              <p className="mt-3 text-sm text-zinc-400 font-medium">Initialize secure terminal session.</p>
-            </div>
-
-            <div className="flex flex-col items-center lg:items-start">
-              <div ref={googleButtonRef} />
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              {[
+                { step: '01', title: 'Upload', desc: 'Drop in a listing photo — empty room, furnished, exterior, any condition.' },
+                { step: '02', title: 'Style', desc: 'Pick a design style or let the AI recommend one. Adjust room type if needed.' },
+                { step: '03', title: 'Export', desc: 'Download MLS-ready files, grab the listing copy, share the before/after.' },
+              ].map((item) => (
+                <div key={item.step} className="text-center sm:text-left">
+                  <div className="text-4xl font-black text-white/[0.06] mb-3 font-display">{item.step}</div>
+                  <h3 className="text-lg font-bold text-white mb-2">{item.title}</h3>
+                  <p className="text-sm text-zinc-500 leading-relaxed">{item.desc}</p>
+                </div>
+              ))}
             </div>
           </div>
-        </div>
+        </section>
+
+        {/* ─── Pricing ─── */}
+        <section id="pricing" className="px-5 sm:px-8 lg:px-12 py-20 sm:py-28 border-t border-white/[0.04] scroll-mt-20">
+          <div className="max-w-4xl mx-auto">
+            <div className="text-center mb-14">
+              <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--color-primary)] mb-3">Pricing</p>
+              <h2 className="font-display text-3xl sm:text-4xl font-black text-white tracking-tight">Start Free. Upgrade When Ready.</h2>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 max-w-2xl mx-auto">
+              {/* Free Tier */}
+              <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/[0.08]">
+                <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-4">Free</div>
+                <div className="flex items-baseline gap-1 mb-1">
+                  <span className="text-4xl font-black text-white">$0</span>
+                  <span className="text-sm text-zinc-500">/mo</span>
+                </div>
+                <p className="text-xs text-zinc-500 mb-6">25 generations per month</p>
+                <ul className="space-y-2.5 text-[13px] text-zinc-400 mb-6">
+                  {['Virtual staging (all styles)', 'Smart cleanup', 'Style Advisor', 'Quality Score', 'Standard export'].map((f) => (
+                    <li key={f} className="flex items-start gap-2.5">
+                      <Check size={14} className="text-zinc-600 mt-0.5 shrink-0" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                <div className="text-xs text-zinc-600 font-medium text-center">Sign in to start</div>
+              </div>
+
+              {/* Pro Tier */}
+              <div className="relative p-6 rounded-2xl bg-white/[0.03] border border-[var(--color-primary)]/30 shadow-lg shadow-blue-500/[0.05]">
+                <div className="absolute -top-3 left-6 px-3 py-0.5 rounded-full bg-[var(--color-primary)] text-[10px] font-bold uppercase tracking-widest text-white">Popular</div>
+                <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--color-primary)] mb-4">Pro</div>
+                <div className="flex items-baseline gap-1 mb-1">
+                  <span className="text-4xl font-black text-white">$29</span>
+                  <span className="text-sm text-zinc-500">/mo</span>
+                </div>
+                <p className="text-xs text-zinc-500 mb-6">Unlimited generations</p>
+                <ul className="space-y-2.5 text-[13px] text-zinc-300 mb-6">
+                  {['Everything in Free', 'Unlimited generations', 'Virtual twilight', 'Sky replacement', 'Batch processing (25+)', 'MLS-ready export + zip', 'AI listing descriptions', 'Priority rendering'].map((f) => (
+                    <li key={f} className="flex items-start gap-2.5">
+                      <Check size={14} className="text-[var(--color-primary)] mt-0.5 shrink-0" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                <div className="text-xs text-zinc-500 font-medium text-center">Cancel anytime — powered by Stripe</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ─── FAQ ─── */}
+        <section id="faq" className="px-5 sm:px-8 lg:px-12 py-20 sm:py-28 border-t border-white/[0.04] scroll-mt-20">
+          <div className="max-w-2xl mx-auto">
+            <div className="text-center mb-14">
+              <h2 className="font-display text-3xl sm:text-4xl font-black text-white tracking-tight">Questions? Answered.</h2>
+            </div>
+
+            <div className="space-y-4">
+              {[
+                {
+                  q: 'Is this real virtual staging or just filters?',
+                  a: 'Real AI staging. StudioAI uses Gemini to generate photorealistic furniture, decor, and lighting tailored to each room. No overlays, no templates.',
+                },
+                {
+                  q: 'How fast are the results?',
+                  a: 'Most single-room stages complete in 10–20 seconds. Batch processing of 25+ photos takes a few minutes total.',
+                },
+                {
+                  q: 'Will MLS boards accept these photos?',
+                  a: 'Yes. Exports are sized to Zillow, Realtor.com, and ARMLS specs with EXIF data stripped. Many agents add a "Virtually Staged" watermark for compliance — we support that too.',
+                },
+                {
+                  q: 'Can I cancel my Pro subscription?',
+                  a: 'Anytime. No contracts, no cancellation fees. Your account reverts to the free tier at the end of your billing period.',
+                },
+                {
+                  q: 'Do you store my listing photos?',
+                  a: 'Photos are processed in-session and not permanently stored on our servers. Your data stays yours.',
+                },
+              ].map((item) => (
+                <details key={item.q} className="group rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
+                  <summary className="flex items-center justify-between p-5 cursor-pointer text-sm font-semibold text-white hover:text-[var(--color-primary)] transition-colors list-none [&::-webkit-details-marker]:hidden">
+                    {item.q}
+                    <ChevronDown size={16} className="text-zinc-500 transition-transform group-open:rotate-180 shrink-0 ml-4" />
+                  </summary>
+                  <div className="px-5 pb-5 text-[13px] text-zinc-400 leading-relaxed -mt-1">{item.a}</div>
+                </details>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ─── Final CTA ─── */}
+        <section className="px-5 sm:px-8 lg:px-12 py-20 sm:py-28 border-t border-white/[0.04]">
+          <div className="max-w-3xl mx-auto text-center">
+            <h2 className="font-display text-3xl sm:text-5xl font-black text-white tracking-tight mb-4">
+              Stop Paying $300 Per Staging.
+            </h2>
+            <p className="text-base text-zinc-400 mb-8 max-w-xl mx-auto">
+              Professional results in seconds — not days. Join the agents who've already made the switch.
+            </p>
+            <div className="inline-flex flex-col items-center gap-3">
+              <div ref={(el) => {
+                if (el && window.google?.accounts?.id) {
+                  window.google.accounts.id.renderButton(el, {
+                    theme: 'filled_black',
+                    size: 'large',
+                    shape: 'pill',
+                    text: 'continue_with',
+                    width: 280,
+                  });
+                }
+              }} />
+              <p className="text-[11px] text-zinc-600">Free to start. No credit card required.</p>
+            </div>
+          </div>
+        </section>
+
+        {/* ─── Footer ─── */}
+        <footer className="px-5 sm:px-8 lg:px-12 py-8 border-t border-white/[0.04]">
+          <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <Camera size={14} className="text-zinc-600" />
+              <span className="text-xs font-semibold text-zinc-600">StudioAI by Avery & Bryant</span>
+            </div>
+            <div className="flex items-center gap-6 text-[11px] text-zinc-600 font-medium">
+              <span>&copy; {new Date().getFullYear()} Avery & Bryant</span>
+              <a href="https://averyandbryant.com" target="_blank" rel="noopener noreferrer" className="hover:text-zinc-400 transition-colors">averyandbryant.com</a>
+            </div>
+          </div>
+        </footer>
       </div>
     );
   }

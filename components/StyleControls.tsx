@@ -298,7 +298,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
       )}
 
       <div className="premium-surface-strong rounded-2xl p-5 sticky bottom-2 space-y-3">
-        <label className="flex items-center gap-3 p-1 cursor-pointer group">
+        <label className="hidden lg:flex items-center gap-3 p-1 cursor-pointer group">
           <div className={`flex w-9 h-5 items-center rounded-full p-1 transition-colors ${isMultiGen ? 'bg-[var(--color-accent)]' : 'bg-slate-300'}`}>
             <div className={`h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform ${isMultiGen ? 'translate-x-3.5' : 'translate-x-0'}`} />
           </div>

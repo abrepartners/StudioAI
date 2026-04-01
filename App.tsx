@@ -566,7 +566,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="studio-shell min-h-[100dvh] lg:h-screen overflow-x-hidden lg:overflow-hidden flex flex-col">
+    <div className="studio-shell h-[100dvh] overflow-hidden flex flex-col">
       
 
 
@@ -873,7 +873,7 @@ const App: React.FC = () => {
             })}
           </nav>
 
-          <main className="order-1 lg:order-2 flex-1 min-h-0 overflow-y-auto editor-canvas-bg p-3 sm:p-5 lg:p-6 pb-24 lg:pb-6 relative z-10">
+          <main className="order-1 lg:order-2 flex-1 min-h-0 overflow-y-auto overscroll-contain editor-canvas-bg p-3 sm:p-5 lg:p-6 pb-24 lg:pb-6 relative z-10">
             <div className="mx-auto w-full max-w-6xl space-y-4">
               <div className="canvas-frame p-1 sm:p-2 rounded-2xl glass-overlay border border-[var(--color-border-strong)] shadow-2xl">
                 <div className="relative overflow-hidden rounded-[14px] bg-black aspect-video border border-[var(--color-border-strong)]">

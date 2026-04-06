@@ -99,8 +99,11 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
   );
   const [paused, setPaused] = useState(false);
   const [compareId, setCompareId] = useState<string | null>(null);
+  const [fatalError, setFatalError] = useState<string | null>(null);
   const pausedRef = useRef(false);
   const processingRef = useRef(false);
+  const onSaveStageRef = useRef(onSaveStage);
+  onSaveStageRef.current = onSaveStage;
 
   useEffect(() => {
     pausedRef.current = paused;
@@ -129,68 +132,73 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
     if (processingRef.current) return;
     processingRef.current = true;
 
-    // Only process non-export images
-    const pending = images.filter(img => img.action !== 'export');
-    const activePromises: Promise<void>[] = [];
+    try {
+      // Only process non-export images
+      const pending = images.filter(img => img.action !== 'export');
+      const activePromises: Promise<void>[] = [];
 
-    const processOne = async (img: BatchImage) => {
-      while (pausedRef.current) {
-        await new Promise(r => setTimeout(r, 300));
+      const processOne = async (img: BatchImage) => {
+        while (pausedRef.current) {
+          await new Promise(r => setTimeout(r, 300));
+        }
+
+        setResults(prev =>
+          prev.map(r => (r.id === img.id ? { ...r, status: 'processing' } : r))
+        );
+
+        try {
+          const generated = await processImage(img);
+
+          setResults(prev =>
+            prev.map(r =>
+              r.id === img.id
+                ? { ...r, generatedImage: generated, status: 'done' }
+                : r
+            )
+          );
+
+          const stage: SavedStage = {
+            id: crypto.randomUUID(),
+            name: `Batch ${ACTION_LABELS[img.action].label} ${img.roomType || 'Room'} ${new Date().toLocaleDateString()}`,
+            originalImage: img.base64,
+            generatedImage: generated,
+            timestamp: Date.now(),
+          };
+          onSaveStageRef.current(stage);
+
+          setResults(prev =>
+            prev.map(r => (r.id === img.id ? { ...r, saved: true } : r))
+          );
+        } catch (e: any) {
+          setResults(prev =>
+            prev.map(r =>
+              r.id === img.id
+                ? { ...r, status: 'error', error: e?.message || 'Failed' }
+                : r
+            )
+          );
+        }
+      };
+
+      let index = 0;
+      const next = async (): Promise<void> => {
+        if (index >= pending.length) return;
+        const img = pending[index++];
+        await processOne(img);
+        await next();
+      };
+
+      for (let i = 0; i < Math.min(concurrency, pending.length); i++) {
+        activePromises.push(next());
       }
 
-      setResults(prev =>
-        prev.map(r => (r.id === img.id ? { ...r, status: 'processing' } : r))
-      );
-
-      try {
-        const generated = await processImage(img);
-
-        setResults(prev =>
-          prev.map(r =>
-            r.id === img.id
-              ? { ...r, generatedImage: generated, status: 'done' }
-              : r
-          )
-        );
-
-        const stage: SavedStage = {
-          id: crypto.randomUUID(),
-          name: `Batch ${ACTION_LABELS[img.action].label} ${img.roomType || 'Room'} ${new Date().toLocaleDateString()}`,
-          originalImage: img.base64,
-          generatedImage: generated,
-          timestamp: Date.now(),
-        };
-        onSaveStage(stage);
-
-        setResults(prev =>
-          prev.map(r => (r.id === img.id ? { ...r, saved: true } : r))
-        );
-      } catch (e: any) {
-        setResults(prev =>
-          prev.map(r =>
-            r.id === img.id
-              ? { ...r, status: 'error', error: e?.message || 'Failed' }
-              : r
-          )
-        );
-      }
-    };
-
-    let index = 0;
-    const next = async (): Promise<void> => {
-      if (index >= pending.length) return;
-      const img = pending[index++];
-      await processOne(img);
-      await next();
-    };
-
-    for (let i = 0; i < Math.min(concurrency, pending.length); i++) {
-      activePromises.push(next());
+      await Promise.all(activePromises);
+    } catch (e: any) {
+      setFatalError(e?.message || 'Batch processing crashed');
+    } finally {
+      processingRef.current = false;
     }
-
-    await Promise.all(activePromises);
-    processingRef.current = false;
-  }, [images, concurrency, onSaveStage]);
+  }, [images, concurrency]);
 
   useEffect(() => {
     processQueue();
@@ -213,6 +221,26 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
   const progressPct = ((doneCount + errorCount) / totalCount) * 100;
 
   const compareResult = compareId ? results.find(r => r.id === compareId) : null;
+
+  // Fatal error — show escape hatch
+  if (fatalError) {
+    return (
+      <div className="space-y-4">
+        <div className="premium-surface rounded-2xl p-5 text-center space-y-3">
+          <AlertCircle size={32} className="text-[#FF375F] mx-auto" />
+          <h3 className="font-display text-sm font-semibold text-[var(--color-ink)]">Batch Processing Error</h3>
+          <p className="text-xs text-[var(--color-text)]/70">{fatalError}</p>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-xl px-4 py-2.5 text-sm font-semibold bg-[var(--color-primary)] text-white hover:opacity-90 transition"
+          >
+            Back to Upload
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

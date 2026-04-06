@@ -1,10 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'; 
 import {
   generateRoomDesign,
-  analyzeRoomColors,
   detectRoomType,
-  createChatSession,
-  sendMessageToChat,
 } from './services/geminiService';
 import ImageUploader from './components/ImageUploader';
 import BatchUploader, { type BatchImage } from './components/BatchUploader';
@@ -12,16 +9,9 @@ import BatchProcessor, { type BatchResult } from './components/BatchProcessor';
 import CompareSlider from './components/CompareSlider';
 import RenovationControls from './components/StyleControls';
 import MaskCanvas from './components/MaskCanvas';
-import ColorAnalysis from './components/ColorAnalysis';
-import ChatInterface from './components/ChatInterface';
-// BetaFeedbackForm removed — no backend to collect feedback yet (Phase 2)
 import SpecialModesPanel from './components/SpecialModesPanel';
-import StyleAdvisor from './components/StyleAdvisor';
-// QualityScore removed — not actionable without backend analytics (Phase 2)
 import BrandKit from './components/BrandKit';
-import MLSExport from './components/MLSExport';
-// ListingDescription merged into SpecialModesPanel's Listing Copy section
-import ListingDashboard from './components/ListingDashboard';
+// Removed for Phase 2: ColorAnalysis, ChatInterface, StyleAdvisor, QualityScore, ListingDashboard, BetaFeedbackForm, MLSExport (inline)
 import {
   ColorData,
   StagedFurniture,
@@ -49,7 +39,6 @@ import {
   Camera,
   Sparkles,
   CreditCard,
-  MessageSquare,
   History as HistoryIcon,
   Download,
   X,
@@ -128,7 +117,7 @@ const App: React.FC = () => {
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [maskImage, setMaskImage] = useState<string | null>(null);
 
-  const [activePanel, setActivePanel] = useState<'tools' | 'chat' | 'history' | 'cleanup' | 'listings' | 'settings'>('tools');
+  const [activePanel, setActivePanel] = useState<'tools' | 'history' | 'cleanup' | 'settings'>('tools');
   const [stageMode, setStageMode] = useState<StageMode>('text');
   const [isGenerating, setIsGenerating] = useState(false);
   const [showAccessPanel, setShowAccessPanel] = useState(false);
@@ -159,10 +148,7 @@ const App: React.FC = () => {
   const [sessionIndex, setSessionIndex] = useState(-1);
   const generatingSessionsRef = useRef<Set<string>>(new Set());
 
-  // Chat state
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [chatSession, setChatSession] = useState<ReturnType<typeof createChatSession> | null>(null);
-  const [isChatLoading, setIsChatLoading] = useState(false);
+  // Chat removed — Phase 2
 
   // ─── Google OAuth State ──────────────────────────────────────────────────
   const [googleUser, setGoogleUser] = useState<GoogleUser | null>(null);
@@ -360,8 +346,7 @@ const App: React.FC = () => {
     setStageMode('text');
 
     try {
-      const [colorData, roomType] = await Promise.all([analyzeRoomColors(base64), detectRoomType(base64)]);
-      setColors(colorData);
+      const roomType = await detectRoomType(base64);
       setDetectedRoom(roomType);
       setSelectedRoom(roomType);
 
@@ -369,7 +354,7 @@ const App: React.FC = () => {
         generatedImage: null,
         stagedFurniture: [],
         selectedRoom: roomType,
-        colors: colorData,
+        colors: [],
       };
       setHistory([initialState]);
       setHistoryIndex(0);
@@ -425,22 +410,19 @@ const App: React.FC = () => {
       const sourceImage = activePanel === 'cleanup' && generatedImage ? generatedImage : originalImage;
       const resultImages = await generateRoomDesign(sourceImage, prompt, activePanel === 'cleanup' ? maskImage : null, false, 1);
 
-      const newColors = await analyzeRoomColors(resultImages[0]);
-
       // Check if user is still on the same image
       const stillOnSameImage = originalImage === generatingOriginal;
 
       if (stillOnSameImage) {
         // User is still here — update the current view
         setGeneratedImage(resultImages[0]);
-        setColors(newColors);
         setMaskImage(null);
 
         const newStates = resultImages.map(img => ({
           generatedImage: img,
           stagedFurniture: [],
           selectedRoom,
-          colors: newColors,
+          colors: [],
         }));
 
         setHistory((prev) => {
@@ -457,10 +439,9 @@ const App: React.FC = () => {
               ? {
                   ...s,
                   generatedImage: resultImages[0],
-                  colors: newColors,
                   history: [
                     ...s.history,
-                    { generatedImage: resultImages[0], stagedFurniture: [], selectedRoom: s.selectedRoom, colors: newColors },
+                    { generatedImage: resultImages[0], stagedFurniture: [], selectedRoom: s.selectedRoom, colors: [] },
                   ],
                   historyIndex: s.history.length,
                 }
@@ -643,55 +624,14 @@ const App: React.FC = () => {
   };
 
 
-  const handleChatMessage = async (text: string) => {
-    if (!originalImage) return;
-    setIsChatLoading(true);
-
-    // Optimistically add user message
-    const userMsg: ChatMessage = { id: Date.now().toString(), role: 'user', text, timestamp: Date.now() };
-    setChatMessages((prev) => [...prev, userMsg]);
-
-    try {
-      // Create session lazily on first use
-      const session = chatSession ?? createChatSession();
-      if (!chatSession) setChatSession(session);
-
-      const currentImage = generatedImage || originalImage;
-      const reply = await sendMessageToChat(session, text, currentImage);
-
-      const modelMsg: ChatMessage = { id: (Date.now() + 1).toString(), role: 'model', text: reply, timestamp: Date.now() };
-      setChatMessages((prev) => [...prev, modelMsg]);
-
-      // Detect [EDIT: prompt] pattern and auto-trigger generation
-      const editMatch = reply.match(/\[EDIT:\s*(.+?)\]/i);
-      if (editMatch && editMatch[1]) {
-        await handleGenerate(editMatch[1]);
-      }
-    } catch (err) {
-      const errorMsg: ChatMessage = {
-        id: (Date.now() + 2).toString(),
-        role: 'model',
-        text: 'Sorry, I encountered an error. Please try again.',
-        timestamp: Date.now(),
-      };
-      setChatMessages((prev) => [...prev, errorMsg]);
-    } finally {
-      setIsChatLoading(false);
-    }
-  };
-
-
-
   const navItems: Array<{
-    id: 'tools' | 'cleanup' | 'listings' | 'chat' | 'history' | 'settings';
+    id: 'tools' | 'cleanup' | 'history' | 'settings';
     label: string;
     icon: React.ReactNode;
     available: boolean;
   }> = [
       { id: 'tools', label: 'Design Studio', icon: <LayoutGrid size={21} />, available: true },
       { id: 'cleanup', label: 'Cleanup', icon: <Eraser size={21} />, available: true },
-      { id: 'listings', label: 'Listings', icon: <ImageIcon size={21} />, available: true },
-      { id: 'chat', label: 'Chat', icon: <MessageSquare size={21} />, available: true },
       { id: 'history', label: 'History', icon: <HistoryIcon size={21} />, available: true },
     ];
 
@@ -1535,60 +1475,7 @@ const App: React.FC = () => {
                   )}
                 </div>
               </div>
-
-              {/* Hide inline analysis panels on mobile — accessible via side panel */}
-              <div className="hidden lg:block space-y-4">
-                <div className="w-full">
-                  {isAnalyzing ? (
-                    <div className="premium-surface rounded-2xl p-5 space-y-4 animate-pulse">
-                      <div className="flex items-center gap-3">
-                        <div className="h-6 w-6 rounded-full bg-[var(--color-surface-elevated)]" />
-                        <div>
-                          <div className="h-4 w-32 rounded bg-[var(--color-surface-elevated)] mb-1" />
-                          <div className="h-3 w-24 rounded bg-[var(--color-surface-elevated)]" />
-                        </div>
-                      </div>
-                      <div className="h-3 w-full rounded-full bg-[var(--color-surface-elevated)]" />
-                      {[1,2,3,4].map(i => (
-                        <div key={i} className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className="h-4 w-4 rounded-full bg-[var(--color-surface-elevated)]" />
-                            <div className="h-3 w-28 rounded bg-[var(--color-surface-elevated)]" />
-                          </div>
-                          <div className="h-3 w-8 rounded bg-[var(--color-surface-elevated)]" />
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <ColorAnalysis colors={colors} isLoading={isAnalyzing} />
-                  )}
-                </div>
-
-                {generatedImage && (
-                  <MLSExport
-                    images={[{ id: '1', source: generatedImage, label: detectedRoom || 'Room' }]}
-                  />
-                )}
-              </div>
             </div>
-
-            {/* Listings Panel */}
-            {activePanel === 'listings' && (
-              <div className="mx-auto w-full max-w-6xl">
-                <ListingDashboard />
-              </div>
-            )}
-
-            {/* Chat Panel */}
-            {activePanel === 'chat' && (
-              <div className="canvas-frame overflow-hidden h-[520px]">
-                <ChatInterface
-                  messages={chatMessages}
-                  onSendMessage={handleChatMessage}
-                  isLoading={isChatLoading}
-                />
-              </div>
-            )}
 
             {/* History Panel */}
             {activePanel === 'history' && (
@@ -1698,12 +1585,6 @@ const App: React.FC = () => {
                       hasMask={!!maskImage}
                       selectedRoom={selectedRoom}
                     />
-                    <StyleAdvisor
-                      key={`advisor-${sessionQueue[sessionIndex]?.id || 'single'}`}
-                      imageBase64={originalImage}
-                      roomType={selectedRoom}
-                      onApplyStyle={(p) => handleGenerate(p)}
-                    />
                     <SpecialModesPanel
                       key={sessionQueue[sessionIndex]?.id || 'single'}
                       originalImage={originalImage}
@@ -1724,24 +1605,13 @@ const App: React.FC = () => {
                     isGenerating={isGenerating}
                     hasMask={!!maskImage}
                     selectedRoom={selectedRoom}
-                    feedbackRequired={showFeedbackCheckpoint}
                   />
                 )}
 
-                {(activePanel === 'chat' || activePanel === 'history') && (
+                {activePanel === 'history' && (
                   <div className="premium-surface rounded-2xl p-5 text-center">
                     <p className="text-sm text-[var(--color-text)]">
-                      {activePanel === 'chat'
-                        ? 'Chat with the AI assistant about your design below.'
-                        : 'Browse your render history below.'}
-                    </p>
-                  </div>
-                )}
-
-                {activePanel === 'listings' && (
-                  <div className="premium-surface rounded-2xl p-5 text-center">
-                    <p className="text-sm text-[var(--color-text)]">
-                      Manage your listings in the main panel.
+                      Browse your render history below.
                     </p>
                   </div>
                 )}

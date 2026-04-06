@@ -85,13 +85,13 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
     let prompt = '';
 
     if (stageMode === 'text') {
-      prompt = `Virtually stage this ${selectedRoom}. Preserve all architecture, wall colors, floor colors, layout, windows, doors, and built-in fixtures exactly. Do NOT change existing surface colors. Keep the exact same framing and crop. Primary direction: ${trimmedPrompt}`;
+      prompt = `Virtually stage this ${selectedRoom}. Preserve all architecture, wall colors, floor colors, layout, windows, doors, and built-in fixtures exactly. Do NOT change existing surface colors. Do NOT zoom in — maintain the EXACT same framing, crop, and field of view. The camera is locked in place. Primary direction: ${trimmedPrompt}`;
     }
 
     if (stageMode === 'packs') {
       if (!selectedPreset) return;
       const details = PACK_DETAILS[selectedPreset] || '';
-      prompt = `Virtually stage this ${selectedRoom} in ${selectedPreset} style. Furniture and decor: ${details}. CRITICAL: Preserve all existing wall colors, floor colors, ceiling, architecture, layout, windows, doors, and built-in fixtures EXACTLY as they are. Do NOT change or color-grade existing surfaces. Keep the exact same framing and crop.`;
+      prompt = `Virtually stage this ${selectedRoom} in ${selectedPreset} style. Furniture and decor: ${details}. CRITICAL: Preserve all existing wall colors, floor colors, ceiling, architecture, layout, windows, doors, and built-in fixtures EXACTLY as they are. Do NOT change or color-grade existing surfaces. Do NOT zoom in — maintain the EXACT same framing, crop, and field of view. The camera is locked in place.`;
     }
 
     if (hasMask) {

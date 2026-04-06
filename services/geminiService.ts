@@ -153,11 +153,14 @@ export const generateRoomDesign = async (
         - Sample the floor and wall textures from the original image to fill gaps.
         - Prioritize "Vacant Home" look—clean, empty, and spacious.` : ''}
 
-        FRAMING PROTOCOL (CRITICAL):
-        - The output image MUST have the EXACT same framing, crop, and field of view as the input.
-        - Do NOT zoom in, zoom out, shift, pan, or re-crop the image in any way.
-        - Every wall edge, ceiling line, and floor boundary must remain at the exact same pixel position.
-        - If the original shows 3 feet of ceiling, the output must show 3 feet of ceiling.
+        FRAMING PROTOCOL (CRITICAL — HIGHEST PRIORITY):
+        - The output image MUST have the EXACT same framing, crop, field of view, and zoom level as the input.
+        - Do NOT zoom in, zoom out, shift, pan, re-crop, or change the camera angle in any way.
+        - Every wall edge, ceiling line, floor boundary, window edge, and door frame must remain at the EXACT same pixel position.
+        - If the original shows 3 feet of ceiling, the output must show 3 feet of ceiling — not less.
+        - The edges of the image (all four borders) must show the same content as the input edges.
+        - NEVER tighten the frame. NEVER lose any part of the original scene at the edges.
+        - Think of it as: the camera is LOCKED in place. Only the furniture changes.
 
         STAGING PROTOCOL:
         - Only add furniture that aligns with the vanishing points of the existing floor.

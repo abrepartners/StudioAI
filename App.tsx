@@ -158,6 +158,7 @@ const App: React.FC = () => {
   // ─── Session Queue ──────────────────────────────────────────────────────
   const [sessionQueue, setSessionQueue] = useState<SessionImage[]>([]);
   const [sessionIndex, setSessionIndex] = useState(-1);
+  const generatingSessionsRef = useRef<Set<string>>(new Set());
 
   // Chat state
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -422,7 +423,12 @@ const App: React.FC = () => {
       return;
     }
 
+    // Capture which session this generation belongs to
+    const generatingSessionId = sessionQueue[sessionIndex]?.id || '__single__';
+    const generatingOriginal = originalImage;
+
     setIsGenerating(true);
+    generatingSessionsRef.current.add(generatingSessionId);
 
     try {
       lastPromptRef.current = prompt;
@@ -433,22 +439,52 @@ const App: React.FC = () => {
 
       const newColors = await analyzeRoomColors(resultImages[0]);
 
-      setGeneratedImage(resultImages[0]);
-      setColors(newColors);
-      setMaskImage(null);
+      // Check if user is still on the same image
+      const stillOnSameImage = originalImage === generatingOriginal;
 
-      const newStates = resultImages.map(img => ({
-        generatedImage: img,
-        stagedFurniture: [],
-        selectedRoom,
-        colors: newColors,
-      }));
+      if (stillOnSameImage) {
+        // User is still here — update the current view
+        setGeneratedImage(resultImages[0]);
+        setColors(newColors);
+        setMaskImage(null);
 
-      setHistory((prev) => {
-        const newHistory = prev.slice(0, historyIndex + 1);
-        return [...newHistory, ...newStates];
-      });
-      setHistoryIndex((prev) => prev + newStates.length);
+        const newStates = resultImages.map(img => ({
+          generatedImage: img,
+          stagedFurniture: [],
+          selectedRoom,
+          colors: newColors,
+        }));
+
+        setHistory((prev) => {
+          const newHistory = prev.slice(0, historyIndex + 1);
+          return [...newHistory, ...newStates];
+        });
+        setHistoryIndex((prev) => prev + newStates.length);
+        setIsGenerating(false);
+      } else {
+        // User navigated away — save result to the queue silently
+        setSessionQueue(prev =>
+          prev.map(s =>
+            s.id === generatingSessionId
+              ? {
+                  ...s,
+                  generatedImage: resultImages[0],
+                  colors: newColors,
+                  history: [
+                    ...s.history,
+                    { generatedImage: resultImages[0], stagedFurniture: [], selectedRoom: s.selectedRoom, colors: newColors },
+                  ],
+                  historyIndex: s.history.length,
+                }
+              : s
+          )
+        );
+        // Don't clear isGenerating if current image has its own generation running
+        if (!generatingSessionsRef.current.has(sessionQueue[sessionIndex]?.id || '')) {
+          setIsGenerating(false);
+        }
+      }
+
       setGenerationsSinceFeedback((prev) => prev + 1);
       subscription.recordGeneration();
     } catch (error: any) {
@@ -462,8 +498,9 @@ const App: React.FC = () => {
       } else {
         alert('Generation failed. Check your connection and try again.');
       }
-    } finally {
       setIsGenerating(false);
+    } finally {
+      generatingSessionsRef.current.delete(generatingSessionId);
     }
   };
 
@@ -562,6 +599,10 @@ const App: React.FC = () => {
     // Load target
     loadSession(sessionQueue[newIndex]);
     setSessionIndex(newIndex);
+
+    // Set isGenerating based on whether the target image has an active generation
+    const targetId = sessionQueue[newIndex]?.id;
+    setIsGenerating(targetId ? generatingSessionsRef.current.has(targetId) : false);
   }, [sessionIndex, sessionQueue, saveCurrentSession, loadSession]);
 
   const removeFromSession = useCallback((index: number) => {

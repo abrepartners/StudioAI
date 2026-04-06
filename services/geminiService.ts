@@ -500,6 +500,7 @@ BLENDING REQUIREMENTS:
 export const instantDeclutter = async (imageBase64: string, selectedRoom: string): Promise<string> => {
   const ai = getAI();
   const clean = cleanBase64(imageBase64);
+  const detectedRatio = await detectAspectRatioFromBase64(clean);
 
   const response = await ai.models.generateContent({
     model: 'gemini-3.1-flash-image-preview',
@@ -507,34 +508,48 @@ export const instantDeclutter = async (imageBase64: string, selectedRoom: string
       {
         parts: [
           {
-            text: `You are an expert real estate photo editor specializing in pre-listing photo preparation. Remove ALL personal clutter and lived-in items from this ${selectedRoom} to create a clean, move-in-ready appearance.
+            text: `You are an expert real estate photo editor. Your ONLY job is to remove small personal clutter from this ${selectedRoom}. This is a MINIMAL edit — NOT a redesign.
 
-REMOVE (be thorough):
-- Personal photos, artwork with faces, children's drawings on walls or fridge
-- Toys, pet beds, pet bowls, baby items, playpens
-- Laundry, shoes, bags, coats draped on furniture
-- Countertop clutter: mail, keys, bottles, cups, food containers, small appliances (toasters, coffee makers can stay)
-- Bathroom toiletries, towels on hooks (leave towel bars), trash cans
-- Desk clutter: papers, cables, monitors (if home office staging, leave desk itself)
-- Floor clutter: rugs with stains, random items, visible cords
-- Refrigerator magnets, sticky notes, calendars with personal info
+CRITICAL RULES (HIGHEST PRIORITY):
+- Do NOT change, replace, or restyle ANY furniture. Every piece of furniture must remain EXACTLY as it appears — same style, same color, same fabric, same position.
+- Do NOT change bedding, pillows, rugs, curtains, or any soft furnishings. Leave them EXACTLY as they are.
+- Do NOT change wall colors, floor colors, or any surface colors.
+- Do NOT zoom in. Maintain the EXACT same framing, crop, and field of view. The camera is locked.
+- The output should be nearly IDENTICAL to the input — just cleaner.
 
-KEEP (do not remove):
-- ALL furniture: sofas, tables, chairs, beds, dressers, desks
-- ALL architecture: doors, windows, ceiling fans, vents, outlets, trim, molding
-- ALL built-in appliances: ovens, dishwashers, microwaves, refrigerators
-- Light fixtures, lamps, curtains/blinds
-- Decorative items that stage well: vases, plants, throw pillows, books (neat stacks only)
+REMOVE ONLY THESE (small personal items):
+- Personal photos and children's drawings
+- Toys, pet items
+- Visible laundry, shoes, bags on the floor
+- Countertop clutter: mail, keys, loose bottles, random cups
+- Bathroom toiletries on counters
+- Visible cords and cables on the floor
+- Refrigerator magnets, sticky notes
+
+KEEP EVERYTHING ELSE EXACTLY AS-IS:
+- ALL furniture — same style, same color, same position
+- ALL bedding, pillows, throws, rugs — unchanged
+- ALL architecture, fixtures, fans, vents, outlets
+- ALL curtains, blinds, lamps
+- ALL decorative items (vases, plants, books)
+- ALL appliances
 
 RESTORATION:
-- Where items are removed, sample the surrounding floor and wall textures to fill gaps seamlessly.
-- Maintain consistent lighting — no dark patches where objects were removed.
-- The result should look like a professionally prepared vacant or model-home staging.`
+- Where small items are removed, fill with the surrounding floor/wall texture seamlessly.
+- Maintain consistent lighting.
+- If nothing needs removing, return the image unchanged.`
           },
           { inlineData: { mimeType: 'image/jpeg', data: clean } },
         ],
       }
     ],
+    config: {
+      imageConfig: {
+        imageSize: "2K",
+        aspectRatio: detectedRatio,
+        numberOfImages: 1,
+      },
+    },
   });
 
   const image = extractImageFromResponse(response);

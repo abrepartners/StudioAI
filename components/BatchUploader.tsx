@@ -175,7 +175,9 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
   };
 
   const handleStartBatch = () => {
-    const selected = batchImages.filter(img => img.selected && !img.detecting);
+    const selected = batchImages
+      .filter(img => img.selected)
+      .map(img => img.detecting ? { ...img, detecting: false, roomType: img.roomType || 'Living Room' as FurnitureRoomType } : img);
     if (selected.length > 0) {
       onBatchReady(selected);
     }
@@ -423,10 +425,12 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
           <button
             type="button"
             onClick={() => {
-              const ready = batchImages.filter(img => !img.detecting);
-              if (ready.length > 0) onSkipToEditor(ready);
+              const all = batchImages.map(img =>
+                img.detecting ? { ...img, detecting: false, roomType: img.roomType || 'Living Room' as FurnitureRoomType } : img
+              );
+              onSkipToEditor(all);
             }}
-            disabled={detectingCount === batchImages.length}
+            disabled={batchImages.length === 0}
             className="rounded-xl px-4 py-3 text-sm font-semibold border border-[var(--color-border-strong)] text-[var(--color-text)] disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:bg-white/5 inline-flex items-center justify-center gap-2"
           >
             Edit Individually
@@ -435,20 +439,11 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
         <button
           type="button"
           onClick={handleStartBatch}
-          disabled={selectedCount === 0 || detectingCount > 0}
+          disabled={selectedCount === 0}
           className={`rounded-xl px-4 py-3 text-sm font-bold bg-[var(--color-primary)] text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:opacity-90 inline-flex items-center justify-center gap-2 ${onSkipToEditor ? '' : 'col-span-2'}`}
         >
-          {detectingCount > 0 ? (
-            <>
-              <Loader2 size={15} className="animate-spin" />
-              Detecting ({detectingCount})...
-            </>
-          ) : (
-            <>
-              <Images size={15} />
-              Batch Process {selectedCount}
-            </>
-          )}
+          <Images size={15} />
+          Batch Process {selectedCount}
         </button>
       </div>
 

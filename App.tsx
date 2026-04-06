@@ -14,7 +14,7 @@ import RenovationControls from './components/StyleControls';
 import MaskCanvas from './components/MaskCanvas';
 import ColorAnalysis from './components/ColorAnalysis';
 import ChatInterface from './components/ChatInterface';
-import BetaFeedbackForm from './components/BetaFeedbackForm';
+// BetaFeedbackForm removed — no backend to collect feedback yet (Phase 2)
 import SpecialModesPanel from './components/SpecialModesPanel';
 import StyleAdvisor from './components/StyleAdvisor';
 // QualityScore removed — not actionable without backend analytics (Phase 2)
@@ -121,7 +121,7 @@ const roomOptions: FurnitureRoomType[] = [
 
 type StageMode = 'text' | 'packs' | 'furniture';
 
-const FEEDBACK_REQUIRED_INTERVAL = 3;
+// Feedback checkpoint removed — reintroduce in Phase 2 with backend analytics
 
 const App: React.FC = () => {
   const [originalImage, setOriginalImage] = useState<string | null>(null);
@@ -134,8 +134,7 @@ const App: React.FC = () => {
   const [showAccessPanel, setShowAccessPanel] = useState(false);
   const [showRoomPicker, setShowRoomPicker] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(true);
-  const [showFeedbackCheckpoint, setShowFeedbackCheckpoint] = useState(false);
-  const [generationsSinceFeedback, setGenerationsSinceFeedback] = useState(0);
+  // Feedback state removed — Phase 2
   const [toastMessage, setToastMessage] = useState<{ icon: React.ReactNode; label: string } | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -253,11 +252,6 @@ const App: React.FC = () => {
   }, []);
 
 
-  useEffect(() => {
-    if (generationsSinceFeedback >= FEEDBACK_REQUIRED_INTERVAL) {
-      setShowFeedbackCheckpoint(true);
-    }
-  }, [generationsSinceFeedback]);
 
   const pushToHistory = useCallback(
     (newState?: Partial<HistoryState>) => {
@@ -364,8 +358,6 @@ const App: React.FC = () => {
     setHistoryIndex(-1);
     setIsAnalyzing(true);
     setStageMode('text');
-    setShowFeedbackCheckpoint(false);
-    setGenerationsSinceFeedback(0);
 
     try {
       const [colorData, roomType] = await Promise.all([analyzeRoomColors(base64), detectRoomType(base64)]);
@@ -418,10 +410,6 @@ const App: React.FC = () => {
       return;
     }
 
-    if (showFeedbackCheckpoint) {
-      setShowFeedbackCheckpoint(true);
-      return;
-    }
 
     // Capture which session this generation belongs to
     const generatingSessionId = sessionQueue[sessionIndex]?.id || '__single__';
@@ -485,7 +473,6 @@ const App: React.FC = () => {
         }
       }
 
-      setGenerationsSinceFeedback((prev) => prev + 1);
       subscription.recordGeneration();
     } catch (error: any) {
       if (
@@ -1717,7 +1704,6 @@ const App: React.FC = () => {
                       isGenerating={isGenerating}
                       hasMask={!!maskImage}
                       selectedRoom={selectedRoom}
-                      feedbackRequired={showFeedbackCheckpoint}
                     />
                     <StyleAdvisor
                       key={`advisor-${sessionQueue[sessionIndex]?.id || 'single'}`}
@@ -1773,39 +1759,6 @@ const App: React.FC = () => {
         </div >
       )}
 
-      {showFeedbackCheckpoint && generatedImage && (
-        <div className="modal-overlay fixed inset-0 z-[110] flex items-center justify-center p-4 animate-fade-in">
-          <div className="modal-panel rounded-2xl p-6 w-full max-w-sm animate-scale-in">
-            <div className="mb-4 text-center">
-              <div className="mx-auto mb-3 h-10 w-10 rounded-xl bg-[var(--color-primary)] flex items-center justify-center">
-                <Sparkles size={20} className="text-white" />
-              </div>
-              <h3 className="font-display text-lg font-semibold text-[var(--color-ink)]">Rate this render</h3>
-              <p className="mt-1 text-sm text-[var(--color-text)] leading-relaxed">
-                Quick feedback every {FEEDBACK_REQUIRED_INTERVAL} generations helps improve results.
-              </p>
-            </div>
-            <BetaFeedbackForm
-              mode="quick-only"
-              quickRequired={true}
-              onQuickSubmitted={() => {
-                setShowFeedbackCheckpoint(false);
-                setGenerationsSinceFeedback(0);
-              }}
-              selectedRoom={selectedRoom}
-              hasGenerated={!!generatedImage}
-              stagedFurnitureCount={0}
-              stageMode={stageMode}
-              generatedImage={generatedImage}
-              betaUserId={googleUser?.sub || ''}
-              referralCode=""
-              acceptedInvites={0}
-              insiderUnlocked={false}
-              pro2kUnlocked={false}
-            />
-          </div>
-        </div>
-      )}
       <Analytics />
     </div>
   );

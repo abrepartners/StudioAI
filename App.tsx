@@ -17,7 +17,7 @@ import ChatInterface from './components/ChatInterface';
 import BetaFeedbackForm from './components/BetaFeedbackForm';
 import SpecialModesPanel from './components/SpecialModesPanel';
 import StyleAdvisor from './components/StyleAdvisor';
-import QualityScore from './components/QualityScore';
+// QualityScore removed — not actionable without backend analytics (Phase 2)
 import BrandKit from './components/BrandKit';
 import MLSExport from './components/MLSExport';
 // ListingDescription merged into SpecialModesPanel's Listing Copy section
@@ -1570,12 +1570,6 @@ const App: React.FC = () => {
                     <ColorAnalysis colors={colors} isLoading={isAnalyzing} />
                   )}
                 </div>
-
-                <QualityScore
-                  originalImage={originalImage}
-                  generatedImage={generatedImage}
-                  roomType={selectedRoom}
-                />
 
                 {generatedImage && (
                   <MLSExport

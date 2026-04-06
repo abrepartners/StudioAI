@@ -525,7 +525,13 @@ const App: React.FC = () => {
   const handleBatchSaveStage = (stage: SavedStage) => {
     setSavedStages((prev) => {
       const updated = [stage, ...prev];
-      localStorage.setItem('realestate_ai_stages', JSON.stringify(updated));
+      try {
+        localStorage.setItem('realestate_ai_stages', JSON.stringify(updated));
+      } catch {
+        // localStorage full — trim oldest entries and retry
+        const trimmed = updated.slice(0, 20);
+        try { localStorage.setItem('realestate_ai_stages', JSON.stringify(trimmed)); } catch { /* give up */ }
+      }
       return updated;
     });
   };
@@ -1565,19 +1571,6 @@ const App: React.FC = () => {
                 )}
               </div>
             </div>
-
-            {/* Batch Processing (in-editor) */}
-            {batchImages && (
-              <div className="mx-auto w-full max-w-6xl">
-                <BatchProcessor
-                  images={batchImages}
-                  onComplete={handleBatchComplete}
-                  onSaveStage={handleBatchSaveStage}
-                  onCancel={handleBatchCancel}
-                  onLoadImage={handleBatchLoadImage}
-                />
-              </div>
-            )}
 
             {/* Listings Panel */}
             {activePanel === 'listings' && (

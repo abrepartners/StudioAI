@@ -1590,7 +1590,29 @@ const App: React.FC = () => {
                       originalImage={originalImage}
                       generatedImage={generatedImage}
                       selectedRoom={selectedRoom}
-                      onNewImage={(img) => { pushToHistory(); setGeneratedImage(img); }}
+                      onNewImage={(() => {
+                        const capturedOriginal = originalImage;
+                        const capturedSessionId = sessionQueue[sessionIndex]?.id;
+                        return (img: string) => {
+                          // Only apply if still on the same image
+                          setOriginalImage(current => {
+                            if (current === capturedOriginal) {
+                              pushToHistory();
+                              setGeneratedImage(img);
+                            } else if (capturedSessionId) {
+                              // Save to the correct queue slot silently
+                              setSessionQueue(prev =>
+                                prev.map(s =>
+                                  s.id === capturedSessionId
+                                    ? { ...s, generatedImage: img }
+                                    : s
+                                )
+                              );
+                            }
+                            return current; // don't change originalImage
+                          });
+                        };
+                      })()}
                       onRequireKey={() => setShowUpgradeModal(true)}
                       savedStages={savedStages}
                     />

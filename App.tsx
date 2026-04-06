@@ -1170,7 +1170,7 @@ const App: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => navigateSession('prev')}
-                      disabled={sessionIndex <= 0 || isGenerating}
+                      disabled={sessionIndex <= 0}
                       className="rounded-lg p-1.5 text-[var(--color-text)] transition hover:bg-[var(--color-bg)] disabled:opacity-30"
                       title="Previous photo"
                     >
@@ -1182,7 +1182,7 @@ const App: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => navigateSession('next')}
-                      disabled={sessionIndex >= sessionQueue.length - 1 || isGenerating}
+                      disabled={sessionIndex >= sessionQueue.length - 1}
                       className="rounded-lg p-1.5 text-[var(--color-text)] transition hover:bg-[var(--color-bg)] disabled:opacity-30"
                       title="Next photo"
                     >

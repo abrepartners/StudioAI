@@ -7,6 +7,8 @@ import {
   sendMessageToChat,
 } from './services/geminiService';
 import ImageUploader from './components/ImageUploader';
+import BatchUploader, { type BatchImage } from './components/BatchUploader';
+import BatchProcessor, { type BatchResult } from './components/BatchProcessor';
 import CompareSlider from './components/CompareSlider';
 import RenovationControls from './components/StyleControls';
 import MaskCanvas from './components/MaskCanvas';
@@ -133,6 +135,9 @@ const App: React.FC = () => {
 
   const [savedStages, setSavedStages] = useState<SavedStage[]>([]);
   const lastPromptRef = useRef<string>('');
+
+  // ─── Batch Mode State ────────────────────────────────────────────────────
+  const [batchImages, setBatchImages] = useState<BatchImage[] | null>(null);
 
   // Chat state
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -426,6 +431,33 @@ const App: React.FC = () => {
       localStorage.setItem('realestate_ai_stages', JSON.stringify(updated));
       return updated;
     });
+  };
+
+  // ─── Batch Mode Handlers ─────────────────────────────────────────────────
+  const handleBatchReady = (images: BatchImage[]) => {
+    setBatchImages(images);
+  };
+
+  const handleBatchSaveStage = (stage: SavedStage) => {
+    setSavedStages((prev) => {
+      const updated = [stage, ...prev];
+      localStorage.setItem('realestate_ai_stages', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const handleBatchComplete = (_results: BatchResult[]) => {
+    setBatchImages(null);
+  };
+
+  const handleBatchCancel = () => {
+    setBatchImages(null);
+  };
+
+  const handleBatchLoadImage = (original: string, generated: string) => {
+    setOriginalImage(original);
+    setGeneratedImage(generated);
+    setBatchImages(null);
   };
 
   const changeDetectedRoom = (room: FurnitureRoomType) => {
@@ -1058,7 +1090,20 @@ const App: React.FC = () => {
         )}
       </header>
 
-      {!originalImage ? (
+      {/* ─── Batch Processing View ──────────────────────────────────── */}
+      {batchImages && !originalImage ? (
+        <main className="flex-1 overflow-y-auto editor-canvas-bg relative z-10 p-4 sm:p-6">
+          <div className="max-w-3xl mx-auto">
+            <BatchProcessor
+              images={batchImages}
+              onComplete={handleBatchComplete}
+              onSaveStage={handleBatchSaveStage}
+              onCancel={handleBatchCancel}
+              onLoadImage={handleBatchLoadImage}
+            />
+          </div>
+        </main>
+      ) : !originalImage ? (
         <main className="flex-1 flex items-center justify-center overflow-auto editor-canvas-bg relative z-10">
           <div className="w-full max-w-lg mx-auto px-8 py-20 text-center animate-fade-in glass-overlay rounded-[2.5rem] border border-[var(--color-border-strong)] shadow-2xl relative overflow-hidden">
             <div className="absolute top-[-50px] left-1/2 -translate-x-1/2 w-[300px] h-[100px] bg-[var(--color-primary)] blur-[100px] opacity-20 pointer-events-none"></div>
@@ -1073,7 +1118,11 @@ const App: React.FC = () => {
               Upload a listing photo to get started.
             </p>
 
-            <ImageUploader onImageUpload={handleImageUpload} isAnalyzing={isAnalyzing} />
+            <BatchUploader
+              onBatchReady={handleBatchReady}
+              onSingleUpload={handleImageUpload}
+              isAnalyzing={isAnalyzing}
+            />
 
             <div className="mt-6">
               <button
@@ -1278,6 +1327,19 @@ const App: React.FC = () => {
                 )}
               </div>
             </div>
+
+            {/* Batch Processing (in-editor) */}
+            {batchImages && (
+              <div className="mx-auto w-full max-w-6xl">
+                <BatchProcessor
+                  images={batchImages}
+                  onComplete={handleBatchComplete}
+                  onSaveStage={handleBatchSaveStage}
+                  onCancel={handleBatchCancel}
+                  onLoadImage={handleBatchLoadImage}
+                />
+              </div>
+            )}
 
             {/* Listings Panel */}
             {activePanel === 'listings' && (

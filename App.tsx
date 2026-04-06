@@ -138,7 +138,6 @@ const App: React.FC = () => {
 
   // ─── Batch Mode State ────────────────────────────────────────────────────
   const [batchImages, setBatchImages] = useState<BatchImage[] | null>(null);
-  const [batchPrompt, setBatchPrompt] = useState<string | null>(null);
 
   // Chat state
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -437,10 +436,6 @@ const App: React.FC = () => {
   // ─── Batch Mode Handlers ─────────────────────────────────────────────────
   const handleBatchReady = (images: BatchImage[]) => {
     setBatchImages(images);
-    // Use a generic staging prompt — the processor substitutes {room} per image
-    setBatchPrompt(
-      `Virtually stage this {room}. Add appropriate, style-neutral modern furniture and decor. Preserve all existing wall colors, floor colors, ceiling, architecture, layout, windows, doors, and built-in fixtures EXACTLY as they are. Do NOT change or color-grade existing surfaces. Keep the exact same framing and crop.`
-    );
   };
 
   const handleBatchSaveStage = (stage: SavedStage) => {
@@ -453,19 +448,16 @@ const App: React.FC = () => {
 
   const handleBatchComplete = (_results: BatchResult[]) => {
     setBatchImages(null);
-    setBatchPrompt(null);
   };
 
   const handleBatchCancel = () => {
     setBatchImages(null);
-    setBatchPrompt(null);
   };
 
   const handleBatchLoadImage = (original: string, generated: string) => {
     setOriginalImage(original);
     setGeneratedImage(generated);
     setBatchImages(null);
-    setBatchPrompt(null);
   };
 
   const changeDetectedRoom = (room: FurnitureRoomType) => {
@@ -1099,12 +1091,11 @@ const App: React.FC = () => {
       </header>
 
       {/* ─── Batch Processing View ──────────────────────────────────── */}
-      {batchImages && batchPrompt && !originalImage ? (
+      {batchImages && !originalImage ? (
         <main className="flex-1 overflow-y-auto editor-canvas-bg relative z-10 p-4 sm:p-6">
           <div className="max-w-3xl mx-auto">
             <BatchProcessor
               images={batchImages}
-              prompt={batchPrompt}
               onComplete={handleBatchComplete}
               onSaveStage={handleBatchSaveStage}
               onCancel={handleBatchCancel}
@@ -1338,11 +1329,10 @@ const App: React.FC = () => {
             </div>
 
             {/* Batch Processing (in-editor) */}
-            {batchImages && batchPrompt && (
+            {batchImages && (
               <div className="mx-auto w-full max-w-6xl">
                 <BatchProcessor
                   images={batchImages}
-                  prompt={batchPrompt}
                   onComplete={handleBatchComplete}
                   onSaveStage={handleBatchSaveStage}
                   onCancel={handleBatchCancel}

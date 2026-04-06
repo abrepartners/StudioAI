@@ -1,7 +1,29 @@
 import React, { useRef, useState, useCallback } from 'react';
-import { Upload, Camera, X, Loader2, CheckCircle2, AlertCircle, Images } from 'lucide-react';
+import {
+  Upload,
+  Camera,
+  X,
+  Loader2,
+  CheckCircle2,
+  Images,
+  Wand2,
+  Trash2,
+  Sunset,
+  Cloud,
+  Download,
+} from 'lucide-react';
 import { detectRoomType } from '../services/geminiService';
 import { FurnitureRoomType } from '../types';
+
+export type BatchAction = 'stage' | 'cleanup' | 'twilight' | 'sky' | 'export';
+
+const ACTION_CONFIG: Record<BatchAction, { label: string; icon: React.ReactNode; color: string; short: string }> = {
+  stage:   { label: 'Stage',    icon: <Wand2 size={12} />,    color: '#0A84FF', short: 'STG' },
+  cleanup: { label: 'Cleanup',  icon: <Trash2 size={12} />,   color: '#30D158', short: 'CLN' },
+  twilight:{ label: 'Twilight', icon: <Sunset size={12} />,   color: '#FF9F0A', short: 'TWI' },
+  sky:     { label: 'Sky',      icon: <Cloud size={12} />,    color: '#64D2FF', short: 'SKY' },
+  export:  { label: 'Export Only', icon: <Download size={12} />, color: '#BF5AF2', short: 'EXP' },
+};
 
 export interface BatchImage {
   id: string;
@@ -10,6 +32,7 @@ export interface BatchImage {
   roomType: FurnitureRoomType | null;
   detecting: boolean;
   selected: boolean;
+  action: BatchAction;
 }
 
 interface BatchUploaderProps {
@@ -29,6 +52,7 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const [batchImages, setBatchImages] = useState<BatchImage[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  // No bulk action state needed — actions apply immediately on tap
 
   const readFileAsBase64 = (file: File): Promise<string> =>
     new Promise((resolve, reject) => {
@@ -63,6 +87,7 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
           roomType: null,
           detecting: true,
           selected: true,
+          action: 'stage' as BatchAction,
         };
       })
     );
@@ -89,12 +114,11 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
             r => r.status === 'fulfilled' && r.value.id === img.id
           );
           if (result && result.status === 'fulfilled') {
-            return { ...img, roomType: result.value.roomType, detecting: false };
+            // Auto-assign action based on room type
+            const isExterior = result.value.roomType === 'Exterior';
+            const autoAction: BatchAction = isExterior ? 'twilight' : 'stage';
+            return { ...img, roomType: result.value.roomType, detecting: false, action: autoAction };
           }
-          const failed = results.find(
-            r => r.status === 'rejected'
-          );
-          // If this image was in the chunk but failed, mark as done with fallback
           if (chunk.some(c => c.id === img.id) && img.detecting) {
             return { ...img, roomType: 'Living Room' as FurnitureRoomType, detecting: false };
           }
@@ -124,6 +148,18 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
     );
   };
 
+  const setImageAction = (id: string, action: BatchAction) => {
+    setBatchImages(prev =>
+      prev.map(img => (img.id === id ? { ...img, action } : img))
+    );
+  };
+
+  const applyActionToSelected = (action: BatchAction) => {
+    setBatchImages(prev =>
+      prev.map(img => (img.selected ? { ...img, action } : img))
+    );
+  };
+
   const removeImage = (id: string) => {
     setBatchImages(prev => prev.filter(img => img.id !== id));
   };
@@ -145,6 +181,14 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
 
   const selectedCount = batchImages.filter(img => img.selected).length;
   const detectingCount = batchImages.filter(img => img.detecting).length;
+
+  // Action summary for selected images
+  const actionCounts = batchImages
+    .filter(img => img.selected)
+    .reduce((acc, img) => {
+      acc[img.action] = (acc[img.action] || 0) + 1;
+      return acc;
+    }, {} as Record<BatchAction, number>);
 
   // No images queued yet — show upload prompt
   if (batchImages.length === 0) {
@@ -218,7 +262,7 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
     );
   }
 
-  // Batch queue view — images uploaded, ready to process
+  // Batch queue view
   return (
     <div className="premium-surface rounded-2xl p-4 space-y-3">
       <div className="flex items-center justify-between">
@@ -258,57 +302,120 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
         </div>
       </div>
 
+      {/* Action toolbar — tap to assign to selected images instantly */}
+      {selectedCount > 0 && (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[9px] uppercase tracking-wider text-[var(--color-text)]/50 font-semibold mr-1">
+            Set {selectedCount} to:
+          </span>
+          {(Object.keys(ACTION_CONFIG) as BatchAction[]).map((action) => {
+            const cfg = ACTION_CONFIG[action];
+            // Highlight if all selected images have this action
+            const allSelectedHaveThis = batchImages
+              .filter(img => img.selected)
+              .every(img => img.action === action);
+            return (
+              <button
+                key={action}
+                type="button"
+                onClick={() => applyActionToSelected(action)}
+                className={`rounded-lg px-2.5 py-1.5 text-[10px] font-semibold inline-flex items-center gap-1 transition-all border ${
+                  allSelectedHaveThis
+                    ? 'border-current bg-current/15 ring-1 ring-current/30'
+                    : 'border-[var(--color-border-strong)] bg-black/40 hover:border-current hover:bg-current/5'
+                }`}
+                style={{ color: cfg.color }}
+              >
+                {cfg.icon} {cfg.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Thumbnail grid */}
       <div className="grid grid-cols-3 gap-1.5 max-h-[280px] overflow-y-auto">
-        {batchImages.map((img) => (
-          <div
-            key={img.id}
-            className={`relative rounded-lg overflow-hidden border-2 transition-all cursor-pointer aspect-[4/3] ${
-              img.selected
-                ? 'border-[var(--color-primary)] shadow-md'
-                : 'border-transparent opacity-50'
-            }`}
-            onClick={() => toggleSelect(img.id)}
-          >
-            <img
-              src={img.base64}
-              alt="Queued"
-              className="w-full h-full object-cover"
-            />
+        {batchImages.map((img) => {
+          const actionCfg = ACTION_CONFIG[img.action];
+          return (
+            <div
+              key={img.id}
+              className={`relative rounded-lg overflow-hidden border-2 transition-all cursor-pointer aspect-[4/3] ${
+                img.selected
+                  ? 'shadow-md'
+                  : 'border-transparent opacity-50'
+              }`}
+              style={img.selected ? { borderColor: actionCfg.color } : undefined}
+              onClick={() => toggleSelect(img.id)}
+            >
+              <img
+                src={img.base64}
+                alt="Queued"
+                className="w-full h-full object-cover"
+              />
 
-            {/* Room type badge */}
-            <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-1.5">
-              {img.detecting ? (
-                <span className="inline-flex items-center gap-1 text-[9px] text-[var(--color-primary)]">
-                  <Loader2 size={10} className="animate-spin" /> Detecting...
-                </span>
-              ) : (
-                <span className="text-[9px] font-semibold text-white truncate block">
-                  {img.roomType}
-                </span>
+              {/* Action badge + remove — top right */}
+              <div className="absolute top-1 right-1 flex items-center gap-0.5">
+                {!img.detecting && (
+                  <span
+                    className="rounded px-1.5 py-0.5 text-[8px] font-bold"
+                    style={{ backgroundColor: actionCfg.color, color: '#000' }}
+                  >
+                    {actionCfg.short}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); removeImage(img.id); }}
+                  className="rounded-full bg-black/60 p-0.5 text-white/70 hover:text-white transition"
+                >
+                  <X size={10} />
+                </button>
+              </div>
+
+              {/* Room type badge — bottom */}
+              <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-1.5">
+                {img.detecting ? (
+                  <span className="inline-flex items-center gap-1 text-[9px] text-[var(--color-primary)]">
+                    <Loader2 size={10} className="animate-spin" /> Detecting...
+                  </span>
+                ) : (
+                  <span className="text-[9px] font-semibold text-white truncate block">
+                    {img.roomType}
+                  </span>
+                )}
+              </div>
+
+              {/* Selection indicator */}
+              {img.selected && (
+                <div className="absolute top-1 left-1">
+                  <CheckCircle2 size={14} className="drop-shadow-md" style={{ color: actionCfg.color }} />
+                </div>
               )}
             </div>
-
-            {/* Selection indicator */}
-            {img.selected && (
-              <div className="absolute top-1 left-1">
-                <CheckCircle2 size={16} className="text-[var(--color-primary)] drop-shadow-md" />
-              </div>
-            )}
-
-            {/* Remove button */}
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); removeImage(img.id); }}
-              className="absolute top-1 right-1 rounded-full bg-black/60 p-0.5 text-white/70 hover:text-white transition"
-            >
-              <X size={12} />
-            </button>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      {/* Action button */}
+      {/* Action summary */}
+      {selectedCount > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {(Object.entries(actionCounts) as [BatchAction, number][]).map(([action, count]) => {
+            const cfg = ACTION_CONFIG[action];
+            return (
+              <span
+                key={action}
+                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold"
+                style={{ backgroundColor: `${cfg.color}20`, color: cfg.color }}
+              >
+                {cfg.icon} {count} {cfg.label}
+              </span>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Process button */}
       <button
         type="button"
         onClick={handleStartBatch}
@@ -323,7 +430,7 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
         ) : (
           <>
             <Images size={15} />
-            Stage {selectedCount} Photo{selectedCount !== 1 ? 's' : ''}
+            Process {selectedCount} Photo{selectedCount !== 1 ? 's' : ''}
           </>
         )}
       </button>

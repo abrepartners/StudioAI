@@ -4,23 +4,40 @@ import {
   CheckCircle2,
   AlertCircle,
   X,
-  Download,
   Heart,
   Eye,
   RotateCcw,
-  Images,
   Pause,
   Play,
+  Wand2,
+  Trash2,
+  Sunset,
+  Cloud,
+  Download,
 } from 'lucide-react';
-import { generateRoomDesign, detectRoomType } from '../services/geminiService';
+import {
+  generateRoomDesign,
+  virtualTwilight,
+  replaceSky,
+  instantDeclutter,
+} from '../services/geminiService';
 import { FurnitureRoomType, SavedStage } from '../types';
-import { type BatchImage } from './BatchUploader';
+import { type BatchImage, type BatchAction } from './BatchUploader';
+
+const ACTION_LABELS: Record<BatchAction, { label: string; icon: React.ReactNode; color: string }> = {
+  stage:    { label: 'Staged',   icon: <Wand2 size={10} />,    color: '#0A84FF' },
+  cleanup:  { label: 'Cleaned',  icon: <Trash2 size={10} />,   color: '#30D158' },
+  twilight: { label: 'Twilight', icon: <Sunset size={10} />,   color: '#FF9F0A' },
+  sky:      { label: 'Sky',      icon: <Cloud size={10} />,    color: '#64D2FF' },
+  export:   { label: 'Export',   icon: <Download size={10} />, color: '#BF5AF2' },
+};
 
 export interface BatchResult {
   id: string;
   originalImage: string;
   generatedImage: string | null;
   roomType: FurnitureRoomType;
+  action: BatchAction;
   status: 'pending' | 'processing' | 'done' | 'error';
   error?: string;
   saved: boolean;
@@ -28,7 +45,6 @@ export interface BatchResult {
 
 interface BatchProcessorProps {
   images: BatchImage[];
-  prompt: string;
   onComplete: (results: BatchResult[]) => void;
   onSaveStage: (stage: SavedStage) => void;
   onCancel: () => void;
@@ -36,9 +52,34 @@ interface BatchProcessorProps {
   concurrency?: number;
 }
 
+/** Build the right prompt / API call based on the action */
+const processImage = async (img: BatchImage): Promise<string> => {
+  const roomType = img.roomType || 'Living Room';
+
+  switch (img.action) {
+    case 'stage': {
+      const prompt = `Virtually stage this ${roomType}. Add appropriate, style-neutral modern furniture and decor. Preserve all existing wall colors, floor colors, ceiling, architecture, layout, windows, doors, and built-in fixtures EXACTLY as they are. Do NOT change or color-grade existing surfaces. Keep the exact same framing and crop.`;
+      const results = await generateRoomDesign(img.base64, prompt, null, false, 1);
+      return results[0];
+    }
+    case 'cleanup': {
+      return await instantDeclutter(img.base64, roomType);
+    }
+    case 'twilight': {
+      return await virtualTwilight(img.base64);
+    }
+    case 'sky': {
+      return await replaceSky(img.base64, 'blue');
+    }
+    case 'export': {
+      // No AI processing — just pass through the original
+      return img.base64;
+    }
+  }
+};
+
 const BatchProcessor: React.FC<BatchProcessorProps> = ({
   images,
-  prompt,
   onComplete,
   onSaveStage,
   onCancel,
@@ -51,7 +92,8 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
       originalImage: img.base64,
       generatedImage: null,
       roomType: img.roomType || 'Living Room',
-      status: 'pending' as const,
+      action: img.action,
+      status: img.action === 'export' ? 'done' as const : 'pending' as const,
       saved: false,
     }))
   );
@@ -60,20 +102,38 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
   const pausedRef = useRef(false);
   const processingRef = useRef(false);
 
-  // Sync ref with state
   useEffect(() => {
     pausedRef.current = paused;
   }, [paused]);
+
+  // Auto-save export-only images on mount
+  useEffect(() => {
+    images.forEach(img => {
+      if (img.action === 'export') {
+        const stage: SavedStage = {
+          id: crypto.randomUUID(),
+          name: `Export ${img.roomType || 'Room'} ${new Date().toLocaleDateString()}`,
+          originalImage: img.base64,
+          generatedImage: img.base64,
+          timestamp: Date.now(),
+        };
+        onSaveStage(stage);
+        setResults(prev =>
+          prev.map(r => (r.id === img.id ? { ...r, generatedImage: img.base64, saved: true } : r))
+        );
+      }
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const processQueue = useCallback(async () => {
     if (processingRef.current) return;
     processingRef.current = true;
 
-    const pending = [...images];
+    // Only process non-export images
+    const pending = images.filter(img => img.action !== 'export');
     const activePromises: Promise<void>[] = [];
 
     const processOne = async (img: BatchImage) => {
-      // Wait if paused
       while (pausedRef.current) {
         await new Promise(r => setTimeout(r, 300));
       }
@@ -83,10 +143,7 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
       );
 
       try {
-        const roomType = img.roomType || 'Living Room';
-        const fullPrompt = prompt.replace('{room}', roomType);
-        const resultImages = await generateRoomDesign(img.base64, fullPrompt, null, false, 1);
-        const generated = resultImages[0];
+        const generated = await processImage(img);
 
         setResults(prev =>
           prev.map(r =>
@@ -96,10 +153,9 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
           )
         );
 
-        // Auto-save as a SavedStage
         const stage: SavedStage = {
           id: crypto.randomUUID(),
-          name: `Batch ${roomType} ${new Date().toLocaleDateString()}`,
+          name: `Batch ${ACTION_LABELS[img.action].label} ${img.roomType || 'Room'} ${new Date().toLocaleDateString()}`,
           originalImage: img.base64,
           generatedImage: generated,
           timestamp: Date.now(),
@@ -120,7 +176,6 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
       }
     };
 
-    // Process with concurrency limit
     let index = 0;
     const next = async (): Promise<void> => {
       if (index >= pending.length) return;
@@ -135,9 +190,8 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
 
     await Promise.all(activePromises);
     processingRef.current = false;
-  }, [images, prompt, concurrency, onSaveStage]);
+  }, [images, concurrency, onSaveStage]);
 
-  // Start processing on mount
   useEffect(() => {
     processQueue();
   }, [processQueue]);
@@ -236,12 +290,21 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
         )}
       </div>
 
-      {/* Before/After compare modal */}
+      {/* Before/After compare */}
       {compareResult && compareResult.generatedImage && (
         <div className="premium-surface rounded-2xl p-3 space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-semibold text-[var(--color-text)]/70 uppercase tracking-wider">
               Before / After — {compareResult.roomType}
+              <span
+                className="ml-1.5 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-bold"
+                style={{
+                  backgroundColor: `${ACTION_LABELS[compareResult.action].color}20`,
+                  color: ACTION_LABELS[compareResult.action].color,
+                }}
+              >
+                {ACTION_LABELS[compareResult.action].icon} {ACTION_LABELS[compareResult.action].label}
+              </span>
             </span>
             <button
               type="button"
@@ -265,83 +328,96 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
               <span className="absolute bottom-1 left-1 bg-[var(--color-primary)]/80 text-[8px] font-bold text-white uppercase px-1.5 py-0.5 rounded">After</span>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => onLoadImage(compareResult.originalImage, compareResult.generatedImage!)}
-            className="w-full rounded-lg px-3 py-2 text-[10px] font-semibold bg-[var(--color-primary)]/10 text-[var(--color-primary)] border border-[var(--color-primary)]/20 hover:bg-[var(--color-primary)]/20 transition"
-          >
-            Open in Editor
-          </button>
+          {compareResult.action !== 'export' && (
+            <button
+              type="button"
+              onClick={() => onLoadImage(compareResult.originalImage, compareResult.generatedImage!)}
+              className="w-full rounded-lg px-3 py-2 text-[10px] font-semibold bg-[var(--color-primary)]/10 text-[var(--color-primary)] border border-[var(--color-primary)]/20 hover:bg-[var(--color-primary)]/20 transition"
+            >
+              Open in Editor
+            </button>
+          )}
         </div>
       )}
 
       {/* Results grid */}
       <div className="grid grid-cols-3 gap-1.5">
-        {results.map((result) => (
-          <div
-            key={result.id}
-            className={`relative rounded-lg overflow-hidden aspect-[4/3] border-2 transition-all ${
-              result.status === 'done'
-                ? 'border-[#30D158]/40 cursor-pointer hover:border-[var(--color-primary)]'
-                : result.status === 'error'
-                ? 'border-[#FF375F]/40'
-                : result.status === 'processing'
-                ? 'border-[var(--color-primary)]/40'
-                : 'border-transparent opacity-60'
-            }`}
-            onClick={() => {
-              if (result.status === 'done' && result.generatedImage) {
-                setCompareId(prev => prev === result.id ? null : result.id);
-              }
-            }}
-          >
-            <img
-              src={
-                result.generatedImage
-                  ? result.generatedImage.startsWith('data:')
-                    ? result.generatedImage
-                    : `data:image/jpeg;base64,${result.generatedImage}`
-                  : result.originalImage
-              }
-              alt={result.roomType}
-              className="w-full h-full object-cover"
-            />
+        {results.map((result) => {
+          const actionInfo = ACTION_LABELS[result.action];
+          return (
+            <div
+              key={result.id}
+              className={`relative rounded-lg overflow-hidden aspect-[4/3] border-2 transition-all ${
+                result.status === 'done'
+                  ? 'cursor-pointer hover:border-[var(--color-primary)]'
+                  : result.status === 'error'
+                  ? 'border-[#FF375F]/40'
+                  : result.status === 'processing'
+                  ? 'border-[var(--color-primary)]/40'
+                  : 'border-transparent opacity-60'
+              }`}
+              style={result.status === 'done' ? { borderColor: `${actionInfo.color}60` } : undefined}
+              onClick={() => {
+                if (result.status === 'done' && result.generatedImage) {
+                  setCompareId(prev => (prev === result.id ? null : result.id));
+                }
+              }}
+            >
+              <img
+                src={
+                  result.generatedImage
+                    ? result.generatedImage.startsWith('data:')
+                      ? result.generatedImage
+                      : `data:image/jpeg;base64,${result.generatedImage}`
+                    : result.originalImage
+                }
+                alt={result.roomType}
+                className="w-full h-full object-cover"
+              />
 
-            {/* Status overlay */}
-            {result.status === 'processing' && (
-              <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                <Loader2 size={20} className="text-[var(--color-primary)] animate-spin" />
-              </div>
-            )}
-            {result.status === 'error' && (
-              <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-1 p-2">
-                <AlertCircle size={16} className="text-[#FF375F]" />
-                <span className="text-[8px] text-[#FF375F] text-center truncate w-full">{result.error}</span>
-              </div>
-            )}
-            {result.status === 'pending' && (
-              <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                <span className="text-[9px] text-white/60 font-semibold">Queued</span>
-              </div>
-            )}
-
-            {/* Bottom badge */}
-            <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-1.5 flex items-center justify-between">
-              <span className="text-[8px] font-semibold text-white truncate">{result.roomType}</span>
-              {result.status === 'done' && (
-                <div className="flex items-center gap-0.5">
-                  {result.saved && <Heart size={10} className="fill-[var(--color-primary)] text-[var(--color-primary)]" />}
-                  <Eye size={10} className="text-white/70" />
+              {/* Status overlay */}
+              {result.status === 'processing' && (
+                <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                  <Loader2 size={20} className="text-[var(--color-primary)] animate-spin" />
                 </div>
               )}
-            </div>
+              {result.status === 'error' && (
+                <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-1 p-2">
+                  <AlertCircle size={16} className="text-[#FF375F]" />
+                  <span className="text-[8px] text-[#FF375F] text-center truncate w-full">{result.error}</span>
+                </div>
+              )}
+              {result.status === 'pending' && (
+                <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                  <span className="text-[9px] text-white/60 font-semibold">Queued</span>
+                </div>
+              )}
 
-            {/* Compare highlight */}
-            {compareId === result.id && (
-              <div className="absolute inset-0 ring-2 ring-[var(--color-primary)] rounded-lg pointer-events-none" />
-            )}
-          </div>
-        ))}
+              {/* Action badge — top left */}
+              <div
+                className="absolute top-1 left-1 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[7px] font-bold"
+                style={{ backgroundColor: actionInfo.color, color: '#000' }}
+              >
+                {actionInfo.icon} {actionInfo.label}
+              </div>
+
+              {/* Bottom badge */}
+              <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-1.5 flex items-center justify-between">
+                <span className="text-[8px] font-semibold text-white truncate">{result.roomType}</span>
+                {result.status === 'done' && (
+                  <div className="flex items-center gap-0.5">
+                    {result.saved && <Heart size={10} className="fill-[var(--color-primary)] text-[var(--color-primary)]" />}
+                    <Eye size={10} className="text-white/70" />
+                  </div>
+                )}
+              </div>
+
+              {compareId === result.id && (
+                <div className="absolute inset-0 ring-2 ring-[var(--color-primary)] rounded-lg pointer-events-none" />
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

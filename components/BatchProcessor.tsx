@@ -86,8 +86,11 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
   onLoadImage,
   concurrency = 3,
 }) => {
+  // Freeze images on mount — they never change during processing
+  const imagesRef = useRef(images);
+
   const [results, setResults] = useState<BatchResult[]>(() =>
-    images.map(img => ({
+    imagesRef.current.map(img => ({
       id: img.id,
       originalImage: img.base64,
       generatedImage: null,
@@ -111,7 +114,7 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
 
   // Auto-save export-only images on mount
   useEffect(() => {
-    images.forEach(img => {
+    imagesRef.current.forEach(img => {
       if (img.action === 'export') {
         const stage: SavedStage = {
           id: crypto.randomUUID(),
@@ -134,7 +137,7 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
 
     try {
       // Only process non-export images
-      const pending = images.filter(img => img.action !== 'export');
+      const pending = imagesRef.current.filter(img => img.action !== 'export');
       const activePromises: Promise<void>[] = [];
 
       const processOne = async (img: BatchImage) => {
@@ -198,7 +201,7 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
     } finally {
       processingRef.current = false;
     }
-  }, [images, concurrency]);
+  }, [concurrency]); // images frozen via ref — no dependency needed
 
   useEffect(() => {
     processQueue();

@@ -38,6 +38,7 @@ export interface BatchImage {
 interface BatchUploaderProps {
   onBatchReady: (images: BatchImage[]) => void;
   onSingleUpload: (base64: string) => void;
+  onSkipToEditor?: (images: BatchImage[]) => void;
   isAnalyzing?: boolean;
   maxFiles?: number;
 }
@@ -45,6 +46,7 @@ interface BatchUploaderProps {
 const BatchUploader: React.FC<BatchUploaderProps> = ({
   onBatchReady,
   onSingleUpload,
+  onSkipToEditor,
   isAnalyzing,
   maxFiles = 50,
 }) => {
@@ -415,25 +417,40 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
         </div>
       )}
 
-      {/* Process button */}
-      <button
-        type="button"
-        onClick={handleStartBatch}
-        disabled={selectedCount === 0 || detectingCount > 0}
-        className="w-full rounded-xl px-4 py-3 text-sm font-bold bg-[var(--color-primary)] text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:opacity-90 inline-flex items-center justify-center gap-2"
-      >
-        {detectingCount > 0 ? (
-          <>
-            <Loader2 size={15} className="animate-spin" />
-            Detecting rooms ({detectingCount} remaining)...
-          </>
-        ) : (
-          <>
-            <Images size={15} />
-            Process {selectedCount} Photo{selectedCount !== 1 ? 's' : ''}
-          </>
+      {/* Action buttons */}
+      <div className="grid grid-cols-2 gap-2">
+        {onSkipToEditor && (
+          <button
+            type="button"
+            onClick={() => {
+              const ready = batchImages.filter(img => !img.detecting);
+              if (ready.length > 0) onSkipToEditor(ready);
+            }}
+            disabled={detectingCount === batchImages.length}
+            className="rounded-xl px-4 py-3 text-sm font-semibold border border-[var(--color-border-strong)] text-[var(--color-text)] disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:bg-white/5 inline-flex items-center justify-center gap-2"
+          >
+            Edit Individually
+          </button>
         )}
-      </button>
+        <button
+          type="button"
+          onClick={handleStartBatch}
+          disabled={selectedCount === 0 || detectingCount > 0}
+          className={`rounded-xl px-4 py-3 text-sm font-bold bg-[var(--color-primary)] text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:opacity-90 inline-flex items-center justify-center gap-2 ${onSkipToEditor ? '' : 'col-span-2'}`}
+        >
+          {detectingCount > 0 ? (
+            <>
+              <Loader2 size={15} className="animate-spin" />
+              Detecting ({detectingCount})...
+            </>
+          ) : (
+            <>
+              <Images size={15} />
+              Batch Process {selectedCount}
+            </>
+          )}
+        </button>
+      </div>
 
       <input
         type="file"

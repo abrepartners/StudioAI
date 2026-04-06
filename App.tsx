@@ -1358,6 +1358,26 @@ const App: React.FC = () => {
             <BatchUploader
               onBatchReady={handleBatchReady}
               onSingleUpload={handleImageUpload}
+              onSkipToEditor={(images) => {
+                // Load all images into session queue, open the first one
+                if (images.length > 0) {
+                  // Load the first image normally (triggers room detection etc)
+                  handleImageUpload(images[0].base64);
+                  // Queue the rest
+                  const rest = images.slice(1).map(img => ({
+                    id: img.id,
+                    originalImage: img.base64,
+                    generatedImage: null,
+                    maskImage: null,
+                    colors: [],
+                    detectedRoom: img.roomType,
+                    selectedRoom: img.roomType || 'Living Room' as FurnitureRoomType,
+                    history: [],
+                    historyIndex: -1,
+                  }));
+                  setSessionQueue(prev => [...prev, ...rest]);
+                }
+              }}
               isAnalyzing={isAnalyzing}
             />
 

@@ -1709,6 +1709,7 @@ const App: React.FC = () => {
                 {activePanel === 'tools' && (
                   <>
                     <RenovationControls
+                      key={`controls-${sessionQueue[sessionIndex]?.id || 'single'}`}
                       activeMode="design"
                       hasGenerated={!!generatedImage}
                       onGenerate={(p) => handleGenerate(p)}
@@ -1719,11 +1720,13 @@ const App: React.FC = () => {
                       feedbackRequired={showFeedbackCheckpoint}
                     />
                     <StyleAdvisor
+                      key={`advisor-${sessionQueue[sessionIndex]?.id || 'single'}`}
                       imageBase64={originalImage}
                       roomType={selectedRoom}
                       onApplyStyle={(p) => handleGenerate(p)}
                     />
                     <SpecialModesPanel
+                      key={sessionQueue[sessionIndex]?.id || 'single'}
                       originalImage={originalImage}
                       generatedImage={generatedImage}
                       selectedRoom={selectedRoom}

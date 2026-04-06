@@ -30,6 +30,19 @@ import {
   HistoryState,
   ChatMessage,
 } from './types';
+
+// ─── Session Queue Types ──────────────────────────────────────────────────
+interface SessionImage {
+  id: string;
+  originalImage: string;
+  generatedImage: string | null;
+  maskImage: string | null;
+  colors: ColorData[];
+  detectedRoom: FurnitureRoomType | null;
+  selectedRoom: FurnitureRoomType;
+  history: HistoryState[];
+  historyIndex: number;
+}
 import { useSubscription } from './hooks/useSubscription';
 import {
   RefreshCcw,
@@ -60,6 +73,9 @@ import {
   Sunset,
   Cloud,
   FileText,
+  ChevronLeft,
+  ChevronRight,
+  Plus,
 } from 'lucide-react';
 import { Analytics } from '@vercel/analytics/react';
 
@@ -138,6 +154,10 @@ const App: React.FC = () => {
 
   // ─── Batch Mode State ────────────────────────────────────────────────────
   const [batchImages, setBatchImages] = useState<BatchImage[] | null>(null);
+
+  // ─── Session Queue ──────────────────────────────────────────────────────
+  const [sessionQueue, setSessionQueue] = useState<SessionImage[]>([]);
+  const [sessionIndex, setSessionIndex] = useState(-1);
 
   // Chat state
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -294,6 +314,46 @@ const App: React.FC = () => {
   }, [undo, redo]);
 
   const handleImageUpload = async (base64: string) => {
+    // Save current image to session queue before loading new one
+    if (originalImage) {
+      const currentSession: SessionImage = {
+        id: sessionQueue[sessionIndex]?.id || crypto.randomUUID(),
+        originalImage,
+        generatedImage,
+        maskImage,
+        colors,
+        detectedRoom,
+        selectedRoom,
+        history,
+        historyIndex,
+      };
+      setSessionQueue(prev => {
+        const updated = [...prev];
+        if (sessionIndex >= 0 && sessionIndex < updated.length) {
+          updated[sessionIndex] = currentSession;
+        }
+        return updated;
+      });
+    }
+
+    // Add new image to session queue
+    const newSession: SessionImage = {
+      id: crypto.randomUUID(),
+      originalImage: base64,
+      generatedImage: null,
+      maskImage: null,
+      colors: [],
+      detectedRoom: null,
+      selectedRoom: 'Living Room',
+      history: [],
+      historyIndex: -1,
+    };
+    setSessionQueue(prev => [...prev, newSession]);
+    setSessionIndex(prev => {
+      // If no images yet, index 0; otherwise append
+      return prev < 0 ? 0 : sessionQueue.length;
+    });
+
     setOriginalImage(base64);
     setGeneratedImage(null);
     setMaskImage(null);
@@ -459,6 +519,87 @@ const App: React.FC = () => {
     setGeneratedImage(generated);
     setBatchImages(null);
   };
+
+  // ─── Session Queue Handlers ──────────────────────────────────────────────
+  const saveCurrentSession = useCallback((): SessionImage | null => {
+    if (!originalImage) return null;
+    return {
+      id: sessionIndex >= 0 && sessionQueue[sessionIndex]
+        ? sessionQueue[sessionIndex].id
+        : crypto.randomUUID(),
+      originalImage,
+      generatedImage,
+      maskImage,
+      colors,
+      detectedRoom,
+      selectedRoom,
+      history,
+      historyIndex,
+    };
+  }, [originalImage, generatedImage, maskImage, colors, detectedRoom, selectedRoom, history, historyIndex, sessionIndex, sessionQueue]);
+
+  const loadSession = useCallback((session: SessionImage) => {
+    setOriginalImage(session.originalImage);
+    setGeneratedImage(session.generatedImage);
+    setMaskImage(session.maskImage);
+    setColors(session.colors);
+    setDetectedRoom(session.detectedRoom);
+    setSelectedRoom(session.selectedRoom);
+    setHistory(session.history);
+    setHistoryIndex(session.historyIndex);
+  }, []);
+
+  const navigateSession = useCallback((direction: 'prev' | 'next') => {
+    const newIndex = direction === 'next' ? sessionIndex + 1 : sessionIndex - 1;
+    if (newIndex < 0 || newIndex >= sessionQueue.length) return;
+
+    // Save current state
+    const current = saveCurrentSession();
+    if (current) {
+      setSessionQueue(prev => prev.map((s, i) => (i === sessionIndex ? current : s)));
+    }
+
+    // Load target
+    loadSession(sessionQueue[newIndex]);
+    setSessionIndex(newIndex);
+  }, [sessionIndex, sessionQueue, saveCurrentSession, loadSession]);
+
+  const removeFromSession = useCallback((index: number) => {
+    setSessionQueue(prev => prev.filter((_, i) => i !== index));
+    if (sessionQueue.length <= 1) {
+      // Last image — go back to upload screen
+      setOriginalImage(null);
+      setGeneratedImage(null);
+      setSessionIndex(-1);
+    } else if (index === sessionIndex) {
+      // Removing current — load adjacent
+      const nextIdx = index < sessionQueue.length - 1 ? index : index - 1;
+      const target = sessionQueue[nextIdx === index ? index + 1 : nextIdx];
+      if (target) loadSession(target);
+      setSessionIndex(Math.min(nextIdx, sessionQueue.length - 2));
+    } else if (index < sessionIndex) {
+      setSessionIndex(prev => prev - 1);
+    }
+  }, [sessionQueue, sessionIndex, loadSession]);
+
+  // Sync current editor state back to session queue on key changes
+  useEffect(() => {
+    if (sessionIndex < 0 || !originalImage) return;
+    setSessionQueue(prev => {
+      if (sessionIndex >= prev.length) return prev;
+      const updated = [...prev];
+      updated[sessionIndex] = {
+        ...updated[sessionIndex],
+        generatedImage,
+        colors,
+        detectedRoom,
+        selectedRoom,
+        history,
+        historyIndex,
+      };
+      return updated;
+    });
+  }, [generatedImage, sessionIndex, originalImage]); // Only sync on generation changes
 
   const changeDetectedRoom = (room: FurnitureRoomType) => {
     pushToHistory();
@@ -986,6 +1127,36 @@ const App: React.FC = () => {
                   <Redo2 size={15} />
                 </button>
               </div>
+
+              {/* Session Queue Navigation */}
+              {sessionQueue.length > 1 && (
+                <>
+                  <div className="hidden sm:block h-5 w-px bg-[var(--color-border)]" />
+                  <div className="hidden sm:flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => navigateSession('prev')}
+                      disabled={sessionIndex <= 0 || isGenerating}
+                      className="rounded-lg p-1.5 text-[var(--color-text)] transition hover:bg-[var(--color-bg)] disabled:opacity-30"
+                      title="Previous photo"
+                    >
+                      <ChevronLeft size={15} />
+                    </button>
+                    <span className="text-[10px] font-bold text-[var(--color-text)]/70 tabular-nums min-w-[2rem] text-center">
+                      {sessionIndex + 1}/{sessionQueue.length}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => navigateSession('next')}
+                      disabled={sessionIndex >= sessionQueue.length - 1 || isGenerating}
+                      className="rounded-lg p-1.5 text-[var(--color-text)] transition hover:bg-[var(--color-bg)] disabled:opacity-30"
+                      title="Next photo"
+                    >
+                      <ChevronRight size={15} />
+                    </button>
+                  </div>
+                </>
+              )}
             </>
           )}
         </div>
@@ -1010,6 +1181,25 @@ const App: React.FC = () => {
                   <Heart size={13} className={savedStages.some(s => s.generatedImage === generatedImage) ? 'fill-[var(--color-primary)] text-[var(--color-primary)]' : ''} />
                   <span className="hidden sm:inline">Save</span>
                 </button>
+                <label className="cta-secondary rounded-lg px-3 py-1.5 text-xs font-medium inline-flex items-center gap-1.5 cursor-pointer">
+                  <Plus size={13} />
+                  <span className="hidden sm:inline">Add</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || []);
+                      files.forEach(file => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => handleImageUpload(reader.result as string);
+                        reader.readAsDataURL(file);
+                      });
+                      e.target.value = '';
+                    }}
+                  />
+                </label>
               </>
             )}
             {subscription.plan === 'free' ? (
@@ -1031,14 +1221,20 @@ const App: React.FC = () => {
             <button
               type="button"
               onClick={() => {
-                setOriginalImage(null);
-                setGeneratedImage(null);
+                if (sessionQueue.length > 1) {
+                  removeFromSession(sessionIndex);
+                } else {
+                  setOriginalImage(null);
+                  setGeneratedImage(null);
+                  setSessionQueue([]);
+                  setSessionIndex(-1);
+                }
                 setStageMode('text');
                 setShowFeedbackCheckpoint(false);
                 setGenerationsSinceFeedback(0);
               }}
               className="rounded-lg p-1.5 text-[var(--color-text)] hover:bg-[var(--color-bg)] transition"
-              title="Start over"
+              title={sessionQueue.length > 1 ? "Remove this photo" : "Start over"}
             >
               <RefreshCcw size={15} />
             </button>

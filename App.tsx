@@ -11,6 +11,7 @@ import RenovationControls from './components/StyleControls';
 import MaskCanvas from './components/MaskCanvas';
 import SpecialModesPanel from './components/SpecialModesPanel';
 import BrandKit from './components/BrandKit';
+import ManageTeam from './components/ManageTeam';
 // Removed for Phase 2: ColorAnalysis, ChatInterface, StyleAdvisor, QualityScore, ListingDashboard, BetaFeedbackForm, MLSExport (inline)
 import {
   ColorData,
@@ -1054,6 +1055,11 @@ const App: React.FC = () => {
             {/* Brand Kit Settings */}
             <div className="mt-5 border-t border-[var(--color-border)] pt-5">
               <BrandKit />
+            </div>
+
+            {/* Manage Team / Brokerage */}
+            <div className="mt-5 border-t border-[var(--color-border)] pt-5">
+              <ManageTeam adminEmail={googleUser.email} />
             </div>
 
             <button

@@ -1,6 +1,30 @@
 import { json, setCors, handleOptions, rejectMethod } from './utils.js';
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
+const SUPABASE_URL = process.env.SUPABASE_URL || '';
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
+
+/** Check if email belongs to a brokerage agent with an active subscription */
+const checkBrokerageAccess = async (email: string): Promise<boolean> => {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) return false;
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/brokerage_agents?email=eq.${encodeURIComponent(email.toLowerCase())}&select=brokerage_id,brokerages(admin_email,stripe_subscription_id)`,
+      {
+        headers: {
+          'apikey': SUPABASE_SERVICE_KEY,
+          'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+        },
+      }
+    );
+    if (!res.ok) return false;
+    const agents = await res.json();
+    // Agent is covered if they belong to any brokerage (admin manages billing)
+    return agents && agents.length > 0;
+  } catch {
+    return false;
+  }
+};
 
 export default async function handler(req: any, res: any) {
   setCors(res, 'GET,OPTIONS');
@@ -16,6 +40,20 @@ export default async function handler(req: any, res: any) {
     const email = req.query?.email || '';
     if (!email) {
       json(res, 400, { ok: false, error: 'email is required' });
+      return;
+    }
+
+    // Check if email is a brokerage agent — grant Pro if so
+    const isBrokerageAgent = await checkBrokerageAccess(email);
+    if (isBrokerageAgent) {
+      json(res, 200, {
+        ok: true,
+        subscribed: true,
+        plan: 'pro',
+        brokerageAgent: true,
+        generationsLimit: -1,
+        generationsUsed: 0,
+      });
       return;
     }
 

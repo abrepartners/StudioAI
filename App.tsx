@@ -837,82 +837,32 @@ const App: React.FC = () => {
           </div>
         </section>
 
-        {/* ─── How It Works ─── */}
-        <section className="px-5 sm:px-8 lg:px-12 py-20 sm:py-28 border-t border-white/[0.04]">
-          <div className="max-w-4xl mx-auto">
-            <div className="text-center mb-14">
-              <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--color-primary)] mb-3">Simple Workflow</p>
-              <h2 className="font-display text-3xl sm:text-4xl font-black text-white tracking-tight">Three Steps. That's It.</h2>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-              {[
-                { step: '01', title: 'Upload', desc: 'Drop in a listing photo — empty room, furnished, exterior, any condition.' },
-                { step: '02', title: 'Style', desc: 'Pick a design style or let the AI recommend one. Adjust room type if needed.' },
-                { step: '03', title: 'Export', desc: 'Download MLS-ready files, grab the listing copy, share the before/after.' },
-              ].map((item) => (
-                <div key={item.step} className="text-center sm:text-left">
-                  <div className="text-4xl font-black text-white/[0.06] mb-3 font-display">{item.step}</div>
-                  <h3 className="text-lg font-bold text-white mb-2">{item.title}</h3>
-                  <p className="text-sm text-zinc-500 leading-relaxed">{item.desc}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
         {/* ─── Pricing ─── */}
-        <section id="pricing" className="px-5 sm:px-8 lg:px-12 py-20 sm:py-28 border-t border-white/[0.04] scroll-mt-20">
-          <div className="max-w-5xl mx-auto">
-            <div className="text-center mb-6">
-              <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--color-primary)] mb-3">Pricing</p>
-              <h2 className="font-display text-3xl sm:text-4xl font-black text-white tracking-tight">Start Free. Upgrade When Ready.</h2>
+        <section id="pricing" className="px-5 sm:px-8 lg:px-12 py-24 sm:py-32 scroll-mt-20">
+          <div className="max-w-4xl mx-auto">
+            <div className="text-center mb-16">
+              <h2 className="font-display text-3xl sm:text-5xl font-black text-white tracking-tight mb-4">
+                Simple Pricing.
+              </h2>
+              <p className="text-zinc-500 text-base max-w-lg mx-auto">Start free. Upgrade when you're ready. Cancel anytime.</p>
             </div>
 
-            {/* Early Bird Banner */}
-            <div className="max-w-2xl mx-auto mb-10 rounded-2xl border border-[#FFD60A]/30 bg-[#FFD60A]/[0.04] p-4 text-center">
-              <p className="text-sm font-bold text-[#FFD60A]">Early Bird Special — First 20 Users</p>
-              <p className="text-xs text-zinc-400 mt-1">Lock in <span className="text-white font-bold">$14/mo</span> forever <span className="text-zinc-500">(regular $29/mo)</span>. Plus, get a referral code to share the same rate with up to 5 friends.</p>
-            </div>
-
-            {/* Individual Plans */}
-            <div className="text-center mb-6">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Individual Plans</p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto mb-14">
-              {/* Free */}
-              <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/[0.08]">
-                <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-3">Free</div>
-                <div className="flex items-baseline gap-1 mb-1">
-                  <span className="text-3xl font-black text-white">$0</span>
-                  <span className="text-xs text-zinc-500">/mo</span>
-                </div>
-                <p className="text-[10px] text-zinc-500 mb-4">5 generations/month</p>
-                <ul className="space-y-2 text-[12px] text-zinc-400">
-                  {['Virtual staging', 'Smart cleanup', 'Day to dusk', 'Sky replacement'].map((f) => (
-                    <li key={f} className="flex items-start gap-2">
-                      <Check size={12} className="text-zinc-600 mt-0.5 shrink-0" />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
+            {/* Early Bird + Pro side by side */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl mx-auto mb-20">
               {/* Early Bird */}
-              <div className="relative p-5 rounded-2xl bg-[#FFD60A]/[0.03] border border-[#FFD60A]/30 shadow-lg shadow-yellow-500/[0.05]">
-                <div className="absolute -top-3 left-5 px-2.5 py-0.5 rounded-full bg-[#FFD60A] text-[9px] font-bold uppercase tracking-widest text-black">Limited</div>
-                <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#FFD60A] mb-3">Early Bird</div>
+              <div className="relative p-8 rounded-2xl bg-[#FFD60A]/[0.03] border border-[#FFD60A]/20">
+                <div className="absolute -top-3 left-6 px-3 py-0.5 rounded-full bg-[#FFD60A] text-[9px] font-bold uppercase tracking-widest text-black">First 20 Users</div>
+                <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#FFD60A] mb-4">Early Bird</div>
                 <div className="flex items-baseline gap-1 mb-1">
-                  <span className="text-3xl font-black text-white">$14</span>
-                  <span className="text-xs text-zinc-500">/mo</span>
-                  <span className="text-xs text-zinc-600 line-through ml-1">$29</span>
+                  <span className="text-5xl font-black text-white">$14</span>
+                  <span className="text-sm text-zinc-500">/mo</span>
+                  <span className="text-sm text-zinc-600 line-through ml-2">$29</span>
                 </div>
-                <p className="text-[10px] text-zinc-500 mb-4">Unlimited + referral code</p>
-                <ul className="space-y-2 text-[12px] text-zinc-300">
-                  {['Everything unlimited', 'Locked-in rate forever', 'Referral code (5 uses)', 'Friends get your rate'].map((f) => (
-                    <li key={f} className="flex items-start gap-2">
-                      <Check size={12} className="text-[#FFD60A] mt-0.5 shrink-0" />
+                <p className="text-xs text-zinc-500 mb-6">Unlimited. Locked in forever.</p>
+                <ul className="space-y-3 text-[13px] text-zinc-300">
+                  {['All features, unlimited', 'Rate never increases', 'Referral code (5 uses)', 'Friends get your rate too'].map((f) => (
+                    <li key={f} className="flex items-start gap-2.5">
+                      <Check size={14} className="text-[#FFD60A] mt-0.5 shrink-0" />
                       {f}
                     </li>
                   ))}
@@ -920,18 +870,17 @@ const App: React.FC = () => {
               </div>
 
               {/* Pro */}
-              <div className="relative p-5 rounded-2xl bg-white/[0.03] border border-[var(--color-primary)]/30 shadow-lg shadow-blue-500/[0.05]">
-                <div className="absolute -top-3 left-5 px-2.5 py-0.5 rounded-full bg-[var(--color-primary)] text-[9px] font-bold uppercase tracking-widest text-white">Standard</div>
-                <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--color-primary)] mb-3">Pro</div>
+              <div className="relative p-8 rounded-2xl bg-white/[0.02] border border-white/[0.08]">
+                <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-4">Pro</div>
                 <div className="flex items-baseline gap-1 mb-1">
-                  <span className="text-3xl font-black text-white">$29</span>
-                  <span className="text-xs text-zinc-500">/mo</span>
+                  <span className="text-5xl font-black text-white">$29</span>
+                  <span className="text-sm text-zinc-500">/mo</span>
                 </div>
-                <p className="text-[10px] text-zinc-500 mb-4">Unlimited generations</p>
-                <ul className="space-y-2 text-[12px] text-zinc-300">
-                  {['Everything unlimited', 'Batch processing', 'All special modes', 'Priority rendering'].map((f) => (
-                    <li key={f} className="flex items-start gap-2">
-                      <Check size={12} className="text-[var(--color-primary)] mt-0.5 shrink-0" />
+                <p className="text-xs text-zinc-500 mb-6">Unlimited generations.</p>
+                <ul className="space-y-3 text-[13px] text-zinc-400">
+                  {['All features, unlimited', 'Batch processing', 'All special modes', 'Priority rendering'].map((f) => (
+                    <li key={f} className="flex items-start gap-2.5">
+                      <Check size={14} className="text-zinc-600 mt-0.5 shrink-0" />
                       {f}
                     </li>
                   ))}
@@ -939,108 +888,41 @@ const App: React.FC = () => {
               </div>
             </div>
 
-            {/* Brokerage Plans */}
-            <div className="text-center mb-6">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Brokerage Plans</p>
-              <p className="text-xs text-zinc-600 mt-1">Give your whole team Pro access at a discount</p>
+            {/* Brokerage — single compact row */}
+            <div className="text-center mb-8">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-600 mb-2">For Brokerages</p>
+              <p className="text-sm text-zinc-500">Give your whole team Pro access at a volume discount.</p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto">
+            <div className="flex flex-col sm:flex-row justify-center gap-4 max-w-3xl mx-auto">
               {[
-                { name: 'Team', agents: 5, price: 119, perAgent: '~$24', save: '17%' },
-                { name: 'Brokerage', agents: 15, price: 299, perAgent: '~$20', save: '31%', popular: true },
-                { name: 'Enterprise', agents: 40, price: 699, perAgent: '~$17', save: '41%' },
+                { name: 'Team', agents: '5 agents', price: '$119/mo', per: '$24/agent' },
+                { name: 'Brokerage', agents: '15 agents', price: '$299/mo', per: '$20/agent' },
+                { name: 'Enterprise', agents: '40 agents', price: '$699/mo', per: '$17/agent' },
               ].map((tier) => (
-                <div
-                  key={tier.name}
-                  className={`p-5 rounded-2xl border ${
-                    tier.popular
-                      ? 'bg-white/[0.03] border-[var(--color-primary)]/30 shadow-lg shadow-blue-500/[0.05] relative'
-                      : 'bg-white/[0.02] border-white/[0.08]'
-                  }`}
-                >
-                  {tier.popular && (
-                    <div className="absolute -top-3 left-5 px-2.5 py-0.5 rounded-full bg-[var(--color-primary)] text-[9px] font-bold uppercase tracking-widest text-white">Popular</div>
-                  )}
-                  <div className={`text-[11px] font-bold uppercase tracking-[0.2em] mb-3 ${tier.popular ? 'text-[var(--color-primary)]' : 'text-zinc-500'}`}>{tier.name}</div>
-                  <div className="flex items-baseline gap-1 mb-1">
-                    <span className="text-3xl font-black text-white">${tier.price}</span>
-                    <span className="text-xs text-zinc-500">/mo</span>
-                  </div>
-                  <p className="text-[10px] text-zinc-500 mb-1">Up to {tier.agents} agents</p>
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="text-[10px] text-zinc-500">{tier.perAgent}/agent</span>
-                    <span className="text-[10px] font-semibold text-[#30D158]">Save {tier.save}</span>
-                  </div>
-                  <ul className="space-y-2 text-[12px] text-zinc-300">
-                    {['All Pro features per agent', 'Admin dashboard', 'Add/remove agents', 'Centralized billing'].map((f) => (
-                      <li key={f} className="flex items-start gap-2">
-                        <Check size={12} className={`mt-0.5 shrink-0 ${tier.popular ? 'text-[var(--color-primary)]' : 'text-zinc-600'}`} />
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
+                <div key={tier.name} className="flex-1 p-5 rounded-xl bg-white/[0.02] border border-white/[0.06] text-center">
+                  <p className="text-xs font-bold text-white mb-1">{tier.name}</p>
+                  <p className="text-lg font-black text-white">{tier.price}</p>
+                  <p className="text-[10px] text-zinc-500">{tier.agents} · {tier.per}</p>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* ─── FAQ ─── */}
-        <section id="faq" className="px-5 sm:px-8 lg:px-12 py-20 sm:py-28 border-t border-white/[0.04] scroll-mt-20">
-          <div className="max-w-2xl mx-auto">
-            <div className="text-center mb-14">
-              <h2 className="font-display text-3xl sm:text-4xl font-black text-white tracking-tight">Questions? Answered.</h2>
-            </div>
-
-            <div className="space-y-4">
-              {[
-                {
-                  q: 'Is this real virtual staging or just filters?',
-                  a: 'Real AI staging. StudioAI uses Gemini to generate photorealistic furniture, decor, and lighting tailored to each room. No overlays, no templates.',
-                },
-                {
-                  q: 'How fast are the results?',
-                  a: 'Most single-room stages complete in 10–20 seconds. Batch processing of 25+ photos takes a few minutes total.',
-                },
-                {
-                  q: 'Will MLS boards accept these photos?',
-                  a: 'Yes. Exports are sized to Zillow, Realtor.com, and ARMLS specs with EXIF data stripped. Many agents add a "Virtually Staged" watermark for compliance — we support that too.',
-                },
-                {
-                  q: 'Can I cancel my Pro subscription?',
-                  a: 'Anytime. No contracts, no cancellation fees. Your account reverts to the free tier at the end of your billing period.',
-                },
-                {
-                  q: 'Do you store my listing photos?',
-                  a: 'Photos are processed in-session and not permanently stored on our servers. Your data stays yours.',
-                },
-              ].map((item) => (
-                <details key={item.q} className="group rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
-                  <summary className="flex items-center justify-between p-5 cursor-pointer text-sm font-semibold text-white hover:text-[var(--color-primary)] transition-colors list-none [&::-webkit-details-marker]:hidden">
-                    {item.q}
-                    <ChevronDown size={16} className="text-zinc-500 transition-transform group-open:rotate-180 shrink-0 ml-4" />
-                  </summary>
-                  <div className="px-5 pb-5 text-[13px] text-zinc-400 leading-relaxed -mt-1">{item.a}</div>
-                </details>
-              ))}
-            </div>
-          </div>
-        </section>
-
         {/* ─── Final CTA ─── */}
-        <section className="px-5 sm:px-8 lg:px-12 py-20 sm:py-28 border-t border-white/[0.04]">
+        <section className="px-5 sm:px-8 lg:px-12 py-24 sm:py-32">
           <div className="max-w-3xl mx-auto text-center">
             <h2 className="font-display text-3xl sm:text-5xl font-black text-white tracking-tight mb-4">
               Stop Paying $300 Per Staging.
             </h2>
-            <p className="text-base text-zinc-400 mb-8 max-w-xl mx-auto">
-              Professional results in seconds — not days. Join the agents who've already made the switch.
+            <p className="text-base text-zinc-400 mb-10 max-w-xl mx-auto">
+              Professional results in seconds — not days.
             </p>
             <div className="inline-flex flex-col items-center gap-3">
               <div ref={(el) => {
-                if (el && window.google?.accounts?.id) {
-                  window.google.accounts.id.renderButton(el, {
+                if (el && (window as any).google?.accounts?.id) {
+                  (window as any).google.accounts.id.renderButton(el, {
                     theme: 'filled_black',
                     size: 'large',
                     shape: 'pill',

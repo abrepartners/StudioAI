@@ -145,39 +145,6 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* 1-Click Auto-Pilot (Bezos) */}
-      <div className="premium-surface rounded-2xl p-1 shadow-md bg-gradient-to-r from-[var(--color-bg-deep)] to-black border border-[var(--color-primary-dark)]">
-        <button
-          type="button"
-          onClick={() => {
-            const roomFurniture: Record<string, string> = {
-              'Living Room': 'sofa, coffee table, accent chairs, area rug, floor lamp, and decorative shelving',
-              'Bedroom': 'bed with upholstered headboard, nightstands, dresser, accent chair, and soft area rug',
-              'Primary Bedroom': 'king bed with upholstered headboard, nightstands, bench, dresser, and layered textiles',
-              'Dining Room': 'dining table, upholstered chairs, sideboard, pendant lighting, and table setting',
-              'Office': 'desk, ergonomic chair, bookshelf, task lamp, and storage credenza',
-              'Kitchen': 'bar stools, pendant lights, countertop accessories, and fresh greenery',
-              'Exterior': 'outdoor seating, planters, pathway lighting, and landscaping accents',
-            };
-            const furniture = roomFurniture[selectedRoom] || 'furniture appropriate for this room';
-            const autoPilotPrompt = `Virtually stage this ${selectedRoom} with ${furniture}. Contemporary luxury style with high-end textures, warm layered lighting, and perfectly balanced composition. Preserve architecture, layout, windows, doors, and built-in fixtures. Do NOT add furniture from other room types. Keep proportions photorealistic.`;
-            setStageMode('text');
-            setCustomPrompt(autoPilotPrompt);
-            // True 1-click: immediately trigger generation
-            onGenerate(autoPilotPrompt);
-          }}
-          disabled={isGenerating}
-          className="w-full rounded-xl bg-black border border-[rgba(10,132,255,0.4)] px-4 py-4 text-center group hover:bg-[rgba(10,132,255,0.05)] transition-all overflow-hidden relative"
-        >
-          <div className="absolute inset-0 hidden opacity-20 pointer-events-none group-hover:opacity-40 transition-opacity"></div>
-          <div className="flex items-center justify-center gap-2 mb-1 relative z-10">
-            <Sparkles size={18} className="text-[var(--color-primary)] animate-pulse" />
-            <span className="font-display font-black tracking-[0.15em] uppercase text-white drop-shadow-sm bg-clip-text">Auto-Pilot</span>
-          </div>
-          <p className="text-[10px] text-[var(--color-primary)] font-mono opacity-80 group-hover:opacity-100 uppercase tracking-widest relative z-10">One-click staging</p>
-        </button>
-      </div>
-
       <div className="premium-surface rounded-2xl p-5">
         <div className="mb-4">
           <h3 className="font-display text-lg font-semibold">Mode</h3>

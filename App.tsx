@@ -700,65 +700,66 @@ const App: React.FC = () => {
         </nav>
 
         {/* ─── Hero ─── */}
-        <section className="relative px-5 sm:px-8 lg:px-12 pt-16 sm:pt-24 pb-20 sm:pb-32 overflow-hidden">
-          {/* Background glow */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-[radial-gradient(ellipse_at_center,rgba(10,132,255,0.12)_0%,transparent_70%)] pointer-events-none" />
-          <div className="absolute top-40 right-0 w-[400px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(255,55,95,0.06)_0%,transparent_70%)] pointer-events-none" />
+        <section className="relative min-h-[85vh] flex items-center px-5 sm:px-8 lg:px-12 pt-20 pb-20 overflow-hidden">
+          <div className="absolute inset-0 z-0">
+            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black to-black z-10" />
+            <img
+              src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?q=80&w=2000&auto=format&fit=crop"
+              alt="Luxury home"
+              className="w-full h-full object-cover opacity-30"
+            />
+          </div>
 
-          <div className="relative z-10 max-w-5xl mx-auto text-center">
-            {/* Badge */}
+          <div className="relative z-20 max-w-5xl mx-auto w-full">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] mb-8 animate-fade-in">
               <div className="w-1.5 h-1.5 rounded-full bg-[#30D158] animate-pulse" />
-              <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-400">Powered by Gemini AI</span>
+              <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-400">AI-Powered Real Estate Media</span>
             </div>
 
-            <h1 className="font-display text-[clamp(2.5rem,7vw,5.5rem)] font-black leading-[1.02] tracking-tighter text-white mb-6 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-              Stage Any Room<br className="hidden sm:block" />
-              <span className="bg-gradient-to-r from-[var(--color-primary)] via-[#409CFF] to-[var(--color-accent)] bg-clip-text text-transparent">In Seconds</span>
+            <h1 className="font-display text-[clamp(2.8rem,7vw,6rem)] font-black leading-[0.95] tracking-tighter text-white mb-6 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+              Stage Any Room.<br />
+              <span className="bg-gradient-to-r from-[var(--color-primary)] to-[#409CFF] bg-clip-text text-transparent">In Seconds.</span>
             </h1>
 
-            <p className="text-base sm:text-lg text-zinc-400 font-medium max-w-2xl mx-auto mb-10 leading-relaxed animate-fade-in" style={{ animationDelay: '0.2s' }}>
-              Upload a photo. Pick a style. Get photorealistic virtual staging, twilight conversions,
-              sky replacements, and MLS-ready exports — all from one AI-powered workspace.
+            <p className="text-lg sm:text-xl text-zinc-400 font-light max-w-2xl mb-10 leading-relaxed animate-fade-in" style={{ animationDelay: '0.2s' }}>
+              Upload a listing photo. Get photorealistic staging, twilight conversions,
+              sky replacements, and smart cleanup — from one AI workspace.
             </p>
 
-            {/* Stats row */}
-            <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10 mb-14 animate-fade-in" style={{ animationDelay: '0.3s' }}>
-              {[
-                { value: '15s', label: 'Average render' },
-                { value: '12+', label: 'Design styles' },
-                { value: '4K', label: 'Output quality' },
-              ].map((stat) => (
-                <div key={stat.label} className="text-center">
-                  <div className="text-2xl sm:text-3xl font-black text-white">{stat.value}</div>
-                  <div className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500 mt-0.5">{stat.label}</div>
-                </div>
-              ))}
+            <div className="flex flex-col sm:flex-row gap-4 mb-16 animate-fade-in" style={{ animationDelay: '0.3s' }}>
+              <div ref={googleButtonRef} className="scale-100 origin-left" />
             </div>
 
-            {/* Hero image showcase */}
-            <div className="relative max-w-4xl mx-auto animate-fade-in" style={{ animationDelay: '0.4s' }}>
-              <div className="rounded-2xl overflow-hidden border border-white/[0.08] shadow-2xl shadow-black/50">
-                <img
-                  src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?q=80&w=2000&auto=format&fit=crop"
-                  alt="Luxury home — StudioAI virtual staging"
-                  className="w-full aspect-[16/9] object-cover"
-                />
-                {/* Overlay badge */}
-                <div className="absolute bottom-4 left-4 sm:bottom-6 sm:left-6 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/70 backdrop-blur-md border border-white/10">
-                  <Sparkles size={13} className="text-[var(--color-primary)]" />
-                  <span className="text-[11px] font-bold text-white uppercase tracking-wider">AI Staged</span>
+            <div className="flex flex-wrap gap-8 sm:gap-14 animate-fade-in" style={{ animationDelay: '0.4s' }}>
+              {[
+                { value: '15s', label: 'Average Render' },
+                { value: '12+', label: 'Design Styles' },
+                { value: '4K', label: 'Output Quality' },
+              ].map((stat) => (
+                <div key={stat.label}>
+                  <div className="text-3xl sm:text-4xl font-black text-white">{stat.value}</div>
+                  <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 mt-1">{stat.label}</div>
                 </div>
-              </div>
-              {/* Glow under card */}
-              <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-[80%] h-16 bg-[var(--color-primary)] opacity-[0.07] blur-3xl rounded-full" />
+              ))}
             </div>
           </div>
         </section>
 
-        {/* ─── Trusted By / Social Proof ─── */}
-        <section className="px-5 sm:px-8 lg:px-12 py-12 border-t border-white/[0.04]">
-          <p className="text-center text-[11px] font-bold uppercase tracking-[0.25em] text-zinc-600 mb-6">Built for real estate professionals</p>
+        {/* ─── Early Bird Banner ─── */}
+        <section className="px-5 sm:px-8 lg:px-12 py-6 bg-[#FFD60A]/[0.03] border-y border-[#FFD60A]/10">
+          <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-2 h-2 rounded-full bg-[#FFD60A] animate-pulse" />
+              <p className="text-sm font-bold text-[#FFD60A]">Early Bird Special</p>
+              <p className="text-sm text-zinc-400">First 20 users lock in <span className="text-white font-bold">$14/mo forever</span> + get 5 referral codes</p>
+            </div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-600">Limited Spots</span>
+          </div>
+        </section>
+
+        {/* ─── Social Proof ─── */}
+        <section className="px-5 sm:px-8 lg:px-12 py-12">
+          <p className="text-center text-[10px] font-bold uppercase tracking-[0.25em] text-zinc-600 mb-6">Built for real estate professionals</p>
           <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-3 text-zinc-500 text-sm font-semibold">
             {['Agents', 'Brokerages', 'Property Managers', 'Photographers', 'Home Stagers'].map((item) => (
               <span key={item} className="flex items-center gap-2">
@@ -784,19 +785,19 @@ const App: React.FC = () => {
                 {
                   icon: <Wand2 size={20} />,
                   title: 'Virtual Staging',
-                  desc: '12+ design styles from modern minimalist to luxury farmhouse. Auto-detects room type and recommends the best look.',
+                  desc: '12+ design styles from modern minimalist to luxury farmhouse. Auto-detects room type for instant results.',
                   accent: 'var(--color-primary)',
                 },
                 {
                   icon: <Eraser size={20} />,
                   title: 'Smart Cleanup',
-                  desc: 'Remove personal items, clutter, trash, and outdoor eyesores. 6 auto-detect modes for one-click photo perfection.',
+                  desc: 'Remove personal items, clutter, and distractions. One-click cleanup that preserves your furniture and decor.',
                   accent: '#30D158',
                 },
                 {
                   icon: <Sunset size={20} />,
-                  title: 'Virtual Twilight',
-                  desc: 'Convert any daytime exterior to a stunning golden-hour dusk shot. Natural sky gradients, warm window glow.',
+                  title: 'Day to Dusk',
+                  desc: 'Convert any daytime exterior to a stunning twilight shot. Natural sky gradients and warm window glow.',
                   accent: '#FF9F0A',
                 },
                 {
@@ -806,34 +807,16 @@ const App: React.FC = () => {
                   accent: '#64D2FF',
                 },
                 {
-                  icon: <BrainCircuit size={20} />,
-                  title: 'Style Advisor',
-                  desc: 'AI analyzes your photo and recommends the top 3 staging styles. One-click apply — no guesswork.',
-                  accent: '#BF5AF2',
-                },
-                {
-                  icon: <Download size={20} />,
-                  title: 'MLS Export',
-                  desc: 'One-click exports sized for Zillow, Realtor.com, and ARMLS. EXIF stripped, watermarked, zipped.',
-                  accent: 'var(--color-accent)',
-                },
-                {
                   icon: <LayoutGrid size={20} />,
-                  title: 'Batch Processing',
-                  desc: 'Upload 25+ photos, apply one style to all. Process an entire listing in minutes, not hours.',
+                  title: 'Batch Editing',
+                  desc: 'Upload an entire listing at once. Edit individually or batch process with different actions per image.',
                   accent: '#FFD60A',
                 },
                 {
                   icon: <FileText size={20} />,
                   title: 'Listing Copy',
-                  desc: 'AI-generated MLS descriptions in luxury, casual, and investment tones. Character counts for every platform.',
-                  accent: '#30D158',
-                },
-                {
-                  icon: <Shield size={20} />,
-                  title: 'Quality Score',
-                  desc: 'Every staged image is graded on realism, lighting, perspective, and architectural integrity.',
-                  accent: '#0A84FF',
+                  desc: 'AI-generated MLS descriptions in luxury, casual, and investment tones. Sized for every platform.',
+                  accent: '#BF5AF2',
                 },
               ].map((feature) => (
                 <div

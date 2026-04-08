@@ -2,11 +2,12 @@ import { useState, useEffect, useCallback } from 'react';
 
 export interface SubscriptionState {
   loading: boolean;
-  plan: 'free' | 'pro';
+  plan: 'free' | 'pro' | 'credits';
   subscribed: boolean;
   generationsUsed: number;
   generationsLimit: number;
   canGenerate: boolean;
+  credits: number;
   customerId?: string;
   subscriptionId?: string;
   currentPeriodEnd?: number;
@@ -20,7 +21,7 @@ const isAdminEmail = (email: string) =>
 export function useSubscription(userEmail: string | null) {
   const [state, setState] = useState<SubscriptionState>({
     loading: true, plan: 'free', subscribed: false,
-    generationsUsed: 0, generationsLimit: 5, canGenerate: true,
+    generationsUsed: 0, generationsLimit: 5, canGenerate: true, credits: 0,
   });
 
   const checkStatus = useCallback(async () => {
@@ -30,7 +31,7 @@ export function useSubscription(userEmail: string | null) {
     if (isAdminEmail(userEmail)) {
       setState({
         loading: false, plan: 'pro', subscribed: true,
-        generationsUsed: 0, generationsLimit: -1, canGenerate: true,
+        generationsUsed: 0, generationsLimit: -1, canGenerate: true, credits: 0,
       });
       return;
     }
@@ -41,10 +42,13 @@ export function useSubscription(userEmail: string | null) {
       if (data.ok) {
         const genCount = data.generationsUsed ?? 0;
         const limit = data.generationsLimit ?? 5;
+        const credits = data.credits ?? 0;
+        const plan = data.plan || 'free';
         setState({
-          loading: false, plan: data.plan || 'free', subscribed: data.subscribed || false,
+          loading: false, plan, subscribed: data.subscribed || false,
           generationsUsed: genCount, generationsLimit: limit,
-          canGenerate: limit === -1 || genCount < limit,
+          canGenerate: plan === 'pro' || limit === -1 || genCount < limit || credits > 0,
+          credits,
           customerId: data.customerId, subscriptionId: data.subscriptionId,
           currentPeriodEnd: data.currentPeriodEnd,
         });
@@ -126,5 +130,30 @@ export function useSubscription(userEmail: string | null) {
     } catch (err) { console.error('Portal error:', err); }
   }, [userEmail]);
 
-  return { ...state, recordGeneration, startCheckout, openPortal, refresh: checkStatus };
+  const buyCredits = useCallback(async (pack: 'starter' | 'pro_pack' | 'agency', userId: string) => {
+    if (!userEmail) return;
+    try {
+      const res = await fetch('/api/credit-checkout', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: userEmail, userId, pack, returnUrl: window.location.origin }),
+      });
+      const data = await res.json();
+      if (data.url) { window.location.href = data.url; }
+    } catch (err) { console.error('Credit checkout error:', err); }
+  }, [userEmail]);
+
+  // Fulfill credits after successful purchase (check URL params)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('credits') === 'success' && params.get('session_id')) {
+      const sessionId = params.get('session_id');
+      window.history.replaceState({}, '', window.location.pathname);
+      fetch('/api/credit-checkout', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'fulfill', sessionId }),
+      }).then(() => setTimeout(() => checkStatus(), 1500)).catch(() => {});
+    }
+  }, [checkStatus]);
+
+  return { ...state, recordGeneration, startCheckout, openPortal, buyCredits, refresh: checkStatus };
 }

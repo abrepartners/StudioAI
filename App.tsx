@@ -1012,6 +1012,25 @@ const App: React.FC = () => {
 
             {/* Brokerage — single compact row */}
             <div className="text-center mb-8">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-600 mb-2">Pay-As-You-Go Credits</p>
+              <p className="text-sm text-zinc-500 mb-4">No subscription. Buy credits, use anytime.</p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row justify-center gap-4 max-w-3xl mx-auto mb-20">
+              {[
+                { name: '10 Credits', price: '$19', per: '$1.90/image' },
+                { name: '25 Credits', price: '$39', per: '$1.56/image' },
+                { name: '50 Credits', price: '$69', per: '$1.38/image' },
+              ].map((pack) => (
+                <div key={pack.name} className="flex-1 p-5 rounded-xl bg-white/[0.02] border border-white/[0.06] text-center">
+                  <p className="text-xs font-bold text-white mb-1">{pack.name}</p>
+                  <p className="text-lg font-black text-white">{pack.price}</p>
+                  <p className="text-[10px] text-zinc-500">{pack.per}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="text-center mb-8">
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-600 mb-2">For Brokerages</p>
               <p className="text-sm text-zinc-500">Give your whole team Pro access at a volume discount.</p>
             </div>
@@ -1177,6 +1196,34 @@ const App: React.FC = () => {
               <CreditCard size={16} /> {referralPrice ? `Start Pro — $${(referralPrice / 100).toFixed(0)}/mo` : 'Start Pro Plan'}
             </button>
             <p className="mt-3 text-center text-[10px] text-zinc-500">Cancel anytime. Rate locked in forever. Powered by Stripe.</p>
+
+            {/* Credit Packs Alternative */}
+            <div className="mt-6 pt-5 border-t border-white/[0.06]">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-600 text-center mb-3">Or buy credits — no subscription</p>
+              <div className="space-y-2">
+                {[
+                  { id: 'starter' as const, name: '10 Credits', price: '$19', per: '$1.90/image' },
+                  { id: 'pro_pack' as const, name: '25 Credits', price: '$39', per: '$1.56/image' },
+                  { id: 'agency' as const, name: '50 Credits', price: '$69', per: '$1.38/image' },
+                ].map((pack) => (
+                  <button
+                    key={pack.id}
+                    type="button"
+                    onClick={() => {
+                      setShowUpgradeModal(false);
+                      subscription.buyCredits(pack.id, googleUser?.sub || '');
+                    }}
+                    className="w-full flex items-center justify-between rounded-xl px-4 py-3 bg-white/[0.03] border border-white/[0.06] hover:border-white/[0.12] transition-all text-left"
+                  >
+                    <div>
+                      <span className="text-sm font-bold text-white">{pack.name}</span>
+                      <span className="text-[10px] text-zinc-500 ml-2">{pack.per}</span>
+                    </div>
+                    <span className="text-sm font-bold text-white">{pack.price}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       )}

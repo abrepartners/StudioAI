@@ -62,8 +62,20 @@ export default async function handler(req: any, res: any) {
       { headers: { Authorization: `Basic ${btoa(STRIPE_SECRET_KEY + ':')}` } }
     ).then(r => r.json());
 
+    // Check credit balance from Supabase
+    let credits = 0;
+    if (SUPABASE_URL && SUPABASE_SERVICE_KEY) {
+      try {
+        const creditRes = await fetch(
+          `${SUPABASE_URL}/rest/v1/users?email=eq.${encodeURIComponent(email.toLowerCase())}&select=credits`,
+          { headers: { 'apikey': SUPABASE_SERVICE_KEY, 'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}` } }
+        ).then(r => r.json());
+        if (creditRes && creditRes[0]) credits = creditRes[0].credits || 0;
+      } catch {}
+    }
+
     if (!searchRes.data || searchRes.data.length === 0) {
-      json(res, 200, { ok: true, subscribed: false, plan: 'free', generationsUsed: 0, generationsLimit: 5 });
+      json(res, 200, { ok: true, subscribed: false, plan: credits > 0 ? 'credits' : 'free', generationsUsed: 0, generationsLimit: credits > 0 ? credits : 5, credits });
       return;
     }
 
@@ -88,8 +100,9 @@ export default async function handler(req: any, res: any) {
     json(res, 200, {
       ok: true,
       subscribed: isSubscribed,
-      plan: isSubscribed ? 'pro' : 'free',
+      plan: isSubscribed ? 'pro' : (credits > 0 ? 'credits' : 'free'),
       customerId,
+      credits,
       subscriptionId: subscription?.id || null,
       currentPeriodEnd: subscription?.current_period_end || null,
       generationsLimit: isSubscribed ? -1 : 5,

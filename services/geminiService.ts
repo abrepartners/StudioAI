@@ -534,6 +534,13 @@ CRITICAL RULES (HIGHEST PRIORITY):
 - Do NOT zoom in. Maintain the EXACT same framing, crop, and field of view. The camera is locked.
 - The output should be nearly IDENTICAL to the input — just cleaner.
 
+COLOR PRESERVATION (CRITICAL):
+- Do NOT desaturate, mute, or shift the colors of ANYTHING in the image.
+- Maintain the EXACT same color temperature, saturation, brightness, and contrast as the original.
+- Walls, floors, furniture, fabrics, and all surfaces must keep their original vivid colors.
+- Do NOT apply any color grading, tone mapping, or mood shift. The image is NOT being re-lit.
+- If the original has warm tones, the output must have warm tones. If cool, stay cool. Match exactly.
+
 REMOVE ONLY THESE (small personal items):
 - Personal photos and children's drawings
 - Toys, pet items

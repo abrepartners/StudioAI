@@ -199,6 +199,17 @@ const App: React.FC = () => {
     if (user) {
       setGoogleUser(user);
       localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
+      // Track login in Supabase (fire and forget)
+      fetch('/api/track-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          googleId: user.sub,
+          email: user.email,
+          name: user.name,
+          picture: user.picture,
+        }),
+      }).catch(() => {}); // Never block on tracking
     }
     setIsAuthLoading(false);
   }, []);

@@ -1195,15 +1195,19 @@ const App: React.FC = () => {
               <BrandKit />
             </div>
 
-            {/* Referral Program */}
-            <div className="mt-5 border-t border-[var(--color-border)] pt-5">
-              <ReferralDashboard userEmail={googleUser.email} userId={googleUser.sub} />
-            </div>
+            {/* Referral Program — hide for admin accounts */}
+            {!googleUser.email.endsWith('@averyandbryant.com') && (
+              <div className="mt-5 border-t border-[var(--color-border)] pt-5">
+                <ReferralDashboard userEmail={googleUser.email} userId={googleUser.sub} />
+              </div>
+            )}
 
-            {/* Manage Team / Brokerage */}
-            <div className="mt-5 border-t border-[var(--color-border)] pt-5">
-              <ManageTeam adminEmail={googleUser.email} />
-            </div>
+            {/* Manage Team / Brokerage — hide for admin accounts */}
+            {!googleUser.email.endsWith('@averyandbryant.com') && (
+              <div className="mt-5 border-t border-[var(--color-border)] pt-5">
+                <ManageTeam adminEmail={googleUser.email} />
+              </div>
+            )}
 
             <button
               type="button"

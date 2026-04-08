@@ -1,0 +1,22 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hook": "cd /Users/camillebrown/StudioAI && npx tsc --noEmit --pretty 2>&1 | head -25",
+        "description": "Type-check after file edits — catches crashes before they ship"
+      },
+      {
+        "matcher": "Edit|Write",
+        "hook": "cd /Users/camillebrown/StudioAI && npx eslint --no-error-on-unmatched-pattern $(git diff --name-only --diff-filter=ACMR HEAD -- '*.ts' '*.tsx' 2>/dev/null | head -5) 2>&1 | tail -20",
+        "description": "Lint changed files for react-hooks/exhaustive-deps violations"
+      }
+    ],
+    "PrePush": [
+      {
+        "hook": "cd /Users/camillebrown/StudioAI && npx tsc --noEmit && npx eslint . --max-warnings 0 && npm run build",
+        "description": "Full type-check, lint, and build before pushing — blocks push on failure"
+      }
+    ]
+  }
+}

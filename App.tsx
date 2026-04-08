@@ -12,6 +12,7 @@ import MaskCanvas from './components/MaskCanvas';
 import SpecialModesPanel from './components/SpecialModesPanel';
 import BrandKit from './components/BrandKit';
 import ManageTeam from './components/ManageTeam';
+import ReferralDashboard from './components/ReferralDashboard';
 // Removed for Phase 2: ColorAnalysis, ChatInterface, StyleAdvisor, QualityScore, ListingDashboard, BetaFeedbackForm, MLSExport (inline)
 import {
   ColorData,
@@ -159,6 +160,30 @@ const App: React.FC = () => {
   // ─── Subscription State ─────────────────────────────────────────────────
   const subscription = useSubscription(googleUser?.email || null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [referralCode, setReferralCode] = useState<string | null>(null);
+  const [referralPrice, setReferralPrice] = useState<number | null>(null);
+
+  // Detect referral code from URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref');
+    if (ref) {
+      setReferralCode(ref.toUpperCase());
+      // Validate the code
+      fetch(`/api/referral?action=validate&code=${encodeURIComponent(ref)}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.ok && data.valid) {
+            setReferralPrice(data.discountPrice);
+          } else {
+            setReferralCode(null);
+          }
+        })
+        .catch(() => setReferralCode(null));
+      // Clean the URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
 
   useEffect(() => {
     const savedS = localStorage.getItem('realestate_ai_stages');
@@ -855,51 +880,125 @@ const App: React.FC = () => {
 
         {/* ─── Pricing ─── */}
         <section id="pricing" className="px-5 sm:px-8 lg:px-12 py-20 sm:py-28 border-t border-white/[0.04] scroll-mt-20">
-          <div className="max-w-4xl mx-auto">
-            <div className="text-center mb-14">
+          <div className="max-w-5xl mx-auto">
+            <div className="text-center mb-6">
               <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--color-primary)] mb-3">Pricing</p>
               <h2 className="font-display text-3xl sm:text-4xl font-black text-white tracking-tight">Start Free. Upgrade When Ready.</h2>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 max-w-2xl mx-auto">
-              {/* Free Tier */}
-              <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/[0.08]">
-                <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-4">Free</div>
+            {/* Early Bird Banner */}
+            <div className="max-w-2xl mx-auto mb-10 rounded-2xl border border-[#FFD60A]/30 bg-[#FFD60A]/[0.04] p-4 text-center">
+              <p className="text-sm font-bold text-[#FFD60A]">Early Bird Special — First 20 Users</p>
+              <p className="text-xs text-zinc-400 mt-1">Lock in <span className="text-white font-bold">$14/mo</span> forever <span className="text-zinc-500">(regular $29/mo)</span>. Plus, get a referral code to share the same rate with up to 5 friends.</p>
+            </div>
+
+            {/* Individual Plans */}
+            <div className="text-center mb-6">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Individual Plans</p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto mb-14">
+              {/* Free */}
+              <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/[0.08]">
+                <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-3">Free</div>
                 <div className="flex items-baseline gap-1 mb-1">
-                  <span className="text-4xl font-black text-white">$0</span>
-                  <span className="text-sm text-zinc-500">/mo</span>
+                  <span className="text-3xl font-black text-white">$0</span>
+                  <span className="text-xs text-zinc-500">/mo</span>
                 </div>
-                <p className="text-xs text-zinc-500 mb-6">25 generations per month</p>
-                <ul className="space-y-2.5 text-[13px] text-zinc-400 mb-6">
-                  {['Virtual staging (all styles)', 'Smart cleanup', 'Style Advisor', 'Quality Score', 'Standard export'].map((f) => (
-                    <li key={f} className="flex items-start gap-2.5">
-                      <Check size={14} className="text-zinc-600 mt-0.5 shrink-0" />
+                <p className="text-[10px] text-zinc-500 mb-4">5 generations/month</p>
+                <ul className="space-y-2 text-[12px] text-zinc-400">
+                  {['Virtual staging', 'Smart cleanup', 'Day to dusk', 'Sky replacement'].map((f) => (
+                    <li key={f} className="flex items-start gap-2">
+                      <Check size={12} className="text-zinc-600 mt-0.5 shrink-0" />
                       {f}
                     </li>
                   ))}
                 </ul>
-                <div className="text-xs text-zinc-600 font-medium text-center">Sign in to start</div>
               </div>
 
-              {/* Pro Tier */}
-              <div className="relative p-6 rounded-2xl bg-white/[0.03] border border-[var(--color-primary)]/30 shadow-lg shadow-blue-500/[0.05]">
-                <div className="absolute -top-3 left-6 px-3 py-0.5 rounded-full bg-[var(--color-primary)] text-[10px] font-bold uppercase tracking-widest text-white">Popular</div>
-                <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--color-primary)] mb-4">Pro</div>
+              {/* Early Bird */}
+              <div className="relative p-5 rounded-2xl bg-[#FFD60A]/[0.03] border border-[#FFD60A]/30 shadow-lg shadow-yellow-500/[0.05]">
+                <div className="absolute -top-3 left-5 px-2.5 py-0.5 rounded-full bg-[#FFD60A] text-[9px] font-bold uppercase tracking-widest text-black">Limited</div>
+                <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#FFD60A] mb-3">Early Bird</div>
                 <div className="flex items-baseline gap-1 mb-1">
-                  <span className="text-4xl font-black text-white">$29</span>
-                  <span className="text-sm text-zinc-500">/mo</span>
+                  <span className="text-3xl font-black text-white">$14</span>
+                  <span className="text-xs text-zinc-500">/mo</span>
+                  <span className="text-xs text-zinc-600 line-through ml-1">$29</span>
                 </div>
-                <p className="text-xs text-zinc-500 mb-6">Unlimited generations</p>
-                <ul className="space-y-2.5 text-[13px] text-zinc-300 mb-6">
-                  {['Everything in Free', 'Unlimited generations', 'Virtual twilight', 'Sky replacement', 'Batch processing (25+)', 'MLS-ready export + zip', 'AI listing descriptions', 'Priority rendering'].map((f) => (
-                    <li key={f} className="flex items-start gap-2.5">
-                      <Check size={14} className="text-[var(--color-primary)] mt-0.5 shrink-0" />
+                <p className="text-[10px] text-zinc-500 mb-4">Unlimited + referral code</p>
+                <ul className="space-y-2 text-[12px] text-zinc-300">
+                  {['Everything unlimited', 'Locked-in rate forever', 'Referral code (5 uses)', 'Friends get your rate'].map((f) => (
+                    <li key={f} className="flex items-start gap-2">
+                      <Check size={12} className="text-[#FFD60A] mt-0.5 shrink-0" />
                       {f}
                     </li>
                   ))}
                 </ul>
-                <div className="text-xs text-zinc-500 font-medium text-center">Cancel anytime — powered by Stripe</div>
               </div>
+
+              {/* Pro */}
+              <div className="relative p-5 rounded-2xl bg-white/[0.03] border border-[var(--color-primary)]/30 shadow-lg shadow-blue-500/[0.05]">
+                <div className="absolute -top-3 left-5 px-2.5 py-0.5 rounded-full bg-[var(--color-primary)] text-[9px] font-bold uppercase tracking-widest text-white">Standard</div>
+                <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--color-primary)] mb-3">Pro</div>
+                <div className="flex items-baseline gap-1 mb-1">
+                  <span className="text-3xl font-black text-white">$29</span>
+                  <span className="text-xs text-zinc-500">/mo</span>
+                </div>
+                <p className="text-[10px] text-zinc-500 mb-4">Unlimited generations</p>
+                <ul className="space-y-2 text-[12px] text-zinc-300">
+                  {['Everything unlimited', 'Batch processing', 'All special modes', 'Priority rendering'].map((f) => (
+                    <li key={f} className="flex items-start gap-2">
+                      <Check size={12} className="text-[var(--color-primary)] mt-0.5 shrink-0" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            {/* Brokerage Plans */}
+            <div className="text-center mb-6">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Brokerage Plans</p>
+              <p className="text-xs text-zinc-600 mt-1">Give your whole team Pro access at a discount</p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto">
+              {[
+                { name: 'Team', agents: 5, price: 119, perAgent: '~$24', save: '17%' },
+                { name: 'Brokerage', agents: 15, price: 299, perAgent: '~$20', save: '31%', popular: true },
+                { name: 'Enterprise', agents: 40, price: 699, perAgent: '~$17', save: '41%' },
+              ].map((tier) => (
+                <div
+                  key={tier.name}
+                  className={`p-5 rounded-2xl border ${
+                    tier.popular
+                      ? 'bg-white/[0.03] border-[var(--color-primary)]/30 shadow-lg shadow-blue-500/[0.05] relative'
+                      : 'bg-white/[0.02] border-white/[0.08]'
+                  }`}
+                >
+                  {tier.popular && (
+                    <div className="absolute -top-3 left-5 px-2.5 py-0.5 rounded-full bg-[var(--color-primary)] text-[9px] font-bold uppercase tracking-widest text-white">Popular</div>
+                  )}
+                  <div className={`text-[11px] font-bold uppercase tracking-[0.2em] mb-3 ${tier.popular ? 'text-[var(--color-primary)]' : 'text-zinc-500'}`}>{tier.name}</div>
+                  <div className="flex items-baseline gap-1 mb-1">
+                    <span className="text-3xl font-black text-white">${tier.price}</span>
+                    <span className="text-xs text-zinc-500">/mo</span>
+                  </div>
+                  <p className="text-[10px] text-zinc-500 mb-1">Up to {tier.agents} agents</p>
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-[10px] text-zinc-500">{tier.perAgent}/agent</span>
+                    <span className="text-[10px] font-semibold text-[#30D158]">Save {tier.save}</span>
+                  </div>
+                  <ul className="space-y-2 text-[12px] text-zinc-300">
+                    {['All Pro features per agent', 'Admin dashboard', 'Add/remove agents', 'Centralized billing'].map((f) => (
+                      <li key={f} className="flex items-start gap-2">
+                        <Check size={12} className={`mt-0.5 shrink-0 ${tier.popular ? 'text-[var(--color-primary)]' : 'text-zinc-600'}`} />
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
             </div>
           </div>
         </section>
@@ -999,28 +1098,66 @@ const App: React.FC = () => {
           <div className="modal-panel w-full max-w-md rounded-2xl p-8 animate-scale-in">
             <div className="flex items-start justify-between mb-6">
               <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[rgba(10,132,255,0.15)] text-[var(--color-primary)]">
+                <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${referralPrice ? 'bg-[rgba(255,214,10,0.15)] text-[#FFD60A]' : 'bg-[rgba(10,132,255,0.15)] text-[var(--color-primary)]'}`}>
                   <Crown size={22} />
                 </div>
                 <div>
                   <h2 className="font-display text-xl font-bold text-white">Upgrade to Pro</h2>
-                  <p className="text-xs text-zinc-400">Unlimited AI generations</p>
+                  <p className="text-xs text-zinc-400">
+                    {referralPrice ? 'Referred — special rate locked in forever' : 'Unlimited AI generations'}
+                  </p>
                 </div>
               </div>
               <button type="button" onClick={() => setShowUpgradeModal(false)} className="rounded-lg p-1.5 text-zinc-400 transition hover:bg-[var(--color-bg)]">
                 <X size={16} />
               </button>
             </div>
-            <div className="mb-6 rounded-xl border border-[rgba(10,132,255,0.3)] bg-[rgba(10,132,255,0.08)] p-4">
-              <div className="flex items-baseline gap-1 mb-3">
-                <span className="text-3xl font-black text-white">$29</span>
+            <div className={`mb-6 rounded-xl border p-4 ${referralPrice ? 'border-[#FFD60A]/30 bg-[#FFD60A]/[0.06]' : 'border-[rgba(10,132,255,0.3)] bg-[rgba(10,132,255,0.08)]'}`}>
+              <div className="flex items-baseline gap-1 mb-1">
+                <span className="text-3xl font-black text-white">${referralPrice ? (referralPrice / 100).toFixed(0) : '29'}</span>
                 <span className="text-sm text-zinc-400">/month</span>
+                {referralPrice && <span className="text-sm text-zinc-600 line-through ml-1">$29</span>}
               </div>
+              {referralPrice && referralCode && (
+                <p className="text-[10px] text-[#FFD60A] font-semibold">Referral code {referralCode} applied</p>
+              )}
             </div>
-            <button type="button" onClick={() => { setShowUpgradeModal(false); subscription.startCheckout(googleUser?.sub || ''); }} className="cta-primary w-full rounded-xl py-3.5 text-sm font-bold flex items-center justify-center gap-2">
-              <CreditCard size={16} /> Start Pro Plan
+            <button
+              type="button"
+              onClick={async () => {
+                setShowUpgradeModal(false);
+                if (referralPrice && referralCode) {
+                  // Use referral code + checkout at discount
+                  await fetch('/api/referral', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      action: 'use_code',
+                      code: referralCode,
+                      email: googleUser?.email,
+                    }),
+                  });
+                  const res = await fetch('/api/referral', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      action: 'checkout',
+                      email: googleUser?.email,
+                      userId: googleUser?.sub,
+                      price: referralPrice,
+                      returnUrl: window.location.origin,
+                    }),
+                  }).then(r => r.json());
+                  if (res.url) window.location.href = res.url;
+                } else {
+                  subscription.startCheckout(googleUser?.sub || '');
+                }
+              }}
+              className="cta-primary w-full rounded-xl py-3.5 text-sm font-bold flex items-center justify-center gap-2"
+            >
+              <CreditCard size={16} /> {referralPrice ? `Start Pro — $${(referralPrice / 100).toFixed(0)}/mo` : 'Start Pro Plan'}
             </button>
-            <p className="mt-3 text-center text-[10px] text-zinc-500">Cancel anytime. Powered by Stripe.</p>
+            <p className="mt-3 text-center text-[10px] text-zinc-500">Cancel anytime. Rate locked in forever. Powered by Stripe.</p>
           </div>
         </div>
       )}
@@ -1055,6 +1192,11 @@ const App: React.FC = () => {
             {/* Brand Kit Settings */}
             <div className="mt-5 border-t border-[var(--color-border)] pt-5">
               <BrandKit />
+            </div>
+
+            {/* Referral Program */}
+            <div className="mt-5 border-t border-[var(--color-border)] pt-5">
+              <ReferralDashboard userEmail={googleUser.email} userId={googleUser.sub} />
             </div>
 
             {/* Manage Team / Brokerage */}

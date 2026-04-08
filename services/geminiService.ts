@@ -413,6 +413,7 @@ export const sendMessageToChat = async (chat: Chat, message: string, currentImag
 export const virtualTwilight = async (imageBase64: string): Promise<string> => {
   const ai = getAI();
   const clean = cleanBase64(imageBase64);
+  const detectedRatio = await detectAspectRatioFromBase64(clean);
 
   const response = await ai.models.generateContent({
     model: 'gemini-3.1-flash-image-preview',
@@ -420,26 +421,42 @@ export const virtualTwilight = async (imageBase64: string): Promise<string> => {
       {
         parts: [
           {
-            text: `Convert this daytime exterior real estate photo to a natural twilight / golden-hour dusk look.
+            text: `Convert this daytime exterior real estate photo to a natural twilight / dusk look.
 
-        DO:
-        - Replace the sky with a realistic sunset gradient (deep blue up top fading to warm orange/gold at the horizon)
-        - Shift the overall ambient light to match golden hour — warmer tones, softer shadows
-        - Make windows that are already visible glow with warm interior light
-        - If exterior lights (porch lights, sconces, garage lights) already exist in the photo, turn them on
+THIS IS A LIGHTING-ONLY EDIT. You are changing ONLY the sky and ambient light.
 
-        DO NOT:
-        - Do NOT add any lights, fixtures, or light sources that are not already in the photo
-        - Do NOT add pathway lighting, landscape uplighting, bush lights, string lights, or any new objects
-        - Do NOT change the architecture, landscaping, driveway, walkways, or any physical elements
-        - Do NOT add or remove any objects — only change the lighting and sky
+DO (lighting changes only):
+- Replace the sky with a realistic dusk gradient (deep blue to warm orange at horizon)
+- Shift ambient light to golden hour — warmer tones, softer shadows
+- Make windows that are ALREADY VISIBLE glow with warm interior light
+- If exterior lights (porch lights, sconces) ALREADY EXIST in the photo, turn them on
 
-        The result should look like the same photo taken 30 minutes before sunset, not a digitally enhanced version.`
+ABSOLUTE PROHIBITIONS — ZERO TOLERANCE:
+- Do NOT add ANY new objects. Nothing. Not a single item that is not already in the photo.
+- Do NOT add pathway lights, landscape lights, uplights, string lights, lanterns, potted plants, bushes, furniture, planters, or decorative items.
+- Do NOT add door handles, house numbers, mailboxes, welcome mats, or any detail not already present.
+- Do NOT change the landscaping, yard, driveway, walkways, fencing, or any physical surface.
+- Do NOT change, add, or remove any architectural element — windows, doors, trim, siding, roof.
+- Do NOT improve or "fix" anything about the house. It must be IDENTICAL except for lighting/sky.
+
+FRAMING:
+- Do NOT zoom in. Maintain the EXACT same framing, crop, and field of view. Camera is locked.
+
+Count the objects in the original. The output must have the EXACT same number of objects. If you added anything, you failed.
+
+The result should look like the SAME photo taken at dusk — nothing added, nothing removed, nothing changed except light and sky.`
           },
           { inlineData: { mimeType: 'image/jpeg', data: clean } },
         ],
       }
     ],
+    config: {
+      imageConfig: {
+        imageSize: "2K",
+        aspectRatio: detectedRatio,
+        numberOfImages: 1,
+      },
+    },
   });
 
   const image = extractImageFromResponse(response);

@@ -1227,6 +1227,62 @@ const App: React.FC = () => {
               </div>
             )}
 
+            {/* Billing Management — hide for admin accounts */}
+            {!googleUser.email.endsWith('@averyandbryant.com') && (
+              <div className="mt-5 border-t border-[var(--color-border)] pt-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <CreditCard size={16} className="text-[var(--color-primary)]" />
+                    <h4 className="text-sm font-semibold text-[var(--color-ink)]">Billing</h4>
+                  </div>
+                  <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
+                    subscription.plan === 'pro'
+                      ? 'bg-[var(--color-primary)]/15 text-[var(--color-primary)] border border-[var(--color-primary)]/30'
+                      : 'bg-zinc-800 text-zinc-400 border border-zinc-700'
+                  }`}>
+                    {subscription.plan === 'pro' ? 'Pro' : 'Free'}
+                  </span>
+                </div>
+                {subscription.plan === 'pro' ? (
+                  <div className="space-y-2">
+                    <p className="text-xs text-[var(--color-text)]/70">
+                      Unlimited generations. {subscription.currentPeriodEnd
+                        ? `Renews ${new Date(subscription.currentPeriodEnd * 1000).toLocaleDateString()}`
+                        : ''}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const res = await fetch('/api/stripe-portal', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ email: googleUser.email, returnUrl: window.location.origin }),
+                        }).then(r => r.json());
+                        if (res.url) window.open(res.url, '_blank');
+                      }}
+                      className="w-full rounded-xl px-3 py-2.5 text-xs font-semibold bg-white/5 text-[var(--color-text)] border border-[var(--color-border)] hover:bg-white/10 transition inline-flex items-center justify-center gap-2"
+                    >
+                      <CreditCard size={13} /> Manage Billing
+                    </button>
+                    <p className="text-[9px] text-[var(--color-text)]/40 text-center">Update payment method, view invoices, or cancel</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-xs text-[var(--color-text)]/70">
+                      {subscription.generationsUsed}/{subscription.generationsLimit} generations used this month
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => { setShowAccessPanel(false); setShowUpgradeModal(true); }}
+                      className="w-full rounded-xl px-3 py-2.5 text-xs font-bold bg-[var(--color-primary)] text-white hover:opacity-90 transition inline-flex items-center justify-center gap-2"
+                    >
+                      <Crown size={13} /> Upgrade to Pro
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             <button
               type="button"
               onClick={() => { handleSignOut(); setShowAccessPanel(false); }}

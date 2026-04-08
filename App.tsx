@@ -808,21 +808,42 @@ const App: React.FC = () => {
           </div>
         </section>
 
-        {/* ─── Before/After Placeholder ─── */}
-        <section className="px-5 sm:px-8 lg:px-12 py-16 border-t border-white/[0.04]">
-          <div className="max-w-4xl mx-auto text-center">
-            <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[var(--color-primary)] mb-3">See the Difference</p>
-            <h2 className="font-display text-2xl sm:text-3xl font-black text-white tracking-tight mb-4">Before & After</h2>
-            <p className="text-sm text-zinc-500 mb-10">Real photos staged by StudioAI agents. Drag to compare.</p>
-            {/* Before/after images will go here — placeholder for now */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <div className="aspect-[4/3] rounded-xl bg-zinc-900 border border-white/[0.06] flex items-center justify-center">
-                <span className="text-zinc-700 text-sm font-semibold">Before photo coming soon</span>
-              </div>
-              <div className="aspect-[4/3] rounded-xl bg-zinc-900 border border-[var(--color-primary)]/20 flex items-center justify-center">
-                <span className="text-zinc-700 text-sm font-semibold">After photo coming soon</span>
-              </div>
+        {/* ─── Before/After Showcase ─── */}
+        <section className="px-5 sm:px-8 lg:px-12 py-20 sm:py-28 border-t border-white/[0.04]">
+          <div className="max-w-5xl mx-auto">
+            <div className="text-center mb-12">
+              <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[var(--color-primary)] mb-3">See the Difference</p>
+              <h2 className="font-display text-2xl sm:text-4xl font-black text-white tracking-tight">Day to Dusk. One Click.</h2>
             </div>
+
+            <div className="relative rounded-2xl overflow-hidden border border-white/[0.08] shadow-2xl shadow-black/50">
+              <div className="grid grid-cols-2">
+                <div className="relative">
+                  <img
+                    src="/showcase-dusk-before.jpg"
+                    alt="Before — daytime exterior"
+                    className="w-full aspect-[4/3] object-cover"
+                  />
+                  <div className="absolute bottom-3 left-3 sm:bottom-4 sm:left-4 px-3 py-1 rounded-full bg-black/70 backdrop-blur-md text-[10px] font-bold uppercase tracking-wider text-white">
+                    Before
+                  </div>
+                </div>
+                <div className="relative">
+                  <img
+                    src="/showcase-dusk-after.png"
+                    alt="After — AI twilight conversion"
+                    className="w-full aspect-[4/3] object-cover"
+                  />
+                  <div className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 px-3 py-1 rounded-full bg-[var(--color-primary)]/80 backdrop-blur-md text-[10px] font-bold uppercase tracking-wider text-white">
+                    After — AI Twilight
+                  </div>
+                </div>
+              </div>
+              {/* Center divider */}
+              <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[2px] bg-white/30" />
+            </div>
+
+            <p className="text-center text-xs text-zinc-600 mt-4">Real listing photo processed by StudioAI in under 15 seconds</p>
           </div>
         </section>
 

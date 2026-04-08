@@ -850,7 +850,7 @@ const App: React.FC = () => {
             {/* Early Bird + Pro side by side */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl mx-auto mb-20">
               {/* Early Bird */}
-              <div className="relative p-8 rounded-2xl bg-[#FFD60A]/[0.03] border border-[#FFD60A]/20">
+              <div className="relative p-8 rounded-2xl bg-[#FFD60A]/[0.03] border border-[#FFD60A]/20 flex flex-col">
                 <div className="absolute -top-3 left-6 px-3 py-0.5 rounded-full bg-[#FFD60A] text-[9px] font-bold uppercase tracking-widest text-black">First 20 Users</div>
                 <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#FFD60A] mb-4">Early Bird</div>
                 <div className="flex items-baseline gap-1 mb-1">
@@ -859,7 +859,7 @@ const App: React.FC = () => {
                   <span className="text-sm text-zinc-600 line-through ml-2">$29</span>
                 </div>
                 <p className="text-xs text-zinc-500 mb-6">Unlimited. Locked in forever.</p>
-                <ul className="space-y-3 text-[13px] text-zinc-300">
+                <ul className="space-y-3 text-[13px] text-zinc-300 mb-8">
                   {['All features, unlimited', 'Rate never increases', 'Referral code (5 uses)', 'Friends get your rate too'].map((f) => (
                     <li key={f} className="flex items-start gap-2.5">
                       <Check size={14} className="text-[#FFD60A] mt-0.5 shrink-0" />
@@ -867,17 +867,22 @@ const App: React.FC = () => {
                     </li>
                   ))}
                 </ul>
+                <div className="mt-auto" ref={(el) => {
+                  if (el && (window as any).google?.accounts?.id) {
+                    (window as any).google.accounts.id.renderButton(el, { theme: 'outline', size: 'large', shape: 'pill', text: 'continue_with', width: el.offsetWidth });
+                  }
+                }} />
               </div>
 
               {/* Pro */}
-              <div className="relative p-8 rounded-2xl bg-white/[0.02] border border-white/[0.08]">
+              <div className="relative p-8 rounded-2xl bg-white/[0.02] border border-white/[0.08] flex flex-col">
                 <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-4">Pro</div>
                 <div className="flex items-baseline gap-1 mb-1">
                   <span className="text-5xl font-black text-white">$29</span>
                   <span className="text-sm text-zinc-500">/mo</span>
                 </div>
                 <p className="text-xs text-zinc-500 mb-6">Unlimited generations.</p>
-                <ul className="space-y-3 text-[13px] text-zinc-400">
+                <ul className="space-y-3 text-[13px] text-zinc-400 mb-8">
                   {['All features, unlimited', 'Batch processing', 'All special modes', 'Priority rendering'].map((f) => (
                     <li key={f} className="flex items-start gap-2.5">
                       <Check size={14} className="text-zinc-600 mt-0.5 shrink-0" />
@@ -885,6 +890,11 @@ const App: React.FC = () => {
                     </li>
                   ))}
                 </ul>
+                <div className="mt-auto" ref={(el) => {
+                  if (el && (window as any).google?.accounts?.id) {
+                    (window as any).google.accounts.id.renderButton(el, { theme: 'outline', size: 'large', shape: 'pill', text: 'continue_with', width: el.offsetWidth });
+                  }
+                }} />
               </div>
             </div>
 
@@ -905,6 +915,37 @@ const App: React.FC = () => {
                   <p className="text-lg font-black text-white">{tier.price}</p>
                   <p className="text-[10px] text-zinc-500">{tier.agents} · {tier.per}</p>
                 </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ─── FAQ ─── */}
+        <section id="faq" className="px-5 sm:px-8 lg:px-12 py-24 sm:py-32 scroll-mt-20">
+          <div className="max-w-2xl mx-auto">
+            <h2 className="font-display text-2xl sm:text-3xl font-black text-white tracking-tight mb-10 text-center">Common Questions</h2>
+            <div className="space-y-4">
+              {[
+                {
+                  q: 'Is this real staging or just overlays?',
+                  a: 'Real AI-generated staging. StudioAI uses Gemini to create photorealistic furniture and decor tailored to each room. No templates, no overlays.',
+                },
+                {
+                  q: 'Will MLS boards accept these photos?',
+                  a: 'Yes. Exports are sized for Zillow, Realtor.com, and ARMLS with EXIF data stripped. You can add a "Virtually Staged" watermark for compliance.',
+                },
+                {
+                  q: 'Can I cancel anytime?',
+                  a: 'Yes. No contracts, no cancellation fees. Your account reverts to free at the end of your billing period. Early bird rates are locked in forever.',
+                },
+              ].map((item) => (
+                <details key={item.q} className="group rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
+                  <summary className="flex items-center justify-between p-5 cursor-pointer text-sm font-semibold text-white hover:text-[var(--color-primary)] transition-colors list-none [&::-webkit-details-marker]:hidden">
+                    {item.q}
+                    <ChevronDown size={16} className="text-zinc-500 transition-transform group-open:rotate-180 shrink-0 ml-4" />
+                  </summary>
+                  <div className="px-5 pb-5 text-[13px] text-zinc-400 leading-relaxed -mt-1">{item.a}</div>
+                </details>
               ))}
             </div>
           </div>

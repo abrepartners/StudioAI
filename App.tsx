@@ -247,6 +247,18 @@ const App: React.FC = () => {
     }
   }, [googleUser, handleGoogleCredential]);
 
+  const triggerGoogleSignIn = useCallback(() => {
+    const google = (window as any).google;
+    if (google?.accounts?.id) {
+      google.accounts.id.prompt((notification: any) => {
+        // If prompt was dismissed or skipped, fall back to the rendered button click
+        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+          googleButtonRef.current?.querySelector('div[role="button"]')?.click();
+        }
+      });
+    }
+  }, []);
+
   const handleSignOut = useCallback(() => {
     setGoogleUser(null);
     localStorage.removeItem(AUTH_STORAGE_KEY);
@@ -696,7 +708,15 @@ const App: React.FC = () => {
             <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
             <a href="#faq" className="hover:text-white transition-colors">FAQ</a>
           </div>
-          <div ref={googleButtonRef} className="[&>div]:!border-0 [&>div]:!shadow-none" />
+          <button
+            type="button"
+            onClick={triggerGoogleSignIn}
+            className="hidden sm:inline-flex items-center gap-2 px-5 py-2 rounded-full bg-white text-black text-sm font-semibold hover:bg-zinc-200 transition-all"
+          >
+            Get Started Free
+          </button>
+          {/* Hidden Google button for fallback */}
+          <div ref={googleButtonRef} className="hidden" />
         </nav>
 
         {/* ─── Hero ─── */}
@@ -727,7 +747,14 @@ const App: React.FC = () => {
             </p>
 
             <div className="flex flex-col sm:flex-row items-center gap-4 mb-16 animate-fade-in" style={{ animationDelay: '0.3s' }}>
-              <div ref={googleButtonRef} className="[&>div]:!border-0 [&>div]:!shadow-none" />
+              <button
+                type="button"
+                onClick={triggerGoogleSignIn}
+                className="inline-flex items-center gap-2.5 px-8 py-4 rounded-xl bg-white text-black text-base font-bold hover:bg-zinc-200 transition-all shadow-lg shadow-white/10"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+                Start Free with Google
+              </button>
               <a href="#pricing" className="text-sm font-semibold text-zinc-400 hover:text-white transition-colors">
                 View Pricing
               </a>
@@ -896,11 +923,13 @@ const App: React.FC = () => {
                     </li>
                   ))}
                 </ul>
-                <div className="mt-auto" ref={(el) => {
-                  if (el && (window as any).google?.accounts?.id) {
-                    (window as any).google.accounts.id.renderButton(el, { theme: 'outline', size: 'large', shape: 'pill', text: 'continue_with', width: el.offsetWidth });
-                  }
-                }} />
+                <button
+                  type="button"
+                  onClick={triggerGoogleSignIn}
+                  className="mt-auto w-full py-3 rounded-xl bg-[#FFD60A] text-black text-sm font-bold hover:bg-[#FFD60A]/90 transition-all"
+                >
+                  Claim Early Bird
+                </button>
               </div>
 
               {/* Pro */}
@@ -919,11 +948,13 @@ const App: React.FC = () => {
                     </li>
                   ))}
                 </ul>
-                <div className="mt-auto" ref={(el) => {
-                  if (el && (window as any).google?.accounts?.id) {
-                    (window as any).google.accounts.id.renderButton(el, { theme: 'outline', size: 'large', shape: 'pill', text: 'continue_with', width: el.offsetWidth });
-                  }
-                }} />
+                <button
+                  type="button"
+                  onClick={triggerGoogleSignIn}
+                  className="mt-auto w-full py-3 rounded-xl bg-white/10 text-white text-sm font-bold hover:bg-white/20 transition-all border border-white/10"
+                >
+                  Get Started
+                </button>
               </div>
             </div>
 
@@ -990,18 +1021,15 @@ const App: React.FC = () => {
               Professional results in seconds — not days.
             </p>
             <div className="inline-flex flex-col items-center gap-3">
-              <div ref={(el) => {
-                if (el && (window as any).google?.accounts?.id) {
-                  (window as any).google.accounts.id.renderButton(el, {
-                    theme: 'filled_black',
-                    size: 'large',
-                    shape: 'pill',
-                    text: 'continue_with',
-                    width: 280,
-                  });
-                }
-              }} />
-              <p className="text-[11px] text-zinc-600">Free to start. No credit card required.</p>
+              <button
+                type="button"
+                onClick={triggerGoogleSignIn}
+                className="inline-flex items-center gap-2.5 px-10 py-4 rounded-xl bg-white text-black text-base font-bold hover:bg-zinc-200 transition-all shadow-lg shadow-white/10"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+                Start Free with Google
+              </button>
+              <p className="text-[11px] text-zinc-600">No credit card required</p>
             </div>
           </div>
         </section>

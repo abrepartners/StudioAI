@@ -13,6 +13,7 @@ import SpecialModesPanel from './components/SpecialModesPanel';
 import BrandKit from './components/BrandKit';
 import ManageTeam from './components/ManageTeam';
 import ReferralDashboard from './components/ReferralDashboard';
+import QuickStartTutorial from './components/QuickStartTutorial';
 // Removed for Phase 2: ColorAnalysis, ChatInterface, StyleAdvisor, QualityScore, ListingDashboard, BetaFeedbackForm, MLSExport (inline)
 import {
   ColorData,
@@ -67,6 +68,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Plus,
+  HelpCircle,
 } from 'lucide-react';
 import { Analytics } from '@vercel/analytics/react';
 
@@ -160,6 +162,7 @@ const App: React.FC = () => {
   // ─── Subscription State ─────────────────────────────────────────────────
   const subscription = useSubscription(googleUser?.email || null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [referralPrice, setReferralPrice] = useState<number | null>(null);
 
@@ -1091,8 +1094,12 @@ const App: React.FC = () => {
 
   return (
     <div className="studio-shell h-[100dvh] overflow-hidden flex flex-col">
-      
 
+      {/* Quick Start Tutorial */}
+      <QuickStartTutorial
+        forceShow={showTutorial}
+        onClose={() => setShowTutorial(false)}
+      />
 
       {showUpgradeModal && (
         <div className="fixed inset-0 z-[100] grid place-items-center modal-overlay p-4 animate-fade-in">
@@ -1364,6 +1371,14 @@ const App: React.FC = () => {
               title={sessionQueue.length > 1 ? "Remove this photo" : "Start over"}
             >
               <RefreshCcw size={15} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowTutorial(true)}
+              className="rounded-lg p-1.5 text-[var(--color-text)] hover:bg-[var(--color-bg)] transition"
+              title="Quick start guide"
+            >
+              <HelpCircle size={15} />
             </button>
             <button
               type="button"

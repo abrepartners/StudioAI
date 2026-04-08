@@ -696,7 +696,7 @@ const App: React.FC = () => {
             <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
             <a href="#faq" className="hover:text-white transition-colors">FAQ</a>
           </div>
-          <div ref={googleButtonRef} className="scale-90 origin-right" />
+          <div ref={googleButtonRef} className="[&>div]:!border-0 [&>div]:!shadow-none" />
         </nav>
 
         {/* ─── Hero ─── */}
@@ -726,8 +726,11 @@ const App: React.FC = () => {
               sky replacements, and smart cleanup — from one AI workspace.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 mb-16 animate-fade-in" style={{ animationDelay: '0.3s' }}>
-              <div ref={googleButtonRef} className="scale-100 origin-left" />
+            <div className="flex flex-col sm:flex-row items-center gap-4 mb-16 animate-fade-in" style={{ animationDelay: '0.3s' }}>
+              <div ref={googleButtonRef} className="[&>div]:!border-0 [&>div]:!shadow-none" />
+              <a href="#pricing" className="text-sm font-semibold text-zinc-400 hover:text-white transition-colors">
+                View Pricing
+              </a>
             </div>
 
             <div className="flex flex-wrap gap-8 sm:gap-14 animate-fade-in" style={{ animationDelay: '0.4s' }}>
@@ -758,15 +761,41 @@ const App: React.FC = () => {
         </section>
 
         {/* ─── Social Proof ─── */}
-        <section className="px-5 sm:px-8 lg:px-12 py-12">
-          <p className="text-center text-[10px] font-bold uppercase tracking-[0.25em] text-zinc-600 mb-6">Built for real estate professionals</p>
-          <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-3 text-zinc-500 text-sm font-semibold">
-            {['Agents', 'Brokerages', 'Property Managers', 'Photographers', 'Home Stagers'].map((item) => (
-              <span key={item} className="flex items-center gap-2">
-                <div className="w-1 h-1 rounded-full bg-zinc-600" />
-                {item}
-              </span>
-            ))}
+        <section className="px-5 sm:px-8 lg:px-12 py-16">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex flex-wrap items-center justify-center gap-10 sm:gap-16 mb-8">
+              {[
+                { value: '500+', label: 'Photos Staged' },
+                { value: '50+', label: 'Agents Using It' },
+                { value: '10s', label: 'Avg. Render Time' },
+              ].map((stat) => (
+                <div key={stat.label} className="text-center">
+                  <div className="text-2xl font-black text-white">{stat.value}</div>
+                  <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-zinc-600 mt-1">{stat.label}</div>
+                </div>
+              ))}
+            </div>
+            <p className="text-center text-[10px] font-bold uppercase tracking-[0.25em] text-zinc-700">
+              Trusted by agents, brokerages, photographers, and home stagers
+            </p>
+          </div>
+        </section>
+
+        {/* ─── Before/After Placeholder ─── */}
+        <section className="px-5 sm:px-8 lg:px-12 py-16 border-t border-white/[0.04]">
+          <div className="max-w-4xl mx-auto text-center">
+            <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[var(--color-primary)] mb-3">See the Difference</p>
+            <h2 className="font-display text-2xl sm:text-3xl font-black text-white tracking-tight mb-4">Before & After</h2>
+            <p className="text-sm text-zinc-500 mb-10">Real photos staged by StudioAI agents. Drag to compare.</p>
+            {/* Before/after images will go here — placeholder for now */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="aspect-[4/3] rounded-xl bg-zinc-900 border border-white/[0.06] flex items-center justify-center">
+                <span className="text-zinc-700 text-sm font-semibold">Before photo coming soon</span>
+              </div>
+              <div className="aspect-[4/3] rounded-xl bg-zinc-900 border border-[var(--color-primary)]/20 flex items-center justify-center">
+                <span className="text-zinc-700 text-sm font-semibold">After photo coming soon</span>
+              </div>
+            </div>
           </div>
         </section>
 

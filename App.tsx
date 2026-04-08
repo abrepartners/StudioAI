@@ -811,39 +811,56 @@ const App: React.FC = () => {
         {/* ─── Before/After Showcase ─── */}
         <section className="px-5 sm:px-8 lg:px-12 py-20 sm:py-28 border-t border-white/[0.04]">
           <div className="max-w-5xl mx-auto">
-            <div className="text-center mb-12">
+            <div className="text-center mb-14">
               <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[var(--color-primary)] mb-3">See the Difference</p>
-              <h2 className="font-display text-2xl sm:text-4xl font-black text-white tracking-tight">Day to Dusk. One Click.</h2>
+              <h2 className="font-display text-2xl sm:text-4xl font-black text-white tracking-tight">Real Results. Real Listings.</h2>
             </div>
 
-            <div className="relative rounded-2xl overflow-hidden border border-white/[0.08] shadow-2xl shadow-black/50">
-              <div className="grid grid-cols-2">
-                <div className="relative">
-                  <img
-                    src="/showcase-dusk-before.jpg"
-                    alt="Before — daytime exterior"
-                    className="w-full aspect-[4/3] object-cover"
-                  />
-                  <div className="absolute bottom-3 left-3 sm:bottom-4 sm:left-4 px-3 py-1 rounded-full bg-black/70 backdrop-blur-md text-[10px] font-bold uppercase tracking-wider text-white">
-                    Before
-                  </div>
+            <div className="space-y-8">
+              {/* Day to Dusk */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Sunset size={14} className="text-[#FF9F0A]" />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#FF9F0A]">Day to Dusk</span>
                 </div>
-                <div className="relative">
-                  <img
-                    src="/showcase-dusk-after.png"
-                    alt="After — AI twilight conversion"
-                    className="w-full aspect-[4/3] object-cover"
-                  />
-                  <div className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 px-3 py-1 rounded-full bg-[var(--color-primary)]/80 backdrop-blur-md text-[10px] font-bold uppercase tracking-wider text-white">
-                    After — AI Twilight
+                <div className="relative rounded-2xl overflow-hidden border border-white/[0.08] shadow-2xl shadow-black/50">
+                  <div className="grid grid-cols-2">
+                    <div className="relative">
+                      <img src="/showcase-dusk-before.jpg" alt="Before — daytime exterior" className="w-full aspect-[16/10] object-cover" />
+                      <div className="absolute bottom-3 left-3 px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-md text-[9px] font-bold uppercase tracking-wider text-white">Before</div>
+                    </div>
+                    <div className="relative">
+                      <img src="/showcase-dusk-after.png" alt="After — AI twilight" className="w-full aspect-[16/10] object-cover" />
+                      <div className="absolute bottom-3 right-3 px-2.5 py-1 rounded-full bg-[#FF9F0A]/80 backdrop-blur-md text-[9px] font-bold uppercase tracking-wider text-white">After</div>
+                    </div>
                   </div>
+                  <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[2px] bg-white/20" />
                 </div>
               </div>
-              {/* Center divider */}
-              <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[2px] bg-white/30" />
+
+              {/* Smart Cleanup */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Eraser size={14} className="text-[#30D158]" />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#30D158]">Smart Cleanup</span>
+                </div>
+                <div className="relative rounded-2xl overflow-hidden border border-white/[0.08] shadow-2xl shadow-black/50">
+                  <div className="grid grid-cols-2">
+                    <div className="relative">
+                      <img src="/showcase-cleanup-before.jpg" alt="Before — cluttered yard" className="w-full aspect-[16/10] object-cover" />
+                      <div className="absolute bottom-3 left-3 px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-md text-[9px] font-bold uppercase tracking-wider text-white">Before</div>
+                    </div>
+                    <div className="relative">
+                      <img src="/showcase-cleanup-after.png" alt="After — clean exterior" className="w-full aspect-[16/10] object-cover" />
+                      <div className="absolute bottom-3 right-3 px-2.5 py-1 rounded-full bg-[#30D158]/80 backdrop-blur-md text-[9px] font-bold uppercase tracking-wider text-white">After</div>
+                    </div>
+                  </div>
+                  <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[2px] bg-white/20" />
+                </div>
+              </div>
             </div>
 
-            <p className="text-center text-xs text-zinc-600 mt-4">Real listing photo processed by StudioAI in under 15 seconds</p>
+            <p className="text-center text-xs text-zinc-600 mt-6">Real listing photos processed by StudioAI in under 15 seconds</p>
           </div>
         </section>
 

@@ -734,214 +734,177 @@ const App: React.FC = () => {
         </nav>
 
         {/* ─── Hero ─── */}
-        <section className="relative min-h-[85vh] flex items-center px-5 sm:px-8 lg:px-12 pt-20 pb-20 overflow-hidden">
+        <section className="relative min-h-[90vh] flex items-center px-5 sm:px-8 lg:px-16 pt-24 pb-24 overflow-hidden">
           <div className="absolute inset-0 z-0">
-            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black to-black z-10" />
-            <img
-              src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?q=80&w=2000&auto=format&fit=crop"
-              alt="Luxury home"
-              className="w-full h-full object-cover opacity-30"
-            />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/90 to-black z-10" />
+            <img src="/showcase-dusk-after.png" alt="" className="w-full h-full object-cover opacity-25" />
           </div>
 
-          <div className="relative z-20 max-w-5xl mx-auto w-full">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] mb-8 animate-fade-in">
-              <div className="w-1.5 h-1.5 rounded-full bg-[#30D158] animate-pulse" />
-              <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-400">AI-Powered Real Estate Media</span>
+          <div className="relative z-20 max-w-6xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#FFD60A]/10 border border-[#FFD60A]/20 mb-6 animate-fade-in">
+                <div className="w-1.5 h-1.5 rounded-full bg-[#FFD60A] animate-pulse" />
+                <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#FFD60A]">Early Bird — $14/mo for first 20 users</span>
+              </div>
+
+              <h1 className="font-display text-[clamp(2.5rem,6vw,4.5rem)] font-black leading-[1] tracking-tighter text-white mb-5 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+                The AI workspace<br />for listing media.
+              </h1>
+
+              <p className="text-base sm:text-lg text-zinc-400 max-w-lg mb-8 leading-relaxed animate-fade-in" style={{ animationDelay: '0.2s' }}>
+                Stage rooms. Convert day to dusk. Clean up clutter. Replace skies. Generate MLS copy. Upload your entire listing and work through every photo — all from one tool.
+              </p>
+
+              <div className="flex flex-col sm:flex-row items-start gap-3 mb-10 animate-fade-in" style={{ animationDelay: '0.3s' }}>
+                <button type="button" onClick={triggerGoogleSignIn} className="inline-flex items-center gap-2.5 px-7 py-3.5 rounded-xl bg-white text-black text-sm font-bold hover:bg-zinc-200 transition-all">
+                  <svg width="16" height="16" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+                  Start Free
+                </button>
+                <a href="#pricing" className="inline-flex items-center px-7 py-3.5 rounded-xl text-sm font-semibold text-zinc-400 border border-white/[0.08] hover:border-white/[0.16] hover:text-white transition-all">
+                  View Pricing
+                </a>
+              </div>
+
+              <div className="flex gap-8 animate-fade-in" style={{ animationDelay: '0.4s' }}>
+                {[{ value: '5 free', label: 'No card needed' }, { value: '~15s', label: 'Per render' }, { value: '12+', label: 'Styles' }].map((s) => (
+                  <div key={s.label}>
+                    <div className="text-lg font-black text-white">{s.value}</div>
+                    <div className="text-[9px] font-bold uppercase tracking-[0.15em] text-zinc-600">{s.label}</div>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            <h1 className="font-display text-[clamp(2.8rem,7vw,6rem)] font-black leading-[0.95] tracking-tighter text-white mb-6 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-              Stage Any Room.<br />
-              <span className="bg-gradient-to-r from-[var(--color-primary)] to-[#409CFF] bg-clip-text text-transparent">In Seconds.</span>
-            </h1>
+            {/* Hero Before/After Preview */}
+            <div className="hidden lg:block animate-fade-in" style={{ animationDelay: '0.5s' }}>
+              <div className="relative rounded-2xl overflow-hidden border border-white/[0.08] shadow-2xl">
+                <div className="grid grid-cols-2">
+                  <div className="relative">
+                    <img src="/showcase-dusk-before.jpg" alt="Before" className="w-full aspect-[4/3] object-cover" />
+                    <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full bg-black/70 text-[8px] font-bold uppercase tracking-wider text-white">Before</div>
+                  </div>
+                  <div className="relative">
+                    <img src="/showcase-dusk-after.png" alt="After" className="w-full aspect-[4/3] object-cover" />
+                    <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-full bg-[#FF9F0A]/80 text-[8px] font-bold uppercase tracking-wider text-white">After</div>
+                  </div>
+                </div>
+                <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[2px] bg-white/20" />
+              </div>
+              <p className="text-[10px] text-zinc-600 text-center mt-3">Day to Dusk — processed in 15 seconds</p>
+            </div>
+          </div>
+        </section>
 
-            <p className="text-lg sm:text-xl text-zinc-400 font-light max-w-2xl mb-10 leading-relaxed animate-fade-in" style={{ animationDelay: '0.2s' }}>
-              Upload a listing photo. Get photorealistic staging, twilight conversions,
-              sky replacements, and smart cleanup — from one AI workspace.
-            </p>
-
-            <div className="flex flex-col sm:flex-row items-center gap-4 mb-16 animate-fade-in" style={{ animationDelay: '0.3s' }}>
-              <button
-                type="button"
-                onClick={triggerGoogleSignIn}
-                className="inline-flex items-center gap-2.5 px-8 py-4 rounded-xl bg-white text-black text-base font-bold hover:bg-zinc-200 transition-all shadow-lg shadow-white/10"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-                Start Free with Google
-              </button>
-              <a href="#pricing" className="text-sm font-semibold text-zinc-400 hover:text-white transition-colors">
-                View Pricing
-              </a>
+        {/* ─── What It Does — Feature Blocks ─── */}
+        <section id="features" className="px-5 sm:px-8 lg:px-16 py-24 scroll-mt-20">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-16">
+              <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[var(--color-primary)] mb-3">What StudioAI Does</p>
+              <h2 className="font-display text-3xl sm:text-4xl font-black text-white tracking-tight mb-3">
+                Six tools. One workspace.
+              </h2>
+              <p className="text-sm text-zinc-500 max-w-lg mx-auto">Upload your listing photos and use any combination of AI tools — no switching apps, no waiting for edits.</p>
             </div>
 
-            <div className="flex flex-wrap gap-8 sm:gap-14 animate-fade-in" style={{ animationDelay: '0.4s' }}>
+            {/* Primary Tools — larger cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
               {[
-                { value: '15s', label: 'Average Render' },
-                { value: '12+', label: 'Design Styles' },
-                { value: '4K', label: 'Output Quality' },
-              ].map((stat) => (
-                <div key={stat.label}>
-                  <div className="text-3xl sm:text-4xl font-black text-white">{stat.value}</div>
-                  <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 mt-1">{stat.label}</div>
+                {
+                  icon: <Wand2 size={22} />,
+                  title: 'Virtual Staging',
+                  desc: 'Pick from 12+ design styles — Coastal Modern, Mid-Century, Farmhouse, Minimalist, and more. AI detects the room type and stages with photorealistic furniture.',
+                  accent: '#0A84FF',
+                },
+                {
+                  icon: <Eraser size={22} />,
+                  title: 'Smart Cleanup',
+                  desc: 'Remove personal items, yard clutter, and distractions without touching the furniture or changing colors. The room stays exactly as-is, just cleaner.',
+                  accent: '#30D158',
+                },
+              ].map((f) => (
+                <div key={f.title} className="p-7 rounded-2xl bg-white/[0.02] border border-white/[0.06] hover:border-white/[0.12] transition-all">
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-4" style={{ background: `${f.accent}12`, color: f.accent }}>{f.icon}</div>
+                  <h3 className="text-base font-bold text-white mb-2">{f.title}</h3>
+                  <p className="text-[13px] leading-relaxed text-zinc-500">{f.desc}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Secondary Tools — smaller cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {[
+                { icon: <Sunset size={18} />, title: 'Day to Dusk', desc: 'Twilight conversions with warm window glow', accent: '#FF9F0A' },
+                { icon: <Cloud size={18} />, title: 'Sky Replacement', desc: 'Blue, dramatic, golden, or stormy skies', accent: '#64D2FF' },
+                { icon: <LayoutGrid size={18} />, title: 'Batch Editing', desc: 'Upload 25+ photos, process in parallel', accent: '#FFD60A' },
+                { icon: <FileText size={18} />, title: 'Listing Copy', desc: 'MLS descriptions in 3 tones', accent: '#BF5AF2' },
+              ].map((f) => (
+                <div key={f.title} className="p-5 rounded-xl bg-white/[0.02] border border-white/[0.06] hover:border-white/[0.10] transition-all">
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-3" style={{ background: `${f.accent}10`, color: f.accent }}>{f.icon}</div>
+                  <h3 className="text-[13px] font-bold text-white mb-1">{f.title}</h3>
+                  <p className="text-[11px] leading-relaxed text-zinc-600">{f.desc}</p>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* ─── Early Bird Banner ─── */}
-        <section className="px-5 sm:px-8 lg:px-12 py-6 bg-[#FFD60A]/[0.03] border-y border-[#FFD60A]/10">
-          <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-2 h-2 rounded-full bg-[#FFD60A] animate-pulse" />
-              <p className="text-sm font-bold text-[#FFD60A]">Early Bird Special</p>
-              <p className="text-sm text-zinc-400">First 20 users lock in <span className="text-white font-bold">$14/mo forever</span> + get 5 referral codes</p>
-            </div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-600">Limited Spots</span>
-          </div>
-        </section>
-
-        {/* ─── Social Proof ─── */}
-        <section className="px-5 sm:px-8 lg:px-12 py-16">
+        {/* ─── How It Works ─── */}
+        <section className="px-5 sm:px-8 lg:px-16 py-20 border-t border-white/[0.04]">
           <div className="max-w-4xl mx-auto">
-            <div className="flex flex-wrap items-center justify-center gap-10 sm:gap-16 mb-8">
+            <div className="text-center mb-14">
+              <h2 className="font-display text-2xl sm:text-3xl font-black text-white tracking-tight">How It Works</h2>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
               {[
-                { value: '500+', label: 'Photos Staged' },
-                { value: '50+', label: 'Agents Using It' },
-                { value: '10s', label: 'Avg. Render Time' },
-              ].map((stat) => (
-                <div key={stat.label} className="text-center">
-                  <div className="text-2xl font-black text-white">{stat.value}</div>
-                  <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-zinc-600 mt-1">{stat.label}</div>
+                { step: '01', title: 'Upload', desc: 'Drop in one photo or an entire listing. We auto-detect room types.' },
+                { step: '02', title: 'Edit', desc: 'Pick a tool — stage, cleanup, twilight, sky. Navigate between photos with next/back.' },
+                { step: '03', title: 'Export', desc: 'Download your edited photos. Share the before/after. Done in minutes.' },
+              ].map((item) => (
+                <div key={item.step} className="text-center">
+                  <div className="text-5xl font-black text-white/[0.04] mb-2 font-display">{item.step}</div>
+                  <h3 className="text-base font-bold text-white mb-2">{item.title}</h3>
+                  <p className="text-[13px] text-zinc-500 leading-relaxed">{item.desc}</p>
                 </div>
               ))}
             </div>
-            <p className="text-center text-[10px] font-bold uppercase tracking-[0.25em] text-zinc-700">
-              Trusted by agents, brokerages, photographers, and home stagers
-            </p>
           </div>
         </section>
 
         {/* ─── Before/After Showcase ─── */}
-        <section className="px-5 sm:px-8 lg:px-12 py-20 sm:py-28 border-t border-white/[0.04]">
+        <section className="px-5 sm:px-8 lg:px-16 py-20 border-t border-white/[0.04]">
           <div className="max-w-5xl mx-auto">
-            <div className="text-center mb-14">
-              <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[var(--color-primary)] mb-3">See the Difference</p>
-              <h2 className="font-display text-2xl sm:text-4xl font-black text-white tracking-tight">Real Results. Real Listings.</h2>
+            <div className="text-center mb-12">
+              <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[var(--color-primary)] mb-3">Real Results</p>
+              <h2 className="font-display text-2xl sm:text-3xl font-black text-white tracking-tight">From actual listings. Not mockups.</h2>
             </div>
 
-            <div className="space-y-8">
-              {/* Day to Dusk */}
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <Sunset size={14} className="text-[#FF9F0A]" />
-                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#FF9F0A]">Day to Dusk</span>
-                </div>
-                <div className="relative rounded-2xl overflow-hidden border border-white/[0.08] shadow-2xl shadow-black/50">
-                  <div className="grid grid-cols-2">
-                    <div className="relative">
-                      <img src="/showcase-dusk-before.jpg" alt="Before — daytime exterior" className="w-full aspect-[16/10] object-cover" />
-                      <div className="absolute bottom-3 left-3 px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-md text-[9px] font-bold uppercase tracking-wider text-white">Before</div>
-                    </div>
-                    <div className="relative">
-                      <img src="/showcase-dusk-after.png" alt="After — AI twilight" className="w-full aspect-[16/10] object-cover" />
-                      <div className="absolute bottom-3 right-3 px-2.5 py-1 rounded-full bg-[#FF9F0A]/80 backdrop-blur-md text-[9px] font-bold uppercase tracking-wider text-white">After</div>
-                    </div>
-                  </div>
-                  <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[2px] bg-white/20" />
-                </div>
-              </div>
-
-              {/* Smart Cleanup */}
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <Eraser size={14} className="text-[#30D158]" />
-                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#30D158]">Smart Cleanup</span>
-                </div>
-                <div className="relative rounded-2xl overflow-hidden border border-white/[0.08] shadow-2xl shadow-black/50">
-                  <div className="grid grid-cols-2">
-                    <div className="relative">
-                      <img src="/showcase-cleanup-before.jpg" alt="Before — cluttered yard" className="w-full aspect-[16/10] object-cover" />
-                      <div className="absolute bottom-3 left-3 px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-md text-[9px] font-bold uppercase tracking-wider text-white">Before</div>
-                    </div>
-                    <div className="relative">
-                      <img src="/showcase-cleanup-after.png" alt="After — clean exterior" className="w-full aspect-[16/10] object-cover" />
-                      <div className="absolute bottom-3 right-3 px-2.5 py-1 rounded-full bg-[#30D158]/80 backdrop-blur-md text-[9px] font-bold uppercase tracking-wider text-white">After</div>
-                    </div>
-                  </div>
-                  <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[2px] bg-white/20" />
-                </div>
-              </div>
-            </div>
-
-            <p className="text-center text-xs text-zinc-600 mt-6">Real listing photos processed by StudioAI in under 15 seconds</p>
-          </div>
-        </section>
-
-        {/* ─── Features Grid ─── */}
-        <section id="features" className="px-5 sm:px-8 lg:px-12 py-20 sm:py-28 scroll-mt-20">
-          <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-14">
-              <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--color-primary)] mb-3">Everything You Need</p>
-              <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight">
-                One Platform. Every Listing Asset.
-              </h2>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="space-y-6">
               {[
-                {
-                  icon: <Wand2 size={20} />,
-                  title: 'Virtual Staging',
-                  desc: '12+ design styles from modern minimalist to luxury farmhouse. Auto-detects room type for instant results.',
-                  accent: 'var(--color-primary)',
-                },
-                {
-                  icon: <Eraser size={20} />,
-                  title: 'Smart Cleanup',
-                  desc: 'Remove personal items, clutter, and distractions. One-click cleanup that preserves your furniture and decor.',
-                  accent: '#30D158',
-                },
-                {
-                  icon: <Sunset size={20} />,
-                  title: 'Day to Dusk',
-                  desc: 'Convert any daytime exterior to a stunning twilight shot. Natural sky gradients and warm window glow.',
-                  accent: '#FF9F0A',
-                },
-                {
-                  icon: <Cloud size={20} />,
-                  title: 'Sky Replacement',
-                  desc: 'Swap overcast skies for blue, dramatic, golden, or stormy alternatives. Architecture stays pixel-perfect.',
-                  accent: '#64D2FF',
-                },
-                {
-                  icon: <LayoutGrid size={20} />,
-                  title: 'Batch Editing',
-                  desc: 'Upload an entire listing at once. Edit individually or batch process with different actions per image.',
-                  accent: '#FFD60A',
-                },
-                {
-                  icon: <FileText size={20} />,
-                  title: 'Listing Copy',
-                  desc: 'AI-generated MLS descriptions in luxury, casual, and investment tones. Sized for every platform.',
-                  accent: '#BF5AF2',
-                },
-              ].map((feature) => (
-                <div
-                  key={feature.title}
-                  className="group relative p-6 rounded-2xl bg-white/[0.02] border border-white/[0.06] hover:border-white/[0.12] transition-all duration-300 hover:bg-white/[0.04]"
-                >
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center mb-4 transition-transform duration-300 group-hover:scale-110"
-                    style={{ background: `${feature.accent}15`, color: feature.accent }}
-                  >
-                    {feature.icon}
+                { label: 'Day to Dusk', color: '#FF9F0A', icon: <Sunset size={14} />, before: '/showcase-dusk-before.jpg', after: '/showcase-dusk-after.png' },
+                { label: 'Smart Cleanup', color: '#30D158', icon: <Eraser size={14} />, before: '/showcase-cleanup-before.jpg', after: '/showcase-cleanup-after.png' },
+              ].map((item) => (
+                <div key={item.label}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span style={{ color: item.color }}>{item.icon}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-[0.15em]" style={{ color: item.color }}>{item.label}</span>
                   </div>
-                  <h3 className="text-[15px] font-bold text-white mb-1.5">{feature.title}</h3>
-                  <p className="text-[13px] leading-relaxed text-zinc-500">{feature.desc}</p>
+                  <div className="relative rounded-xl overflow-hidden border border-white/[0.06]">
+                    <div className="grid grid-cols-2">
+                      <div className="relative">
+                        <img src={item.before} alt="Before" className="w-full aspect-[16/10] object-cover" />
+                        <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-black/70 text-[8px] font-bold uppercase text-white">Before</div>
+                      </div>
+                      <div className="relative">
+                        <img src={item.after} alt="After" className="w-full aspect-[16/10] object-cover" />
+                        <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded text-[8px] font-bold uppercase text-white" style={{ background: `${item.color}cc` }}>After</div>
+                      </div>
+                    </div>
+                    <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-white/15" />
+                  </div>
                 </div>
               ))}
             </div>
+            <p className="text-center text-[10px] text-zinc-600 mt-4">Processed by StudioAI in under 15 seconds each</p>
           </div>
         </section>
 
@@ -1051,31 +1014,91 @@ const App: React.FC = () => {
           </div>
         </section>
 
+        {/* ─── For Brokerages ─── */}
+        <section className="px-5 sm:px-8 lg:px-16 py-20 border-t border-white/[0.04]">
+          <div className="max-w-4xl mx-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[var(--color-primary)] mb-3">For Brokerages</p>
+                <h2 className="font-display text-2xl sm:text-3xl font-black text-white tracking-tight mb-4">
+                  Give your entire team Pro access.
+                </h2>
+                <p className="text-sm text-zinc-400 leading-relaxed mb-6">
+                  Add your agents from a single admin dashboard. Everyone gets unlimited staging, cleanup, and all AI tools. Centralized billing — one invoice, not thirty.
+                </p>
+                <div className="space-y-3">
+                  {[
+                    { name: 'Team', detail: '5 agents · $119/mo · $24/agent' },
+                    { name: 'Brokerage', detail: '15 agents · $299/mo · $20/agent' },
+                    { name: 'Enterprise', detail: '40 agents · $699/mo · $17/agent' },
+                  ].map((t) => (
+                    <div key={t.name} className="flex items-center justify-between p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                      <span className="text-sm font-bold text-white">{t.name}</span>
+                      <span className="text-[11px] text-zinc-500">{t.detail}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="hidden lg:block">
+                <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/[0.06]">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-xl bg-[var(--color-primary)]/10 flex items-center justify-center text-[var(--color-primary)]"><LayoutGrid size={20} /></div>
+                    <div>
+                      <p className="text-sm font-bold text-white">Admin Dashboard</p>
+                      <p className="text-[10px] text-zinc-500">Add and remove agents in seconds</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    {['jane@kwrealty.com', 'mike@agency.com', 'sarah@homes.com'].map((email) => (
+                      <div key={email} className="flex items-center justify-between px-3 py-2 rounded-lg bg-black/30 border border-white/[0.04]">
+                        <span className="text-[11px] text-zinc-400">{email}</span>
+                        <span className="text-[9px] font-bold text-[#30D158] uppercase">Pro</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* ─── FAQ ─── */}
-        <section id="faq" className="px-5 sm:px-8 lg:px-12 py-24 sm:py-32 scroll-mt-20">
+        <section id="faq" className="px-5 sm:px-8 lg:px-16 py-24 scroll-mt-20">
           <div className="max-w-2xl mx-auto">
             <h2 className="font-display text-2xl sm:text-3xl font-black text-white tracking-tight mb-10 text-center">Common Questions</h2>
-            <div className="space-y-4">
+            <div className="space-y-3">
               {[
                 {
                   q: 'Is this real staging or just overlays?',
-                  a: 'Real AI-generated staging. StudioAI uses Gemini to create photorealistic furniture and decor tailored to each room. No templates, no overlays.',
+                  a: 'Real AI-generated staging powered by Google Gemini. Every piece of furniture is generated specifically for your room — no templates, no overlays, no copy-paste.',
                 },
                 {
                   q: 'Will MLS boards accept these photos?',
                   a: 'Yes. Exports are sized for Zillow, Realtor.com, and ARMLS with EXIF data stripped. You can add a "Virtually Staged" watermark for compliance.',
                 },
                 {
+                  q: 'What are credits?',
+                  a: 'Credits are a pay-as-you-go option. 1 credit = 1 AI generation (staging, cleanup, twilight, or sky replacement). Buy a pack, use them whenever. No subscription needed.',
+                },
+                {
+                  q: 'Can I try before I pay?',
+                  a: 'Yes — every account starts with 5 free generations. No credit card required. Just sign in with Google and start uploading photos.',
+                },
+                {
+                  q: 'How does brokerage pricing work?',
+                  a: 'Pick a tier based on team size. You manage agents from your profile — add their email and they get full Pro access. One invoice, centralized billing.',
+                },
+                {
                   q: 'Can I cancel anytime?',
-                  a: 'Yes. No contracts, no cancellation fees. Your account reverts to free at the end of your billing period. Early bird rates are locked in forever.',
+                  a: 'Yes. No contracts, no fees. Cancel from your profile and you keep access through the end of your billing period. Early bird rates are locked in forever.',
                 },
               ].map((item) => (
                 <details key={item.q} className="group rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
-                  <summary className="flex items-center justify-between p-5 cursor-pointer text-sm font-semibold text-white hover:text-[var(--color-primary)] transition-colors list-none [&::-webkit-details-marker]:hidden">
+                  <summary className="flex items-center justify-between p-4 cursor-pointer text-sm font-semibold text-white hover:text-[var(--color-primary)] transition-colors list-none [&::-webkit-details-marker]:hidden">
                     {item.q}
-                    <ChevronDown size={16} className="text-zinc-500 transition-transform group-open:rotate-180 shrink-0 ml-4" />
+                    <ChevronDown size={14} className="text-zinc-600 transition-transform group-open:rotate-180 shrink-0 ml-4" />
                   </summary>
-                  <div className="px-5 pb-5 text-[13px] text-zinc-400 leading-relaxed -mt-1">{item.a}</div>
+                  <div className="px-4 pb-4 text-[13px] text-zinc-400 leading-relaxed -mt-1">{item.a}</div>
                 </details>
               ))}
             </div>

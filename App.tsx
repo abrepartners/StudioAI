@@ -516,9 +516,9 @@ const App: React.FC = () => {
         error.message?.toLowerCase().includes('api key') ||
         error.message?.includes('API_KEY_INVALID')
       ) {
-        alert('Service temporarily unavailable. Please try again in a moment.');
+        showToast(<X size={14} className="text-[#FF375F]" />, 'Service temporarily unavailable');
       } else {
-        alert('Generation failed. Check your connection and try again.');
+        showToast(<X size={14} className="text-[#FF375F]" />, 'Generation failed. Try again.');
       }
       setIsGenerating(false);
     } finally {
@@ -1956,6 +1956,16 @@ const App: React.FC = () => {
             </div>
           </aside>
         </div >
+      )}
+
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="toast-container">
+          <div className="toast-notification animate-toast">
+            <span className="toast-icon">{toastMessage.icon}</span>
+            <span className="toast-label">{toastMessage.label}</span>
+          </div>
+        </div>
       )}
 
       <Analytics />

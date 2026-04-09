@@ -60,7 +60,7 @@ export default async function handler(req: any, res: any) {
 
       // Get referral info for a user
       if (action === 'my_code') {
-        const email = req.query?.email || '';
+        const email = (req.query?.email || '').toLowerCase().trim();
         if (!email) { json(res, 400, { ok: false, error: 'email required' }); return; }
 
         const codes = await supaFetch(

@@ -526,6 +526,78 @@ a:focus-visible {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+/* ─── Scroll-Triggered Animations ─────────────────────────────── */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.7s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.7s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.reveal-delay-1 { transition-delay: 0.1s; }
+.reveal-delay-2 { transition-delay: 0.2s; }
+.reveal-delay-3 { transition-delay: 0.3s; }
+.reveal-delay-4 { transition-delay: 0.4s; }
+
+/* ─── Counter Animation ───────────────────────────────────────── */
+@keyframes count-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-count-up { animation: count-up 0.6s ease-out both; }
+
+/* ─── Feature Card Hover States ───────────────────────────────── */
+.feature-card-interactive {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.feature-card-interactive:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+.feature-card-interactive .card-preview {
+  opacity: 0;
+  max-height: 0;
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.feature-card-interactive:hover .card-preview {
+  opacity: 1;
+  max-height: 200px;
+  margin-top: 12px;
+}
+
+/* ─── Cost Comparison Pulse ───────────────────────────────────── */
+@keyframes savings-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(48, 209, 88, 0); }
+  50% { box-shadow: 0 0 20px 4px rgba(48, 209, 88, 0.15); }
+}
+.savings-glow { animation: savings-glow 3s ease-in-out infinite; }
+
+/* ─── App Mockup Animation ────────────────────────────────────── */
+@keyframes mockup-upload {
+  0% { opacity: 0; transform: scale(0.95); }
+  15% { opacity: 1; transform: scale(1); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes mockup-process {
+  0%, 30% { width: 0%; }
+  70% { width: 100%; }
+  100% { width: 100%; }
+}
+@keyframes mockup-result {
+  0%, 65% { opacity: 0; transform: scale(0.97); }
+  80% { opacity: 1; transform: scale(1); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.mockup-step-upload { animation: mockup-upload 6s ease-out infinite; }
+.mockup-step-bar { animation: mockup-process 6s ease-in-out infinite; }
+.mockup-step-result { animation: mockup-result 6s ease-out infinite; }
+
 /* ─── Reduced Motion ───────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -534,4 +606,5 @@ a:focus-visible {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+  .reveal { opacity: 1; transform: none; }
 }

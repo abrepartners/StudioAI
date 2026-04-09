@@ -14,6 +14,7 @@ import BrandKit from './components/BrandKit';
 import ManageTeam from './components/ManageTeam';
 import ReferralDashboard from './components/ReferralDashboard';
 import QuickStartTutorial from './components/QuickStartTutorial';
+import ExportModal from './components/ExportModal';
 // Removed for Phase 2: ColorAnalysis, ChatInterface, StyleAdvisor, QualityScore, ListingDashboard, BetaFeedbackForm, MLSExport (inline)
 import {
   ColorData,
@@ -164,6 +165,7 @@ const App: React.FC = () => {
   const subscription = useSubscription(googleUser?.email || null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [referralPrice, setReferralPrice] = useState<number | null>(null);
 
@@ -1158,6 +1160,13 @@ const App: React.FC = () => {
         onClose={() => setShowTutorial(false)}
       />
 
+      {showExportModal && generatedImage && (
+        <ExportModal
+          imageBase64={generatedImage}
+          onClose={() => setShowExportModal(false)}
+        />
+      )}
+
       {showUpgradeModal && (
         <div className="fixed inset-0 z-[100] grid place-items-center modal-overlay p-4 animate-fade-in">
           <div className="modal-panel w-full max-w-md rounded-2xl p-8 animate-scale-in">
@@ -1442,7 +1451,7 @@ const App: React.FC = () => {
               <>
                 <button
                   type="button"
-                  onClick={handleDownload}
+                  onClick={() => setShowExportModal(true)}
                   className="cta-secondary rounded-lg px-3 py-1.5 text-xs font-medium inline-flex items-center gap-1.5"
                 >
                   <Download size={13} />

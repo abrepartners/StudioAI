@@ -713,12 +713,12 @@ const App: React.FC = () => {
     return (
       <div className="h-[100dvh] overflow-y-auto overscroll-contain bg-black">
         {/* ─── Sticky Nav ─── */}
-        <nav className="sticky top-0 z-50 flex items-center justify-between px-5 sm:px-8 lg:px-12 py-4 bg-black/80 backdrop-blur-xl border-b border-white/[0.06]">
-          <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-xl bg-[var(--color-primary)] flex items-center justify-center shadow-lg shadow-blue-500/20">
-              <Camera size={16} className="text-white" />
+        <nav className="sticky top-0 z-50 flex items-center justify-between px-4 sm:px-8 lg:px-12 py-3 sm:py-4 bg-black/80 backdrop-blur-xl border-b border-white/[0.06]">
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl bg-[var(--color-primary)] flex items-center justify-center shadow-lg shadow-blue-500/20">
+              <Camera size={14} className="text-white" />
             </div>
-            <span className="font-display text-xl font-black text-white tracking-tight">
+            <span className="font-display text-lg sm:text-xl font-black text-white tracking-tight">
               Studio<span className="text-[var(--color-primary)]">AI</span>
             </span>
           </div>
@@ -730,11 +730,10 @@ const App: React.FC = () => {
           <button
             type="button"
             onClick={triggerGoogleSignIn}
-            className="hidden sm:inline-flex items-center gap-2 px-5 py-2 rounded-full bg-white text-black text-sm font-semibold hover:bg-zinc-200 transition-all"
+            className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 rounded-full bg-white text-black text-xs sm:text-sm font-semibold hover:bg-zinc-200 transition-all"
           >
-            Get Started Free
+            Start Free
           </button>
-          {/* Hidden Google button for fallback */}
           <div ref={googleButtonRef} className="hidden" />
         </nav>
 
@@ -894,7 +893,7 @@ const App: React.FC = () => {
                     <span className="text-[10px] font-bold uppercase tracking-[0.15em]" style={{ color: item.color }}>{item.label}</span>
                   </div>
                   <div className="relative rounded-xl overflow-hidden border border-white/[0.06]">
-                    <div className="grid grid-cols-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2">
                       <div className="relative">
                         <img src={item.before} alt="Before" className="w-full aspect-[16/10] object-cover" />
                         <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-black/70 text-[8px] font-bold uppercase text-white">Before</div>
@@ -904,7 +903,7 @@ const App: React.FC = () => {
                         <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded text-[8px] font-bold uppercase text-white" style={{ background: `${item.color}cc` }}>After</div>
                       </div>
                     </div>
-                    <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-white/15" />
+                    <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-white/15 hidden sm:block" />
                   </div>
                 </div>
               ))}

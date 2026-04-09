@@ -50,26 +50,8 @@ const TEMPERATURE = {
 /**
  * Maps an image's dimensions to the closest supported Gemini aspect ratio.
  */
-const getSupportedAspectRatio = (width: number, height: number): "1:1" | "3:4" | "4:3" | "9:16" | "16:9" => {
-  const ratio = width / height;
-  if (ratio > 1.5) return "16:9";
-  if (ratio > 1.1) return "4:3";
-  if (ratio < 0.6) return "9:16";
-  if (ratio < 0.9) return "3:4";
-  return "1:1";
-};
-
-/**
- * Decodes a base64 image and detects its actual aspect ratio by reading pixel dimensions.
- */
-const detectAspectRatioFromBase64 = (base64: string): Promise<"1:1" | "3:4" | "4:3" | "9:16" | "16:9"> => {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => resolve(getSupportedAspectRatio(img.naturalWidth, img.naturalHeight));
-    img.onerror = () => resolve("4:3"); // fallback
-    img.src = `data:image/jpeg;base64,${base64}`;
-  });
-};
+// Aspect ratio detection removed — we no longer force a ratio on Gemini.
+// Letting Gemini match the input image's native dimensions preserves framing.
 
 export const detectRoomType = async (imageBase64: string): Promise<FurnitureRoomType> => {
   try {
@@ -187,12 +169,10 @@ export const generateRoomDesign = async (
       });
     }
 
-    const config: any = {};
-    const detectedRatio = await detectAspectRatioFromBase64(clean);
-    config.imageConfig = {
-      imageSize: "2K",
-      aspectRatio: detectedRatio,
-      numberOfImages: count
+    const config: any = {
+      imageConfig: {
+        numberOfImages: count,
+      },
     };
 
     const response: GenerateContentResponse = await ai.models.generateContent({
@@ -413,7 +393,6 @@ export const sendMessageToChat = async (chat: Chat, message: string, currentImag
 export const virtualTwilight = async (imageBase64: string): Promise<string> => {
   const ai = getAI();
   const clean = cleanBase64(imageBase64);
-  const detectedRatio = await detectAspectRatioFromBase64(clean);
 
   const response = await ai.models.generateContent({
     model: 'gemini-3.1-flash-image-preview',
@@ -452,8 +431,6 @@ The result should look like the SAME photo taken at dusk — nothing added, noth
     ],
     config: {
       imageConfig: {
-        imageSize: "2K",
-        aspectRatio: detectedRatio,
         numberOfImages: 1,
       },
     },
@@ -517,7 +494,6 @@ BLENDING REQUIREMENTS:
 export const instantDeclutter = async (imageBase64: string, selectedRoom: string): Promise<string> => {
   const ai = getAI();
   const clean = cleanBase64(imageBase64);
-  const detectedRatio = await detectAspectRatioFromBase64(clean);
 
   const response = await ai.models.generateContent({
     model: 'gemini-3.1-flash-image-preview',
@@ -569,8 +545,6 @@ RESTORATION:
     ],
     config: {
       imageConfig: {
-        imageSize: "2K",
-        aspectRatio: detectedRatio,
         numberOfImages: 1,
       },
     },

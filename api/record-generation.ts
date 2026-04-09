@@ -4,7 +4,7 @@ const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
 
 function getCurrentPeriod(): string {
   const now = new Date();
-  return `${now.getFullYear()}-${now.getMonth()}`;
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
 
 export default async function handler(req: any, res: any) {

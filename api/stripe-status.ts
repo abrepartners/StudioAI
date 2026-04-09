@@ -91,7 +91,8 @@ export default async function handler(req: any, res: any) {
     const subscription = isSubscribed ? subs.data[0] : null;
 
     // Read server-side generation count from Stripe customer metadata
-    const currentPeriod = `${new Date().getFullYear()}-${new Date().getMonth()}`;
+    const now = new Date();
+    const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const storedPeriod = customer.metadata?.generation_period || '';
     const generationsUsed = storedPeriod === currentPeriod
       ? parseInt(customer.metadata?.generations_used || '0', 10)

@@ -729,13 +729,22 @@ const App: React.FC = () => {
             <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
             <a href="#faq" className="hover:text-white transition-colors">FAQ</a>
           </div>
-          <button
-            type="button"
-            onClick={triggerGoogleSignIn}
-            className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 rounded-full bg-white text-black text-xs sm:text-sm font-semibold hover:bg-zinc-200 transition-all"
-          >
-            Start Free
-          </button>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              type="button"
+              onClick={triggerGoogleSignIn}
+              className="text-xs sm:text-sm font-semibold text-zinc-400 hover:text-white transition-colors"
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              onClick={triggerGoogleSignIn}
+              className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 rounded-full bg-white text-black text-xs sm:text-sm font-semibold hover:bg-zinc-200 transition-all"
+            >
+              Start Free
+            </button>
+          </div>
           <div ref={googleButtonRef} className="hidden" />
         </nav>
 

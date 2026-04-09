@@ -151,6 +151,7 @@ const App: React.FC = () => {
   const [sessionQueue, setSessionQueue] = useState<SessionImage[]>([]);
   const [sessionIndex, setSessionIndex] = useState(-1);
   const generatingSessionsRef = useRef<Set<string>>(new Set());
+  const currentSessionIdRef = useRef<string>('__single__');
 
   // Chat removed — Phase 2
 
@@ -450,7 +451,6 @@ const App: React.FC = () => {
 
     // Capture which session this generation belongs to
     const generatingSessionId = sessionQueue[sessionIndex]?.id || '__single__';
-    const generatingOriginal = originalImage;
 
     setIsGenerating(true);
     generatingSessionsRef.current.add(generatingSessionId);
@@ -462,8 +462,8 @@ const App: React.FC = () => {
       const sourceImage = activePanel === 'cleanup' && generatedImage ? generatedImage : originalImage;
       const resultImages = await generateRoomDesign(sourceImage, prompt, activePanel === 'cleanup' ? maskImage : null, false, 1);
 
-      // Check if user is still on the same image
-      const stillOnSameImage = originalImage === generatingOriginal;
+      // Check if user is still on the same session image (using ref, not stale closure)
+      const stillOnSameImage = currentSessionIdRef.current === generatingSessionId;
 
       if (stillOnSameImage) {
         // User is still here — update the current view
@@ -501,7 +501,7 @@ const App: React.FC = () => {
           )
         );
         // Don't clear isGenerating if current image has its own generation running
-        if (!generatingSessionsRef.current.has(sessionQueue[sessionIndex]?.id || '')) {
+        if (!generatingSessionsRef.current.has(currentSessionIdRef.current)) {
           setIsGenerating(false);
         }
       }
@@ -648,6 +648,11 @@ const App: React.FC = () => {
       setSessionIndex(prev => prev - 1);
     }
   }, [sessionQueue, sessionIndex, loadSession]);
+
+  // Keep current session ID ref in sync
+  useEffect(() => {
+    currentSessionIdRef.current = sessionQueue[sessionIndex]?.id || '__single__';
+  }, [sessionIndex, sessionQueue]);
 
   // Sync current editor state back to session queue on key changes
   useEffect(() => {
@@ -1896,26 +1901,22 @@ const App: React.FC = () => {
                       generatedImage={generatedImage}
                       selectedRoom={selectedRoom}
                       onNewImage={(() => {
-                        const capturedOriginal = originalImage;
                         const capturedSessionId = sessionQueue[sessionIndex]?.id;
                         return (img: string) => {
-                          // Only apply if still on the same image
-                          setOriginalImage(current => {
-                            if (current === capturedOriginal) {
-                              pushToHistory();
-                              setGeneratedImage(img);
-                            } else if (capturedSessionId) {
-                              // Save to the correct queue slot silently
-                              setSessionQueue(prev =>
-                                prev.map(s =>
-                                  s.id === capturedSessionId
-                                    ? { ...s, generatedImage: img }
-                                    : s
-                                )
-                              );
-                            }
-                            return current; // don't change originalImage
-                          });
+                          // Check if still on the same session using the ref (always current)
+                          if (currentSessionIdRef.current === capturedSessionId) {
+                            pushToHistory();
+                            setGeneratedImage(img);
+                          } else if (capturedSessionId) {
+                            // Save to the correct queue slot silently
+                            setSessionQueue(prev =>
+                              prev.map(s =>
+                                s.id === capturedSessionId
+                                  ? { ...s, generatedImage: img }
+                                  : s
+                              )
+                            );
+                          }
                         };
                       })()}
                       onRequireKey={() => setShowUpgradeModal(true)}

@@ -75,6 +75,7 @@ import {
   Star,
   Upload,
   Zap,
+  Share2,
 } from 'lucide-react';
 import { Analytics } from '@vercel/analytics/react';
 
@@ -142,6 +143,58 @@ const ScrollRevealInit: React.FC = () => {
     return () => { clearTimeout(timer); observer.disconnect(); };
   }, []);
   return null;
+};
+
+/** Community Gallery — loads approved showcases from the API */
+const CommunityGallery: React.FC = () => {
+  const [showcases, setShowcases] = useState<Array<{
+    id: string; tool_used: string; before_image: string; after_image: string; room_type: string; user_name: string;
+  }>>([]);
+
+  useEffect(() => {
+    fetch('/api/showcase?limit=6')
+      .then(r => r.json())
+      .then(data => { if (data.ok && data.showcases?.length) setShowcases(data.showcases); })
+      .catch(() => {});
+  }, []);
+
+  if (showcases.length === 0) return null;
+
+  const toolColors: Record<string, string> = {
+    staging: '#0A84FF', cleanup: '#30D158', twilight: '#FF9F0A', sky: '#64D2FF',
+  };
+
+  return (
+    <section className="px-5 sm:px-8 lg:px-16 py-20 border-t border-white/[0.04]">
+      <div className="max-w-5xl mx-auto">
+        <div className="text-center mb-10">
+          <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[var(--color-primary)] mb-3">Community Gallery</p>
+          <h2 className="font-display text-2xl sm:text-3xl font-black text-white tracking-tight">Made by agents like you.</h2>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {showcases.map((item) => (
+            <div key={item.id} className="rounded-xl overflow-hidden border border-white/[0.06] bg-white/[0.02]">
+              <div className="grid grid-cols-2">
+                <img src={item.before_image} alt="Before" className="w-full aspect-[4/3] object-cover" />
+                <img
+                  src={item.after_image.startsWith('data:') ? item.after_image : `data:image/jpeg;base64,${item.after_image}`}
+                  alt="After" className="w-full aspect-[4/3] object-cover"
+                />
+              </div>
+              <div className="px-3 py-2 flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: toolColors[item.tool_used] || '#0A84FF' }}>
+                  {item.tool_used}
+                </span>
+                {item.user_name && (
+                  <span className="text-[9px] text-zinc-600">by {item.user_name.split(' ')[0]}</span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
 };
 
 const App: React.FC = () => {
@@ -561,6 +614,33 @@ const App: React.FC = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleShareToGallery = async () => {
+    if (!originalImage || !generatedImage || !googleUser) return;
+    try {
+      const res = await fetch('/api/showcase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'submit',
+          email: googleUser.email,
+          name: googleUser.name,
+          toolUsed: activePanel === 'cleanup' ? 'cleanup' : 'staging',
+          beforeImage: originalImage,
+          afterImage: generatedImage,
+          roomType: selectedRoom,
+        }),
+      }).then(r => r.json());
+
+      if (res.ok) {
+        showToast(<Share2 size={14} className="text-[#30D158]" />, 'Shared to gallery!');
+      } else {
+        showToast(<X size={14} className="text-[#FF375F]" />, res.error || 'Failed to share');
+      }
+    } catch {
+      showToast(<X size={14} className="text-[#FF375F]" />, 'Failed to share');
+    }
   };
 
   const handleSaveStage = () => {
@@ -1087,6 +1167,9 @@ const App: React.FC = () => {
             </div>
           </div>
         </section>
+
+        {/* ─── Community Gallery ─── */}
+        <CommunityGallery />
 
         {/* ─── Pricing ─── */}
         <section id="pricing" className="px-5 sm:px-8 lg:px-12 py-24 sm:py-32 scroll-mt-20">
@@ -1617,6 +1700,14 @@ const App: React.FC = () => {
                 >
                   <Heart size={13} className={savedStages.some(s => s.generatedImage === generatedImage) ? 'fill-[var(--color-primary)] text-[var(--color-primary)]' : ''} />
                   <span className="hidden sm:inline">Save</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleShareToGallery}
+                  className="cta-secondary rounded-lg px-3 py-1.5 text-xs font-medium inline-flex items-center gap-1.5"
+                  title="Share to gallery"
+                >
+                  <Share2 size={13} />
                 </button>
                 <label className="cta-secondary rounded-lg px-3 py-1.5 text-xs font-medium inline-flex items-center gap-1.5 cursor-pointer">
                   <Plus size={13} />

@@ -24,11 +24,12 @@ const DEFAULT_SETTINGS: ExportSettings = {
 interface ExportModalProps {
   imageBase64: string;
   originalImage?: string;
+  toolName?: string;
   onClose: () => void;
   onShare?: () => void;
 }
 
-const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, onClose, onShare }) => {
+const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, toolName, onClose, onShare }) => {
   const [settings, setSettings] = useState<ExportSettings>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -84,7 +85,8 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, o
 
       const link = document.createElement('a');
       link.href = finalImage;
-      link.download = `studio_export_${Date.now()}.png`;
+      const toolSlug = toolName ? `_${toolName.toLowerCase().replace(/\s+/g, '_')}` : '';
+      link.download = `studioai${toolSlug}_${Date.now()}.png`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

@@ -1400,6 +1400,7 @@ const App: React.FC = () => {
         <ExportModal
           imageBase64={generatedImage}
           originalImage={originalImage || undefined}
+          toolName={activePanel === 'cleanup' ? 'cleanup' : 'staging'}
           onClose={() => setShowExportModal(false)}
           onShare={handleShareToGallery}
         />

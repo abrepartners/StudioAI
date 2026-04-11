@@ -121,6 +121,7 @@ export const generateRoomDesign = async (
         - **COLOR FIDELITY**: Preserve the original wall colors, floor colors, ceiling colors, and existing surface tones EXACTLY. Do NOT shift, enhance, saturate, or re-grade the colors of existing surfaces. Only new furniture/decor should introduce new colors.
         - **LIGHTING**: Match the direction and temperature of the original ambient light exactly. Do NOT warm up, cool down, or re-light the scene. Add realistic shadows for new furniture only.
         - **TEXTURE**: Use high-resolution realistic materials (leather, wood grain, fabric weave) for new items only.
+        - **SHARPNESS**: The output must be AS SHARP as the input photo. Do NOT soften, blur, or reduce detail. Maintain crisp edges, texture clarity, and the original noise profile. Unchanged areas must be pixel-identical in sharpness.
 
         ${isGrassTask ? `
         LANDSCAPING REALISM PROTOCOL:
@@ -510,12 +511,15 @@ CRITICAL RULES (HIGHEST PRIORITY):
 - Do NOT zoom in. Maintain the EXACT same framing, crop, and field of view. The camera is locked.
 - The output should be nearly IDENTICAL to the input — just cleaner.
 
-COLOR PRESERVATION (CRITICAL):
+COLOR & QUALITY PRESERVATION (CRITICAL):
 - Do NOT desaturate, mute, or shift the colors of ANYTHING in the image.
 - Maintain the EXACT same color temperature, saturation, brightness, and contrast as the original.
 - Walls, floors, furniture, fabrics, and all surfaces must keep their original vivid colors.
 - Do NOT apply any color grading, tone mapping, or mood shift. The image is NOT being re-lit.
 - If the original has warm tones, the output must have warm tones. If cool, stay cool. Match exactly.
+- Do NOT soften, blur, or reduce the sharpness of the image. The output must be AS SHARP as the input.
+- Maintain the original image's detail level, texture clarity, and edge crispness pixel-for-pixel.
+- Areas that were NOT edited must be IDENTICAL to the input — same sharpness, same noise profile, same detail.
 
 REMOVE ONLY THESE (small personal items):
 - Personal photos and children's drawings

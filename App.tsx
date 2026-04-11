@@ -1399,7 +1399,9 @@ const App: React.FC = () => {
       {showExportModal && generatedImage && (
         <ExportModal
           imageBase64={generatedImage}
+          originalImage={originalImage || undefined}
           onClose={() => setShowExportModal(false)}
+          onShare={handleShareToGallery}
         />
       )}
 
@@ -1700,14 +1702,6 @@ const App: React.FC = () => {
                 >
                   <Heart size={13} className={savedStages.some(s => s.generatedImage === generatedImage) ? 'fill-[var(--color-primary)] text-[var(--color-primary)]' : ''} />
                   <span className="hidden sm:inline">Save</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleShareToGallery}
-                  className="cta-secondary rounded-lg px-3 py-1.5 text-xs font-medium inline-flex items-center gap-1.5"
-                  title="Share to gallery"
-                >
-                  <Share2 size={13} />
                 </button>
                 <label className="cta-secondary rounded-lg px-3 py-1.5 text-xs font-medium inline-flex items-center gap-1.5 cursor-pointer">
                   <Plus size={13} />

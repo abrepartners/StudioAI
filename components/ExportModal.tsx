@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Download, X, Type, Image as ImageIcon, Check } from 'lucide-react';
+import { Download, X, Type, Image as ImageIcon, Check, Share2, Heart } from 'lucide-react';
 
 const STORAGE_KEY = 'studioai_export_settings';
 
@@ -23,10 +23,12 @@ const DEFAULT_SETTINGS: ExportSettings = {
 
 interface ExportModalProps {
   imageBase64: string;
+  originalImage?: string;
   onClose: () => void;
+  onShare?: () => void;
 }
 
-const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, onClose }) => {
+const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, onClose, onShare }) => {
   const [settings, setSettings] = useState<ExportSettings>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -37,6 +39,8 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, onClose }) => {
   });
   const [exporting, setExporting] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [shareToGallery, setShareToGallery] = useState(false);
+  const [shared, setShared] = useState(false);
   const iconInputRef = useRef<HTMLInputElement>(null);
 
   // Save settings whenever they change
@@ -84,6 +88,13 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, onClose }) => {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+
+      // Share to gallery if opted in
+      if (shareToGallery && onShare) {
+        onShare();
+        setShared(true);
+      }
+
       onClose();
     } finally {
       setExporting(false);
@@ -232,6 +243,34 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, onClose }) => {
             </>
           )}
         </div>
+
+        {/* Share to Gallery */}
+        {onShare && (
+          <div className="px-5 pb-3">
+            <button
+              type="button"
+              onClick={() => setShareToGallery(!shareToGallery)}
+              className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                shareToGallery
+                  ? 'border-[var(--color-primary)]/30 bg-[var(--color-primary)]/5'
+                  : 'border-[var(--color-border)] bg-white/[0.02] hover:border-white/[0.10]'
+              }`}
+            >
+              <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
+                shareToGallery
+                  ? 'bg-[var(--color-primary)] border-[var(--color-primary)]'
+                  : 'border-zinc-600'
+              }`}>
+                {shareToGallery && <Check size={12} className="text-white" />}
+              </div>
+              <div className="flex-1 text-left">
+                <p className="text-xs font-semibold text-white">Share to community gallery</p>
+                <p className="text-[10px] text-zinc-500">Help other agents see what's possible</p>
+              </div>
+              <Heart size={14} className={shareToGallery ? 'text-[var(--color-primary)]' : 'text-zinc-600'} />
+            </button>
+          </div>
+        )}
 
         {/* Footer */}
         <div className="p-5 border-t border-[var(--color-border)] flex gap-3">

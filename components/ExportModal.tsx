@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Download, X, Type, Image as ImageIcon, Check, Share2, Heart } from 'lucide-react';
+import { compositePreserve } from '../utils/compositePreserve';
 
 const STORAGE_KEY = 'studioai_export_settings';
 
@@ -24,12 +25,12 @@ const DEFAULT_SETTINGS: ExportSettings = {
 interface ExportModalProps {
   imageBase64: string;
   originalImage?: string;
-  toolName?: string;
+  editHistory?: string[];
   onClose: () => void;
   onShare?: () => void;
 }
 
-const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, toolName, onClose, onShare }) => {
+const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, editHistory = [], onClose, onShare }) => {
   const [settings, setSettings] = useState<ExportSettings>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -77,15 +78,24 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, t
   const handleExport = async () => {
     setExporting(true);
     try {
+      // Composite: preserve original sharpness in unchanged areas
       let finalImage = imageBase64;
+      if (originalImage) {
+        finalImage = await compositePreserve(originalImage, imageBase64);
+      }
+
+      // Apply disclaimer if enabled
       if (settings.disclaimerEnabled) {
-        const rendered = await renderWithDisclaimer(imageBase64, settings);
+        const rendered = await renderWithDisclaimer(finalImage, settings);
         if (rendered) finalImage = rendered;
       }
 
       const link = document.createElement('a');
       link.href = finalImage;
-      const toolSlug = toolName ? `_${toolName.toLowerCase().replace(/\s+/g, '_')}` : '';
+      // Build filename from edit history: studioai_staging+cleanup+twilight_1234.png
+      const toolSlug = editHistory.length > 0
+        ? `_${[...new Set(editHistory)].join('+')}`
+        : '';
       link.download = `studioai${toolSlug}_${Date.now()}.png`;
       document.body.appendChild(link);
       link.click();

@@ -36,6 +36,7 @@ interface SessionImage {
   selectedRoom: FurnitureRoomType;
   history: HistoryState[];
   historyIndex: number;
+  editHistory: string[]; // tracks tools used: ['staging', 'cleanup', 'twilight', etc.]
 }
 import { useSubscription } from './hooks/useSubscription';
 import {
@@ -463,6 +464,7 @@ const App: React.FC = () => {
       selectedRoom: 'Living Room',
       history: [],
       historyIndex: -1,
+      editHistory: [],
     };
     setSessionQueue(prev => [...prev, newSession]);
     setSessionIndex(prev => {
@@ -551,6 +553,14 @@ const App: React.FC = () => {
         // User is still here — update the current view
         setGeneratedImage(resultImages[0]);
         setMaskImage(null);
+
+        // Track which tool was used
+        const toolUsed = activePanel === 'cleanup' ? 'cleanup' : 'staging';
+        setSessionQueue(prev => prev.map(s =>
+          s.id === generatingSessionId
+            ? { ...s, editHistory: [...s.editHistory, toolUsed] }
+            : s
+        ));
 
         const newStates = resultImages.map(img => ({
           generatedImage: img,
@@ -707,6 +717,7 @@ const App: React.FC = () => {
       selectedRoom,
       history,
       historyIndex,
+      editHistory: sessionQueue[sessionIndex]?.editHistory || [],
     };
   }, [originalImage, generatedImage, maskImage, colors, detectedRoom, selectedRoom, history, historyIndex, sessionIndex, sessionQueue]);
 
@@ -1400,7 +1411,7 @@ const App: React.FC = () => {
         <ExportModal
           imageBase64={generatedImage}
           originalImage={originalImage || undefined}
-          toolName={activePanel === 'cleanup' ? 'cleanup' : 'staging'}
+          editHistory={sessionQueue[sessionIndex]?.editHistory || []}
           onClose={() => setShowExportModal(false)}
           onShare={handleShareToGallery}
         />
@@ -1864,6 +1875,7 @@ const App: React.FC = () => {
                     selectedRoom: img.roomType || 'Living Room' as FurnitureRoomType,
                     history: [],
                     historyIndex: -1,
+                    editHistory: [],
                   }));
                   setSessionQueue(prev => [...prev, ...rest]);
                 }
@@ -2149,17 +2161,22 @@ const App: React.FC = () => {
                       selectedRoom={selectedRoom}
                       onNewImage={(() => {
                         const capturedSessionId = sessionQueue[sessionIndex]?.id;
-                        return (img: string) => {
-                          // Check if still on the same session using the ref (always current)
+                        return (img: string, toolName?: string) => {
+                          const tool = toolName || 'edit';
                           if (currentSessionIdRef.current === capturedSessionId) {
                             pushToHistory();
                             setGeneratedImage(img);
+                            // Track tool in edit history
+                            setSessionQueue(prev => prev.map(s =>
+                              s.id === capturedSessionId
+                                ? { ...s, editHistory: [...s.editHistory, tool] }
+                                : s
+                            ));
                           } else if (capturedSessionId) {
-                            // Save to the correct queue slot silently
                             setSessionQueue(prev =>
                               prev.map(s =>
                                 s.id === capturedSessionId
-                                  ? { ...s, generatedImage: img }
+                                  ? { ...s, generatedImage: img, editHistory: [...s.editHistory, tool] }
                                   : s
                               )
                             );

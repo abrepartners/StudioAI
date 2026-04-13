@@ -147,7 +147,17 @@ export const generateRoomDesign = async (
 
         STAGING PROTOCOL:
         - Only add furniture that aligns with the vanishing points of the existing floor.
-        - Ensure soft contact shadows where furniture meets the floor.`
+        - Ensure soft contact shadows where furniture meets the floor.
+
+        SPATIAL AWARENESS & FURNITURE PLACEMENT (CRITICAL):
+        - Before placing ANY furniture, mentally map the room layout: identify all doors (open or closed), doorways, hallways, walkways, windows, and traffic paths.
+        - NEVER place furniture in front of a doorway, in a door swing path, or blocking a hallway entrance. Doorways and passages must remain fully clear and walkable.
+        - NEVER place furniture where it would block a window or overlap with a wall opening.
+        - Maintain realistic walking clearance: at least 36 inches (visual equivalent) around beds, between seating and walls, and in any path a person would walk.
+        - If a door is open in the photo, keep the entire door swing arc clear of furniture. Nightstands, chairs, and tables must not encroach into the doorway zone.
+        - Scale furniture proportionally to the room. Do not place oversized pieces that would not physically fit through the room's doors.
+        - Furniture legs must sit flat on the floor plane — no floating, no clipping through walls or other objects.
+        - Group furniture logically: nightstands flanking a bed, dining chairs around a table, not scattered randomly. Maintain functional room flow.`
       },
       {
         inlineData: {

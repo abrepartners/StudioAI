@@ -15,6 +15,7 @@ import ManageTeam from './components/ManageTeam';
 import ReferralDashboard from './components/ReferralDashboard';
 import QuickStartTutorial from './components/QuickStartTutorial';
 import ExportModal from './components/ExportModal';
+import FurnitureRemover from './components/FurnitureRemover';
 // Removed for Phase 2: ColorAnalysis, ChatInterface, StyleAdvisor, QualityScore, ListingDashboard, BetaFeedbackForm, MLSExport (inline)
 import {
   ColorData,
@@ -37,6 +38,7 @@ interface SessionImage {
   history: HistoryState[];
   historyIndex: number;
   editHistory: string[]; // tracks tools used: ['staging', 'cleanup', 'twilight', etc.]
+  customPrompt: string; // design direction text for this image
 }
 import { useSubscription } from './hooks/useSubscription';
 import {
@@ -77,6 +79,7 @@ import {
   Upload,
   Zap,
   Share2,
+  Trash2,
 } from 'lucide-react';
 import { Analytics } from '@vercel/analytics/react';
 
@@ -247,6 +250,8 @@ const App: React.FC = () => {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showFurnitureRemover, setShowFurnitureRemover] = useState(false);
+  const [isRemovingFurniture, setIsRemovingFurniture] = useState(false);
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [referralPrice, setReferralPrice] = useState<number | null>(null);
 
@@ -443,6 +448,8 @@ const App: React.FC = () => {
         selectedRoom,
         history,
         historyIndex,
+        editHistory: sessionQueue[sessionIndex]?.editHistory || [],
+        customPrompt: sessionQueue[sessionIndex]?.customPrompt || '',
       };
       setSessionQueue(prev => {
         const updated = [...prev];
@@ -465,6 +472,7 @@ const App: React.FC = () => {
       history: [],
       historyIndex: -1,
       editHistory: [],
+      customPrompt: '',
     };
     setSessionQueue(prev => [...prev, newSession]);
     setSessionIndex(prev => {
@@ -616,6 +624,39 @@ const App: React.FC = () => {
     }
   };
 
+  const handleFurnitureRemoval = async (maskDataUrl: string, itemDescriptions: string[]) => {
+    if (!generatedImage || !originalImage) return;
+    setIsRemovingFurniture(true);
+    try {
+      const descText = itemDescriptions.length > 0
+        ? `Specifically remove: ${itemDescriptions.join(', ')}.`
+        : 'Remove the furniture/items covered by the mask.';
+
+      const removalPrompt = `Selective Furniture Removal: ${descText} Replace the removed items with the original empty room surface (floor, wall, carpet) that was behind them. Keep ALL other furniture and decor that is NOT masked exactly as they are — do not move, resize, or alter any unmasked items. Preserve all architecture, wall colors, floor colors, lighting, and camera framing exactly.`;
+
+      const resultImages = await generateRoomDesign(generatedImage, removalPrompt, maskDataUrl, false, 1);
+      if (resultImages[0]) {
+        pushToHistory();
+        setGeneratedImage(resultImages[0]);
+        setShowFurnitureRemover(false);
+        showToast(<Check size={14} className="text-[#30D158]" />, 'Furniture removed');
+
+        // Track edit
+        const currentId = sessionQueue[sessionIndex]?.id;
+        if (currentId) {
+          setSessionQueue(prev => prev.map(s =>
+            s.id === currentId ? { ...s, editHistory: [...s.editHistory, 'furniture-removal'] } : s
+          ));
+        }
+      }
+    } catch (error) {
+      console.error('Furniture removal failed:', error);
+      showToast(<X size={14} className="text-[#FF375F]" />, 'Removal failed. Try again.');
+    } finally {
+      setIsRemovingFurniture(false);
+    }
+  };
+
   const handleDownload = () => {
     if (!generatedImage) return;
     const link = document.createElement('a');
@@ -718,6 +759,7 @@ const App: React.FC = () => {
       history,
       historyIndex,
       editHistory: sessionQueue[sessionIndex]?.editHistory || [],
+      customPrompt: sessionQueue[sessionIndex]?.customPrompt || '',
     };
   }, [originalImage, generatedImage, maskImage, colors, detectedRoom, selectedRoom, history, historyIndex, sessionIndex, sessionQueue]);
 
@@ -1715,6 +1757,15 @@ const App: React.FC = () => {
                   <Heart size={13} className={savedStages.some(s => s.generatedImage === generatedImage) ? 'fill-[var(--color-primary)] text-[var(--color-primary)]' : ''} />
                   <span className="hidden sm:inline">Save</span>
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setShowFurnitureRemover(true)}
+                  className="cta-secondary rounded-lg px-3 py-1.5 text-xs font-medium inline-flex items-center gap-1.5"
+                  title="Remove specific furniture pieces"
+                >
+                  <Trash2 size={13} />
+                  <span className="hidden sm:inline">Remove</span>
+                </button>
                 <label className="cta-secondary rounded-lg px-3 py-1.5 text-xs font-medium inline-flex items-center gap-1.5 cursor-pointer">
                   <Plus size={13} />
                   <span className="hidden sm:inline">Add</span>
@@ -1876,6 +1927,7 @@ const App: React.FC = () => {
                     history: [],
                     historyIndex: -1,
                     editHistory: [],
+                    customPrompt: '',
                   }));
                   setSessionQueue(prev => [...prev, ...rest]);
                 }
@@ -1991,7 +2043,24 @@ const App: React.FC = () => {
                       isActive={true}
                     />
                   ) : generatedImage ? (
-                    <CompareSlider originalImage={originalImage} generatedImage={generatedImage} />
+                    <>
+                      <CompareSlider originalImage={originalImage} generatedImage={generatedImage} />
+                      {showFurnitureRemover && (
+                        <FurnitureRemover
+                          generatedImage={generatedImage}
+                          originalImage={originalImage}
+                          selectedRoom={selectedRoom}
+                          onRemovalComplete={(newImage) => {
+                            pushToHistory();
+                            setGeneratedImage(newImage);
+                            setShowFurnitureRemover(false);
+                          }}
+                          onClose={() => setShowFurnitureRemover(false)}
+                          isProcessing={isRemovingFurniture}
+                          onProcess={handleFurnitureRemoval}
+                        />
+                      )}
+                    </>
                   ) : (
                     <img
                       src={originalImage}
@@ -2153,6 +2222,12 @@ const App: React.FC = () => {
                       isGenerating={isGenerating}
                       hasMask={!!maskImage}
                       selectedRoom={selectedRoom}
+                      initialPrompt={sessionQueue[sessionIndex]?.customPrompt || ''}
+                      onPromptChange={(prompt) => {
+                        setSessionQueue(prev => prev.map((s, i) =>
+                          i === sessionIndex ? { ...s, customPrompt: prompt } : s
+                        ));
+                      }}
                     />
                     <SpecialModesPanel
                       key={sessionQueue[sessionIndex]?.id || 'single'}

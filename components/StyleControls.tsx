@@ -28,6 +28,8 @@ interface RenovationControlsProps {
   hasMask: boolean;
   selectedRoom: FurnitureRoomType;
   feedbackRequired?: boolean;
+  initialPrompt?: string;
+  onPromptChange?: (prompt: string) => void;
 }
 
 const RenovationControls: React.FC<RenovationControlsProps> = ({
@@ -39,10 +41,17 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
   hasMask,
   selectedRoom,
   feedbackRequired = false,
+  initialPrompt = '',
+  onPromptChange,
 }) => {
   const [selectedPreset, setSelectedPreset] = useState<StylePreset | null>(null);
-  const [customPrompt, setCustomPrompt] = useState('');
+  const [customPrompt, setCustomPrompt] = useState(initialPrompt);
   const [stageMode, setStageMode] = useState<StageMode>('text');
+
+  // Notify parent when prompt changes so it can persist per-image
+  useEffect(() => {
+    onPromptChange?.(customPrompt);
+  }, [customPrompt, onPromptChange]);
 
   const presets: Array<{ id: StylePreset; icon: React.ReactNode; description: string }> = [
     { id: 'Coastal Modern', icon: <Palmtree size={16} />, description: 'Light and airy flow' },
@@ -85,13 +94,13 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
     let prompt = '';
 
     if (stageMode === 'text') {
-      prompt = `Virtually stage this ${selectedRoom}. Preserve all architecture, wall colors, floor colors, layout, windows, doors, and built-in fixtures exactly. Do NOT change existing surface colors. Do NOT zoom in — maintain the EXACT same framing, crop, and field of view. The camera is locked in place. Primary direction: ${trimmedPrompt}`;
+      prompt = `Virtually stage this ${selectedRoom}. Preserve all architecture, wall colors, floor colors, layout, windows, doors, and built-in fixtures exactly. Do NOT change existing surface colors. Do NOT zoom in — maintain the EXACT same framing, crop, and field of view. The camera is locked in place. SPATIAL RULE: Before placing furniture, identify all doors, doorways, hallways, and walkways. NEVER place furniture blocking a doorway, in a door swing path, or obstructing a hallway entrance. Keep all traffic paths clear. Primary direction: ${trimmedPrompt}`;
     }
 
     if (stageMode === 'packs') {
       if (!selectedPreset) return;
       const details = PACK_DETAILS[selectedPreset] || '';
-      prompt = `Virtually stage this ${selectedRoom} in ${selectedPreset} style. Furniture and decor: ${details}. CRITICAL: Preserve all existing wall colors, floor colors, ceiling, architecture, layout, windows, doors, and built-in fixtures EXACTLY as they are. Do NOT change or color-grade existing surfaces. Do NOT zoom in — maintain the EXACT same framing, crop, and field of view. The camera is locked in place.`;
+      prompt = `Virtually stage this ${selectedRoom} in ${selectedPreset} style. Furniture and decor: ${details}. CRITICAL: Preserve all existing wall colors, floor colors, ceiling, architecture, layout, windows, doors, and built-in fixtures EXACTLY as they are. Do NOT change or color-grade existing surfaces. Do NOT zoom in — maintain the EXACT same framing, crop, and field of view. The camera is locked in place. SPATIAL RULE: Before placing furniture, identify all doors, doorways, hallways, and walkways. NEVER place furniture blocking a doorway, in a door swing path, or obstructing a hallway entrance. Keep all traffic paths clear.`;
     }
 
     if (hasMask) {

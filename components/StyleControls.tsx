@@ -30,6 +30,10 @@ interface RenovationControlsProps {
   feedbackRequired?: boolean;
   initialPrompt?: string;
   onPromptChange?: (prompt: string) => void;
+  initialStageMode?: 'text' | 'packs' | 'furniture';
+  initialPreset?: string | null;
+  onStageModeChanged?: (mode: 'text' | 'packs' | 'furniture') => void;
+  onPresetChanged?: (preset: string | null) => void;
 }
 
 const RenovationControls: React.FC<RenovationControlsProps> = ({
@@ -43,19 +47,35 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
   feedbackRequired = false,
   initialPrompt = '',
   onPromptChange,
+  initialStageMode = 'text',
+  initialPreset = null,
+  onStageModeChanged,
+  onPresetChanged,
 }) => {
-  const [selectedPreset, setSelectedPreset] = useState<StylePreset | null>(null);
+  const [selectedPreset, setSelectedPreset] = useState<StylePreset | null>(initialPreset as StylePreset | null);
   const [customPrompt, setCustomPrompt] = useState(initialPrompt);
-  const [stageMode, setStageMode] = useState<StageMode>('text');
+  const [stageMode, setStageMode] = useState<StageMode>(initialStageMode);
 
-  // Keep a stable ref to avoid re-render loops when parent passes an inline callback
+  // Keep stable refs to avoid re-render loops when parent passes inline callbacks
   const onPromptChangeRef = useRef(onPromptChange);
   onPromptChangeRef.current = onPromptChange;
+  const onStageModeChangedRef = useRef(onStageModeChanged);
+  onStageModeChangedRef.current = onStageModeChanged;
+  const onPresetChangedRef = useRef(onPresetChanged);
+  onPresetChangedRef.current = onPresetChanged;
 
-  // Notify parent when prompt changes so it can persist per-image
+  // Notify parent when prompt/mode/preset changes so it can persist per-image
   useEffect(() => {
     onPromptChangeRef.current?.(customPrompt);
   }, [customPrompt]);
+
+  useEffect(() => {
+    onStageModeChangedRef.current?.(stageMode);
+  }, [stageMode]);
+
+  useEffect(() => {
+    onPresetChangedRef.current?.(selectedPreset);
+  }, [selectedPreset]);
 
   const presets: Array<{ id: StylePreset; icon: React.ReactNode; description: string }> = [
     { id: 'Coastal Modern', icon: <Palmtree size={16} />, description: 'Light and airy flow' },

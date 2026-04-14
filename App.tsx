@@ -39,6 +39,8 @@ interface SessionImage {
   historyIndex: number;
   editHistory: string[]; // tracks tools used: ['staging', 'cleanup', 'twilight', etc.]
   customPrompt: string; // design direction text for this image
+  stageMode: StageMode; // which mode tab was active
+  selectedPreset: string | null; // which style pack was selected
 }
 import { useSubscription } from './hooks/useSubscription';
 import {
@@ -450,6 +452,8 @@ const App: React.FC = () => {
         historyIndex,
         editHistory: sessionQueue[sessionIndex]?.editHistory || [],
         customPrompt: sessionQueue[sessionIndex]?.customPrompt || '',
+        stageMode: sessionQueue[sessionIndex]?.stageMode || 'text',
+        selectedPreset: sessionQueue[sessionIndex]?.selectedPreset || null,
       };
       setSessionQueue(prev => {
         const updated = [...prev];
@@ -473,6 +477,8 @@ const App: React.FC = () => {
       historyIndex: -1,
       editHistory: [],
       customPrompt: '',
+      stageMode: 'text',
+      selectedPreset: null,
     };
     setSessionQueue(prev => [...prev, newSession]);
     setSessionIndex(prev => {
@@ -749,6 +755,8 @@ const App: React.FC = () => {
       historyIndex: 0,
       editHistory: [r.action],
       customPrompt: '',
+      stageMode: 'text',
+      selectedPreset: null,
     }));
 
     // Load first result into active editor
@@ -794,6 +802,8 @@ const App: React.FC = () => {
       historyIndex,
       editHistory: sessionQueue[sessionIndex]?.editHistory || [],
       customPrompt: sessionQueue[sessionIndex]?.customPrompt || '',
+      stageMode: sessionQueue[sessionIndex]?.stageMode || 'text',
+      selectedPreset: sessionQueue[sessionIndex]?.selectedPreset || null,
     };
   }, [originalImage, generatedImage, maskImage, colors, detectedRoom, selectedRoom, history, historyIndex, sessionIndex, sessionQueue]);
 
@@ -1962,6 +1972,8 @@ const App: React.FC = () => {
                     historyIndex: -1,
                     editHistory: [],
                     customPrompt: '',
+                    stageMode: 'text' as StageMode,
+                    selectedPreset: null,
                   }));
                   setSessionQueue(prev => [...prev, ...rest]);
                 }
@@ -2260,6 +2272,18 @@ const App: React.FC = () => {
                       onPromptChange={(prompt) => {
                         setSessionQueue(prev => prev.map((s, i) =>
                           i === sessionIndex ? { ...s, customPrompt: prompt } : s
+                        ));
+                      }}
+                      initialStageMode={sessionQueue[sessionIndex]?.stageMode || 'text'}
+                      initialPreset={sessionQueue[sessionIndex]?.selectedPreset || null}
+                      onStageModeChanged={(mode) => {
+                        setSessionQueue(prev => prev.map((s, i) =>
+                          i === sessionIndex ? { ...s, stageMode: mode } : s
+                        ));
+                      }}
+                      onPresetChanged={(preset) => {
+                        setSessionQueue(prev => prev.map((s, i) =>
+                          i === sessionIndex ? { ...s, selectedPreset: preset } : s
                         ));
                       }}
                     />

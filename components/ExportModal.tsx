@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Download, X, Type, Image as ImageIcon, Check, Share2, Heart } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Download, X, Type, Image as ImageIcon, Check, Share2, Heart, Video, Loader2 } from 'lucide-react';
 import { compositePreserve } from '../utils/compositePreserve';
 
 const STORAGE_KEY = 'studioai_export_settings';
@@ -43,7 +43,11 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [shareToGallery, setShareToGallery] = useState(false);
   const [shared, setShared] = useState(false);
+  const [videoGenerating, setVideoGenerating] = useState(false);
+  const [videoProgress, setVideoProgress] = useState(0);
+  const [videoAspect, setVideoAspect] = useState<'1:1' | '4:5'>('1:1');
   const iconInputRef = useRef<HTMLInputElement>(null);
+  const videoCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // Save settings whenever they change
   useEffect(() => {
@@ -112,6 +116,224 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
       setExporting(false);
     }
   };
+
+  const generateRevealVideo = useCallback(async () => {
+    if (!originalImage) return;
+    setVideoGenerating(true);
+    setVideoProgress(0);
+
+    try {
+      const canvasWidth = 1080;
+      const canvasHeight = videoAspect === '1:1' ? 1080 : 1350;
+      const fps = 30;
+      const totalFrames = fps * 4; // 4 seconds total
+      const holdBeforeEnd = fps * 1;   // frames 0-29: hold before
+      const wipeStart = fps * 1;       // frame 30: wipe begins
+      const wipeEnd = fps * 3;         // frame 90: wipe ends
+      // frames 90-119: hold after
+
+      // Load both images
+      const loadImg = (src: string): Promise<HTMLImageElement> =>
+        new Promise((resolve, reject) => {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+          img.src = src.startsWith('data:') ? src : `data:image/jpeg;base64,${src}`;
+        });
+
+      const [beforeImg, afterImg] = await Promise.all([
+        loadImg(originalImage),
+        loadImg(imageBase64),
+      ]);
+
+      // Create offscreen canvas
+      const canvas = document.createElement('canvas');
+      canvas.width = canvasWidth;
+      canvas.height = canvasHeight;
+      videoCanvasRef.current = canvas;
+      const ctx = canvas.getContext('2d')!;
+
+      // Helper: draw image covering canvas (cover fit)
+      const drawCover = (img: HTMLImageElement) => {
+        const imgAspect = img.naturalWidth / img.naturalHeight;
+        const canvasAspect = canvasWidth / canvasHeight;
+        let sx = 0, sy = 0, sw = img.naturalWidth, sh = img.naturalHeight;
+        if (imgAspect > canvasAspect) {
+          sw = img.naturalHeight * canvasAspect;
+          sx = (img.naturalWidth - sw) / 2;
+        } else {
+          sh = img.naturalWidth / canvasAspect;
+          sy = (img.naturalHeight - sh) / 2;
+        }
+        ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvasWidth, canvasHeight);
+      };
+
+      // Helper: draw watermark
+      const drawWatermark = () => {
+        const fontSize = 14;
+        ctx.save();
+        ctx.globalAlpha = 0.5;
+        ctx.font = `600 ${fontSize}px Inter, -apple-system, sans-serif`;
+        const text = 'Staged with StudioAI';
+        const metrics = ctx.measureText(text);
+        const padX = 12;
+        const padY = 6;
+        const pillW = metrics.width + padX * 2;
+        const pillH = fontSize + padY * 2;
+        const x = (canvasWidth - pillW) / 2;
+        const y = canvasHeight - 24 - pillH;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+        ctx.beginPath();
+        ctx.roundRect(x, y, pillW, pillH, pillH / 2);
+        ctx.fill();
+        ctx.fillStyle = 'white';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, x + padX, y + pillH / 2);
+        ctx.restore();
+      };
+
+      // Helper: draw the wipe divider line
+      const drawDivider = (xPos: number) => {
+        ctx.save();
+        // White line
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.lineWidth = 3;
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.moveTo(xPos, 0);
+        ctx.lineTo(xPos, canvasHeight);
+        ctx.stroke();
+
+        // Before/After labels near the line
+        const labelY = canvasHeight / 2;
+        ctx.font = `700 13px Inter, -apple-system, sans-serif`;
+        ctx.textBaseline = 'middle';
+        ctx.shadowBlur = 0;
+
+        // "BEFORE" label left of line
+        if (xPos > 80) {
+          ctx.globalAlpha = 0.85;
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+          const bw = 62, bh = 24, br = 12;
+          ctx.beginPath();
+          ctx.roundRect(xPos - bw - 12, labelY - bh / 2, bw, bh, br);
+          ctx.fill();
+          ctx.fillStyle = 'white';
+          ctx.textAlign = 'center';
+          ctx.fillText('BEFORE', xPos - bw / 2 - 12, labelY);
+        }
+
+        // "AFTER" label right of line
+        if (xPos < canvasWidth - 80) {
+          ctx.globalAlpha = 0.85;
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+          const aw = 52, ah = 24, ar = 12;
+          ctx.beginPath();
+          ctx.roundRect(xPos + 12, labelY - ah / 2, aw, ah, ar);
+          ctx.fill();
+          ctx.fillStyle = 'white';
+          ctx.textAlign = 'center';
+          ctx.fillText('AFTER', xPos + aw / 2 + 12, labelY);
+        }
+
+        ctx.restore();
+      };
+
+      // Set up MediaRecorder
+      const stream = canvas.captureStream(fps);
+      const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+        ? 'video/webm;codecs=vp9'
+        : MediaRecorder.isTypeSupported('video/webm;codecs=vp8')
+          ? 'video/webm;codecs=vp8'
+          : 'video/webm';
+      const recorder = new MediaRecorder(stream, {
+        mimeType,
+        videoBitsPerSecond: 5_000_000,
+      });
+      const chunks: Blob[] = [];
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+
+      const downloadPromise = new Promise<void>((resolve) => {
+        recorder.onstop = () => {
+          const blob = new Blob(chunks, { type: mimeType });
+          const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `studioai_reveal_${Date.now()}.${ext}`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+          resolve();
+        };
+      });
+
+      recorder.start();
+
+      // Render frames using requestAnimationFrame for smooth timing
+      let frame = 0;
+      const renderFrame = () => {
+        if (frame >= totalFrames) {
+          recorder.stop();
+          return;
+        }
+
+        // Clear
+        ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+        if (frame < holdBeforeEnd) {
+          // Hold on before image
+          drawCover(beforeImg);
+          drawWatermark();
+        } else if (frame >= wipeEnd) {
+          // Hold on after image
+          drawCover(afterImg);
+          drawWatermark();
+        } else {
+          // Wipe transition
+          const wipeProgress = (frame - wipeStart) / (wipeEnd - wipeStart);
+          // Ease in-out cubic
+          const eased = wipeProgress < 0.5
+            ? 4 * wipeProgress * wipeProgress * wipeProgress
+            : 1 - Math.pow(-2 * wipeProgress + 2, 3) / 2;
+          const wipeX = eased * canvasWidth;
+
+          // Draw after image (full)
+          drawCover(afterImg);
+
+          // Draw before image clipped to left of wipe line
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(0, 0, wipeX, canvasHeight);
+          ctx.clip();
+          drawCover(beforeImg);
+          ctx.restore();
+
+          // Draw divider line
+          drawDivider(wipeX);
+          drawWatermark();
+        }
+
+        setVideoProgress(Math.round(((frame + 1) / totalFrames) * 100));
+        frame++;
+        requestAnimationFrame(renderFrame);
+      };
+
+      requestAnimationFrame(renderFrame);
+      await downloadPromise;
+    } catch (err) {
+      console.error('Reveal video generation failed:', err);
+    } finally {
+      setVideoGenerating(false);
+      setVideoProgress(0);
+      videoCanvasRef.current = null;
+    }
+  }, [originalImage, imageBase64, videoAspect]);
 
   const update = (partial: Partial<ExportSettings>) => setSettings(prev => ({ ...prev, ...partial }));
 
@@ -255,6 +477,79 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
             </>
           )}
         </div>
+
+        {/* Create Reveal Video */}
+        {originalImage && (
+          <div className="px-5 pb-3">
+            <div className="rounded-xl border border-[var(--color-border)] bg-white/[0.02] p-4 space-y-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-[var(--color-primary)]/10 flex items-center justify-center">
+                  <Video size={16} className="text-[var(--color-primary)]" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-white">Create Reveal Video</p>
+                  <p className="text-[10px] text-zinc-500">Before/after wipe for Instagram & TikTok</p>
+                </div>
+              </div>
+
+              {/* Aspect ratio selector */}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setVideoAspect('1:1')}
+                  className={`flex-1 rounded-lg px-3 py-2 text-[11px] font-semibold transition-all border ${
+                    videoAspect === '1:1'
+                      ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]'
+                      : 'border-[var(--color-border-strong)] text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  1:1 Square
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVideoAspect('4:5')}
+                  className={`flex-1 rounded-lg px-3 py-2 text-[11px] font-semibold transition-all border ${
+                    videoAspect === '4:5'
+                      ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]'
+                      : 'border-[var(--color-border-strong)] text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  4:5 Portrait
+                </button>
+              </div>
+
+              {/* Generate button */}
+              <button
+                type="button"
+                onClick={generateRevealVideo}
+                disabled={videoGenerating}
+                className="w-full rounded-xl py-3 text-sm font-bold inline-flex items-center justify-center gap-2 transition-all bg-gradient-to-r from-[var(--color-primary)] to-[#0066CC] text-white hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {videoGenerating ? (
+                  <>
+                    <Loader2 size={15} className="animate-spin" />
+                    Generating... {videoProgress}%
+                  </>
+                ) : (
+                  <>
+                    <Video size={15} />
+                    Create Reveal Video
+                  </>
+                )}
+              </button>
+
+              {/* Progress bar */}
+              {videoGenerating && (
+                <div className="w-full h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-[var(--color-primary)] transition-all duration-150"
+                    style={{ width: `${videoProgress}%` }}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Share to Gallery */}
         {onShare && (

@@ -42,7 +42,7 @@ const MaskCanvas: React.FC<MaskCanvasProps> = ({ imageSrc, onMaskChange, isActiv
       if (ctx) {
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
-        ctx.strokeStyle = 'rgba(255, 255, 255, 1)';
+        ctx.strokeStyle = 'rgba(0, 200, 255, 0.55)';
         ctx.lineWidth = brushSize;
         if (history.length === 0) {
           pushToHistory(ctx.getImageData(0, 0, canvas.width, canvas.height));
@@ -162,7 +162,7 @@ const MaskCanvas: React.FC<MaskCanvasProps> = ({ imageSrc, onMaskChange, isActiv
       <canvas
         ref={canvasRef}
         className={`absolute inset-0 h-full w-full object-contain ${
-          isActive ? 'cursor-crosshair' : 'cursor-default opacity-90'
+          isActive ? 'cursor-crosshair' : 'cursor-default'
         }`}
         onMouseDown={startDrawing}
         onMouseMove={draw}

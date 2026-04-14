@@ -7,45 +7,62 @@ interface MaskCanvasProps {
   isActive: boolean;
 }
 
+const MASK_COLOR = 'rgba(0, 200, 255, 0.55)';
+const CLOSE_THRESHOLD = 50; // pixels — if stroke end is within this distance of start, auto-fill
+
 const MaskCanvas: React.FC<MaskCanvasProps> = ({ imageSrc, onMaskChange, isActive }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [brushSize, setBrushSize] = useState(40);
-  const [history, setHistory] = useState<ImageData[]>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
+  const historyRef = useRef<ImageData[]>([]);
+  const historyIndexRef = useRef(-1);
+  const [, forceUpdate] = useState(0); // trigger re-render for undo/redo button states
+  const canvasInitializedRef = useRef(false);
+  const startPointRef = useRef<{ x: number; y: number } | null>(null);
+  const currentPathRef = useRef<{ x: number; y: number }[]>([]);
 
   const getContext = useCallback(
     () => canvasRef.current?.getContext('2d', { willReadFrequently: true }),
     []
   );
 
-  const pushToHistory = useCallback(
-    (imageData: ImageData) => {
-      const newHistory = history.slice(0, historyIndex + 1);
-      newHistory.push(imageData);
-      setHistory(newHistory);
-      setHistoryIndex(newHistory.length - 1);
-    },
-    [history, historyIndex]
-  );
+  const pushToHistory = useCallback(() => {
+    const canvas = canvasRef.current;
+    const ctx = getContext();
+    if (!canvas || !ctx) return;
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    // Trim future history if we're not at the end
+    historyRef.current = historyRef.current.slice(0, historyIndexRef.current + 1);
+    historyRef.current.push(imageData);
+    historyIndexRef.current = historyRef.current.length - 1;
+    forceUpdate(n => n + 1);
+  }, [getContext]);
 
+  // Initialize canvas ONCE when image loads — never re-run on brush/history changes
   useEffect(() => {
     const canvas = canvasRef.current;
     const image = imageRef.current;
     if (!canvas || !image) return;
 
     const setupCanvas = () => {
-      canvas.width = image.naturalWidth;
-      canvas.height = image.naturalHeight;
-      const ctx = getContext();
-      if (ctx) {
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.strokeStyle = 'rgba(0, 200, 255, 0.55)';
-        ctx.lineWidth = brushSize;
-        if (history.length === 0) {
-          pushToHistory(ctx.getImageData(0, 0, canvas.width, canvas.height));
+      // Only set dimensions on first load or image change — setting width/height clears the canvas
+      if (!canvasInitializedRef.current || canvas.width !== image.naturalWidth) {
+        canvas.width = image.naturalWidth;
+        canvas.height = image.naturalHeight;
+        canvasInitializedRef.current = true;
+        historyRef.current = [];
+        historyIndexRef.current = -1;
+
+        const ctx = getContext();
+        if (ctx) {
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          ctx.strokeStyle = MASK_COLOR;
+          ctx.fillStyle = MASK_COLOR;
+          ctx.lineWidth = brushSize;
+          // Save initial blank state
+          pushToHistory();
         }
       }
     };
@@ -55,12 +72,22 @@ const MaskCanvas: React.FC<MaskCanvasProps> = ({ imageSrc, onMaskChange, isActiv
     } else {
       image.onload = setupCanvas;
     }
-  }, [imageSrc, brushSize, getContext, history.length, pushToHistory]);
+  }, [imageSrc, getContext]); // Only re-init on image change — NOT on brushSize/history
 
+  // Update brush size without clearing canvas
   useEffect(() => {
     const ctx = getContext();
-    if (ctx) ctx.lineWidth = brushSize;
+    if (ctx) {
+      ctx.lineWidth = brushSize;
+      ctx.strokeStyle = MASK_COLOR;
+      ctx.fillStyle = MASK_COLOR;
+    }
   }, [brushSize, getContext]);
+
+  // Reset when image source changes
+  useEffect(() => {
+    canvasInitializedRef.current = false;
+  }, [imageSrc]);
 
   const exportMask = useCallback(() => {
     const canvas = canvasRef.current;
@@ -73,26 +100,26 @@ const MaskCanvas: React.FC<MaskCanvasProps> = ({ imageSrc, onMaskChange, isActiv
   }, [getContext, onMaskChange]);
 
   const undo = useCallback(() => {
-    if (historyIndex <= 0) return;
-    const newIndex = historyIndex - 1;
+    if (historyIndexRef.current <= 0) return;
+    historyIndexRef.current -= 1;
     const ctx = getContext();
     if (ctx) {
-      ctx.putImageData(history[newIndex], 0, 0);
-      setHistoryIndex(newIndex);
+      ctx.putImageData(historyRef.current[historyIndexRef.current], 0, 0);
+      forceUpdate(n => n + 1);
       exportMask();
     }
-  }, [history, historyIndex, getContext, exportMask]);
+  }, [getContext, exportMask]);
 
   const redo = useCallback(() => {
-    if (historyIndex >= history.length - 1) return;
-    const newIndex = historyIndex + 1;
+    if (historyIndexRef.current >= historyRef.current.length - 1) return;
+    historyIndexRef.current += 1;
     const ctx = getContext();
     if (ctx) {
-      ctx.putImageData(history[newIndex], 0, 0);
-      setHistoryIndex(newIndex);
+      ctx.putImageData(historyRef.current[historyIndexRef.current], 0, 0);
+      forceUpdate(n => n + 1);
       exportMask();
     }
-  }, [history, historyIndex, getContext, exportMask]);
+  }, [getContext, exportMask]);
 
   const getCoordinates = (e: React.MouseEvent | React.TouchEvent) => {
     const canvas = canvasRef.current;
@@ -111,6 +138,8 @@ const MaskCanvas: React.FC<MaskCanvasProps> = ({ imageSrc, onMaskChange, isActiv
     const ctx = getContext();
     if (ctx) {
       setIsDrawing(true);
+      startPointRef.current = { x, y };
+      currentPathRef.current = [{ x, y }];
       ctx.beginPath();
       ctx.moveTo(x, y);
     }
@@ -124,6 +153,8 @@ const MaskCanvas: React.FC<MaskCanvasProps> = ({ imageSrc, onMaskChange, isActiv
     if (ctx) {
       ctx.lineTo(x, y);
       ctx.stroke();
+      // Keep building the path for potential fill
+      currentPathRef.current.push({ x, y });
     }
   };
 
@@ -132,9 +163,30 @@ const MaskCanvas: React.FC<MaskCanvasProps> = ({ imageSrc, onMaskChange, isActiv
     const ctx = getContext();
     const canvas = canvasRef.current;
     if (ctx && canvas) {
-      ctx.closePath();
       setIsDrawing(false);
-      pushToHistory(ctx.getImageData(0, 0, canvas.width, canvas.height));
+
+      // Check if the stroke loops back near the start point — auto-fill if so
+      const start = startPointRef.current;
+      const path = currentPathRef.current;
+      if (start && path.length > 10) {
+        const end = path[path.length - 1];
+        const dist = Math.sqrt((end.x - start.x) ** 2 + (end.y - start.y) ** 2);
+
+        if (dist < CLOSE_THRESHOLD * (canvas.width / canvas.clientWidth)) {
+          // Close the path and fill the enclosed area
+          ctx.beginPath();
+          ctx.moveTo(path[0].x, path[0].y);
+          for (let i = 1; i < path.length; i++) {
+            ctx.lineTo(path[i].x, path[i].y);
+          }
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+
+      startPointRef.current = null;
+      currentPathRef.current = [];
+      pushToHistory();
       exportMask();
     }
   };
@@ -144,9 +196,7 @@ const MaskCanvas: React.FC<MaskCanvasProps> = ({ imageSrc, onMaskChange, isActiv
     const ctx = getContext();
     if (canvas && ctx) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      const initialImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      setHistory([initialImageData]);
-      setHistoryIndex(0);
+      pushToHistory();
       onMaskChange(null);
     }
   };
@@ -196,7 +246,7 @@ const MaskCanvas: React.FC<MaskCanvasProps> = ({ imageSrc, onMaskChange, isActiv
           <button
             type="button"
             onClick={undo}
-            disabled={historyIndex <= 0}
+            disabled={historyIndexRef.current <= 0}
             className="rounded-full p-2 transition-all hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-35"
             aria-label="Undo mask stroke"
           >
@@ -205,7 +255,7 @@ const MaskCanvas: React.FC<MaskCanvasProps> = ({ imageSrc, onMaskChange, isActiv
           <button
             type="button"
             onClick={redo}
-            disabled={historyIndex >= history.length - 1}
+            disabled={historyIndexRef.current >= historyRef.current.length - 1}
             className="rounded-full p-2 transition-all hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-35"
             aria-label="Redo mask stroke"
           >

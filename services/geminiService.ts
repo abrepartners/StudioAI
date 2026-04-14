@@ -118,11 +118,17 @@ export const generateRoomDesign = async (
         4. **REVEAL THE TRUTH**: If removing an object, reveal the original background (hallways, doorways, open spaces). Do NOT "hallucinate" a new wall over a structural opening.
         5. **DEPTH & PERSPECTIVE**: Use the original photo's vanishing points. Match the lens distortion and angle perfectly.
 
-        VISUAL QUALITY REQUIREMENTS:
+        PHOTOGRAPHIC REALISM REQUIREMENTS (this must look like a REAL PHOTOGRAPH, not a 3D render):
         - **COLOR FIDELITY**: Preserve the original wall colors, floor colors, ceiling colors, and existing surface tones EXACTLY. Do NOT shift, enhance, saturate, or re-grade the colors of existing surfaces. Only new furniture/decor should introduce new colors.
-        - **LIGHTING**: Match the direction and temperature of the original ambient light exactly. Do NOT warm up, cool down, or re-light the scene. Add realistic shadows for new furniture only.
-        - **TEXTURE**: Use high-resolution realistic materials (leather, wood grain, fabric weave) for new items only.
+        - **LIGHTING**: Match the direction, intensity, and color temperature of the original ambient light exactly. New furniture must receive the SAME lighting as the existing scene — same shadow direction, same highlights, same exposure. Do NOT re-light the scene.
+        - **SHADOWS**: Every piece of furniture must cast realistic soft contact shadows on the floor. Shadow darkness and diffusion must match the room's existing light softness. Hard light = harder shadows. Soft/ambient light = diffused shadows. No shadow = obvious fake.
+        - **TEXTURE & MATERIALS**: Use photorealistic materials with visible imperfections — real wood grain with knots and tonal variation, fabric with visible weave and slight wrinkles, leather with natural creasing, metal with environment reflections. NO perfectly smooth CG surfaces.
+        - **PHOTOGRAPHIC NOISE & GRAIN**: Match the original photo's noise profile exactly. If the source image has sensor grain (common in real estate photos shot at higher ISO), the furniture must have the same grain pattern. Clean CG furniture on a grainy photo is an instant tell.
+        - **LENS CHARACTERISTICS**: Match the original lens — if the source has slight barrel distortion, chromatic aberration at edges, or vignetting, the added furniture must conform to the same optical characteristics. Furniture at frame edges should show the same subtle distortion as the walls.
+        - **DEPTH OF FIELD**: If background elements are slightly soft, furniture at the same depth should match. Do not make furniture razor-sharp if the original scene has natural softness.
+        - **SPECULAR HIGHLIGHTS**: Shiny surfaces (wood tabletops, glass, lacquered furniture) must show reflections consistent with the room's light sources — window reflections, ceiling light reflections. No specular highlights = flat and fake.
         - **SHARPNESS**: The output must be AS SHARP as the input photo. Do NOT soften, blur, or reduce detail. Maintain crisp edges, texture clarity, and the original noise profile. Unchanged areas must be pixel-identical in sharpness.
+        - **ANTI-RENDER TELLS**: Avoid these common AI staging giveaways: perfectly symmetrical furniture arrangements, furniture floating above the floor, impossibly clean/new-looking items, uniform lighting on all surfaces, missing contact shadows, plastic-looking fabrics, unnaturally saturated accent colors.
 
         ${isGrassTask ? `
         LANDSCAPING REALISM PROTOCOL:

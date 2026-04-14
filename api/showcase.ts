@@ -52,8 +52,8 @@ export default async function handler(req: any, res: any) {
           return;
         }
 
-        // Check image sizes — reject if too large (>2MB base64)
-        if (beforeImage.length > 3_000_000 || afterImage.length > 3_000_000) {
+        // Check image sizes — reject if too large (>10MB base64)
+        if (beforeImage.length > 10_000_000 || afterImage.length > 10_000_000) {
           json(res, 400, { ok: false, error: 'Images too large. Try with a smaller photo.' });
           return;
         }

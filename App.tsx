@@ -128,6 +128,40 @@ const roomOptions: FurnitureRoomType[] = [
 
 type StageMode = 'text' | 'packs' | 'furniture';
 
+// ─── Hero Rotating Headline ────────────────────────────────────────────
+const HERO_WORDS = ['real estate.', 'interior design.', 'property flipping.', 'RE photography.', 'renovations.', 'property management.'];
+
+const HeroHeadline: React.FC = () => {
+  const [index, setIndex] = useState(0);
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIsAnimating(true);
+      setTimeout(() => {
+        setIndex(prev => (prev + 1) % HERO_WORDS.length);
+        setIsAnimating(false);
+      }, 400);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <h1 className="font-display text-[clamp(2.5rem,6vw,4.5rem)] font-black leading-[1] tracking-tighter text-white mb-5 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+      AI photo editing<br />for{' '}
+      <span className="inline-block relative">
+        <span
+          className={`inline-block text-[var(--color-primary)] transition-all duration-400 ${
+            isAnimating ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'
+          }`}
+        >
+          {HERO_WORDS[index]}
+        </span>
+      </span>
+    </h1>
+  );
+};
+
 // Feedback checkpoint removed — reintroduce in Phase 2 with backend analytics
 
 // ─── Scroll Reveal Component ─────────────────────────────────────────────
@@ -1008,9 +1042,7 @@ const App: React.FC = () => {
                 <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#FFD60A]">Early Bird — $14/mo for first 20 users</span>
               </div>
 
-              <h1 className="font-display text-[clamp(2.5rem,6vw,4.5rem)] font-black leading-[1] tracking-tighter text-white mb-5 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-                AI photo editing<br />for real estate.
-              </h1>
+              <HeroHeadline />
 
               <p className="text-base sm:text-lg text-zinc-400 max-w-lg mb-6 leading-relaxed animate-fade-in" style={{ animationDelay: '0.2s' }}>
                 Stage empty rooms. Clean up yards. Convert day to dusk. Replace skies. Visualize renovations. One tool for agents, photographers, designers, and flippers.

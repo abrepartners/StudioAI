@@ -1008,11 +1008,11 @@ const App: React.FC = () => {
               </div>
 
               <h1 className="font-display text-[clamp(2.5rem,6vw,4.5rem)] font-black leading-[1] tracking-tighter text-white mb-5 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-                The AI workspace<br />for listing media.
+                AI photo editing<br />for real estate.
               </h1>
 
               <p className="text-base sm:text-lg text-zinc-400 max-w-lg mb-6 leading-relaxed animate-fade-in" style={{ animationDelay: '0.2s' }}>
-                Stage rooms. Convert day to dusk. Clean up clutter. Replace skies. Generate MLS copy. One tool, every photo.
+                Stage empty rooms. Clean up yards. Convert day to dusk. Replace skies. Visualize renovations. One tool for agents, photographers, designers, and flippers.
               </p>
 
               {/* Cost Comparison Hook — moved up from bottom CTA */}
@@ -1062,6 +1062,8 @@ const App: React.FC = () => {
                 { icon: <ImageIcon size={16} />, label: 'RE Photographers' },
                 { icon: <Building2 size={16} />, label: 'Brokerages' },
                 { icon: <Users size={16} />, label: 'Property Managers' },
+                { icon: <Wand2 size={16} />, label: 'Interior Designers' },
+                { icon: <Zap size={16} />, label: 'Flippers & Renovators' },
               ].map((who) => (
                 <div key={who.label} className="flex items-center gap-2.5 text-zinc-500">
                   <span className="text-zinc-600">{who.icon}</span>
@@ -1078,9 +1080,9 @@ const App: React.FC = () => {
             <div className="text-center mb-16 reveal">
               <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[var(--color-primary)] mb-3">What StudioAI Does</p>
               <h2 className="font-display text-3xl sm:text-4xl font-black text-white tracking-tight mb-3">
-                Six tools. One workspace.
+                Every tool your photos need.
               </h2>
-              <p className="text-sm text-zinc-500 max-w-lg mx-auto">Upload your listing photos and use any combination of AI tools — no switching apps, no waiting for edits.</p>
+              <p className="text-sm text-zinc-500 max-w-lg mx-auto">Upload any property photo — empty rooms, cluttered yards, dull skies — and transform it in seconds. No Photoshop, no contractors, no reshoot.</p>
             </div>
 
             {/* Primary Tools — interactive cards with preview */}
@@ -1089,7 +1091,7 @@ const App: React.FC = () => {
                 {
                   icon: <Wand2 size={22} />,
                   title: 'Virtual Staging',
-                  desc: 'Pick from 12+ design styles — Coastal Modern, Mid-Century, Farmhouse, Minimalist, and more. AI detects the room type and stages with photorealistic furniture.',
+                  desc: 'Stage any empty room with photorealistic furniture in 12+ styles. AI reads the room size and places appropriately scaled pieces — no king beds in small rooms, no sectionals in tight spaces.',
                   accent: '#0A84FF',
                   before: '/showcase-cleanup-before.jpg',
                   after: '/showcase-cleanup-after.png',
@@ -1098,7 +1100,7 @@ const App: React.FC = () => {
                 {
                   icon: <Eraser size={22} />,
                   title: 'Smart Cleanup',
-                  desc: 'Remove personal items, yard clutter, and distractions without touching the furniture or changing colors. The room stays exactly as-is, just cleaner.',
+                  desc: 'Remove realtor signs, yard debris, personal items, toys, and clutter from any photo. Interior or exterior — the AI strips distractions and reveals clean surfaces without adding anything new.',
                   accent: '#30D158',
                   before: '/showcase-cleanup-before.jpg',
                   after: '/showcase-cleanup-after.png',
@@ -1129,10 +1131,10 @@ const App: React.FC = () => {
             {/* Secondary Tools — interactive cards */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {[
-                { icon: <Sunset size={18} />, title: 'Day to Dusk', desc: 'Twilight conversions with warm window glow', accent: '#FF9F0A', before: '/showcase-dusk-before.jpg', after: '/showcase-dusk-after.png' },
-                { icon: <Cloud size={18} />, title: 'Sky Replacement', desc: 'Blue, dramatic, golden, or stormy skies', accent: '#64D2FF', before: null, after: null },
-                { icon: <LayoutGrid size={18} />, title: 'Batch Editing', desc: 'Upload 25+ photos, process in parallel', accent: '#FFD60A', before: null, after: null },
-                { icon: <FileText size={18} />, title: 'Listing Copy', desc: 'MLS descriptions in 3 tones', accent: '#BF5AF2', before: null, after: null },
+                { icon: <Sunset size={18} />, title: 'Day to Dusk', desc: 'Turn daytime exteriors into twilight shots with warm window glow — the #1 photographer trick', accent: '#FF9F0A', before: '/showcase-dusk-before.jpg', after: '/showcase-dusk-after.png' },
+                { icon: <Cloud size={18} />, title: 'Sky Replacement', desc: 'Swap grey overcast for blue, dramatic, or golden-hour skies in one click', accent: '#64D2FF', before: null, after: null },
+                { icon: <LayoutGrid size={18} />, title: 'Batch Editing', desc: 'Upload an entire listing (25+ photos) and process them all in parallel', accent: '#FFD60A', before: null, after: null },
+                { icon: <Trash2 size={18} />, title: 'Selective Removal', desc: 'Paint over specific items to remove them — keep everything else exactly as-is', accent: '#FF375F', before: null, after: null },
               ].map((f, i) => (
                 <div key={f.title} className={`feature-card-interactive p-5 rounded-xl bg-white/[0.02] border border-white/[0.06] reveal reveal-delay-${i + 1}`}>
                   <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-3" style={{ background: `${f.accent}10`, color: f.accent }}>{f.icon}</div>
@@ -1163,7 +1165,7 @@ const App: React.FC = () => {
                 {
                   quote: 'I staged 12 listings last week without spending a dime on physical staging. My sellers are blown away by the before/afters.',
                   name: 'Jessica M.',
-                  role: 'Listing Agent, Little Rock',
+                  role: 'Listing Agent',
                   stars: 5,
                 },
                 {
@@ -1173,9 +1175,9 @@ const App: React.FC = () => {
                   stars: 5,
                 },
                 {
-                  quote: 'We rolled this out to our 20-agent team and cut our staging budget by 80%. The batch processing is a game changer.',
-                  name: 'Rachel K.',
-                  role: 'Brokerage Owner, NWA',
+                  quote: 'I use the cleanup tool on every flip property before putting it on the market. Removes all the construction debris from listing photos instantly.',
+                  name: 'David R.',
+                  role: 'Property Flipper',
                   stars: 5,
                 },
               ].map((t, i) => (

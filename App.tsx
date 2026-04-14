@@ -978,14 +978,14 @@ const App: React.FC = () => {
             <button
               type="button"
               onClick={triggerGoogleSignIn}
-              className="text-xs sm:text-sm font-semibold text-zinc-400 hover:text-white transition-colors"
+              className="hidden sm:block text-sm font-semibold text-zinc-400 hover:text-white transition-colors"
             >
               Sign In
             </button>
             <button
               type="button"
               onClick={triggerGoogleSignIn}
-              className="inline-flex items-center gap-2 px-3 sm:px-5 py-2 rounded-full bg-white text-black text-[11px] sm:text-sm font-semibold hover:bg-zinc-200 transition-all whitespace-nowrap"
+              className="inline-flex items-center gap-2 px-3 sm:px-5 py-1.5 sm:py-2 rounded-full bg-white text-black text-[11px] sm:text-sm font-semibold hover:bg-zinc-200 transition-all whitespace-nowrap"
             >
               <span className="hidden sm:inline">Start Free — No Credit Card</span>
               <span className="sm:hidden">Start Free</span>

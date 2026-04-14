@@ -558,7 +558,7 @@ const App: React.FC = () => {
       console.log('[StudioAI] Generation prompt:', prompt);
 
       const sourceImage = activePanel === 'cleanup' && generatedImage ? generatedImage : originalImage;
-      const resultImages = await generateRoomDesign(sourceImage, prompt, activePanel === 'cleanup' ? maskImage : null, false, 1);
+      const resultImages = await generateRoomDesign(sourceImage, prompt, activePanel === 'cleanup' ? maskImage : null, false, 1, subscription.plan === 'pro');
 
       // Check if user is still on the same session image (using ref, not stale closure)
       const stillOnSameImage = currentSessionIdRef.current === generatingSessionId;
@@ -640,7 +640,7 @@ const App: React.FC = () => {
 
       const removalPrompt = `Selective Furniture Removal: ${descText} Replace the removed items with the original empty room surface (floor, wall, carpet) that was behind them. Keep ALL other furniture and decor that is NOT masked exactly as they are — do not move, resize, or alter any unmasked items. Preserve all architecture, wall colors, floor colors, lighting, and camera framing exactly.`;
 
-      const resultImages = await generateRoomDesign(generatedImage, removalPrompt, maskDataUrl, false, 1);
+      const resultImages = await generateRoomDesign(generatedImage, removalPrompt, maskDataUrl, false, 1, subscription.plan === 'pro');
       if (resultImages[0]) {
         pushToHistory();
         setGeneratedImage(resultImages[0]);
@@ -1933,6 +1933,7 @@ const App: React.FC = () => {
               onSaveStage={handleBatchSaveStage}
               onCancel={handleBatchCancel}
               onLoadImage={handleBatchLoadImage}
+              isPro={subscription.plan === 'pro'}
             />
           </div>
         </main>
@@ -2315,6 +2316,7 @@ const App: React.FC = () => {
                       })()}
                       onRequireKey={() => setShowUpgradeModal(true)}
                       savedStages={savedStages}
+                      isPro={subscription.plan === 'pro'}
                     />
                   </>
                 )}

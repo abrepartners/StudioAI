@@ -50,26 +50,27 @@ interface BatchProcessorProps {
   onCancel: () => void;
   onLoadImage: (original: string, generated: string) => void;
   concurrency?: number;
+  isPro?: boolean;
 }
 
 /** Build the right prompt / API call based on the action */
-const processImage = async (img: BatchImage): Promise<string> => {
+const processImage = async (img: BatchImage, isPro: boolean = false): Promise<string> => {
   const roomType = img.roomType || 'Living Room';
 
   switch (img.action) {
     case 'stage': {
       const prompt = `Virtually stage this ${roomType}. Add appropriate, style-neutral modern furniture and decor. Preserve all existing wall colors, floor colors, ceiling, architecture, layout, windows, doors, and built-in fixtures EXACTLY as they are. Do NOT change or color-grade existing surfaces. Keep the exact same framing and crop.`;
-      const results = await generateRoomDesign(img.base64, prompt, null, false, 1);
+      const results = await generateRoomDesign(img.base64, prompt, null, false, 1, isPro);
       return results[0];
     }
     case 'cleanup': {
-      return await instantDeclutter(img.base64, roomType);
+      return await instantDeclutter(img.base64, roomType, isPro);
     }
     case 'twilight': {
-      return await virtualTwilight(img.base64);
+      return await virtualTwilight(img.base64, isPro);
     }
     case 'sky': {
-      return await replaceSky(img.base64, 'blue');
+      return await replaceSky(img.base64, 'blue', isPro);
     }
     case 'export': {
       // No AI processing — just pass through the original
@@ -85,6 +86,7 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
   onCancel,
   onLoadImage,
   concurrency = 3,
+  isPro = false,
 }) => {
   // Freeze images on mount — they never change during processing
   const imagesRef = useRef(images);
@@ -150,7 +152,7 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
         );
 
         try {
-          const generated = await processImage(img);
+          const generated = await processImage(img, isPro);
 
           setResults(prev =>
             prev.map(r =>

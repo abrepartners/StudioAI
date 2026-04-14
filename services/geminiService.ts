@@ -90,11 +90,12 @@ export const generateRoomDesign = async (
   prompt: string,
   maskImageBase64?: string | null,
   isHighRes: boolean = false,
-  count = 1
+  count = 1,
+  isPro: boolean = false
 ): Promise<string[]> => {
   try {
     const ai = getAI();
-    const modelName = 'gemini-3.1-flash-image-preview';
+    const modelName = isPro ? 'gemini-3-pro-image-preview' : 'gemini-3.1-flash-image-preview';
     const clean = cleanBase64(imageBase64);
 
     const isRemovalTask = prompt.toLowerCase().includes('remove') ||
@@ -401,12 +402,12 @@ export const sendMessageToChat = async (chat: Chat, message: string, currentImag
  * golden-hour / blue-hour dusk shot by changing only the sky and ambient lighting.
  * Preserves all architecture, landscaping, and objects exactly — adds nothing new.
  */
-export const virtualTwilight = async (imageBase64: string): Promise<string> => {
+export const virtualTwilight = async (imageBase64: string, isPro: boolean = false): Promise<string> => {
   const ai = getAI();
   const clean = cleanBase64(imageBase64);
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3.1-flash-image-preview',
+    model: isPro ? 'gemini-3-pro-image-preview' : 'gemini-3.1-flash-image-preview',
     contents: [
       {
         parts: [
@@ -458,7 +459,7 @@ The result should look like the SAME photo taken at dusk — nothing added, noth
  * photo with a dramatic, photorealistic alternative (blue sky, dramatic clouds,
  * golden sunset, etc.) while perfectly preserving the ground and architecture.
  */
-export const replaceSky = async (imageBase64: string, skyStyle: 'blue' | 'dramatic' | 'golden' | 'stormy' = 'blue'): Promise<string> => {
+export const replaceSky = async (imageBase64: string, skyStyle: 'blue' | 'dramatic' | 'golden' | 'stormy' = 'blue', isPro: boolean = false): Promise<string> => {
   const ai = getAI();
   const clean = cleanBase64(imageBase64);
 
@@ -470,7 +471,7 @@ export const replaceSky = async (imageBase64: string, skyStyle: 'blue' | 'dramat
   };
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3.1-flash-image-preview',
+    model: isPro ? 'gemini-3-pro-image-preview' : 'gemini-3.1-flash-image-preview',
     contents: [
       {
         parts: [
@@ -502,12 +503,12 @@ BLENDING REQUIREMENTS:
  * items — family photos, kids' toys, pet items, counter clutter, laundry —
  * while preserving all furniture, architecture, and structural elements.
  */
-export const instantDeclutter = async (imageBase64: string, selectedRoom: string): Promise<string> => {
+export const instantDeclutter = async (imageBase64: string, selectedRoom: string, isPro: boolean = false): Promise<string> => {
   const ai = getAI();
   const clean = cleanBase64(imageBase64);
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3.1-flash-image-preview',
+    model: isPro ? 'gemini-3-pro-image-preview' : 'gemini-3.1-flash-image-preview',
     contents: [
       {
         parts: [

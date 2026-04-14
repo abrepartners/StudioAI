@@ -674,9 +674,32 @@ const App: React.FC = () => {
     document.body.removeChild(link);
   };
 
+  // Compress an image to fit within the Vercel payload limit
+  const compressForShowcase = (dataUrl: string, maxWidth = 800): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const scale = Math.min(1, maxWidth / img.width);
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext('2d')!;
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.7));
+      };
+      img.src = dataUrl;
+    });
+  };
+
   const handleShareToGallery = async () => {
     if (!originalImage || !generatedImage || !googleUser) return;
     try {
+      // Compress images to stay within Vercel's 4.5MB body limit
+      const [compBefore, compAfter] = await Promise.all([
+        compressForShowcase(originalImage),
+        compressForShowcase(generatedImage),
+      ]);
+
       const res = await fetch('/api/showcase', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -685,8 +708,8 @@ const App: React.FC = () => {
           email: googleUser.email,
           name: googleUser.name,
           toolUsed: sessionQueue[sessionIndex]?.editHistory?.slice(-1)[0] || (activePanel === 'cleanup' ? 'cleanup' : 'staging'),
-          beforeImage: originalImage,
-          afterImage: generatedImage,
+          beforeImage: compBefore,
+          afterImage: compAfter,
           roomType: selectedRoom,
         }),
       }).then(r => r.json());

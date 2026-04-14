@@ -14,7 +14,8 @@ const MaskCanvas: React.FC<MaskCanvasProps> = ({ imageSrc, onMaskChange, isActiv
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
-  const [brushSize, setBrushSize] = useState(40);
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+  const [brushSize, setBrushSize] = useState(isMobile ? 80 : 40);
   const historyRef = useRef<ImageData[]>([]);
   const historyIndexRef = useRef(-1);
   const [, forceUpdate] = useState(0); // trigger re-render for undo/redo button states
@@ -227,7 +228,7 @@ const MaskCanvas: React.FC<MaskCanvasProps> = ({ imageSrc, onMaskChange, isActiv
         <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-full bg-[var(--color-ink)]/84 px-3 py-2 text-white shadow-[0_20px_36px_rgba(15,23,42,0.4)] backdrop-blur-md">
           <div className="rounded-full bg-white/12 px-2 py-1">
             <div className="flex items-center gap-1">
-              {[20, 40, 80].map((size) => (
+              {(isMobile ? [40, 80, 140] : [20, 40, 80]).map((size) => (
                 <button
                   key={size}
                   type="button"

@@ -246,7 +246,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
             rows={4}
             className="w-full rounded-2xl border border-[var(--color-border-strong)] bg-black/60 px-3 py-2.5 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-text)]/40 focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] transition-all font-mono"
           />
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-3 flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
             {[
               "Scandinavian minimalist with light oak wood",
               "Mid-century modern with warm walnut accents",
@@ -257,7 +257,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
                 key={suggestion}
                 type="button"
                 onClick={() => setCustomPrompt(suggestion)}
-                className="text-[10px] font-semibold uppercase tracking-wide px-3 py-1.5 rounded-full border border-[var(--color-border-strong)] bg-black/40 hover:bg-[var(--color-primary)]/10 hover:border-[var(--color-primary)]/50 transition-all text-[var(--color-text)]/70 hover:text-[var(--color-primary)]"
+                className="text-[10px] font-semibold uppercase tracking-wide px-3 py-1.5 rounded-full border border-[var(--color-border-strong)] bg-black/40 hover:bg-[var(--color-primary)]/10 hover:border-[var(--color-primary)]/50 transition-all text-[var(--color-text)]/70 hover:text-[var(--color-primary)] whitespace-nowrap shrink-0"
               >
                 {suggestion}
               </button>
@@ -312,7 +312,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
         </div>
       )}
 
-      <div className="premium-surface-strong rounded-2xl p-5 sticky bottom-2 space-y-3">
+      <div className="premium-surface-strong rounded-2xl p-3 sm:p-5 sticky bottom-0 sm:bottom-2 space-y-2 sm:space-y-3 z-10">
         <button
           type="button"
           onClick={buildPrompt}

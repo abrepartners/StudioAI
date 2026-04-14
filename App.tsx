@@ -1713,7 +1713,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      <header className="shrink-0 bg-black border-b-[2px] border-[var(--color-primary-dark)] px-6 py-3 flex items-center justify-between gap-3 relative z-50 shadow-[0_4px_30px_rgba(10,132,255,0.15)]">
+      <header className="shrink-0 bg-black border-b-[2px] border-[var(--color-primary-dark)] px-3 sm:px-6 py-2 sm:py-3 flex items-center justify-between gap-2 sm:gap-3 relative z-50 shadow-[0_4px_30px_rgba(10,132,255,0.15)]">
         <div className="flex items-center gap-4 min-w-0">
           <div className="flex items-center gap-3 min-w-0 pr-4 border-r border-[var(--color-border-strong)]">
             <div className="bg-black border border-[var(--color-primary)] shadow-md flex h-10 w-10 items-center justify-center rounded-xl">
@@ -2060,10 +2060,10 @@ const App: React.FC = () => {
             })}
           </nav>
 
-          <main className="order-1 lg:order-2 flex-1 min-h-0 overflow-y-auto overscroll-contain editor-canvas-bg p-3 sm:p-5 lg:p-6 pb-24 lg:pb-6 relative z-10">
+          <main className="order-1 lg:order-2 flex-1 min-h-0 overflow-y-auto overscroll-contain editor-canvas-bg p-1.5 sm:p-5 lg:p-6 pb-24 lg:pb-6 relative z-10">
             <div className="mx-auto w-full max-w-6xl space-y-4">
-              <div className="canvas-frame p-1 sm:p-2 rounded-2xl glass-overlay border border-[var(--color-border-strong)] shadow-2xl">
-                <div className="relative overflow-hidden rounded-[14px] bg-black aspect-video border border-[var(--color-border-strong)]">
+              <div className="canvas-frame p-0.5 sm:p-2 rounded-xl sm:rounded-2xl glass-overlay border border-[var(--color-border-strong)] shadow-2xl">
+                <div className="relative overflow-hidden rounded-[10px] sm:rounded-[14px] bg-black aspect-[4/3] sm:aspect-video border border-[var(--color-border-strong)]">
                   {isGenerating && (
                     <div className="absolute inset-0 z-10 bg-black/70 backdrop-blur-sm pointer-events-none flex flex-col items-center justify-center">
                       
@@ -2249,10 +2249,7 @@ const App: React.FC = () => {
               onClick={() => setSheetOpen((prev) => !prev)}
               className="mobile-sheet-toggle lg:hidden bg-[#0A0A0A] border-b border-[var(--color-border-strong)]"
             >
-              <span className="mobile-sheet-handle bg-zinc-600" />
-              <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-400 font-bold">
-                {sheetOpen ? 'Close Panel' : 'Open Panel'}
-              </span>
+              <span className="mobile-sheet-handle bg-zinc-500" />
             </button>
 
             <div className="mobile-sheet-scroll scrollbar-hide">

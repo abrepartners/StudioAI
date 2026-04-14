@@ -169,11 +169,11 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
     };
 
     return (
-        <div className="space-y-3">
+        <div className="space-y-2 sm:space-y-3">
             <div className="px-1">
                 <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--color-text)]/70">Special Modes</p>
-                <h3 className="font-display text-xl mt-0.5">Pro AI Tools</h3>
-                <p className="text-xs text-[var(--color-text)]/75 mt-1">Advanced tools that go beyond basic staging. These features work on uploaded photos.</p>
+                <h3 className="font-display text-lg sm:text-xl mt-0.5">Pro AI Tools</h3>
+                <p className="text-xs text-[var(--color-text)]/75 mt-1 hidden sm:block">Advanced tools that go beyond basic staging. These features work on uploaded photos.</p>
             </div>
 
             {/* Batch Mode Toggle */}

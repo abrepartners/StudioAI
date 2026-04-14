@@ -527,44 +527,45 @@ export const instantDeclutter = async (imageBase64: string, selectedRoom: string
       {
         parts: [
           {
-            text: `You are an expert real estate photo editor. Your ONLY job is to remove small personal clutter from this ${selectedRoom}. This is a MINIMAL edit — NOT a redesign.
+            text: `You are an expert real estate photo editor. Your ONLY job is to REMOVE clutter, junk, and distractions from this ${selectedRoom}. This is a REMOVAL-ONLY edit.
 
-CRITICAL RULES (HIGHEST PRIORITY):
-- Do NOT change, replace, or restyle ANY furniture. Every piece of furniture must remain EXACTLY as it appears — same style, same color, same fabric, same position.
-- Do NOT change bedding, pillows, rugs, curtains, or any soft furnishings. Leave them EXACTLY as they are.
+ABSOLUTE RULE — DO NOT ADD ANYTHING:
+- Do NOT add ANY new objects, furniture, decor, plants, artwork, or items that are not already in the photo.
+- Do NOT replace removed items with new items. Where items are removed, reveal the clean floor, wall, ground, or surface behind them.
+- This is SUBTRACTION ONLY. The output must have FEWER objects than the input, never more.
+
+CRITICAL RULES:
+- Do NOT change, replace, or restyle ANY existing furniture. Every piece of furniture that stays must remain EXACTLY as it appears.
 - Do NOT change wall colors, floor colors, or any surface colors.
 - Do NOT zoom in. Maintain the EXACT same framing, crop, and field of view. The camera is locked.
-- The output should be nearly IDENTICAL to the input — just cleaner.
 
-COLOR & QUALITY PRESERVATION (CRITICAL):
-- Do NOT desaturate, mute, or shift the colors of ANYTHING in the image.
+COLOR & QUALITY PRESERVATION:
 - Maintain the EXACT same color temperature, saturation, brightness, and contrast as the original.
-- Walls, floors, furniture, fabrics, and all surfaces must keep their original vivid colors.
-- Do NOT apply any color grading, tone mapping, or mood shift. The image is NOT being re-lit.
-- If the original has warm tones, the output must have warm tones. If cool, stay cool. Match exactly.
-- Do NOT soften, blur, or reduce the sharpness of the image. The output must be AS SHARP as the input.
-- Maintain the original image's detail level, texture clarity, and edge crispness pixel-for-pixel.
-- Areas that were NOT edited must be IDENTICAL to the input — same sharpness, same noise profile, same detail.
+- Do NOT apply any color grading, tone mapping, or mood shift.
+- Do NOT soften, blur, or reduce sharpness. Output must be AS SHARP as the input.
 
-REMOVE ONLY THESE (small personal items):
-- Personal photos and children's drawings
-- Toys, pet items
-- Visible laundry, shoes, bags on the floor
-- Countertop clutter: mail, keys, loose bottles, random cups
-- Bathroom toiletries on counters
+REMOVE ALL OF THESE:
+- Realtor signs, for-sale signs, lockboxes, key boxes on doors
+- Toys, pet items, children's items, strollers
+- Visible laundry, shoes, bags, backpacks on the floor
+- Trash, debris, junk, broken items, construction materials
+- Countertop clutter: mail, keys, loose bottles, random cups, toiletries
 - Visible cords and cables on the floor
-- Refrigerator magnets, sticky notes
+- Refrigerator magnets, sticky notes, taped papers
+- Personal photos and children's drawings on walls
+- Yard clutter: hoses, tools, buckets, tarps, random outdoor items
+- Moving boxes, packing materials
+- Cleaning supplies left out (brooms, mops, spray bottles)
 
 KEEP EVERYTHING ELSE EXACTLY AS-IS:
 - ALL furniture — same style, same color, same position
 - ALL bedding, pillows, throws, rugs — unchanged
 - ALL architecture, fixtures, fans, vents, outlets
 - ALL curtains, blinds, lamps
-- ALL decorative items (vases, plants, books)
 - ALL appliances
 
 RESTORATION:
-- Where small items are removed, fill with the surrounding floor/wall texture seamlessly.
+- Where items are removed, fill with the surrounding floor/wall/ground texture seamlessly.
 - Maintain consistent lighting.
 - If nothing needs removing, return the image unchanged.`
           },

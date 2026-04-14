@@ -985,9 +985,10 @@ const App: React.FC = () => {
             <button
               type="button"
               onClick={triggerGoogleSignIn}
-              className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 rounded-full bg-white text-black text-xs sm:text-sm font-semibold hover:bg-zinc-200 transition-all"
+              className="inline-flex items-center gap-2 px-3 sm:px-5 py-2 rounded-full bg-white text-black text-[11px] sm:text-sm font-semibold hover:bg-zinc-200 transition-all whitespace-nowrap"
             >
-              Start Free — No Credit Card
+              <span className="hidden sm:inline">Start Free — No Credit Card</span>
+              <span className="sm:hidden">Start Free</span>
             </button>
           </div>
           <div ref={googleButtonRef} className="hidden" />
@@ -1056,18 +1057,18 @@ const App: React.FC = () => {
         {/* ─── Who It's For ─── */}
         <section className="px-5 sm:px-8 lg:px-16 py-10 border-t border-white/[0.04]">
           <div className="max-w-4xl mx-auto">
-            <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10">
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center justify-center gap-3 sm:gap-10">
               {[
-                { icon: <Camera size={16} />, label: 'Listing Agents' },
-                { icon: <ImageIcon size={16} />, label: 'RE Photographers' },
-                { icon: <Building2 size={16} />, label: 'Brokerages' },
-                { icon: <Users size={16} />, label: 'Property Managers' },
-                { icon: <Wand2 size={16} />, label: 'Interior Designers' },
-                { icon: <Zap size={16} />, label: 'Flippers & Renovators' },
+                { icon: <Camera size={14} />, label: 'Listing Agents' },
+                { icon: <ImageIcon size={14} />, label: 'RE Photographers' },
+                { icon: <Building2 size={14} />, label: 'Brokerages' },
+                { icon: <Users size={14} />, label: 'Property Managers' },
+                { icon: <Wand2 size={14} />, label: 'Interior Designers' },
+                { icon: <Zap size={14} />, label: 'Flippers & Renovators' },
               ].map((who) => (
-                <div key={who.label} className="flex items-center gap-2.5 text-zinc-500">
+                <div key={who.label} className="flex items-center gap-2 text-zinc-500">
                   <span className="text-zinc-600">{who.icon}</span>
-                  <span className="text-xs font-semibold tracking-wide">{who.label}</span>
+                  <span className="text-[11px] sm:text-xs font-semibold tracking-wide">{who.label}</span>
                 </div>
               ))}
             </div>

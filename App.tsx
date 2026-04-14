@@ -1076,12 +1076,21 @@ const App: React.FC = () => {
               </div>
             </div>
 
-            {/* Hero Interactive Before/After Slider */}
+            {/* Hero Demo Video + Before/After Fallback */}
             <div className="hidden lg:block animate-fade-in" style={{ animationDelay: '0.5s' }}>
-              <div className="relative rounded-2xl overflow-hidden border border-white/[0.08] shadow-2xl aspect-[4/3]">
-                <CompareSlider originalImage="/showcase-dusk-before.jpg" generatedImage="/showcase-dusk-after.png" />
+              <div className="relative rounded-2xl overflow-hidden border border-white/[0.08] shadow-2xl">
+                <video
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  className="w-full rounded-2xl"
+                  poster="/showcase-staging-before.jpg"
+                >
+                  <source src="/demo-video.mp4" type="video/mp4" />
+                </video>
               </div>
-              <p className="text-[10px] text-zinc-600 text-center mt-3">Drag to compare — Day to Dusk in 15 seconds</p>
+              <p className="text-[10px] text-zinc-600 text-center mt-3">Watch: Upload a photo, describe what you want, get results in seconds</p>
             </div>
           </div>
         </section>

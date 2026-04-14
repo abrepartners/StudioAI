@@ -272,14 +272,66 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
         };
       });
 
-      // Animate in real-time using requestAnimationFrame with timestamps
-      const durationMs = 4000;
-      const holdBeforeMs = 1000;
-      const wipeStartMs = 1000;
-      const wipeEndMs = 3000;
+      // Boomerang animation: before -> wipe to after -> wipe back to before
+      // Total: 6 seconds — hold before 1s, wipe forward 1.5s, hold after 1s, wipe back 1.5s, hold before 1s
+      const durationMs = 6000;
+
+      // Timeline (milliseconds):
+      // 0-1000:      hold BEFORE
+      // 1000-2500:   wipe forward (before -> after)
+      // 2500-3500:   hold AFTER
+      // 3500-5000:   wipe back (after -> before)
+      // 5000-6000:   hold BEFORE (matches first frame for seamless loop)
 
       // Start recording with timeslice to force data collection every 100ms
       recorder.start(100);
+
+      // Draw a frame based on elapsed time, return wipe position (0 = full before, 1 = full after)
+      const drawFrame = (elapsed: number) => {
+        ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+        let wipeAmount = 0; // 0 = show before, 1 = show after
+
+        if (elapsed < 1000) {
+          // Hold before
+          wipeAmount = 0;
+        } else if (elapsed < 2500) {
+          // Wipe forward
+          const p = (elapsed - 1000) / 1500;
+          wipeAmount = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+        } else if (elapsed < 3500) {
+          // Hold after
+          wipeAmount = 1;
+        } else if (elapsed < 5000) {
+          // Wipe back
+          const p = (elapsed - 3500) / 1500;
+          const eased = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+          wipeAmount = 1 - eased;
+        } else {
+          // Hold before (end = start for seamless loop)
+          wipeAmount = 0;
+        }
+
+        if (wipeAmount <= 0) {
+          drawCover(beforeImg);
+        } else if (wipeAmount >= 1) {
+          drawCover(afterImg);
+        } else {
+          const wipeX = wipeAmount * canvasWidth;
+          drawCover(afterImg);
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(0, 0, wipeX, canvasHeight);
+          ctx.clip();
+          drawCover(beforeImg);
+          ctx.restore();
+          drawDivider(wipeX);
+        }
+        drawWatermark();
+      };
+
+      // Draw the first frame immediately so frame 0 isn't blank
+      drawFrame(0);
 
       const animateAndRecord = (): Promise<void> => {
         return new Promise((resolveAnim) => {
@@ -289,38 +341,12 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
             const elapsed = performance.now() - startTime;
             const t = Math.min(elapsed / durationMs, 1);
 
-            ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-
-            if (elapsed < holdBeforeMs) {
-              drawCover(beforeImg);
-              drawWatermark();
-            } else if (elapsed >= wipeEndMs) {
-              drawCover(afterImg);
-              drawWatermark();
-            } else {
-              const wipeProgress = (elapsed - wipeStartMs) / (wipeEndMs - wipeStartMs);
-              const eased = wipeProgress < 0.5
-                ? 4 * wipeProgress * wipeProgress * wipeProgress
-                : 1 - Math.pow(-2 * wipeProgress + 2, 3) / 2;
-              const wipeX = eased * canvasWidth;
-
-              drawCover(afterImg);
-              ctx.save();
-              ctx.beginPath();
-              ctx.rect(0, 0, wipeX, canvasHeight);
-              ctx.clip();
-              drawCover(beforeImg);
-              ctx.restore();
-              drawDivider(wipeX);
-              drawWatermark();
-            }
-
+            drawFrame(elapsed);
             setVideoProgress(Math.round(t * 100));
 
             if (elapsed < durationMs) {
               requestAnimationFrame(tick);
             } else {
-              // Hold final frame briefly then stop
               setTimeout(() => {
                 recorder.stop();
                 resolveAnim();

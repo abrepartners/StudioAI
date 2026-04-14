@@ -272,15 +272,13 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
         };
       });
 
-      recorder.start();
-
       // Animate in real-time using requestAnimationFrame with timestamps
       const durationMs = 4000;
       const holdBeforeMs = 1000;
       const wipeStartMs = 1000;
       const wipeEndMs = 3000;
 
-      // Start recording with timeslice to force data collection
+      // Start recording with timeslice to force data collection every 100ms
       recorder.start(100);
 
       const animateAndRecord = (): Promise<void> => {
@@ -690,3 +688,4 @@ async function renderWithDisclaimer(imageBase64: string, settings: ExportSetting
 }
 
 export default ExportModal;
+ExportModal;

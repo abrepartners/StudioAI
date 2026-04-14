@@ -120,7 +120,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
     if (stageMode === 'text') {
       // Detect removal/cleanup intent so we don't wrap it in a "stage this room" prompt
       const lowerPrompt = trimmedPrompt.toLowerCase();
-      const isRemovalIntent = /\b(remove|take out|get rid of|clear|empty|no furniture|declutter|strip|clean out|unstage|delete|erase)\b/.test(lowerPrompt);
+      const isRemovalIntent = /\b(remove|take out|get rid of|clear|empty|no furniture|declutter|strip|clean up|clean out|unstage|delete|erase)\b/.test(lowerPrompt);
 
       if (isRemovalIntent) {
         prompt = `Edit this ${selectedRoom} photo. Preserve all architecture, wall colors, floor colors, layout, windows, doors, and built-in fixtures exactly. Do NOT change existing surface colors. Do NOT zoom in — maintain the EXACT same framing, crop, and field of view. The camera is locked in place. Direction: ${trimmedPrompt}`;

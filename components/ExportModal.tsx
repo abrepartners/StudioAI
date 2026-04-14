@@ -242,7 +242,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
       };
 
       // Set up MediaRecorder
-      const stream = canvas.captureStream(0); // 0 = manual frame push
+      const stream = canvas.captureStream(30);
       const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
         ? 'video/webm;codecs=vp9'
         : MediaRecorder.isTypeSupported('video/webm;codecs=vp8')
@@ -274,37 +274,22 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
 
       recorder.start();
 
-      // Use timestamp-based animation with requestAnimationFrame
-      // Duration in milliseconds
+      // Animate in real-time using requestAnimationFrame with timestamps
       const durationMs = 4000;
       const holdBeforeMs = 1000;
       const wipeStartMs = 1000;
       const wipeEndMs = 3000;
 
-      const videoTrack = stream.getVideoTracks()[0];
+      // Start recording with timeslice to force data collection
+      recorder.start(100);
 
-      const renderTimeBased = (): Promise<void> => {
-        return new Promise((resolveRender) => {
+      const animateAndRecord = (): Promise<void> => {
+        return new Promise((resolveAnim) => {
           const startTime = performance.now();
 
-          const renderFrame = () => {
+          const tick = () => {
             const elapsed = performance.now() - startTime;
-
-            if (elapsed >= durationMs) {
-              // Draw final frame
-              ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-              drawCover(afterImg);
-              drawWatermark();
-              // @ts-ignore - requestFrame exists on captureStream tracks
-              if (videoTrack.requestFrame) videoTrack.requestFrame();
-
-              // Wait a beat then stop
-              setTimeout(() => {
-                recorder.stop();
-                resolveRender();
-              }, 100);
-              return;
-            }
+            const t = Math.min(elapsed / durationMs, 1);
 
             ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
@@ -332,19 +317,24 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
               drawWatermark();
             }
 
-            // Push frame to stream
-            // @ts-ignore
-            if (videoTrack.requestFrame) videoTrack.requestFrame();
+            setVideoProgress(Math.round(t * 100));
 
-            setVideoProgress(Math.round((elapsed / durationMs) * 100));
-            requestAnimationFrame(renderFrame);
+            if (elapsed < durationMs) {
+              requestAnimationFrame(tick);
+            } else {
+              // Hold final frame briefly then stop
+              setTimeout(() => {
+                recorder.stop();
+                resolveAnim();
+              }, 200);
+            }
           };
 
-          requestAnimationFrame(renderFrame);
+          requestAnimationFrame(tick);
         });
       };
 
-      await renderTimeBased();
+      await animateAndRecord();
       await downloadPromise;
     } catch (err) {
       console.error('Reveal video generation failed:', err);

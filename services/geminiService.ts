@@ -156,13 +156,20 @@ export const generateRoomDesign = async (
         - Only add furniture that aligns with the vanishing points of the existing floor.
         - Ensure soft contact shadows where furniture meets the floor.
 
+        ROOM SCALE ANALYSIS (CRITICAL — READ THE ROOM SIZE FIRST):
+        - Before selecting ANY furniture, estimate the room's real-world dimensions using visual cues: standard door height (~6'8"), outlet height (~12" from floor), window sizes, ceiling height, and visible floor area.
+        - SMALL ROOMS (under ~12x12 ft): Use compact furniture ONLY. Bedrooms get a full or queen bed (NOT king), one nightstand max per side, no bench/chaise. Living rooms get a loveseat or small sofa, not a sectional. No oversized area rugs.
+        - MEDIUM ROOMS (~12x14 ft): Standard furniture is fine. Queen bed with two small nightstands. Standard 3-seat sofa.
+        - LARGE ROOMS (over ~14x16 ft): King bed is acceptable. Sectional sofas, accent chairs, larger furniture groupings are appropriate.
+        - The furniture must look like it ACTUALLY FITS — if a piece would leave less than 24 inches of walkable space on any side, it is too large for the room.
+        - When in doubt, go SMALLER. Undersized furniture looks intentional (minimalist). Oversized furniture looks like a mistake.
+
         SPATIAL AWARENESS & FURNITURE PLACEMENT (CRITICAL):
         - Before placing ANY furniture, mentally map the room layout: identify all doors (open or closed), doorways, hallways, walkways, windows, and traffic paths.
         - NEVER place furniture in front of a doorway, in a door swing path, or blocking a hallway entrance. Doorways and passages must remain fully clear and walkable.
         - NEVER place furniture where it would block a window or overlap with a wall opening.
         - Maintain realistic walking clearance: at least 36 inches (visual equivalent) around beds, between seating and walls, and in any path a person would walk.
         - If a door is open in the photo, keep the entire door swing arc clear of furniture. Nightstands, chairs, and tables must not encroach into the doorway zone.
-        - Scale furniture proportionally to the room. Do not place oversized pieces that would not physically fit through the room's doors.
         - Furniture legs must sit flat on the floor plane — no floating, no clipping through walls or other objects.
         - Group furniture logically: nightstands flanking a bed, dining chairs around a table, not scattered randomly. Maintain functional room flow.`
       },

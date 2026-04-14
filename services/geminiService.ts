@@ -170,6 +170,7 @@ export const generateRoomDesign = async (
         - NEVER place furniture where it would block a window or overlap with a wall opening.
         - Maintain realistic walking clearance: at least 36 inches (visual equivalent) around beds, between seating and walls, and in any path a person would walk.
         - If a door is open in the photo, keep the entire door swing arc clear of furniture. Nightstands, chairs, and tables must not encroach into the doorway zone.
+        - NOTHING IN FRONT OF DOORS: Do NOT place ANY items — shelves, artwork, mirrors, coat racks, bookcases, or wall-mounted decor — on or in front of a door, doorway, or door frame. The door and its surrounding wall space must remain completely clear and functional. This applies to BOTH floor furniture AND wall-mounted items.
         - Furniture legs must sit flat on the floor plane — no floating, no clipping through walls or other objects.
         - Group furniture logically: nightstands flanking a bed, dining chairs around a table, not scattered randomly. Maintain functional room flow.`
       },

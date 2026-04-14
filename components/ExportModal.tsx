@@ -275,56 +275,65 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
 
       recorder.start();
 
-      // Render frames using requestAnimationFrame for smooth timing
+      // Render frames using setTimeout at fixed intervals for consistent timing
+      const frameInterval = 1000 / fps;
       let frame = 0;
-      const renderFrame = () => {
-        if (frame >= totalFrames) {
-          recorder.stop();
-          return;
-        }
 
-        // Clear
-        ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+      const renderAllFrames = (): Promise<void> => {
+        return new Promise((resolveRender) => {
+          const renderNextFrame = () => {
+            if (frame >= totalFrames) {
+              recorder.stop();
+              resolveRender();
+              return;
+            }
 
-        if (frame < holdBeforeEnd) {
-          // Hold on before image
-          drawCover(beforeImg);
-          drawWatermark();
-        } else if (frame >= wipeEnd) {
-          // Hold on after image
-          drawCover(afterImg);
-          drawWatermark();
-        } else {
-          // Wipe transition
-          const wipeProgress = (frame - wipeStart) / (wipeEnd - wipeStart);
-          // Ease in-out cubic
-          const eased = wipeProgress < 0.5
-            ? 4 * wipeProgress * wipeProgress * wipeProgress
-            : 1 - Math.pow(-2 * wipeProgress + 2, 3) / 2;
-          const wipeX = eased * canvasWidth;
+            // Clear
+            ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
-          // Draw after image (full)
-          drawCover(afterImg);
+            if (frame < holdBeforeEnd) {
+              // Hold on before image
+              drawCover(beforeImg);
+              drawWatermark();
+            } else if (frame >= wipeEnd) {
+              // Hold on after image
+              drawCover(afterImg);
+              drawWatermark();
+            } else {
+              // Wipe transition
+              const wipeProgress = (frame - wipeStart) / (wipeEnd - wipeStart);
+              // Ease in-out cubic
+              const eased = wipeProgress < 0.5
+                ? 4 * wipeProgress * wipeProgress * wipeProgress
+                : 1 - Math.pow(-2 * wipeProgress + 2, 3) / 2;
+              const wipeX = eased * canvasWidth;
 
-          // Draw before image clipped to left of wipe line
-          ctx.save();
-          ctx.beginPath();
-          ctx.rect(0, 0, wipeX, canvasHeight);
-          ctx.clip();
-          drawCover(beforeImg);
-          ctx.restore();
+              // Draw after image (full)
+              drawCover(afterImg);
 
-          // Draw divider line
-          drawDivider(wipeX);
-          drawWatermark();
-        }
+              // Draw before image clipped to left of wipe line
+              ctx.save();
+              ctx.beginPath();
+              ctx.rect(0, 0, wipeX, canvasHeight);
+              ctx.clip();
+              drawCover(beforeImg);
+              ctx.restore();
 
-        setVideoProgress(Math.round(((frame + 1) / totalFrames) * 100));
-        frame++;
-        requestAnimationFrame(renderFrame);
+              // Draw divider line
+              drawDivider(wipeX);
+              drawWatermark();
+            }
+
+            setVideoProgress(Math.round(((frame + 1) / totalFrames) * 100));
+            frame++;
+            setTimeout(renderNextFrame, frameInterval);
+          };
+
+          renderNextFrame();
+        });
       };
 
-      requestAnimationFrame(renderFrame);
+      await renderAllFrames();
       await downloadPromise;
     } catch (err) {
       console.error('Reveal video generation failed:', err);

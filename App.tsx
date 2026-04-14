@@ -15,6 +15,7 @@ import ManageTeam from './components/ManageTeam';
 import ReferralDashboard from './components/ReferralDashboard';
 import QuickStartTutorial from './components/QuickStartTutorial';
 import ExportModal from './components/ExportModal';
+import AdminShowcase from './components/AdminShowcase';
 import FurnitureRemover from './components/FurnitureRemover';
 // Removed for Phase 2: ColorAnalysis, ChatInterface, StyleAdvisor, QualityScore, ListingDashboard, BetaFeedbackForm, MLSExport (inline)
 import {
@@ -683,7 +684,7 @@ const App: React.FC = () => {
           action: 'submit',
           email: googleUser.email,
           name: googleUser.name,
-          toolUsed: activePanel === 'cleanup' ? 'cleanup' : 'staging',
+          toolUsed: sessionQueue[sessionIndex]?.editHistory?.slice(-1)[0] || (activePanel === 'cleanup' ? 'cleanup' : 'staging'),
           beforeImage: originalImage,
           afterImage: generatedImage,
           roomType: selectedRoom,
@@ -691,7 +692,7 @@ const App: React.FC = () => {
       }).then(r => r.json());
 
       if (res.ok) {
-        showToast(<Share2 size={14} className="text-[#30D158]" />, 'Shared to gallery!');
+        showToast(<Share2 size={14} className="text-[#30D158]" />, 'Submitted for review!');
       } else {
         showToast(<X size={14} className="text-[#FF375F]" />, res.error || 'Failed to share');
       }
@@ -1699,6 +1700,13 @@ const App: React.FC = () => {
                     </button>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Showcase Admin — only for admin accounts */}
+            {googleUser.email === 'book@averyandbryant.com' && (
+              <div className="mt-5 border-t border-[var(--color-border)] pt-5">
+                <AdminShowcase adminEmail={googleUser.email} />
               </div>
             )}
 

@@ -339,9 +339,9 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
 
   return (
     <div className="fixed inset-0 z-[100] grid place-items-center modal-overlay p-4 animate-fade-in">
-      <div className="modal-panel w-full max-w-lg rounded-2xl animate-scale-in overflow-hidden">
+      <div className="modal-panel w-full max-w-lg rounded-2xl animate-scale-in overflow-hidden max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-[var(--color-border)]">
+        <div className="flex items-center justify-between p-5 border-b border-[var(--color-border)] shrink-0">
           <div className="flex items-center gap-2">
             <Download size={18} className="text-[var(--color-primary)]" />
             <h3 className="font-display text-lg font-bold text-white">Export Image</h3>
@@ -351,7 +351,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
           </button>
         </div>
 
-        <div className="p-5 space-y-5">
+        <div className="p-5 space-y-5 overflow-y-auto">
           {/* Preview */}
           <div className="rounded-xl overflow-hidden border border-[var(--color-border)] bg-black">
             <img

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { FurnitureRoomType, StylePreset } from '../types';
 import {
   Wand2,
@@ -48,10 +48,14 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
   const [customPrompt, setCustomPrompt] = useState(initialPrompt);
   const [stageMode, setStageMode] = useState<StageMode>('text');
 
+  // Keep a stable ref to avoid re-render loops when parent passes an inline callback
+  const onPromptChangeRef = useRef(onPromptChange);
+  onPromptChangeRef.current = onPromptChange;
+
   // Notify parent when prompt changes so it can persist per-image
   useEffect(() => {
-    onPromptChange?.(customPrompt);
-  }, [customPrompt, onPromptChange]);
+    onPromptChangeRef.current?.(customPrompt);
+  }, [customPrompt]);
 
   const presets: Array<{ id: StylePreset; icon: React.ReactNode; description: string }> = [
     { id: 'Coastal Modern', icon: <Palmtree size={16} />, description: 'Light and airy flow' },

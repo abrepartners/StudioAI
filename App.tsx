@@ -131,6 +131,18 @@ type StageMode = 'text' | 'packs' | 'furniture';
 // ─── Hero Rotating Headline ────────────────────────────────────────────
 const HERO_WORDS = ['real estate.', 'interior design.', 'property flipping.', 'RE photography.', 'renovations.', 'property management.'];
 
+// ─── Tooltip Wrapper ───────────────────────────────────────────────────
+const Tip: React.FC<{ label: string; children: React.ReactNode; position?: 'top' | 'bottom' }> = ({ label, children, position = 'bottom' }) => (
+  <div className="relative group/tip">
+    {children}
+    <div className={`pointer-events-none absolute left-1/2 -translate-x-1/2 z-50 px-2.5 py-1 rounded-lg bg-white text-black text-[10px] font-semibold whitespace-nowrap opacity-0 group-hover/tip:opacity-100 transition-all duration-200 shadow-lg ${
+      position === 'bottom' ? 'top-full mt-2' : 'bottom-full mb-2'
+    } hidden lg:block`}>
+      {label}
+    </div>
+  </div>
+);
+
 const HeroHeadline: React.FC = () => {
   const [index, setIndex] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -1819,24 +1831,26 @@ const App: React.FC = () => {
             <>
               <div className="hidden sm:block h-5 w-px bg-[var(--color-border)]" />
               <div className="hidden sm:flex items-center gap-0.5">
-                <button
-                  type="button"
-                  onClick={undo}
-                  disabled={historyIndex <= 0 || isGenerating}
-                  className="rounded-lg p-1.5 text-[var(--color-text)] transition hover:bg-[var(--color-bg)] disabled:opacity-30"
-                  title="Undo (Ctrl+Z)"
-                >
-                  <Undo2 size={15} />
-                </button>
-                <button
-                  type="button"
-                  onClick={redo}
-                  disabled={historyIndex >= history.length - 1 || isGenerating}
-                  className="rounded-lg p-1.5 text-[var(--color-text)] transition hover:bg-[var(--color-bg)] disabled:opacity-30"
-                  title="Redo (Ctrl+Y)"
-                >
+                <Tip label="Undo (Ctrl+Z)">
+                  <button
+                    type="button"
+                    onClick={undo}
+                    disabled={historyIndex <= 0 || isGenerating}
+                    className="rounded-lg p-1.5 text-[var(--color-text)] transition hover:bg-[var(--color-bg)] disabled:opacity-30"
+                  >
+                    <Undo2 size={15} />
+                  </button>
+                </Tip>
+                <Tip label="Redo (Ctrl+Y)">
+                  <button
+                    type="button"
+                    onClick={redo}
+                    disabled={historyIndex >= history.length - 1 || isGenerating}
+                    className="rounded-lg p-1.5 text-[var(--color-text)] transition hover:bg-[var(--color-bg)] disabled:opacity-30"
+                  >
                   <Redo2 size={15} />
-                </button>
+                  </button>
+                </Tip>
               </div>
 
               {/* Session Queue Navigation */}
@@ -1876,31 +1890,36 @@ const App: React.FC = () => {
           <div className="flex items-center gap-1.5 sm:gap-2">
             {generatedImage && (
               <>
-                <button
-                  type="button"
-                  onClick={() => setShowExportModal(true)}
-                  className="cta-secondary rounded-lg px-3 py-1.5 text-xs font-medium inline-flex items-center gap-1.5"
-                >
-                  <Download size={13} />
-                  <span className="hidden sm:inline">Export</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSaveStage}
-                  className="cta-secondary rounded-lg px-3 py-1.5 text-xs font-medium inline-flex items-center gap-1.5"
-                >
-                  <Heart size={13} className={savedStages.some(s => s.generatedImage === generatedImage) ? 'fill-[var(--color-primary)] text-[var(--color-primary)]' : ''} />
-                  <span className="hidden sm:inline">Save</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowFurnitureRemover(true)}
-                  className="cta-secondary rounded-lg px-3 py-1.5 text-xs font-medium inline-flex items-center gap-1.5"
-                  title="Remove specific furniture pieces"
-                >
-                  <Trash2 size={13} />
-                  <span className="hidden sm:inline">Remove</span>
-                </button>
+                <Tip label="Export image or create reveal video">
+                  <button
+                    type="button"
+                    onClick={() => setShowExportModal(true)}
+                    className="cta-secondary rounded-lg px-3 py-1.5 text-xs font-medium inline-flex items-center gap-1.5"
+                  >
+                    <Download size={13} />
+                    <span className="hidden sm:inline">Export</span>
+                  </button>
+                </Tip>
+                <Tip label="Save to your render history">
+                  <button
+                    type="button"
+                    onClick={handleSaveStage}
+                    className="cta-secondary rounded-lg px-3 py-1.5 text-xs font-medium inline-flex items-center gap-1.5"
+                  >
+                    <Heart size={13} className={savedStages.some(s => s.generatedImage === generatedImage) ? 'fill-[var(--color-primary)] text-[var(--color-primary)]' : ''} />
+                    <span className="hidden sm:inline">Save</span>
+                  </button>
+                </Tip>
+                <Tip label="Paint over furniture to remove it">
+                  <button
+                    type="button"
+                    onClick={() => setShowFurnitureRemover(true)}
+                    className="cta-secondary rounded-lg px-3 py-1.5 text-xs font-medium inline-flex items-center gap-1.5"
+                  >
+                    <Trash2 size={13} />
+                    <span className="hidden sm:inline">Remove</span>
+                  </button>
+                </Tip>
                 <label className="cta-secondary rounded-lg px-3 py-1.5 text-xs font-medium inline-flex items-center gap-1.5 cursor-pointer">
                   <Plus size={13} />
                   <span className="hidden sm:inline">Add</span>

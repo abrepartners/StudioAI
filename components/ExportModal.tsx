@@ -242,7 +242,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
       };
 
       // Set up MediaRecorder
-      const stream = canvas.captureStream(fps);
+      const stream = canvas.captureStream(0); // 0 = manual frame push
       const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
         ? 'video/webm;codecs=vp9'
         : MediaRecorder.isTypeSupported('video/webm;codecs=vp8')
@@ -260,11 +260,10 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
       const downloadPromise = new Promise<void>((resolve) => {
         recorder.onstop = () => {
           const blob = new Blob(chunks, { type: mimeType });
-          const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
           const url = URL.createObjectURL(blob);
           const link = document.createElement('a');
           link.href = url;
-          link.download = `studioai_reveal_${Date.now()}.${ext}`;
+          link.download = `studioai_reveal_${Date.now()}.webm`;
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
@@ -275,65 +274,77 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
 
       recorder.start();
 
-      // Render frames using setTimeout at fixed intervals for consistent timing
-      const frameInterval = 1000 / fps;
-      let frame = 0;
+      // Use timestamp-based animation with requestAnimationFrame
+      // Duration in milliseconds
+      const durationMs = 4000;
+      const holdBeforeMs = 1000;
+      const wipeStartMs = 1000;
+      const wipeEndMs = 3000;
 
-      const renderAllFrames = (): Promise<void> => {
+      const videoTrack = stream.getVideoTracks()[0];
+
+      const renderTimeBased = (): Promise<void> => {
         return new Promise((resolveRender) => {
-          const renderNextFrame = () => {
-            if (frame >= totalFrames) {
-              recorder.stop();
-              resolveRender();
+          const startTime = performance.now();
+
+          const renderFrame = () => {
+            const elapsed = performance.now() - startTime;
+
+            if (elapsed >= durationMs) {
+              // Draw final frame
+              ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+              drawCover(afterImg);
+              drawWatermark();
+              // @ts-ignore - requestFrame exists on captureStream tracks
+              if (videoTrack.requestFrame) videoTrack.requestFrame();
+
+              // Wait a beat then stop
+              setTimeout(() => {
+                recorder.stop();
+                resolveRender();
+              }, 100);
               return;
             }
 
-            // Clear
             ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
-            if (frame < holdBeforeEnd) {
-              // Hold on before image
+            if (elapsed < holdBeforeMs) {
               drawCover(beforeImg);
               drawWatermark();
-            } else if (frame >= wipeEnd) {
-              // Hold on after image
+            } else if (elapsed >= wipeEndMs) {
               drawCover(afterImg);
               drawWatermark();
             } else {
-              // Wipe transition
-              const wipeProgress = (frame - wipeStart) / (wipeEnd - wipeStart);
-              // Ease in-out cubic
+              const wipeProgress = (elapsed - wipeStartMs) / (wipeEndMs - wipeStartMs);
               const eased = wipeProgress < 0.5
                 ? 4 * wipeProgress * wipeProgress * wipeProgress
                 : 1 - Math.pow(-2 * wipeProgress + 2, 3) / 2;
               const wipeX = eased * canvasWidth;
 
-              // Draw after image (full)
               drawCover(afterImg);
-
-              // Draw before image clipped to left of wipe line
               ctx.save();
               ctx.beginPath();
               ctx.rect(0, 0, wipeX, canvasHeight);
               ctx.clip();
               drawCover(beforeImg);
               ctx.restore();
-
-              // Draw divider line
               drawDivider(wipeX);
               drawWatermark();
             }
 
-            setVideoProgress(Math.round(((frame + 1) / totalFrames) * 100));
-            frame++;
-            setTimeout(renderNextFrame, frameInterval);
+            // Push frame to stream
+            // @ts-ignore
+            if (videoTrack.requestFrame) videoTrack.requestFrame();
+
+            setVideoProgress(Math.round((elapsed / durationMs) * 100));
+            requestAnimationFrame(renderFrame);
           };
 
-          renderNextFrame();
+          requestAnimationFrame(renderFrame);
         });
       };
 
-      await renderAllFrames();
+      await renderTimeBased();
       await downloadPromise;
     } catch (err) {
       console.error('Reveal video generation failed:', err);

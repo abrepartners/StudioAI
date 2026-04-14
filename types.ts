@@ -26,6 +26,13 @@ export type FurnitureRoomType =
   | 'Office'
   | 'Kitchen'
   | 'Primary Bedroom'
+  | 'Bathroom'
+  | 'Laundry Room'
+  | 'Closet'
+  | 'Garage'
+  | 'Patio'
+  | 'Basement'
+  | 'Nursery'
   | 'Exterior';
 
 export type StylePreset =

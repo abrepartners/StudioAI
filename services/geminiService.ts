@@ -63,7 +63,7 @@ export const detectRoomType = async (imageBase64: string): Promise<FurnitureRoom
       contents: {
         parts: [
           {
-            text: "Analyze this room and identify the primary room type. Choose from: 'Living Room', 'Bedroom', 'Dining Room', 'Office', 'Kitchen', 'Primary Bedroom', or 'Exterior'. Return only the room type name."
+            text: "Analyze this room and identify the primary room type. Choose from: 'Living Room', 'Bedroom', 'Primary Bedroom', 'Dining Room', 'Kitchen', 'Office', 'Bathroom', 'Laundry Room', 'Closet', 'Nursery', 'Garage', 'Patio', 'Basement', or 'Exterior'. Return only the room type name."
           },
           {
             inlineData: {
@@ -77,7 +77,7 @@ export const detectRoomType = async (imageBase64: string): Promise<FurnitureRoom
     });
 
     const text = response.text?.trim() as FurnitureRoomType;
-    const validRooms: FurnitureRoomType[] = ['Living Room', 'Bedroom', 'Dining Room', 'Office', 'Kitchen', 'Primary Bedroom', 'Exterior'];
+    const validRooms: FurnitureRoomType[] = ['Living Room', 'Bedroom', 'Primary Bedroom', 'Dining Room', 'Kitchen', 'Office', 'Bathroom', 'Laundry Room', 'Closet', 'Nursery', 'Garage', 'Patio', 'Basement', 'Exterior'];
     return validRooms.includes(text) ? text : 'Living Room';
   } catch (error) {
     console.error("Room detection failed:", error);

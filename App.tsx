@@ -119,10 +119,17 @@ const decodeJwtPayload = (token: string): GoogleUser | null => {
 const roomOptions: FurnitureRoomType[] = [
   'Living Room',
   'Bedroom',
-  'Dining Room',
-  'Office',
-  'Kitchen',
   'Primary Bedroom',
+  'Dining Room',
+  'Kitchen',
+  'Office',
+  'Bathroom',
+  'Laundry Room',
+  'Closet',
+  'Nursery',
+  'Garage',
+  'Patio',
+  'Basement',
   'Exterior',
 ];
 

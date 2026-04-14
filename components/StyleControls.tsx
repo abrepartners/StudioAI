@@ -94,7 +94,15 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
     let prompt = '';
 
     if (stageMode === 'text') {
-      prompt = `Virtually stage this ${selectedRoom}. Preserve all architecture, wall colors, floor colors, layout, windows, doors, and built-in fixtures exactly. Do NOT change existing surface colors. Do NOT zoom in — maintain the EXACT same framing, crop, and field of view. The camera is locked in place. SPATIAL RULE: Before placing furniture, identify all doors, doorways, hallways, and walkways. NEVER place furniture blocking a doorway, in a door swing path, or obstructing a hallway entrance. Keep all traffic paths clear. Primary direction: ${trimmedPrompt}`;
+      // Detect removal/cleanup intent so we don't wrap it in a "stage this room" prompt
+      const lowerPrompt = trimmedPrompt.toLowerCase();
+      const isRemovalIntent = /\b(remove|take out|get rid of|clear|empty|no furniture|declutter|strip|clean out|unstage|delete|erase)\b/.test(lowerPrompt);
+
+      if (isRemovalIntent) {
+        prompt = `Edit this ${selectedRoom} photo. Preserve all architecture, wall colors, floor colors, layout, windows, doors, and built-in fixtures exactly. Do NOT change existing surface colors. Do NOT zoom in — maintain the EXACT same framing, crop, and field of view. The camera is locked in place. Direction: ${trimmedPrompt}`;
+      } else {
+        prompt = `Virtually stage this ${selectedRoom}. Preserve all architecture, wall colors, floor colors, layout, windows, doors, and built-in fixtures exactly. Do NOT change existing surface colors. Do NOT zoom in — maintain the EXACT same framing, crop, and field of view. The camera is locked in place. SPATIAL RULE: Before placing furniture, identify all doors, doorways, hallways, and walkways. NEVER place furniture blocking a doorway, in a door swing path, or obstructing a hallway entrance. Keep all traffic paths clear. Primary direction: ${trimmedPrompt}`;
+      }
     }
 
     if (stageMode === 'packs') {

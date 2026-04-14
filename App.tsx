@@ -729,7 +729,41 @@ const App: React.FC = () => {
     });
   };
 
-  const handleBatchComplete = (_results: BatchResult[]) => {
+  const handleBatchComplete = (results: BatchResult[]) => {
+    const doneResults = results.filter(r => r.status === 'done' && r.generatedImage);
+    if (doneResults.length === 0) {
+      setBatchImages(null);
+      return;
+    }
+
+    // Build session entries for ALL completed results
+    const sessions: SessionImage[] = doneResults.map(r => ({
+      id: r.id,
+      originalImage: r.originalImage,
+      generatedImage: r.generatedImage,
+      maskImage: null,
+      colors: [],
+      detectedRoom: r.roomType,
+      selectedRoom: r.roomType || 'Living Room' as FurnitureRoomType,
+      history: [{ generatedImage: r.generatedImage, stagedFurniture: [], selectedRoom: r.roomType || 'Living Room' as FurnitureRoomType, colors: [] }],
+      historyIndex: 0,
+      editHistory: [r.action],
+      customPrompt: '',
+    }));
+
+    // Load first result into active editor
+    setOriginalImage(sessions[0].originalImage);
+    setGeneratedImage(sessions[0].generatedImage);
+    setDetectedRoom(sessions[0].detectedRoom);
+    setSelectedRoom(sessions[0].selectedRoom);
+    setHistory(sessions[0].history);
+    setHistoryIndex(0);
+    setMaskImage(null);
+    setColors([]);
+
+    // Set the full session queue and index
+    setSessionQueue(sessions);
+    setSessionIndex(0);
     setBatchImages(null);
   };
 

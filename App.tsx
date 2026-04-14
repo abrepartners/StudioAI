@@ -724,20 +724,36 @@ const App: React.FC = () => {
     }
   };
 
-  const handleSaveStage = () => {
+  const handleSaveStage = async () => {
     if (!generatedImage || !originalImage) return;
-    const newStage: SavedStage = {
-      id: crypto.randomUUID(),
-      name: `Design ${new Date().toLocaleDateString()}`,
-      originalImage,
-      generatedImage,
-      timestamp: Date.now(),
-    };
-    setSavedStages((prev) => {
-      const updated = [newStage, ...prev];
-      localStorage.setItem('realestate_ai_stages', JSON.stringify(updated));
-      return updated;
-    });
+    try {
+      // Compress images before saving to localStorage (5MB limit)
+      const [compOriginal, compGenerated] = await Promise.all([
+        compressForShowcase(originalImage, 600),
+        compressForShowcase(generatedImage, 600),
+      ]);
+      const newStage: SavedStage = {
+        id: crypto.randomUUID(),
+        name: `Design ${new Date().toLocaleDateString()}`,
+        originalImage: compOriginal,
+        generatedImage: compGenerated,
+        timestamp: Date.now(),
+      };
+      setSavedStages((prev) => {
+        const updated = [newStage, ...prev];
+        try {
+          localStorage.setItem('realestate_ai_stages', JSON.stringify(updated));
+        } catch {
+          // localStorage full — trim oldest entries
+          const trimmed = updated.slice(0, 10);
+          try { localStorage.setItem('realestate_ai_stages', JSON.stringify(trimmed)); } catch { /* give up */ }
+        }
+        return updated;
+      });
+      showToast(<Heart size={14} className="text-[var(--color-primary)]" />, 'Design saved');
+    } catch {
+      showToast(<X size={14} className="text-[#FF375F]" />, 'Failed to save');
+    }
   };
 
   // ─── Batch Mode Handlers ─────────────────────────────────────────────────

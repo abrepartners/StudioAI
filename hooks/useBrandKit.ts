@@ -32,6 +32,7 @@ export interface UseBrandKitReturn {
 // ─── Defaults ─────────────────────────────────────────────────────────────────
 
 const STORAGE_KEY = 'studioai_brand_kit';
+const STORAGE_KEY_IMAGES = 'studioai_brand_kit_images';
 
 const DEFAULT_BRAND_KIT: BrandKit = {
   logo: null,
@@ -59,7 +60,21 @@ function loadFromStorage(): BrandKit {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved) as Partial<BrandKit>;
-      return { ...DEFAULT_BRAND_KIT, ...parsed };
+      const kit = { ...DEFAULT_BRAND_KIT, ...parsed };
+
+      // Check for split images (fallback when images were saved separately)
+      if (!kit.logo || !kit.headshot) {
+        try {
+          const imgData = localStorage.getItem(STORAGE_KEY_IMAGES);
+          if (imgData) {
+            const images = JSON.parse(imgData) as Record<string, string>;
+            if (!kit.logo && images.logo) kit.logo = images.logo;
+            if (!kit.headshot && images.headshot) kit.headshot = images.headshot;
+          }
+        } catch { /* ignore */ }
+      }
+
+      return kit;
     }
   } catch {
     localStorage.removeItem(STORAGE_KEY);
@@ -67,18 +82,63 @@ function loadFromStorage(): BrandKit {
   return DEFAULT_BRAND_KIT;
 }
 
-function saveToStorage(kit: BrandKit): void {
+/**
+ * Compress a base64 image to fit in localStorage.
+ * Resizes to maxDim and converts to JPEG at given quality.
+ */
+function compressImage(dataURL: string, maxDim: number = 200, quality: number = 0.8): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let w = img.naturalWidth;
+      let h = img.naturalHeight;
+      if (w > maxDim || h > maxDim) {
+        if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
+        else { w = Math.round(w * maxDim / h); h = maxDim; }
+      }
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d')!;
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, w, h);
+      // Use PNG for logos (transparency), JPEG for headshots
+      const isPNG = dataURL.includes('image/png');
+      resolve(canvas.toDataURL(isPNG ? 'image/png' : 'image/jpeg', quality));
+    };
+    img.onerror = () => resolve(dataURL); // fallback to original
+    img.src = dataURL;
+  });
+}
+
+async function saveToStorage(kit: BrandKit): Promise<void> {
   try {
-    // Separate large images from text fields to handle localStorage limits
-    const toSave = { ...kit };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+    // Compress images before storing
+    const compressedKit = { ...kit };
+    if (kit.logo) {
+      compressedKit.logo = await compressImage(kit.logo, 200, 0.85);
+    }
+    if (kit.headshot) {
+      compressedKit.headshot = await compressImage(kit.headshot, 200, 0.8);
+    }
+
+    // Try saving everything in one key
+    const json = JSON.stringify(compressedKit);
+    localStorage.setItem(STORAGE_KEY, json);
   } catch (e) {
-    // If full save fails (likely images too large), save without images
-    console.warn('Brand kit save failed, retrying without images:', e);
+    // If still too large, split: text in one key, images in another
+    console.warn('Brand kit single-key save failed, splitting:', e);
     try {
       const textOnly = { ...kit, logo: null, headshot: null };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(textOnly));
-      console.warn('Brand kit saved without images (localStorage full)');
+      // Try images separately (smaller keys = more likely to fit)
+      const images: Record<string, string> = {};
+      if (kit.logo) images.logo = await compressImage(kit.logo, 150, 0.7);
+      if (kit.headshot) images.headshot = await compressImage(kit.headshot, 150, 0.7);
+      if (Object.keys(images).length > 0) {
+        localStorage.setItem(STORAGE_KEY_IMAGES, JSON.stringify(images));
+      }
     } catch {
       console.error('Brand kit save completely failed');
     }
@@ -118,6 +178,7 @@ export function useBrandKit(): UseBrandKitReturn {
     _sharedBrandKit = DEFAULT_BRAND_KIT;
     setBrandKit(DEFAULT_BRAND_KIT);
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(STORAGE_KEY_IMAGES);
     _listeners.forEach(fn => fn(DEFAULT_BRAND_KIT));
   }, []);
 

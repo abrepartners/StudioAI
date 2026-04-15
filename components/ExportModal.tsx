@@ -232,13 +232,20 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
         ctx.restore();
       };
 
-      // Helper: draw watermark
+      // Helper: draw watermark — label adapts to what tool was used
       const drawWatermark = () => {
         const fontSize = 14;
         ctx.save();
         ctx.globalAlpha = 0.5;
         ctx.font = `600 ${fontSize}px Inter, -apple-system, sans-serif`;
-        const text = 'Staged with StudioAI';
+        const lastTool = editHistory.length > 0 ? editHistory[editHistory.length - 1] : 'staging';
+        const toolLabel =
+          lastTool === 'cleanup' ? 'Cleaned up' :
+          lastTool === 'twilight' ? 'Twilight by' :
+          lastTool === 'sky' ? 'Sky replaced by' :
+          lastTool === 'renovation' ? 'Renovated by' :
+          'Staged with';
+        const text = `${toolLabel} StudioAI`;
         const metrics = ctx.measureText(text);
         const padX = 12;
         const padY = 6;
@@ -341,44 +348,56 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
         };
       });
 
-      // Boomerang animation: before -> wipe to after -> wipe back to before
-      // Total: 6 seconds — hold before 1s, wipe forward 1.5s, hold after 1s, wipe back 1.5s, hold before 1s
-      const durationMs = 6000;
+      // Tease-reveal animation:
+      // before → wipe forward to ~85% (tease) → ease back to before → full wipe across → hold after
+      // Total: 8 seconds
+      const durationMs = 8000;
 
       // Timeline (milliseconds):
-      // 0-1000:      hold BEFORE
-      // 1000-2500:   wipe forward (before -> after)
-      // 2500-3500:   hold AFTER
-      // 3500-5000:   wipe back (after -> before)
-      // 5000-6000:   hold BEFORE (matches first frame for seamless loop)
+      // 0-800:       hold BEFORE
+      // 800-2300:    wipe forward to 85% (tease — almost reveals but not quite)
+      // 2300-2600:   brief pause at 85%
+      // 2600-4100:   ease back to BEFORE
+      // 4100-4500:   brief pause on BEFORE
+      // 4500-6500:   full wipe ALL the way across to AFTER (the real reveal)
+      // 6500-8000:   hold AFTER (payoff)
 
       // Start recording with timeslice to force data collection every 100ms
       recorder.start(100);
 
-      // Draw a frame based on elapsed time, return wipe position (0 = full before, 1 = full after)
+      // Easing function (cubic ease in-out)
+      const easeInOut = (p: number) => p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+
+      // Draw a frame based on elapsed time
       const drawFrame = (elapsed: number) => {
         ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
         let wipeAmount = 0; // 0 = show before, 1 = show after
 
-        if (elapsed < 1000) {
+        if (elapsed < 800) {
           // Hold before
           wipeAmount = 0;
-        } else if (elapsed < 2500) {
-          // Wipe forward
-          const p = (elapsed - 1000) / 1500;
-          wipeAmount = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
-        } else if (elapsed < 3500) {
-          // Hold after
-          wipeAmount = 1;
-        } else if (elapsed < 5000) {
-          // Wipe back
-          const p = (elapsed - 3500) / 1500;
-          const eased = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
-          wipeAmount = 1 - eased;
-        } else {
-          // Hold before (end = start for seamless loop)
+        } else if (elapsed < 2300) {
+          // Tease forward to 85%
+          const p = (elapsed - 800) / 1500;
+          wipeAmount = easeInOut(p) * 0.85;
+        } else if (elapsed < 2600) {
+          // Brief pause at 85%
+          wipeAmount = 0.85;
+        } else if (elapsed < 4100) {
+          // Ease back to before
+          const p = (elapsed - 2600) / 1500;
+          wipeAmount = 0.85 * (1 - easeInOut(p));
+        } else if (elapsed < 4500) {
+          // Brief pause on before
           wipeAmount = 0;
+        } else if (elapsed < 6500) {
+          // Full reveal wipe — all the way across
+          const p = (elapsed - 4500) / 2000;
+          wipeAmount = easeInOut(p);
+        } else {
+          // Hold after (the payoff)
+          wipeAmount = 1;
         }
 
         if (wipeAmount <= 0) {
@@ -437,7 +456,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
       setVideoProgress(0);
       videoCanvasRef.current = null;
     }
-  }, [originalImage, imageBase64, videoAspect, brandKit]);
+  }, [originalImage, imageBase64, videoAspect, brandKit, editHistory]);
 
   const update = (partial: Partial<ExportSettings>) => setSettings(prev => ({ ...prev, ...partial }));
 

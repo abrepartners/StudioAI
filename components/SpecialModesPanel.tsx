@@ -21,6 +21,7 @@ import {
     type ListingCopyTone,
 } from '../services/geminiService';
 import { FurnitureRoomType, SavedStage } from '../types';
+import { sharpenImage } from '../utils/sharpen';
 
 const TONE_OPTIONS: { key: ListingCopyTone; label: string; color: string }[] = [
     { key: 'luxury', label: 'Luxury', color: '#FFD60A' },
@@ -163,11 +164,12 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
             const results: string[] = [];
             for (let i = 0; i < batchImages.length; i++) {
                 setBatchProgress({ current: i + 1, total: batchImages.length, results });
-                const result = await withTimeout(
+                const raw = await withTimeout(
                     processFn(batchImages[i]),
                     120000,
                     `Image ${i + 1} timed out — please try again`
                 );
+                const result = await sharpenImage(raw);
                 results.push(result);
             }
             setBatchProgress({ current: batchImages.length, total: batchImages.length, results });
@@ -257,7 +259,7 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                     disabled={loading !== null || (!currentImage && !canBatch)}
                     onClick={() => canBatch
                         ? runBatch('twilight', (img) => virtualTwilight(img, isPro))
-                        : run('twilight', async () => { const result = await virtualTwilight(currentImage!, isPro); onNewImage(result, 'twilight'); })
+                        : run('twilight', async () => { const result = await sharpenImage(await virtualTwilight(currentImage!, isPro)); onNewImage(result, 'twilight'); })
                     }
                     className={`w-full rounded-2xl px-4 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all ${loading === 'twilight' ? 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border)]' : 'bg-black text-[var(--color-primary)] border border-[rgba(0,255,204,0.4)] hover:bg-[rgba(0,255,204,0.1)] hover:shadow-[0_0_15px_rgba(0,255,204,0.3)] shadow-inner flex items-center justify-center gap-2'}`}
                 >
@@ -289,7 +291,7 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                     disabled={loading !== null || (!currentImage && !canBatch)}
                     onClick={() => canBatch
                         ? runBatch('sky', (img) => replaceSky(img, skyStyle, isPro))
-                        : run('sky', async () => { const result = await replaceSky(currentImage!, skyStyle, isPro); onNewImage(result, 'sky'); })
+                        : run('sky', async () => { const result = await sharpenImage(await replaceSky(currentImage!, skyStyle, isPro)); onNewImage(result, 'sky'); })
                     }
                     className={`mt-2 w-full rounded-2xl px-4 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all ${loading === 'sky' ? 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border)]' : 'bg-black text-[var(--color-primary)] border border-[rgba(0,255,204,0.4)] hover:bg-[rgba(0,255,204,0.1)] hover:shadow-[0_0_15px_rgba(0,255,204,0.3)] shadow-inner flex items-center justify-center gap-2'}`}
                 >
@@ -307,7 +309,7 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                     disabled={loading !== null || (!currentImage && !canBatch)}
                     onClick={() => canBatch
                         ? runBatch('declutter', (img) => instantDeclutter(img, selectedRoom, isPro))
-                        : run('declutter', async () => { const result = await instantDeclutter(currentImage!, selectedRoom, isPro); onNewImage(result, 'cleanup'); })
+                        : run('declutter', async () => { const result = await sharpenImage(await instantDeclutter(currentImage!, selectedRoom, isPro)); onNewImage(result, 'cleanup'); })
                     }
                     className={`w-full rounded-2xl px-4 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all ${loading === 'declutter' ? 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border)]' : 'bg-black text-[var(--color-primary)] border border-[rgba(0,255,204,0.4)] hover:bg-[rgba(0,255,204,0.1)] hover:shadow-[0_0_15px_rgba(0,255,204,0.3)] shadow-inner flex items-center justify-center gap-2'}`}
                 >
@@ -341,7 +343,7 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                     disabled={loading !== null || ((!currentImage && !canBatch) || (!cabinets && !countertops && !flooring && !walls))}
                     onClick={() => canBatch
                         ? runBatch('renovation', (img) => virtualRenovation(img, { cabinets, countertops, flooring, walls }))
-                        : run('renovation', async () => { const result = await virtualRenovation(currentImage!, { cabinets, countertops, flooring, walls }); onNewImage(result, 'renovation'); })
+                        : run('renovation', async () => { const result = await sharpenImage(await virtualRenovation(currentImage!, { cabinets, countertops, flooring, walls })); onNewImage(result, 'renovation'); })
                     }
                     className={`w-full rounded-2xl px-4 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all ${loading === 'renovation' ? 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border)]' : 'bg-black text-[var(--color-primary)] border border-[rgba(0,255,204,0.4)] hover:bg-[rgba(0,255,204,0.1)] hover:shadow-[0_0_15px_rgba(0,255,204,0.3)] shadow-inner flex items-center justify-center gap-2'}`}
                 >

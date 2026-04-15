@@ -23,13 +23,14 @@ export async function compositePreserve(
       const w = origImg.naturalWidth;
       const h = origImg.naturalHeight;
 
-      // If dimensions don't match, just return the generated image as-is
+      // If dimensions don't match, resize generated to match original
       if (genImg.naturalWidth !== w || genImg.naturalHeight !== h) {
-        // Resize generated to match original
         const resizeCanvas = document.createElement('canvas');
         resizeCanvas.width = w;
         resizeCanvas.height = h;
         const resizeCtx = resizeCanvas.getContext('2d')!;
+        resizeCtx.imageSmoothingEnabled = true;
+        resizeCtx.imageSmoothingQuality = 'high';
         resizeCtx.drawImage(genImg, 0, 0, w, h);
         resolve(resizeCanvas.toDataURL('image/png'));
         return;

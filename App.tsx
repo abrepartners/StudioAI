@@ -3,6 +3,7 @@ import {
   generateRoomDesign,
   detectRoomType,
 } from './services/geminiService';
+import { sharpenImage } from './utils/sharpen';
 import ImageUploader from './components/ImageUploader';
 import BatchUploader, { type BatchImage } from './components/BatchUploader';
 import BatchProcessor, { type BatchResult } from './components/BatchProcessor';
@@ -643,11 +644,14 @@ const App: React.FC = () => {
       console.log('[StudioAI] Generation prompt:', prompt);
 
       const sourceImage = activePanel === 'cleanup' && generatedImage ? generatedImage : originalImage;
-      const resultImages = await withTimeout(
+      const rawResults = await withTimeout(
         generateRoomDesign(sourceImage, prompt, activePanel === 'cleanup' ? maskImage : null, false, 1, subscription.plan === 'pro'),
         120000,
         'Generation timed out — please try again'
       );
+
+      // Sharpen AI output to counteract diffusion softness
+      const resultImages = await Promise.all(rawResults.map(img => sharpenImage(img, 0.4)));
 
       // Check if user is still on the same session image (using ref, not stale closure)
       const stillOnSameImage = currentSessionIdRef.current === generatingSessionId;
@@ -734,11 +738,12 @@ const App: React.FC = () => {
 
       const removalPrompt = `Selective Furniture Removal: ${descText} Replace the removed items with the original empty room surface (floor, wall, carpet) that was behind them. Keep ALL other furniture and decor that is NOT masked exactly as they are — do not move, resize, or alter any unmasked items. Preserve all architecture, wall colors, floor colors, lighting, and camera framing exactly.`;
 
-      const resultImages = await withTimeout(
+      const rawResults = await withTimeout(
         generateRoomDesign(generatedImage, removalPrompt, maskDataUrl, false, 1, subscription.plan === 'pro'),
         120000,
         'Furniture removal timed out — please try again'
       );
+      const resultImages = await Promise.all(rawResults.map(img => sharpenImage(img, 0.4)));
       if (resultImages[0]) {
         pushToHistory();
         setGeneratedImage(resultImages[0]);

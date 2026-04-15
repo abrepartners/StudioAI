@@ -47,7 +47,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
   const [shared, setShared] = useState(false);
   const [videoGenerating, setVideoGenerating] = useState(false);
   const [videoProgress, setVideoProgress] = useState(0);
-  const [videoAspect, setVideoAspect] = useState<'1:1' | '4:5' | '9:16'>('1:1');
+  const [videoAspect, setVideoAspect] = useState<'original' | '1:1' | '4:5' | '9:16'>('original');
   const iconInputRef = useRef<HTMLInputElement>(null);
   const videoCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -125,14 +125,31 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
     setVideoProgress(0);
 
     try {
-      const canvasWidth = 1080;
-      const canvasHeight = videoAspect === '1:1' ? 1080 : videoAspect === '4:5' ? 1350 : 1920;
-      const fps = 30;
-      const totalFrames = fps * 4; // 4 seconds total
-      const holdBeforeEnd = fps * 1;   // frames 0-29: hold before
-      const wipeStart = fps * 1;       // frame 30: wipe begins
-      const wipeEnd = fps * 3;         // frame 90: wipe ends
-      // frames 90-119: hold after
+      // Load both images first (needed for 'original' aspect ratio)
+      const loadImg = (src: string): Promise<HTMLImageElement> =>
+        new Promise((resolve, reject) => {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+          img.src = src.startsWith('data:') ? src : `data:image/jpeg;base64,${src}`;
+        });
+
+      const [beforeImg, afterImg] = await Promise.all([
+        loadImg(originalImage),
+        loadImg(imageBase64),
+      ]);
+
+      // Canvas dimensions — 'original' matches the photo's native ratio
+      let canvasWidth = 1080;
+      let canvasHeight: number;
+      if (videoAspect === 'original') {
+        const ratio = beforeImg.naturalHeight / beforeImg.naturalWidth;
+        canvasWidth = Math.min(beforeImg.naturalWidth, 1920); // cap at 1920 wide
+        canvasHeight = Math.round(canvasWidth * ratio);
+      } else {
+        canvasHeight = videoAspect === '1:1' ? 1080 : videoAspect === '4:5' ? 1350 : 1920;
+      }
 
       // Determine if we have a usable brand kit
       const hasBrand = !!(brandKit && brandKit.agentName.trim());
@@ -149,21 +166,6 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
           img.src = brandKit.logo!;
         });
       }
-
-      // Load both images
-      const loadImg = (src: string): Promise<HTMLImageElement> =>
-        new Promise((resolve, reject) => {
-          const img = new Image();
-          img.crossOrigin = 'anonymous';
-          img.onload = () => resolve(img);
-          img.onerror = reject;
-          img.src = src.startsWith('data:') ? src : `data:image/jpeg;base64,${src}`;
-        });
-
-      const [beforeImg, afterImg] = await Promise.all([
-        loadImg(originalImage),
-        loadImg(imageBase64),
-      ]);
 
       // Create offscreen canvas
       const canvas = document.createElement('canvas');
@@ -611,6 +613,17 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
               <div className="flex gap-2">
                 <button
                   type="button"
+                  onClick={() => setVideoAspect('original')}
+                  className={`flex-1 rounded-lg px-3 py-2 text-[11px] font-semibold transition-all border ${
+                    videoAspect === 'original'
+                      ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]'
+                      : 'border-[var(--color-border-strong)] text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  Original
+                </button>
+                <button
+                  type="button"
                   onClick={() => setVideoAspect('1:1')}
                   className={`flex-1 rounded-lg px-3 py-2 text-[11px] font-semibold transition-all border ${
                     videoAspect === '1:1'
@@ -618,7 +631,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
                       : 'border-[var(--color-border-strong)] text-zinc-400 hover:text-white'
                   }`}
                 >
-                  1:1 Square
+                  1:1
                 </button>
                 <button
                   type="button"

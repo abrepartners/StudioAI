@@ -1973,16 +1973,6 @@ const App: React.FC = () => {
                     <span className="hidden sm:inline">Save</span>
                   </button>
                 </Tip>
-                <Tip label="Paint over furniture to remove it">
-                  <button
-                    type="button"
-                    onClick={() => setShowFurnitureRemover(true)}
-                    className="cta-secondary rounded-lg px-3 py-1.5 text-xs font-medium inline-flex items-center gap-1.5"
-                  >
-                    <Trash2 size={13} />
-                    <span className="hidden sm:inline">Remove</span>
-                  </button>
-                </Tip>
                 <label className="cta-secondary rounded-lg px-3 py-1.5 text-xs font-medium inline-flex items-center gap-1.5 cursor-pointer">
                   <Plus size={13} />
                   <span className="hidden sm:inline">Add</span>
@@ -2494,6 +2484,25 @@ const App: React.FC = () => {
                       savedStages={savedStages}
                       isPro={subscription.plan === 'pro'}
                     />
+
+                    {/* Selective Removal — only show after a generation */}
+                    {generatedImage && (
+                      <div className="mt-3 pt-3 border-t border-[var(--color-border)]">
+                        <button
+                          type="button"
+                          onClick={() => setShowFurnitureRemover(true)}
+                          className="w-full flex items-center gap-3 p-3 rounded-xl border border-[var(--color-border)] bg-white/[0.02] hover:border-[#FF375F]/30 hover:bg-[#FF375F]/5 transition-all group"
+                        >
+                          <div className="w-9 h-9 rounded-lg bg-[#FF375F]/10 flex items-center justify-center group-hover:bg-[#FF375F]/20 transition-colors">
+                            <Trash2 size={16} className="text-[#FF375F]" />
+                          </div>
+                          <div className="text-left">
+                            <p className="text-sm font-semibold text-white">Selective Removal</p>
+                            <p className="text-[10px] text-zinc-500">Paint over items to remove them</p>
+                          </div>
+                        </button>
+                      </div>
+                    )}
                   </>
                 )}
 

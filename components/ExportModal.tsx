@@ -348,18 +348,18 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
         };
       });
 
-      // Smooth tease-reveal animation:
-      // Slide forward → ease back partway → continue all the way through → hold
-      // No hard reset — fluid back-and-forth motion that ends on the reveal
+      // Smooth reveal animation:
+      // Starts on AFTER → wipe reveals BEFORE → ease back → end on AFTER
+      // Fluid back-and-forth that starts and ends on the result
       // Total: 7 seconds
       const durationMs = 7000;
 
-      // Timeline (milliseconds):
-      // 0-600:       hold BEFORE
-      // 600-2100:    ease forward to ~80%
-      // 2100-3400:   ease back to ~25% (NOT all the way — stays in motion)
-      // 3400-5500:   ease forward all the way to 100% (the reveal)
-      // 5500-7000:   hold AFTER (payoff)
+      // Timeline — wipeAmount: 0 = AFTER (result), 1 = BEFORE (original)
+      // 0-600:       hold AFTER (show the result first)
+      // 600-2100:    wipe to reveal BEFORE to ~80%
+      // 2100-3400:   ease back to ~25% (stays in motion, doesn't snap)
+      // 3400-5500:   ease all the way back to 0 (full AFTER reveal)
+      // 5500-7000:   hold AFTER (end on the result)
 
       // Start recording with timeslice to force data collection every 100ms
       recorder.start(100);
@@ -371,33 +371,36 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
       const drawFrame = (elapsed: number) => {
         ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
-        let wipeAmount = 0; // 0 = show before, 1 = show after
+        let wipeAmount = 0; // 0 = AFTER (result), 1 = BEFORE (original)
 
         if (elapsed < 600) {
-          // Hold before
+          // Hold AFTER
           wipeAmount = 0;
         } else if (elapsed < 2100) {
-          // Ease forward to 80%
+          // Wipe to reveal BEFORE — ease to 80%
           const p = (elapsed - 600) / 1500;
           wipeAmount = easeInOut(p) * 0.80;
         } else if (elapsed < 3400) {
-          // Ease back to 25% — stays partway, never resets
+          // Ease back partway — 80% → 25%
           const p = (elapsed - 2100) / 1300;
-          wipeAmount = 0.80 - easeInOut(p) * 0.55; // 0.80 → 0.25
+          wipeAmount = 0.80 - easeInOut(p) * 0.55;
         } else if (elapsed < 5500) {
-          // Ease forward all the way — from 25% to 100%
+          // Ease all the way back to AFTER — 25% → 0%
           const p = (elapsed - 3400) / 2100;
-          wipeAmount = 0.25 + easeInOut(p) * 0.75; // 0.25 → 1.0
+          wipeAmount = 0.25 * (1 - easeInOut(p));
         } else {
-          // Hold after (the payoff)
-          wipeAmount = 1;
+          // Hold AFTER (end on the result)
+          wipeAmount = 0;
         }
 
         if (wipeAmount <= 0) {
-          drawCover(beforeImg);
-        } else if (wipeAmount >= 1) {
+          // Start: show the AFTER image (the result)
           drawCover(afterImg);
+        } else if (wipeAmount >= 1) {
+          // Full wipe: show the BEFORE image
+          drawCover(beforeImg);
         } else {
+          // Wipe reveals BEFORE from the left, AFTER remains on the right
           const wipeX = wipeAmount * canvasWidth;
           drawCover(afterImg);
           ctx.save();

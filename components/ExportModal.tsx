@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Download, X, Type, Image as ImageIcon, Check, Share2, Heart, Video, Loader2 } from 'lucide-react';
 import { compositePreserve } from '../utils/compositePreserve';
+import type { BrandKit } from '../hooks/useBrandKit';
 
 const STORAGE_KEY = 'studioai_export_settings';
 
@@ -28,9 +29,10 @@ interface ExportModalProps {
   editHistory?: string[];
   onClose: () => void;
   onShare?: () => void;
+  brandKit?: BrandKit;
 }
 
-const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, editHistory = [], onClose, onShare }) => {
+const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, editHistory = [], onClose, onShare, brandKit }) => {
   const [settings, setSettings] = useState<ExportSettings>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -45,7 +47,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
   const [shared, setShared] = useState(false);
   const [videoGenerating, setVideoGenerating] = useState(false);
   const [videoProgress, setVideoProgress] = useState(0);
-  const [videoAspect, setVideoAspect] = useState<'1:1' | '4:5'>('1:1');
+  const [videoAspect, setVideoAspect] = useState<'1:1' | '4:5' | '9:16'>('1:1');
   const iconInputRef = useRef<HTMLInputElement>(null);
   const videoCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -124,13 +126,29 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
 
     try {
       const canvasWidth = 1080;
-      const canvasHeight = videoAspect === '1:1' ? 1080 : 1350;
+      const canvasHeight = videoAspect === '1:1' ? 1080 : videoAspect === '4:5' ? 1350 : 1920;
       const fps = 30;
       const totalFrames = fps * 4; // 4 seconds total
       const holdBeforeEnd = fps * 1;   // frames 0-29: hold before
       const wipeStart = fps * 1;       // frame 30: wipe begins
       const wipeEnd = fps * 3;         // frame 90: wipe ends
       // frames 90-119: hold after
+
+      // Determine if we have a usable brand kit
+      const hasBrand = !!(brandKit && brandKit.agentName.trim());
+      const brandBarHeight = hasBrand ? 80 : 0;
+
+      // Pre-load brand logo if available
+      let brandLogoImg: HTMLImageElement | null = null;
+      if (hasBrand && brandKit?.logo) {
+        brandLogoImg = await new Promise<HTMLImageElement | null>((resolve) => {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = () => resolve(img);
+          img.onerror = () => resolve(null);
+          img.src = brandKit.logo!;
+        });
+      }
 
       // Load both images
       const loadImg = (src: string): Promise<HTMLImageElement> =>
@@ -169,6 +187,51 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
         ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvasWidth, canvasHeight);
       };
 
+      // Helper: draw brand kit bar
+      const drawBrandBar = () => {
+        if (!hasBrand || !brandKit) return;
+        ctx.save();
+        const barY = canvasHeight - brandBarHeight;
+
+        // Semi-transparent dark bar
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.fillRect(0, barY, canvasWidth, brandBarHeight);
+
+        const padX = 20;
+        let textStartX = padX;
+
+        // Logo on far left
+        if (brandLogoImg) {
+          const logoSize = 40;
+          const logoY = barY + (brandBarHeight - logoSize) / 2;
+          ctx.drawImage(brandLogoImg, padX, logoY, logoSize, logoSize);
+          textStartX = padX + logoSize + 12;
+        }
+
+        // Agent name (bold, 16px) + brokerage name below (12px, lighter)
+        ctx.fillStyle = 'white';
+        ctx.textBaseline = 'middle';
+        ctx.font = `700 16px Inter, -apple-system, sans-serif`;
+        ctx.textAlign = 'left';
+        ctx.fillText(brandKit.agentName, textStartX, barY + brandBarHeight / 2 - (brandKit.brokerageName ? 8 : 0));
+
+        if (brandKit.brokerageName) {
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+          ctx.font = `400 12px Inter, -apple-system, sans-serif`;
+          ctx.fillText(brandKit.brokerageName, textStartX, barY + brandBarHeight / 2 + 12);
+        }
+
+        // Phone on right side
+        if (brandKit.phone) {
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+          ctx.font = `400 12px Inter, -apple-system, sans-serif`;
+          ctx.textAlign = 'right';
+          ctx.fillText(brandKit.phone, canvasWidth - padX, barY + brandBarHeight / 2);
+        }
+
+        ctx.restore();
+      };
+
       // Helper: draw watermark
       const drawWatermark = () => {
         const fontSize = 14;
@@ -182,7 +245,10 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
         const pillW = metrics.width + padX * 2;
         const pillH = fontSize + padY * 2;
         const x = (canvasWidth - pillW) / 2;
-        const y = canvasHeight - 24 - pillH;
+        // If brand bar exists, position pill above the bar; otherwise at bottom
+        const y = hasBrand
+          ? canvasHeight - brandBarHeight - 12 - pillH
+          : canvasHeight - 24 - pillH;
         ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
         ctx.beginPath();
         ctx.roundRect(x, y, pillW, pillH, pillH / 2);
@@ -241,13 +307,16 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
         ctx.restore();
       };
 
-      // Set up MediaRecorder
+      // Set up MediaRecorder with MP4 preference
       const stream = canvas.captureStream(30);
-      const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
-        ? 'video/webm;codecs=vp9'
-        : MediaRecorder.isTypeSupported('video/webm;codecs=vp8')
-          ? 'video/webm;codecs=vp8'
-          : 'video/webm';
+      const mimeType = MediaRecorder.isTypeSupported('video/mp4;codecs=avc1.42E01E')
+        ? 'video/mp4;codecs=avc1.42E01E'
+        : MediaRecorder.isTypeSupported('video/mp4')
+          ? 'video/mp4'
+          : MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+            ? 'video/webm;codecs=vp9'
+            : 'video/webm';
+      const fileExt = mimeType.startsWith('video/mp4') ? 'mp4' : 'webm';
       const recorder = new MediaRecorder(stream, {
         mimeType,
         videoBitsPerSecond: 5_000_000,
@@ -263,7 +332,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
           const url = URL.createObjectURL(blob);
           const link = document.createElement('a');
           link.href = url;
-          link.download = `studioai_reveal_${Date.now()}.webm`;
+          link.download = `studioai_reveal_${Date.now()}.${fileExt}`;
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
@@ -328,6 +397,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
           drawDivider(wipeX);
         }
         drawWatermark();
+        drawBrandBar();
       };
 
       // Draw the first frame immediately so frame 0 isn't blank
@@ -367,7 +437,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
       setVideoProgress(0);
       videoCanvasRef.current = null;
     }
-  }, [originalImage, imageBase64, videoAspect]);
+  }, [originalImage, imageBase64, videoAspect, brandKit]);
 
   const update = (partial: Partial<ExportSettings>) => setSettings(prev => ({ ...prev, ...partial }));
 
@@ -550,6 +620,17 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
                 >
                   4:5 Portrait
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setVideoAspect('9:16')}
+                  className={`flex-1 rounded-lg px-3 py-2 text-[11px] font-semibold transition-all border ${
+                    videoAspect === '9:16'
+                      ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]'
+                      : 'border-[var(--color-border-strong)] text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  9:16 Reels
+                </button>
               </div>
 
               {/* Generate button */}
@@ -714,4 +795,3 @@ async function renderWithDisclaimer(imageBase64: string, settings: ExportSetting
 }
 
 export default ExportModal;
-ExportModal;

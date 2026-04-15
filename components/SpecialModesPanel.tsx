@@ -116,15 +116,25 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
 
     const currentImage = generatedImage || originalImage;
 
+    // Timeout wrapper for AI generation calls
+    const withTimeout = <T,>(promise: Promise<T>, ms: number, message = 'Generation timed out'): Promise<T> => {
+        return Promise.race([
+            promise,
+            new Promise<never>((_, reject) => setTimeout(() => reject(new Error(message)), ms))
+        ]);
+    };
+
     const run = async (id: SectionId, fn: () => Promise<void>) => {
         if (!currentImage) { setError('Upload a photo first.'); return; }
         setLoading(id);
         setError('');
         try {
-            await fn();
+            await withTimeout(fn(), 120000, 'Processing timed out — please try again');
         } catch (e: any) {
             if (e.message === 'API_KEY_REQUIRED') {
                 onRequireKey();
+            } else if (e.message?.includes('timed out')) {
+                setError('Processing timed out — please try again.');
             } else {
                 setError(e?.message || 'Something went wrong. Try again.');
             }
@@ -153,7 +163,11 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
             const results: string[] = [];
             for (let i = 0; i < batchImages.length; i++) {
                 setBatchProgress({ current: i + 1, total: batchImages.length, results });
-                const result = await processFn(batchImages[i]);
+                const result = await withTimeout(
+                    processFn(batchImages[i]),
+                    120000,
+                    `Image ${i + 1} timed out — please try again`
+                );
                 results.push(result);
             }
             setBatchProgress({ current: batchImages.length, total: batchImages.length, results });
@@ -162,6 +176,8 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
         } catch (e: any) {
             if (e.message === 'API_KEY_REQUIRED') {
                 onRequireKey();
+            } else if (e.message?.includes('timed out')) {
+                setError(e.message);
             } else {
                 setError(e?.message || 'Batch processing failed.');
             }

@@ -15,6 +15,7 @@ import ManageTeam from './components/ManageTeam';
 import ReferralDashboard from './components/ReferralDashboard';
 import QuickStartTutorial from './components/QuickStartTutorial';
 import ExportModal from './components/ExportModal';
+import { useBrandKit } from './hooks/useBrandKit';
 import AdminShowcase from './components/AdminShowcase';
 import FurnitureRemover from './components/FurnitureRemover';
 // Removed for Phase 2: ColorAnalysis, ChatInterface, StyleAdvisor, QualityScore, ListingDashboard, BetaFeedbackForm, MLSExport (inline)
@@ -306,8 +307,11 @@ const App: React.FC = () => {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
+  const { brandKit } = useBrandKit();
   const [showFurnitureRemover, setShowFurnitureRemover] = useState(false);
   const [isRemovingFurniture, setIsRemovingFurniture] = useState(false);
+  const [generationElapsed, setGenerationElapsed] = useState(0);
+  const generationTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [referralPrice, setReferralPrice] = useState<number | null>(null);
 
@@ -434,6 +438,30 @@ const App: React.FC = () => {
     toastTimerRef.current = setTimeout(() => setToastMessage(null), 2500);
   }, []);
 
+  // Timeout wrapper for AI generation calls
+  const withTimeout = useCallback(<T,>(promise: Promise<T>, ms: number, message = 'Generation timed out'): Promise<T> => {
+    return Promise.race([
+      promise,
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error(message)), ms))
+    ]);
+  }, []);
+
+  // Start/stop elapsed timer for generation indicator
+  const startGenerationTimer = useCallback(() => {
+    setGenerationElapsed(0);
+    if (generationTimerRef.current) clearInterval(generationTimerRef.current);
+    generationTimerRef.current = setInterval(() => {
+      setGenerationElapsed(prev => prev + 1);
+    }, 1000);
+  }, []);
+
+  const stopGenerationTimer = useCallback(() => {
+    if (generationTimerRef.current) {
+      clearInterval(generationTimerRef.current);
+      generationTimerRef.current = null;
+    }
+    setGenerationElapsed(0);
+  }, []);
 
 
   const pushToHistory = useCallback(
@@ -605,6 +633,7 @@ const App: React.FC = () => {
     const generatingSessionId = sessionQueue[sessionIndex]?.id || '__single__';
 
     setIsGenerating(true);
+    startGenerationTimer();
     generatingSessionsRef.current.add(generatingSessionId);
 
     try {
@@ -612,7 +641,11 @@ const App: React.FC = () => {
       console.log('[StudioAI] Generation prompt:', prompt);
 
       const sourceImage = activePanel === 'cleanup' && generatedImage ? generatedImage : originalImage;
-      const resultImages = await generateRoomDesign(sourceImage, prompt, activePanel === 'cleanup' ? maskImage : null, false, 1, subscription.plan === 'pro');
+      const resultImages = await withTimeout(
+        generateRoomDesign(sourceImage, prompt, activePanel === 'cleanup' ? maskImage : null, false, 1, subscription.plan === 'pro'),
+        120000,
+        'Generation timed out — please try again'
+      );
 
       // Check if user is still on the same session image (using ref, not stale closure)
       const stillOnSameImage = currentSessionIdRef.current === generatingSessionId;
@@ -643,6 +676,7 @@ const App: React.FC = () => {
         });
         setHistoryIndex((prev) => prev + newStates.length);
         setIsGenerating(false);
+        stopGenerationTimer();
       } else {
         // User navigated away — save result to the queue silently
         setSessionQueue(prev =>
@@ -663,12 +697,15 @@ const App: React.FC = () => {
         // Don't clear isGenerating if current image has its own generation running
         if (!generatingSessionsRef.current.has(currentSessionIdRef.current)) {
           setIsGenerating(false);
+          stopGenerationTimer();
         }
       }
 
       subscription.recordGeneration();
     } catch (error: any) {
-      if (
+      if (error.message?.includes('timed out')) {
+        showToast(<X size={14} className="text-[#FF375F]" />, 'Generation timed out — try again');
+      } else if (
         error.message === 'API_KEY_REQUIRED' ||
         error.message?.includes('Requested entity was not found') ||
         error.message?.toLowerCase().includes('api key') ||
@@ -679,6 +716,7 @@ const App: React.FC = () => {
         showToast(<X size={14} className="text-[#FF375F]" />, 'Generation failed. Try again.');
       }
       setIsGenerating(false);
+      stopGenerationTimer();
     } finally {
       generatingSessionsRef.current.delete(generatingSessionId);
     }
@@ -694,7 +732,11 @@ const App: React.FC = () => {
 
       const removalPrompt = `Selective Furniture Removal: ${descText} Replace the removed items with the original empty room surface (floor, wall, carpet) that was behind them. Keep ALL other furniture and decor that is NOT masked exactly as they are — do not move, resize, or alter any unmasked items. Preserve all architecture, wall colors, floor colors, lighting, and camera framing exactly.`;
 
-      const resultImages = await generateRoomDesign(generatedImage, removalPrompt, maskDataUrl, false, 1, subscription.plan === 'pro');
+      const resultImages = await withTimeout(
+        generateRoomDesign(generatedImage, removalPrompt, maskDataUrl, false, 1, subscription.plan === 'pro'),
+        120000,
+        'Furniture removal timed out — please try again'
+      );
       if (resultImages[0]) {
         pushToHistory();
         setGeneratedImage(resultImages[0]);
@@ -709,9 +751,13 @@ const App: React.FC = () => {
           ));
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Furniture removal failed:', error);
-      showToast(<X size={14} className="text-[#FF375F]" />, 'Removal failed. Try again.');
+      if (error.message?.includes('timed out')) {
+        showToast(<X size={14} className="text-[#FF375F]" />, 'Removal timed out — try again');
+      } else {
+        showToast(<X size={14} className="text-[#FF375F]" />, 'Removal failed. Try again.');
+      }
     } finally {
       setIsRemovingFurniture(false);
     }
@@ -1603,6 +1649,7 @@ const App: React.FC = () => {
           editHistory={sessionQueue[sessionIndex]?.editHistory || []}
           onClose={() => setShowExportModal(false)}
           onShare={handleShareToGallery}
+          brandKit={brandKit}
         />
       )}
 
@@ -2189,6 +2236,9 @@ const App: React.FC = () => {
                         <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full border border-[var(--color-primary-dark)] bg-black shadow-lg">
                           <BrainCircuit size={18} className="text-[var(--color-primary)] animate-pulse" />
                           <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-primary)]">Generating Design</span>
+                          <span className="text-[10px] font-mono text-[var(--color-text)]/50 tabular-nums">
+                            {Math.floor(generationElapsed / 60)}:{String(generationElapsed % 60).padStart(2, '0')}
+                          </span>
                         </div>
                         <div className="font-mono text-center space-y-2 relative h-16 w-full mask-linear-gradient-bottom">
                           <p className="text-[10px] sm:text-xs text-[var(--color-primary)] opacity-40 typing-effect">-- ANALYZING SPATIAL DEPTH --</p>
@@ -2272,7 +2322,7 @@ const App: React.FC = () => {
                   {(isGenerating || isAnalyzing || activePanel === 'cleanup') && (
                   <div className="absolute right-3 top-3 z-20 flex items-center gap-2 rounded-full bg-black/80 border border-[rgba(10,132,255,0.3)] shadow-lg px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[#0A84FF] backdrop-blur-xl">
                     <span className={`status-dot ${isGenerating ? 'bg-[#FF375F] shadow-md animate-pulse' : 'bg-[#0A84FF] shadow-md'}`} />
-                    {isGenerating ? 'Generating...' : isAnalyzing ? 'Detecting Room...' : 'Mask Mode'}
+                    {isGenerating ? `Generating... ${Math.floor(generationElapsed / 60)}:${String(generationElapsed % 60).padStart(2, '0')}` : isAnalyzing ? 'Detecting Room...' : 'Mask Mode'}
                   </div>
                   )}
                 </div>

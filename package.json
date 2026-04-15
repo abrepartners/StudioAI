@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@google/genai": "^1.32.0",
+    "@resvg/resvg-js": "^2.6.2",
     "@types/file-saver": "^2.0.7",
     "@vercel/analytics": "^1.6.1",
     "file-saver": "^2.0.5",
@@ -17,7 +18,8 @@
     "lucide-react": "^0.556.0",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
-    "recharts": "^3.5.1"
+    "recharts": "^3.5.1",
+    "satori": "^0.26.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

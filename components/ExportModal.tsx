@@ -349,17 +349,16 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
       });
 
       // Smooth reveal animation:
-      // Starts on AFTER → wipe reveals BEFORE → ease back → end on AFTER
-      // Fluid back-and-forth that starts and ends on the result
+      // Starts on AFTER → wipe to 80% (before) → ease back to 25% → all the way across to 100% → hold BEFORE
       // Total: 7 seconds
       const durationMs = 7000;
 
       // Timeline — wipeAmount: 0 = AFTER (result), 1 = BEFORE (original)
-      // 0-600:       hold AFTER (show the result first)
-      // 600-2100:    wipe to reveal BEFORE to ~80%
-      // 2100-3400:   ease back to ~25% (stays in motion, doesn't snap)
-      // 3400-5500:   ease all the way back to 0 (full AFTER reveal)
-      // 5500-7000:   hold AFTER (end on the result)
+      // 0-600:       hold AFTER
+      // 600-2100:    wipe forward to 80% (reveal before)
+      // 2100-3400:   ease back to 25%
+      // 3400-5800:   continue all the way across to 100%
+      // 5800-7000:   hold BEFORE (full original revealed)
 
       // Start recording with timeslice to force data collection every 100ms
       recorder.start(100);
@@ -377,20 +376,20 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
           // Hold AFTER
           wipeAmount = 0;
         } else if (elapsed < 2100) {
-          // Wipe to reveal BEFORE — ease to 80%
+          // Wipe forward to 80%
           const p = (elapsed - 600) / 1500;
           wipeAmount = easeInOut(p) * 0.80;
         } else if (elapsed < 3400) {
-          // Ease back partway — 80% → 25%
+          // Ease back to 25%
           const p = (elapsed - 2100) / 1300;
           wipeAmount = 0.80 - easeInOut(p) * 0.55;
-        } else if (elapsed < 5500) {
-          // Ease all the way back to AFTER — 25% → 0%
-          const p = (elapsed - 3400) / 2100;
-          wipeAmount = 0.25 * (1 - easeInOut(p));
+        } else if (elapsed < 5800) {
+          // Continue all the way across — 25% → 100%
+          const p = (elapsed - 3400) / 2400;
+          wipeAmount = 0.25 + easeInOut(p) * 0.75;
         } else {
-          // Hold AFTER (end on the result)
-          wipeAmount = 0;
+          // Hold BEFORE (full original revealed)
+          wipeAmount = 1;
         }
 
         if (wipeAmount <= 0) {

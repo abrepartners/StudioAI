@@ -118,18 +118,19 @@ function AgentBar({ data, scale }: { data: TemplateData; scale: number }) {
   );
 }
 
-function CornerBrackets({ scale, accent, size = 40 }: { scale: number; accent: string; size?: number }) {
+function CornerBrackets({ scale, accent, size = 40, inset = 16 }: { scale: number; accent: string; size?: number; inset?: number }) {
   const s = size * scale;
-  const w = 2 * scale;
-  return e('div', { style: { display: 'flex', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 } },
+  const w = 1.5 * scale;
+  const offset = inset * scale;
+  return e('div', { style: { display: 'flex', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'none' } },
     // Top-left
-    e('div', { style: { position: 'absolute', top: 24 * scale, left: 24 * scale, width: s, height: s, borderTop: `${w}px solid ${accent}`, borderLeft: `${w}px solid ${accent}`, display: 'flex' } }),
+    e('div', { style: { position: 'absolute', top: offset, left: offset, width: s, height: s, borderTop: `${w}px solid ${accent}`, borderLeft: `${w}px solid ${accent}`, display: 'flex' } }),
     // Top-right
-    e('div', { style: { position: 'absolute', top: 24 * scale, right: 24 * scale, width: s, height: s, borderTop: `${w}px solid ${accent}`, borderRight: `${w}px solid ${accent}`, display: 'flex' } }),
+    e('div', { style: { position: 'absolute', top: offset, right: offset, width: s, height: s, borderTop: `${w}px solid ${accent}`, borderRight: `${w}px solid ${accent}`, display: 'flex' } }),
     // Bottom-left
-    e('div', { style: { position: 'absolute', bottom: 24 * scale, left: 24 * scale, width: s, height: s, borderBottom: `${w}px solid ${accent}`, borderLeft: `${w}px solid ${accent}`, display: 'flex' } }),
+    e('div', { style: { position: 'absolute', bottom: offset, left: offset, width: s, height: s, borderBottom: `${w}px solid ${accent}`, borderLeft: `${w}px solid ${accent}`, display: 'flex' } }),
     // Bottom-right
-    e('div', { style: { position: 'absolute', bottom: 24 * scale, right: 24 * scale, width: s, height: s, borderBottom: `${w}px solid ${accent}`, borderRight: `${w}px solid ${accent}`, display: 'flex' } }),
+    e('div', { style: { position: 'absolute', bottom: offset, right: offset, width: s, height: s, borderBottom: `${w}px solid ${accent}`, borderRight: `${w}px solid ${accent}`, display: 'flex' } }),
   );
 }
 
@@ -343,12 +344,12 @@ export function OpenHouseTemplate(data: TemplateData, width: number, height: num
     // Dark overlay
     e('div', { style: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(8,8,8,0.7)', display: 'flex' } }),
 
-    // Corner brackets
-    e(CornerBrackets, { scale, accent }),
+    // Corner brackets — inset enough to clear agent bar
+    e(CornerBrackets, { scale, accent, size: 36, inset: 10 }),
 
     // Content centered
     e('div', {
-      style: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, padding: `${60 * scale}px ${48 * scale}px`, gap: 24 * scale, zIndex: 1 }
+      style: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, padding: `${60 * scale}px ${56 * scale}px`, gap: 24 * scale, zIndex: 1 }
     },
       // "OPEN HOUSE" headline
       e('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 * scale } },
@@ -396,9 +397,9 @@ export function OpenHouseTemplate(data: TemplateData, width: number, height: num
       ),
     ),
 
-    // Agent bar at bottom
+    // Agent bar at bottom — padded to clear corner brackets
     e('div', {
-      style: { padding: `${16 * scale}px ${32 * scale}px ${24 * scale}px`, borderTop: '1px solid rgba(255,255,255,0.08)', zIndex: 1, display: 'flex' }
+      style: { padding: `${16 * scale}px ${56 * scale}px ${52 * scale}px`, borderTop: '1px solid rgba(255,255,255,0.08)', zIndex: 1, display: 'flex' }
     },
       e(AgentBar, { data, scale }),
     ),
@@ -415,15 +416,18 @@ export function TipCardTemplate(data: TemplateData, width: number, height: numbe
     style: {
       width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
       backgroundColor: '#080808', fontFamily: 'Inter', overflow: 'hidden', position: 'relative',
-      padding: `${48 * scale}px`,
+      padding: `${56 * scale}px`,
       justifyContent: 'space-between',
     }
   },
     // Accent line top
     e('div', { style: { position: 'absolute', top: 0, left: 0, right: 0, height: 3 * scale, backgroundColor: accent, display: 'flex' } }),
 
+    // Corner brackets (subtle, behind content)
+    e(CornerBrackets, { scale, accent: '#1a1a1a', size: 28, inset: 10 }),
+
     // Top section
-    e('div', { style: { display: 'flex', flexDirection: 'column', gap: 20 * scale } },
+    e('div', { style: { display: 'flex', flexDirection: 'column', gap: 20 * scale, zIndex: 1 } },
       // Category tag
       e('div', { style: { display: 'flex', alignItems: 'center', gap: 8 * scale } },
         e('div', { style: { width: 3 * scale, height: 20 * scale, backgroundColor: accent, borderRadius: 2, display: 'flex' } }),
@@ -444,12 +448,9 @@ export function TipCardTemplate(data: TemplateData, width: number, height: numbe
     ),
 
     // Agent bar at bottom
-    e('div', { style: { borderTop: '1px solid #1a1a1a', paddingTop: 16 * scale, display: 'flex' } },
+    e('div', { style: { borderTop: '1px solid #1a1a1a', paddingTop: 16 * scale, display: 'flex', zIndex: 1 } },
       e(AgentBar, { data, scale }),
     ),
-
-    // Corner brackets (subtle)
-    e(CornerBrackets, { scale, accent: '#1a1a1a', size: 30 }),
   );
 }
 

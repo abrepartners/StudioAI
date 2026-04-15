@@ -15,6 +15,8 @@ import ManageTeam from './components/ManageTeam';
 import ReferralDashboard from './components/ReferralDashboard';
 import QuickStartTutorial from './components/QuickStartTutorial';
 import ExportModal from './components/ExportModal';
+import MLSExport from './components/MLSExport';
+import ListingDescription from './components/ListingDescription';
 import { useBrandKit } from './hooks/useBrandKit';
 import AdminShowcase from './components/AdminShowcase';
 import FurnitureRemover from './components/FurnitureRemover';
@@ -263,7 +265,7 @@ const App: React.FC = () => {
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [maskImage, setMaskImage] = useState<string | null>(null);
 
-  const [activePanel, setActivePanel] = useState<'tools' | 'history' | 'cleanup' | 'settings'>('tools');
+  const [activePanel, setActivePanel] = useState<'tools' | 'history' | 'cleanup' | 'settings' | 'mls' | 'listing'>('tools');
   const [stageMode, setStageMode] = useState<StageMode>('text');
   const [isGenerating, setIsGenerating] = useState(false);
   const [showAccessPanel, setShowAccessPanel] = useState(false);
@@ -1027,13 +1029,15 @@ const App: React.FC = () => {
 
 
   const navItems: Array<{
-    id: 'tools' | 'cleanup' | 'history' | 'settings';
+    id: 'tools' | 'cleanup' | 'history' | 'settings' | 'mls' | 'listing';
     label: string;
     icon: React.ReactNode;
     available: boolean;
   }> = [
       { id: 'tools', label: 'Design Studio', icon: <LayoutGrid size={21} />, available: true },
       { id: 'cleanup', label: 'Cleanup', icon: <Eraser size={21} />, available: true },
+      { id: 'mls', label: 'MLS Export', icon: <Download size={21} />, available: true },
+      { id: 'listing', label: 'Description', icon: <FileText size={21} />, available: true },
       { id: 'history', label: 'History', icon: <HistoryIcon size={21} />, available: true },
     ];
 
@@ -2496,6 +2500,36 @@ const App: React.FC = () => {
                     isGenerating={isGenerating}
                     hasMask={!!maskImage}
                     selectedRoom={selectedRoom}
+                  />
+                )}
+
+                {activePanel === 'mls' && (
+                  <MLSExport
+                    images={
+                      sessionQueue.length > 0
+                        ? sessionQueue
+                            .filter(s => s.generatedImage)
+                            .map(s => ({
+                              id: s.id,
+                              source: s.generatedImage!,
+                              label: s.selectedRoom || 'Room',
+                              roomType: s.selectedRoom,
+                            }))
+                        : generatedImage
+                          ? [{ id: 'current', source: generatedImage, label: selectedRoom || 'Room', roomType: selectedRoom }]
+                          : []
+                    }
+                    mode={sessionQueue.filter(s => s.generatedImage).length > 1 ? 'batch' : 'single'}
+                  />
+                )}
+
+                {activePanel === 'listing' && (
+                  <ListingDescription
+                    roomTypes={
+                      sessionQueue.length > 0
+                        ? [...new Set(sessionQueue.map(s => s.selectedRoom))]
+                        : [selectedRoom]
+                    }
                   />
                 )}
 

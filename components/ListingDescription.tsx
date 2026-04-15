@@ -18,6 +18,7 @@ import {
   Coffee,
   TrendingUp,
 } from 'lucide-react';
+import { GoogleGenAI } from '@google/genai';
 import { getActiveApiKey } from '../services/geminiService';
 import {
   generateLuxuryTonePrompt,
@@ -108,7 +109,6 @@ const ListingDescription: React.FC<ListingDescriptionProps> = ({
     const prompt = promptFn(input);
 
     try {
-      const { GoogleGenAI } = await import('@google/genai');
       const ai = new GoogleGenAI({ apiKey });
 
       const response = await ai.models.generateContent({

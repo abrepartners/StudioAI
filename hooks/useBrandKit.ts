@@ -48,44 +48,77 @@ const DEFAULT_BRAND_KIT: BrandKit = {
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-export function useBrandKit(): UseBrandKitReturn {
-  const [brandKit, setBrandKit] = useState<BrandKit>(DEFAULT_BRAND_KIT);
-  const [isLoading, setIsLoading] = useState(true);
+// Track whether any instance has loaded — prevents race condition where
+// multiple useBrandKit() instances overwrite localStorage with defaults
+let _hasLoadedFromStorage = false;
+let _sharedBrandKit: BrandKit | null = null;
+const _listeners = new Set<(kit: BrandKit) => void>();
 
-  // Load from localStorage on mount
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved) as Partial<BrandKit>;
-        setBrandKit({ ...DEFAULT_BRAND_KIT, ...parsed });
-      }
-    } catch {
-      // Corrupt data — reset silently
-      localStorage.removeItem(STORAGE_KEY);
+function loadFromStorage(): BrandKit {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved) as Partial<BrandKit>;
+      return { ...DEFAULT_BRAND_KIT, ...parsed };
     }
-    setIsLoading(false);
+  } catch {
+    localStorage.removeItem(STORAGE_KEY);
+  }
+  return DEFAULT_BRAND_KIT;
+}
+
+function saveToStorage(kit: BrandKit): void {
+  try {
+    // Separate large images from text fields to handle localStorage limits
+    const toSave = { ...kit };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+  } catch (e) {
+    // If full save fails (likely images too large), save without images
+    console.warn('Brand kit save failed, retrying without images:', e);
+    try {
+      const textOnly = { ...kit, logo: null, headshot: null };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(textOnly));
+      console.warn('Brand kit saved without images (localStorage full)');
+    } catch {
+      console.error('Brand kit save completely failed');
+    }
+  }
+}
+
+export function useBrandKit(): UseBrandKitReturn {
+  const [brandKit, setBrandKit] = useState<BrandKit>(() => {
+    // Initialize from shared state or localStorage (synchronous, no flash)
+    if (_sharedBrandKit) return _sharedBrandKit;
+    const loaded = loadFromStorage();
+    _sharedBrandKit = loaded;
+    _hasLoadedFromStorage = true;
+    return loaded;
+  });
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Sync across multiple hook instances
+  useEffect(() => {
+    const listener = (kit: BrandKit) => setBrandKit(kit);
+    _listeners.add(listener);
+    return () => { _listeners.delete(listener); };
   }, []);
 
-  // Save to localStorage whenever brandKit changes (after initial load)
-  useEffect(() => {
-    if (!isLoading) {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(brandKit));
-      } catch {
-        // localStorage full or unavailable — degrade silently
-        console.warn('Failed to persist brand kit to localStorage');
-      }
-    }
-  }, [brandKit, isLoading]);
-
   const updateBrandKit = useCallback((partial: Partial<BrandKit>) => {
-    setBrandKit((prev) => ({ ...prev, ...partial }));
+    setBrandKit((prev) => {
+      const updated = { ...prev, ...partial };
+      _sharedBrandKit = updated;
+      saveToStorage(updated);
+      // Notify all other instances
+      _listeners.forEach(fn => fn(updated));
+      return updated;
+    });
   }, []);
 
   const resetBrandKit = useCallback(() => {
+    _sharedBrandKit = DEFAULT_BRAND_KIT;
     setBrandKit(DEFAULT_BRAND_KIT);
     localStorage.removeItem(STORAGE_KEY);
+    _listeners.forEach(fn => fn(DEFAULT_BRAND_KIT));
   }, []);
 
   const hasBrandKit = Boolean(brandKit.agentName.trim() && brandKit.logo);

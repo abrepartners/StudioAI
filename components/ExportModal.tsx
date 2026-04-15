@@ -349,16 +349,16 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
       });
 
       // Smooth reveal animation:
-      // Starts on AFTER → wipe to 80% (before) → ease back to 25% → all the way across to 100% → hold BEFORE
+      // Starts on BEFORE → wipe to 80% (after) → ease back to 25% → all the way across to 100% → hold AFTER
       // Total: 7 seconds
       const durationMs = 7000;
 
-      // Timeline — wipeAmount: 0 = AFTER (result), 1 = BEFORE (original)
-      // 0-600:       hold AFTER
-      // 600-2100:    wipe forward to 80% (reveal before)
+      // Timeline — wipeAmount: 0 = BEFORE (original), 1 = AFTER (result)
+      // 0-600:       hold BEFORE
+      // 600-2100:    wipe forward to 80% (reveal after)
       // 2100-3400:   ease back to 25%
       // 3400-5800:   continue all the way across to 100%
-      // 5800-7000:   hold BEFORE (full original revealed)
+      // 5800-7000:   hold AFTER (full result revealed)
 
       // Start recording with timeslice to force data collection every 100ms
       recorder.start(100);
@@ -393,20 +393,17 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
         }
 
         if (wipeAmount <= 0) {
-          // Start: show the AFTER image (the result)
-          drawCover(afterImg);
-        } else if (wipeAmount >= 1) {
-          // Full wipe: show the BEFORE image
           drawCover(beforeImg);
-        } else {
-          // Wipe reveals BEFORE from the left, AFTER remains on the right
-          const wipeX = wipeAmount * canvasWidth;
+        } else if (wipeAmount >= 1) {
           drawCover(afterImg);
+        } else {
+          const wipeX = wipeAmount * canvasWidth;
+          drawCover(beforeImg);
           ctx.save();
           ctx.beginPath();
           ctx.rect(0, 0, wipeX, canvasHeight);
           ctx.clip();
-          drawCover(beforeImg);
+          drawCover(afterImg);
           ctx.restore();
           drawDivider(wipeX);
         }

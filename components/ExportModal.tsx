@@ -348,19 +348,18 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
         };
       });
 
-      // Tease-reveal animation:
-      // before → wipe forward to ~85% (tease) → ease back to before → full wipe across → hold after
-      // Total: 8 seconds
-      const durationMs = 8000;
+      // Smooth tease-reveal animation:
+      // Slide forward → ease back partway → continue all the way through → hold
+      // No hard reset — fluid back-and-forth motion that ends on the reveal
+      // Total: 7 seconds
+      const durationMs = 7000;
 
       // Timeline (milliseconds):
-      // 0-800:       hold BEFORE
-      // 800-2300:    wipe forward to 85% (tease — almost reveals but not quite)
-      // 2300-2600:   brief pause at 85%
-      // 2600-4100:   ease back to BEFORE
-      // 4100-4500:   brief pause on BEFORE
-      // 4500-6500:   full wipe ALL the way across to AFTER (the real reveal)
-      // 6500-8000:   hold AFTER (payoff)
+      // 0-600:       hold BEFORE
+      // 600-2100:    ease forward to ~80%
+      // 2100-3400:   ease back to ~25% (NOT all the way — stays in motion)
+      // 3400-5500:   ease forward all the way to 100% (the reveal)
+      // 5500-7000:   hold AFTER (payoff)
 
       // Start recording with timeslice to force data collection every 100ms
       recorder.start(100);
@@ -374,27 +373,21 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
 
         let wipeAmount = 0; // 0 = show before, 1 = show after
 
-        if (elapsed < 800) {
+        if (elapsed < 600) {
           // Hold before
           wipeAmount = 0;
-        } else if (elapsed < 2300) {
-          // Tease forward to 85%
-          const p = (elapsed - 800) / 1500;
-          wipeAmount = easeInOut(p) * 0.85;
-        } else if (elapsed < 2600) {
-          // Brief pause at 85%
-          wipeAmount = 0.85;
-        } else if (elapsed < 4100) {
-          // Ease back to before
-          const p = (elapsed - 2600) / 1500;
-          wipeAmount = 0.85 * (1 - easeInOut(p));
-        } else if (elapsed < 4500) {
-          // Brief pause on before
-          wipeAmount = 0;
-        } else if (elapsed < 6500) {
-          // Full reveal wipe — all the way across
-          const p = (elapsed - 4500) / 2000;
-          wipeAmount = easeInOut(p);
+        } else if (elapsed < 2100) {
+          // Ease forward to 80%
+          const p = (elapsed - 600) / 1500;
+          wipeAmount = easeInOut(p) * 0.80;
+        } else if (elapsed < 3400) {
+          // Ease back to 25% — stays partway, never resets
+          const p = (elapsed - 2100) / 1300;
+          wipeAmount = 0.80 - easeInOut(p) * 0.55; // 0.80 → 0.25
+        } else if (elapsed < 5500) {
+          // Ease forward all the way — from 25% to 100%
+          const p = (elapsed - 3400) / 2100;
+          wipeAmount = 0.25 + easeInOut(p) * 0.75; // 0.25 → 1.0
         } else {
           // Hold after (the payoff)
           wipeAmount = 1;

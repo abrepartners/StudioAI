@@ -75,7 +75,7 @@ export default async function handler(req: any, res: any) {
     }
 
     if (!searchRes.data || searchRes.data.length === 0) {
-      json(res, 200, { ok: true, subscribed: false, plan: credits > 0 ? 'credits' : 'free', generationsUsed: 0, generationsLimit: credits > 0 ? credits : 5, credits });
+      json(res, 200, { ok: true, subscribed: false, plan: credits > 0 ? 'credits' : 'free', generationsUsed: 0, generationsLimit: credits > 0 ? credits : 3, credits });
       return;
     }
 
@@ -106,7 +106,7 @@ export default async function handler(req: any, res: any) {
       credits,
       subscriptionId: subscription?.id || null,
       currentPeriodEnd: subscription?.current_period_end || null,
-      generationsLimit: isSubscribed ? -1 : 5,
+      generationsLimit: isSubscribed ? -1 : 3,
       generationsUsed,
     });
   } catch (err: any) {

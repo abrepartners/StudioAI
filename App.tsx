@@ -1141,7 +1141,7 @@ const App: React.FC = () => {
               </div>
 
               <div className="flex gap-8 animate-fade-in" style={{ animationDelay: '0.4s' }}>
-                {[{ value: '5/day', label: 'Free generations' }, { value: '~15s', label: 'Per render' }, { value: '12+', label: 'Styles' }].map((s) => (
+                {[{ value: '3/day', label: 'Free generations' }, { value: '~15s', label: 'Per render' }, { value: '12+', label: 'Styles' }].map((s) => (
                   <div key={s.label}>
                     <div className="text-lg font-black text-white">{s.value}</div>
                     <div className="text-[9px] font-bold uppercase tracking-[0.15em] text-zinc-600">{s.label}</div>
@@ -1579,7 +1579,7 @@ const App: React.FC = () => {
                 },
                 {
                   q: 'Can I try before I pay?',
-                  a: 'Yes — every account gets 5 free generations per day. No credit card required. Just sign in with Google and start uploading photos.',
+                  a: 'Yes — every account gets 3 free generations per day. No credit card required. Just sign in with Google and start uploading photos.',
                 },
                 {
                   q: 'How does brokerage pricing work?',

@@ -21,7 +21,7 @@ const isAdminEmail = (email: string) =>
 export function useSubscription(userEmail: string | null) {
   const [state, setState] = useState<SubscriptionState>({
     loading: true, plan: 'free', subscribed: false,
-    generationsUsed: 0, generationsLimit: 5, canGenerate: true, credits: 0,
+    generationsUsed: 0, generationsLimit: 3, canGenerate: true, credits: 0,
   });
 
   const checkStatus = useCallback(async () => {
@@ -41,7 +41,7 @@ export function useSubscription(userEmail: string | null) {
       const data = await res.json();
       if (data.ok) {
         const genCount = data.generationsUsed ?? 0;
-        const limit = data.generationsLimit ?? 5;
+        const limit = data.generationsLimit ?? 3;
         const credits = data.credits ?? 0;
         const plan = data.plan || 'free';
         setState({

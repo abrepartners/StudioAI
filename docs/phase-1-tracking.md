@@ -62,9 +62,9 @@ Live status board for Phase 1 execution (F1-F28). Each cluster lead updates thei
 
 | # | Title | Status | Notes |
 |---|---|---|---|
-| F16 | Mobile: auto-close sheet on Generate | done | `handleGenerate` snapshots `sheetOpen` + checks `matchMedia('(max-width: 1023px)')`; closes on entry, reopens in `finally`. Skips if user was on desktop or had sheet already closed. |
-| F17 | Mobile: header overflow menu | done | Undo / Redo / Refresh / Help collapsed into a "…" `MoreHorizontal` menu at `<sm`. Desktop (`sm+`) still shows Refresh + Help inline; Undo/Redo stay in their own sm+ group. New state `showOverflowMenu` + outside-click / Escape close. `role=menu` + `aria-expanded` + `aria-haspopup`. |
-| F18 | Mobile: 44px touch targets | done | `min-h-[44px] min-w-[44px]` on Undo/Redo, session prev/next, overflow trigger, Refresh, Help, and account avatar (now `h-11 w-11`). MaskCanvas brush dots bumped `h-7 w-7 → h-11 w-11`, its Undo/Redo/Clear buttons bumped to 44×44. EditingBadge has `min-h-[44px]`. Verified live at 500px viewport: overflow 44×44, all 4 menu items 44×44. |
+| F16 | Mobile: auto-close sheet on Generate | done (staged) | `handleGenerate` snapshots `sheetOpen` + checks `matchMedia('(max-width: 1023px)')`; closes on entry, reopens in `finally`. Skips if user was on desktop or had sheet already closed. **Lives in App.tsx — rides in Cluster C's pending F6/F7/F8/F9 commit.** |
+| F17 | Mobile: header overflow menu | done (staged) | Undo / Redo / Refresh / Help collapsed into a "…" `MoreHorizontal` menu at `<sm`. Desktop (`sm+`) still shows Refresh + Help inline; Undo/Redo stay in their own sm+ group. New state `showOverflowMenu` + outside-click / Escape close. `role=menu` + `aria-expanded` + `aria-haspopup`. **Lives in App.tsx — rides in Cluster C's pending commit.** |
+| F18 | Mobile: 44px touch targets | done (MaskCanvas shipped, App.tsx staged) | MaskCanvas shipped in commit `4c4d539`. App.tsx portion (`min-h-[44px] min-w-[44px]` on Undo/Redo, session prev/next, overflow trigger, Refresh, Help; account avatar now `h-11 w-11`) waits on Cluster C's commit. EditingBadge already had `min-h-[44px]` via Cluster A's F21 commit. Verified live at 500px viewport: overflow 44×44, all 4 menu items 44×44. |
 
 ---
 

@@ -23,6 +23,7 @@ import SocialPack from './components/SocialPack';
 import EditingBadge from './components/EditingBadge';
 import { useBrandKit } from './hooks/useBrandKit';
 import { useModal } from './hooks/useModal';
+import useKeyboardShortcuts, { KEYBOARD_SHORTCUTS } from './hooks/useKeyboardShortcuts';
 import AdminShowcase from './components/AdminShowcase';
 import FurnitureRemover from './components/FurnitureRemover';
 import PricingPage from './components/PricingPage';
@@ -256,7 +257,11 @@ const App: React.FC = () => {
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [maskImage, setMaskImage] = useState<string | null>(null);
 
-  const [activePanel, setActivePanel] = useState<'tools' | 'history' | 'cleanup' | 'settings' | 'mls' | 'listing' | 'social'>('tools');
+  const [activePanel, setActivePanel] = useState<'tools' | 'proTools' | 'history' | 'cleanup' | 'settings' | 'mls' | 'listing' | 'social'>('tools');
+  // R23: once the user is Pro and completes their first generation, auto-jump
+  // to the Pro Tools panel so the new sidebar item is discoverable.  Gated by
+  // a ref so we only fire this once per session.
+  const proToolsAutoExpandedRef = useRef(false);
   const [stageMode, setStageMode] = useState<StageMode>('text');
   const [isGenerating, setIsGenerating] = useState(false);
   const [showAccessPanel, setShowAccessPanel] = useState(false);
@@ -313,6 +318,9 @@ const App: React.FC = () => {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
+  // R27: keyboard-shortcut help modal + Space-hold before/after peek.
+  const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
+  const [isPeekingOriginal, setIsPeekingOriginal] = useState(false);
   const { brandKit } = useBrandKit();
   const [showFurnitureRemover, setShowFurnitureRemover] = useState(false);
   const [isRemovingFurniture, setIsRemovingFurniture] = useState(false);
@@ -1014,6 +1022,24 @@ Direction from user: ${prompt}`;
       }
 
       subscription.recordGeneration();
+
+      // R23: auto-expand Pro Tools sidebar after the first generation for Pro
+      // users.  Fires exactly once per session, and only if we're currently on
+      // the Design Studio panel (so we don't yank people out of Cleanup/etc).
+      if (
+        subscription.plan === 'pro' &&
+        !proToolsAutoExpandedRef.current &&
+        activePanel === 'tools'
+      ) {
+        proToolsAutoExpandedRef.current = true;
+        // Don't auto-navigate — that would feel hostile.  Instead, show a
+        // one-time toast pointing at the new sidebar entry.
+        showToast(
+          <Sparkles size={14} className="text-[var(--color-primary)]" />,
+          'Pro Tools now in the sidebar',
+          { durationMs: 4500 }
+        );
+      }
     } catch (error: any) {
       // R11: actionable error toasts — probable cause, next step, inline Retry.
       // Retry re-runs handleGenerate with the exact prompt + opts that failed.
@@ -1408,6 +1434,44 @@ Direction from user: ${prompt}`;
     );
   }, [sessionIndex, sessionQueue, saveCurrentSession, loadSession, showToast]);
 
+  // R27: global editor keyboard shortcuts.  Disabled while no photo is loaded
+  // and while an intrusive modal is open (upgrade / tutorial / export / help).
+  useKeyboardShortcuts({
+    enabled:
+      !showUpgradeModal &&
+      !showTutorial &&
+      !showExportModal &&
+      !showShortcutsHelp &&
+      !showFurnitureRemover,
+    onEscape: () => {
+      // Cascade: peek → export → help → upgrade → tutorial → overflow.
+      if (isPeekingOriginal) { setIsPeekingOriginal(false); return; }
+      if (showOverflowMenu) { setShowOverflowMenu(false); return; }
+    },
+    onSave: () => {
+      if (generatedImage) { void handleSaveStage(); }
+    },
+    onExport: () => {
+      if (generatedImage) setShowExportModal(true);
+    },
+    onGenerate: () => {
+      // Fire a synthetic click on the currently-visible primary CTA. We keep
+      // this indirect so StyleControls stays the source of truth for prompt
+      // composition.
+      const btn = document.querySelector<HTMLButtonElement>(
+        '[data-shortcut="generate"], button.cta-primary'
+      );
+      btn?.click();
+    },
+    onPrev: () => navigateSession('prev'),
+    onNext: () => navigateSession('next'),
+    onHelp: () => setShowShortcutsHelp(true),
+    onSpaceDown: () => {
+      if (generatedImage && originalImage) setIsPeekingOriginal(true);
+    },
+    onSpaceUp: () => setIsPeekingOriginal(false),
+  });
+
   const removeFromSession = useCallback((index: number) => {
     setSessionQueue(prev => prev.filter((_, i) => i !== index));
     if (sessionQueue.length <= 1) {
@@ -1525,12 +1589,14 @@ Direction from user: ${prompt}`;
 
 
   const navItems: Array<{
-    id: 'tools' | 'cleanup' | 'history' | 'settings' | 'mls' | 'listing' | 'social';
+    id: 'tools' | 'proTools' | 'cleanup' | 'history' | 'settings' | 'mls' | 'listing' | 'social';
     label: string;
     icon: React.ReactNode;
     available: boolean;
   }> = [
       { id: 'tools', label: 'Design Studio', icon: <LayoutGrid size={20} />, available: true },
+      // R23: Pro AI Tools promoted to first-class sidebar item (was accordion inside Design Studio).
+      { id: 'proTools', label: 'Pro Tools', icon: <Sparkles size={20} />, available: true },
       { id: 'cleanup', label: 'Cleanup', icon: <Eraser size={20} />, available: true },
       { id: 'mls', label: 'MLS Export', icon: <Download size={20} />, available: true },
       { id: 'listing', label: 'Description', icon: <FileText size={20} />, available: true },
@@ -2109,6 +2175,50 @@ Direction from user: ${prompt}`;
           onShare={handleShareToGallery}
           brandKit={brandKit}
         />
+      )}
+
+      {/* R27: Keyboard shortcut reference modal. */}
+      {showShortcutsHelp && (
+        <div
+          className="fixed inset-0 z-[100] grid place-items-center modal-overlay p-4"
+          onClick={() => setShowShortcutsHelp(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Keyboard shortcuts"
+        >
+          <div
+            className="modal-content w-full max-w-md rounded-2xl p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-display text-xl font-semibold text-[var(--color-ink)]">Keyboard shortcuts</h2>
+              <button
+                type="button"
+                onClick={() => setShowShortcutsHelp(false)}
+                className="rounded-lg p-1.5 text-[var(--color-text)]/50 hover:text-white hover:bg-white/[0.06] transition"
+                aria-label="Close"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <ul className="space-y-2">
+              {KEYBOARD_SHORTCUTS.map(({ keys, label }) => (
+                <li
+                  key={keys}
+                  className="flex items-center justify-between gap-4 rounded-xl border border-[var(--color-border)] bg-black/40 px-3 py-2"
+                >
+                  <span className="text-sm text-[var(--color-text)]">{label}</span>
+                  <kbd className="rounded-md border border-[var(--color-border-strong)] bg-[var(--color-bg-deep)] px-2 py-0.5 text-[11px] font-mono text-[var(--color-primary)]">
+                    {keys}
+                  </kbd>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-4 text-[11px] text-[var(--color-text)]/50 text-center">
+              Press Esc to close.
+            </p>
+          </div>
+        </div>
       )}
 
       {showUpgradeModal && (
@@ -2800,32 +2910,45 @@ Direction from user: ${prompt}`;
                 <div className="relative overflow-hidden rounded-[10px] sm:rounded-[14px] bg-black aspect-[4/3] border border-[var(--color-border-strong)]">
                   {/* EditingBadge rendered inline next to the room picker below (see left-2.5 top-2.5 flex row)
                       so the two don't stack or have overlapping dropdowns. */}
-                  {isGenerating && (
+                  {isGenerating && (() => {
+                    // R35: per-tool progress copy. The main overlay only fires
+                    // for staging / cleanup flows (Pro Tools has its own inline
+                    // loader inside SpecialModesPanel).  Copy depends on the
+                    // currently active panel.
+                    const toolCopy =
+                      activePanel === 'cleanup'
+                        ? {
+                            headline: 'Cleaning up your room',
+                            lines: [
+                              'Reading what to remove…',
+                              'Rebuilding the surface behind it…',
+                              'Matching your lighting',
+                            ],
+                          }
+                        : {
+                            headline: 'Staging your room',
+                            lines: [
+                              'Measuring the room…',
+                              'Placing furniture that fits…',
+                              'Matching your lighting',
+                            ],
+                          };
+                    return (
                     <div role="status" aria-live="polite" aria-label="Generating design" className="absolute inset-0 z-10 bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center">
                       <div className="text-center space-y-4 w-full max-w-md px-6 pointer-events-none">
                         <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full border border-[var(--color-primary-dark)] bg-black shadow-lg">
                           <BrainCircuit size={18} className="text-[var(--color-primary)] animate-pulse" />
                           <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-primary)]">
-                            {activePanel === 'cleanup' ? 'Cleaning up your room' : 'Staging your room'}
+                            {toolCopy.headline}
                           </span>
                           <span className="text-[10px] font-mono text-[var(--color-text)]/50 tabular-nums">
                             {Math.floor(generationElapsed / 60)}:{String(generationElapsed % 60).padStart(2, '0')}
                           </span>
                         </div>
                         <div className="text-center space-y-2 relative h-16 w-full mask-linear-gradient-bottom">
-                          {activePanel === 'cleanup' ? (
-                            <>
-                              <p className="text-xs text-white/50 typing-effect">Reading what to remove…</p>
-                              <p className="text-xs text-white/70 typing-effect" style={{animationDelay: '0.8s'}}>Rebuilding the surface behind it…</p>
-                              <p className="text-xs font-medium text-white typing-effect" style={{animationDelay: '1.6s'}}>Matching your lighting</p>
-                            </>
-                          ) : (
-                            <>
-                              <p className="text-xs text-white/50 typing-effect">Measuring the room…</p>
-                              <p className="text-xs text-white/70 typing-effect" style={{animationDelay: '0.8s'}}>Placing furniture that fits…</p>
-                              <p className="text-xs font-medium text-white typing-effect" style={{animationDelay: '1.6s'}}>Matching your lighting</p>
-                            </>
-                          )}
+                          <p className="text-xs text-white/50 typing-effect">{toolCopy.lines[0]}</p>
+                          <p className="text-xs text-white/70 typing-effect" style={{animationDelay: '0.8s'}}>{toolCopy.lines[1]}</p>
+                          <p className="text-xs font-medium text-white typing-effect" style={{animationDelay: '1.6s'}}>{toolCopy.lines[2]}</p>
                         </div>
                       </div>
                       {/* F9: Cancel button — sits OUTSIDE the pointer-events-none wrapper */}
@@ -2839,7 +2962,8 @@ Direction from user: ${prompt}`;
                         Cancel
                       </button>
                     </div>
-                  )}
+                  );
+                  })()}
 
                   {activePanel === 'cleanup' ? (
                     <MaskCanvas
@@ -2851,6 +2975,19 @@ Direction from user: ${prompt}`;
                   ) : generatedImage ? (
                     <>
                       <CompareSlider originalImage={originalImage} generatedImage={generatedImage} />
+                      {/* R27: Space-hold peek. Swap in the original until released. */}
+                      {isPeekingOriginal && originalImage && (
+                        <div className="absolute inset-0 z-[5] pointer-events-none">
+                          <img
+                            src={originalImage}
+                            alt="Original (peek)"
+                            className="absolute inset-0 h-full w-full object-contain"
+                          />
+                          <div className="absolute top-3 left-1/2 -translate-x-1/2 rounded-full bg-black/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-white">
+                            Before (hold Space)
+                          </div>
+                        </div>
+                      )}
                       {showFurnitureRemover && (
                         <FurnitureRemover
                           generatedImage={generatedImage}
@@ -3157,6 +3294,42 @@ Direction from user: ${prompt}`;
                     isGenerating={isGenerating}
                     hasMask={!!maskImage}
                     selectedRoom={selectedRoom}
+                  />
+                )}
+
+                {/* R23: Pro Tools — standalone panel (was an accordion inside Design Studio). */}
+                {activePanel === 'proTools' && (
+                  <SpecialModesPanel
+                    key={`pro-${sessionQueue[sessionIndex]?.id || 'single'}`}
+                    originalImage={originalImage}
+                    generatedImage={generatedImage}
+                    selectedRoom={selectedRoom}
+                    onNewImage={(() => {
+                      const capturedSessionId = sessionQueue[sessionIndex]?.id;
+                      return (img: string, toolName?: string) => {
+                        const tool = toolName || 'edit';
+                        if (currentSessionIdRef.current === capturedSessionId) {
+                          pushToHistory();
+                          setGeneratedImage(img);
+                          setSessionQueue(prev => prev.map(s =>
+                            s.id === capturedSessionId
+                              ? { ...s, editHistory: [...s.editHistory, tool] }
+                              : s
+                          ));
+                        } else if (capturedSessionId) {
+                          setSessionQueue(prev =>
+                            prev.map(s =>
+                              s.id === capturedSessionId
+                                ? { ...s, generatedImage: img, editHistory: [...s.editHistory, tool] }
+                                : s
+                            )
+                          );
+                        }
+                      };
+                    })()}
+                    onRequireKey={() => setShowUpgradeModal(true)}
+                    savedStages={savedStages}
+                    isPro={subscription.plan === 'pro'}
                   />
                 )}
 

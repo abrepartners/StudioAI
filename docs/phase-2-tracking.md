@@ -66,17 +66,17 @@ Gate: QA harness still passes on all 5 tools after each cluster merge.
 
 | # | Title | Status | Notes |
 |---|---|---|---|
-| R23 | Promote Pro AI Tools to sidebar | todo | Replace accordion, auto-expand for Pro |
-| R26 | Retry button in error toasts | todo | Extend toast primitive |
-| R27 | Keyboard shortcut map | todo | ⌘S/⌘E/⌘Enter/`[`/`]`/`?` |
-| R28 | Custom tooltip primitive | todo | `<Tooltip>` component |
-| R29 | Drag-over visual state | todo | ImageUploader border tint |
-| R30 | Modal open transition | todo | 220ms scale+fade |
-| R31 | Mask brush size cursor | todo | DOM circle follows mouse |
-| R32 | `<PanelHeader>` extraction | todo | 4 inline copies |
-| R33 | `<Button>`/`<Badge>`/`<Pill>` | todo | 4 variants × 2 sizes |
-| R34 | Pack tile "selected" pre-fire | todo | 2-click pattern |
-| R35 | Per-tool progress copy | todo | depends on R5 |
+| R23 | Promote Pro AI Tools to sidebar | shipped | `proTools` nav item (Sparkles icon) + standalone render branch in App.tsx. Pro users get a one-time "Pro Tools now in the sidebar" toast after first gen. |
+| R26 | Retry button in error toasts | shipped | Toast primitive already had `action` (F7). Cluster A's R11 wired 6s duration + Retry into every handleGenerate error branch. No Cluster D change needed. |
+| R27 | Keyboard shortcut map | shipped | `hooks/useKeyboardShortcuts.ts` — Esc / ⌘S / ⌘E / ⌘Enter / `[` / `]` / `?` / Space-hold. Help modal renders `KEYBOARD_SHORTCUTS` list. Space peeks original image. |
+| R28 | Custom tooltip primitive | shipped | `components/Tooltip.tsx` — 400ms/100ms, viewport-clamped, ARIA described-by. Swept 7 native `title=` usages in BatchUploader/ManageTeam/FurnitureRemover/AdminShowcase/BatchProcessor. App.tsx title= conversions staged to avoid Cluster C conflict. |
+| R29 | Drag-over visual state | shipped | ImageUploader uses drag-counter (no flicker), primary border + "Drop to upload" overlay. |
+| R30 | Modal open transition | shipped | `index.css` — `modal-content-in` 220ms scale(0.96→1) + `modal-overlay-in` fade. Honors `prefers-reduced-motion`. |
+| R31 | Mask brush size cursor | shipped | DOM circle follows mouse, scales by canvas display ratio. `cursor-none` when active, shown onMouseEnter / hidden onMouseLeave. |
+| R32 | `<PanelHeader>` extraction | shipped | `components/PanelHeader.tsx`. Used in StyleControls (4), SpecialModesPanel (1), BrandKit (1), MLSExport (1). |
+| R33 | `<Button>`/`<Badge>`/`<Pill>` | shipped | `components/ui/{Button,Badge,Pill}.tsx`. Top ~6 usages migrated (SOON badge, prompt pills, Pro-tool Cancel, Brand-kit status). Remaining button sweep deferred to avoid merge hell. |
+| R34 | Pack tile "selected" pre-fire | shipped | First click on preset → ring + "Click again to generate"; second click → `buildPrompt()`. Respects `isGenerating` / `feedbackRequired` gates. |
+| R35 | Per-tool progress copy | shipped | Main overlay refactored to `toolCopy.headline` + `lines` per `activePanel`. Pro Tools (Sky/Twilight/Declutter/Renovation) already have their own in-panel loaders in SpecialModesPanel — those already read per-tool. |
 
 ---
 
@@ -108,6 +108,10 @@ _Cluster leads: log QA failures here._
 ## Collaboration
 
 _Cross-cluster deps. Tag with @agent-x._
+
+- **@agent-d → @agent-c (2026-04-18)**: R23 lands the new `proTools` nav item + auto-expand. Only App.tsx edits are (1) `activePanel` union adds `'proTools'`, (2) `navItems` array gets a Sparkles entry, (3) new render branch mirrors the existing `tools` branch. Minimal overlap with R20 router scaffolding; review needed once Cluster C routes Pro Tools through `/editor/pro`.
+- **@agent-d → @agent-a (2026-04-18)**: R11 already wired inline Retry into `handleGenerate` error branches (6s, `action: retryAction`). R26 marked shipped on that basis. If R11 is rolled back, R26 regresses.
+- **@agent-d deferred**: ~25 remaining `title=` attributes in App.tsx + SettingsRoute staged for Tooltip sweep AFTER Cluster C's router refactor finishes — avoids merge hell.
 
 - **@agent-a → @agent-d (R8)** — tutorial now takes a `firstUpload` prop. If Cluster D restructures mount points or sidebar, preserve `firstUpload={Boolean(originalImage)}` wiring on `<QuickStartTutorial>`.
 - **@agent-a → @agent-c (R2 / R10)** — 5 `Start Free — No Credit Card` strings replaced with `Stage 3 rooms free`. If Cluster C extracts the pricing page, the two pricing-card CTAs carry forward.

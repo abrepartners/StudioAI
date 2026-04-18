@@ -287,9 +287,23 @@ HARD PRESERVATION RULES — these override any instinct to "improve" the room:
                 <button
                   key={preset.id}
                   type="button"
-                  onClick={() => setSelectedPreset(preset.id)}
+                  // R34: 2-click pattern. First click on an unselected tile just
+                  // shows the selection ring.  Second click on the SAME
+                  // already-selected tile fires the Generate flow — skipping a
+                  // trip to the sticky Generate button below.
+                  onClick={() => {
+                    if (active) {
+                      // Second click on already-selected tile → pre-fire.
+                      if (!isGenerating && !feedbackRequired) {
+                        buildPrompt();
+                      }
+                      return;
+                    }
+                    setSelectedPreset(preset.id);
+                  }}
+                  aria-pressed={active}
                   className={`relative overflow-hidden rounded-2xl border px-3 py-3 text-left transition-all duration-300 ${active
-                    ? 'border-[var(--color-primary)] bg-[rgba(10,132,255,0.05)] shadow-md scale-[1.02]'
+                    ? 'border-[var(--color-primary)] bg-[rgba(10,132,255,0.05)] shadow-md scale-[1.02] ring-2 ring-[var(--color-primary)]/40'
                     : 'border-[var(--color-border)] bg-black/40 hover:bg-black hover:border-[var(--color-border-strong)] hover:scale-[1.01]'
                     }`}
                 >
@@ -306,6 +320,11 @@ HARD PRESERVATION RULES — these override any instinct to "improve" the room:
                       <span className={`block text-[10px] uppercase tracking-wider truncate transition-colors ${active ? 'text-[var(--color-primary)]' : 'text-[var(--color-text)]/60'}`}>{preset.description}</span>
                     </span>
                   </div>
+                  {active && (
+                    <span className="absolute bottom-1.5 right-2 text-[9px] uppercase tracking-wider text-[var(--color-primary)]/80 font-semibold pointer-events-none">
+                      Click again to generate
+                    </span>
+                  )}
                 </button>
               );
             })}

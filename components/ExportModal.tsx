@@ -684,12 +684,12 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
               >
                 {videoGenerating ? (
                   <>
-                    <Loader2 size={15} className="animate-spin" />
+                    <Loader2 size={16} className="animate-spin" />
                     Generating... {videoProgress}%
                   </>
                 ) : (
                   <>
-                    <Video size={15} />
+                    <Video size={16} />
                     Create Reveal Video
                   </>
                 )}

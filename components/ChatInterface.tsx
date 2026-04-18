@@ -43,7 +43,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, onSendMessage, 
       <div className="flex-1 overflow-y-auto px-4 py-5 space-y-4 scrollbar-hide">
         {messages.length === 0 ? (
           <div className="premium-surface rounded-2xl p-6 text-center text-[var(--color-text)]/80 mt-4">
-            <Sparkles size={28} className="mx-auto mb-3 text-[var(--color-accent)]" />
+            <Sparkles size={24} className="mx-auto mb-3 text-[var(--color-accent)]" />
             <p className="font-semibold text-[var(--color-ink)]">Request prompt refinements or styling directions</p>
             <p className="text-sm mt-2">Ask for layout changes, materials, staging choices, or cleanup guidance.</p>
           </div>
@@ -66,7 +66,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, onSendMessage, 
               </div>
               {msg.role === 'user' && (
                 <div className="h-9 w-9 rounded-xl bg-[var(--color-ink)] text-white flex items-center justify-center shrink-0">
-                  <User size={15} />
+                  <User size={16} />
                 </div>
               )}
             </div>
@@ -107,7 +107,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, onSendMessage, 
               disabled={isLoading || !inputText.trim()}
               className="absolute right-1.5 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full cta-primary flex items-center justify-center disabled:opacity-50"
             >
-              <Send size={15} />
+              <Send size={16} />
             </button>
           </div>
         </form>

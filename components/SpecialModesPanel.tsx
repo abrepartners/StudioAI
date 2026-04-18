@@ -263,7 +263,7 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                                     onClick={() => onNewImage(img)}
                                     className="rounded-lg overflow-hidden border border-[var(--color-border)] hover:border-[var(--color-primary)] transition-all"
                                 >
-                                    <img src={img.startsWith('data:') ? img : `data:image/jpeg;base64,${img}`} alt={`Result ${i + 1}`} className="w-full aspect-[4/3] object-cover" />
+                                    <img src={img.startsWith('data:') ? img : `data:image/jpeg;base64,${img}`} alt={`Result ${i + 1}`} className="w-full aspect-[4/3] object-cover" loading="lazy" decoding="async" />
                                 </button>
                             ))}
                         </div>
@@ -289,7 +289,7 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                     }
                     className={`w-full rounded-2xl px-4 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all ${loading === 'twilight' ? 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border)]' : 'bg-white/[0.03] text-white border border-white/10 hover:bg-white/[0.06] hover:border-white/20 flex items-center justify-center gap-2 [&_svg]:text-[var(--color-primary)]'}`}
                 >
-                    {loading === 'twilight' ? <><Loader2 size={15} className="animate-spin text-[var(--color-primary)]" /> {canBatch ? 'Processing batch...' : 'Converting...'}</> : <><Sunset size={15} /> {canBatch ? `Apply to All (${batchImages.length})` : 'Create Twilight Shot'}</>}
+                    {loading === 'twilight' ? <><Loader2 size={16} className="animate-spin text-[var(--color-primary)]" /> {canBatch ? 'Processing batch...' : 'Converting...'}</> : <><Sunset size={16} /> {canBatch ? `Apply to All (${batchImages.length})` : 'Create Twilight Shot'}</>}
                 </button>
             </Section>
 
@@ -321,7 +321,7 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                     }
                     className={`mt-2 w-full rounded-2xl px-4 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all ${loading === 'sky' ? 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border)]' : 'bg-white/[0.03] text-white border border-white/10 hover:bg-white/[0.06] hover:border-white/20 flex items-center justify-center gap-2 [&_svg]:text-[var(--color-primary)]'}`}
                 >
-                    {loading === 'sky' ? <><Loader2 size={15} className="animate-spin text-[var(--color-primary)]" /> {canBatch ? 'Processing batch...' : 'Replacing sky...'}</> : <><Cloud size={15} /> {canBatch ? `Apply to All (${batchImages.length})` : 'Replace Sky'}</>}
+                    {loading === 'sky' ? <><Loader2 size={16} className="animate-spin text-[var(--color-primary)]" /> {canBatch ? 'Processing batch...' : 'Replacing sky...'}</> : <><Cloud size={16} /> {canBatch ? `Apply to All (${batchImages.length})` : 'Replace Sky'}</>}
                 </button>
             </Section>
 
@@ -339,7 +339,7 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                     }
                     className={`w-full rounded-2xl px-4 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all ${loading === 'declutter' ? 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border)]' : 'bg-white/[0.03] text-white border border-white/10 hover:bg-white/[0.06] hover:border-white/20 flex items-center justify-center gap-2 [&_svg]:text-[var(--color-primary)]'}`}
                 >
-                    {loading === 'declutter' ? <><Loader2 size={15} className="animate-spin text-[var(--color-primary)]" /> {canBatch ? 'Processing batch...' : 'Cleaning up...'}</> : <><Trash2 size={15} /> {canBatch ? `Apply to All (${batchImages.length})` : 'Remove Clutter'}</>}
+                    {loading === 'declutter' ? <><Loader2 size={16} className="animate-spin text-[var(--color-primary)]" /> {canBatch ? 'Processing batch...' : 'Cleaning up...'}</> : <><Trash2 size={16} /> {canBatch ? `Apply to All (${batchImages.length})` : 'Remove Clutter'}</>}
                 </button>
             </Section>
 
@@ -373,7 +373,7 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                     }
                     className={`w-full rounded-2xl px-4 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all ${loading === 'renovation' ? 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border)]' : 'bg-white/[0.03] text-white border border-white/10 hover:bg-white/[0.06] hover:border-white/20 flex items-center justify-center gap-2 [&_svg]:text-[var(--color-primary)]'}`}
                 >
-                    {loading === 'renovation' ? <><Loader2 size={15} className="animate-spin text-[var(--color-primary)]" /> {canBatch ? 'Processing batch...' : 'Renovating...'}</> : <><Hammer size={15} /> {canBatch ? `Apply to All (${batchImages.length})` : 'Preview Renovation'}</>}
+                    {loading === 'renovation' ? <><Loader2 size={16} className="animate-spin text-[var(--color-primary)]" /> {canBatch ? 'Processing batch...' : 'Renovating...'}</> : <><Hammer size={16} /> {canBatch ? `Apply to All (${batchImages.length})` : 'Preview Renovation'}</>}
                 </button>
             </Section>
 
@@ -454,7 +454,7 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                     })}
                     className={`w-full rounded-2xl px-4 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all ${loading === 'listing' ? 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border)]' : 'bg-white/[0.03] text-white border border-white/10 hover:bg-white/[0.06] hover:border-white/20 flex items-center justify-center gap-2 [&_svg]:text-[var(--color-primary)]'}`}
                 >
-                    {loading === 'listing' ? <><Loader2 size={15} className="animate-spin text-[var(--color-primary)]" /> Writing copy...</> : <><FileText size={15} /> Generate {TONE_OPTIONS.find(t => t.key === listingTone)?.label} Copy</>}
+                    {loading === 'listing' ? <><Loader2 size={16} className="animate-spin text-[var(--color-primary)]" /> Writing copy...</> : <><FileText size={16} /> Generate {TONE_OPTIONS.find(t => t.key === listingTone)?.label} Copy</>}
                 </button>
 
                 {/* Results */}

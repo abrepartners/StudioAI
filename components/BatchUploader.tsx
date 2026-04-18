@@ -356,6 +356,8 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
                 src={img.base64}
                 alt="Queued"
                 className="w-full h-full object-cover"
+                loading="lazy"
+                decoding="async"
               />
 
               {/* Action badge + remove — top right */}
@@ -442,7 +444,7 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
           disabled={selectedCount === 0}
           className={`rounded-xl px-4 py-3 text-sm font-bold bg-[var(--color-primary)] text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:opacity-90 inline-flex items-center justify-center gap-2 ${onSkipToEditor ? '' : 'col-span-2'}`}
         >
-          <Images size={15} />
+          <Images size={16} />
           Batch Process {selectedCount}
         </button>
       </div>

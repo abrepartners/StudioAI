@@ -1,5 +1,7 @@
 import { json, setCors, handleOptions, rejectMethod, parseBody } from './utils.js';
 
+export const config = { runtime: 'nodejs' };
+
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
 
 function getCurrentPeriod(): string {

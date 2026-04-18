@@ -1,5 +1,7 @@
 import { json, setCors, handleOptions, parseBody } from './utils.js';
 
+export const config = { runtime: 'nodejs' };
+
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || '';

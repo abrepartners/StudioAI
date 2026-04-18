@@ -1,5 +1,7 @@
 import { json, setCors, handleOptions, rejectMethod, parseBody } from './utils.js';
 
+export const config = { runtime: 'nodejs' };
+
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
 

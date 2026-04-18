@@ -54,7 +54,7 @@ const CompareSlider: React.FC<CompareSliderProps> = ({ originalImage, generatedI
   return (
     <div
       ref={containerRef}
-      className="relative h-full w-full select-none overflow-hidden rounded-[1.25rem] cursor-ew-resize"
+      className="relative h-full w-full select-none overflow-hidden rounded-2xl cursor-ew-resize"
       style={{ touchAction: 'none', overscrollBehavior: 'contain' }}
       onMouseDown={(e) => {
         handleMove(e.clientX);

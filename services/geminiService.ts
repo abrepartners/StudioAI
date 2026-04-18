@@ -602,10 +602,11 @@ COLOR & QUALITY PRESERVATION:
 
 REMOVE ALL OF THESE:
 - Realtor signs, for-sale signs, lockboxes, key boxes on doors
-- Toys, pet items, children's items, strollers
+- Toys, pet items, children's items, strollers, Little Tikes, play kitchens, ride-on vehicles
+- Vinyl wall decals, stickers, quote art, kid names on walls
 - Visible laundry, shoes, bags, backpacks on the floor
 - Trash, debris, junk, broken items, construction materials
-- Countertop clutter: mail, keys, loose bottles, random cups, toiletries
+- Countertop clutter: mail, keys, loose bottles, random cups, toiletries, fruit baskets, cookie jars
 - Visible cords and cables on the floor
 - Refrigerator magnets, sticky notes, taped papers
 - Personal photos and children's drawings on walls
@@ -613,12 +614,28 @@ REMOVE ALL OF THESE:
 - Moving boxes, packing materials
 - Cleaning supplies left out (brooms, mops, spray bottles)
 
+DO NOT REMOVE (these are context / scene content):
+- Cars, trucks, bikes, boats, motorcycles, RVs — vehicles are NEVER clutter.
+- Power lines, utility poles, street lamps, solar panels — structural scenery stays.
+- Trees, bushes, landscaping — never remove plants that are rooted.
+- Built-in fixtures (cabinets, sinks, tubs, ceiling fans, lighting fixtures).
+- Architectural features — windows, doors, trim, moldings, columns.
+
 KEEP EVERYTHING ELSE EXACTLY AS-IS:
 - ALL furniture — same style, same color, same position
 - ALL bedding, pillows, throws, rugs — unchanged
 - ALL architecture, fixtures, fans, vents, outlets
 - ALL curtains, blinds, lamps
-- ALL appliances
+- ALL appliances — refrigerator, range, dishwasher, washer/dryer stay pixel-identical
+
+FRAMING LOCK:
+- The output image MUST have the EXACT same framing, crop, zoom level, and camera angle as the input. Do NOT reframe, zoom, pan, or rotate.
+- If you cannot remove the clutter without changing the framing, remove the clutter WITHOUT changing the framing — do not reframe to fix composition.
+
+REMOVAL QUALITY STANDARD:
+- Either erase a detected clutter item COMPLETELY (with seamless fill of the surface behind it), or leave it alone. Never ship partial erasure, half-faded smudges, or ghostly outlines.
+- Prefer complete erasure whenever feasible — being too conservative defeats the tool's purpose.
+- If a clutter item is reflected in a mirror, erase BOTH the item and its reflection together; never erase only one.
 
 RESTORATION:
 - Where items are removed, fill with the surrounding floor/wall/ground texture seamlessly.

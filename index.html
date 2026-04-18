@@ -2,13 +2,20 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>StudioAI | AI Virtual Staging for Real Estate</title>
     <meta name="description" content="Stage any room in seconds with AI. Virtual staging, twilight conversions, sky replacements, and smart cleanup — all from one workspace. Built for real estate agents and brokerages." />
 
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="StudioAI" />
+    <meta name="mobile-web-app-capable" content="yes" />
 
     <!-- Open Graph -->
     <meta property="og:title" content="StudioAI — AI Virtual Staging for Real Estate" />
@@ -24,6 +31,11 @@
 
     <!-- Theme -->
     <meta name="theme-color" content="#000000" />
+
+    <!-- Font preconnect + stylesheet (replaces in-CSS @import for faster LCP) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=DM+Serif+Display&display=swap" />
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>

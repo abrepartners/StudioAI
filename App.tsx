@@ -4,6 +4,7 @@ import {
   detectRoomType,
 } from './services/geminiService';
 import { sharpenImage } from './utils/sharpen';
+import { compositeStackedEdit } from './utils/stackComposite';
 import ImageUploader from './components/ImageUploader';
 import BatchUploader, { type BatchImage } from './components/BatchUploader';
 import BatchProcessor, { type BatchResult } from './components/BatchProcessor';
@@ -18,6 +19,8 @@ import QuickStartTutorial from './components/QuickStartTutorial';
 import ExportModal from './components/ExportModal';
 import MLSExport from './components/MLSExport';
 import ListingDescription from './components/ListingDescription';
+import SocialPack from './components/SocialPack';
+import EditingBadge from './components/EditingBadge';
 import { useBrandKit } from './hooks/useBrandKit';
 import AdminShowcase from './components/AdminShowcase';
 import FurnitureRemover from './components/FurnitureRemover';
@@ -266,7 +269,7 @@ const App: React.FC = () => {
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [maskImage, setMaskImage] = useState<string | null>(null);
 
-  const [activePanel, setActivePanel] = useState<'tools' | 'history' | 'cleanup' | 'settings' | 'mls' | 'listing'>('tools');
+  const [activePanel, setActivePanel] = useState<'tools' | 'history' | 'cleanup' | 'settings' | 'mls' | 'listing' | 'social'>('tools');
   const [stageMode, setStageMode] = useState<StageMode>('text');
   const [isGenerating, setIsGenerating] = useState(false);
   const [showAccessPanel, setShowAccessPanel] = useState(false);
@@ -291,6 +294,9 @@ const App: React.FC = () => {
 
   // ─── Batch Mode State ────────────────────────────────────────────────────
   const [batchImages, setBatchImages] = useState<BatchImage[] | null>(null);
+  // Mirror of BatchProcessor's internal results so we can restore them when
+  // the user opens a single result in the editor and returns via "← Back to Batch".
+  const [batchResults, setBatchResults] = useState<BatchResult[] | null>(null);
 
   // ─── Session Queue ──────────────────────────────────────────────────────
   const [sessionQueue, setSessionQueue] = useState<SessionImage[]>([]);
@@ -509,6 +515,44 @@ const App: React.FC = () => {
     setHistoryIndex(nextIndex);
   }, [history, historyIndex]);
 
+  // "Start from original" — wipes the canvas back to the uploaded photo while
+  // pushing a marker into history so users can still undo back to the stacked
+  // result if they change their mind. editHistory gets a 'reset' entry.
+  const handleStartFromOriginal = useCallback(() => {
+    if (!generatedImage) return;
+    // Push current state into history first so undo returns to it
+    pushToHistory();
+    setGeneratedImage(null);
+    setMaskImage(null);
+    const sid = sessionQueue[sessionIndex]?.id;
+    if (sid) {
+      setSessionQueue(prev => prev.map(s =>
+        s.id === sid ? { ...s, editHistory: [...s.editHistory, 'reset'] } : s
+      ));
+    }
+  }, [generatedImage, pushToHistory, sessionQueue, sessionIndex]);
+
+  // "Commit & Continue" — promotes the current stacked result to the new base
+  // (originalImage). Resets the chain so future edits anchor on a fresh, lossless
+  // PNG rather than accumulating diffusion drift. Triggered automatically after
+  // the chain cap (3 passes) to match Google's own guidance to restart after
+  // iterative drift becomes visible.
+  const handleCommitAndContinue = useCallback(() => {
+    if (!generatedImage) return;
+    pushToHistory();
+    setOriginalImage(generatedImage);
+    setGeneratedImage(null);
+    setMaskImage(null);
+    const sid = sessionQueue[sessionIndex]?.id;
+    if (sid) {
+      setSessionQueue(prev => prev.map(s =>
+        s.id === sid
+          ? { ...s, originalImage: generatedImage!, editHistory: [...s.editHistory, 'commit'] }
+          : s
+      ));
+    }
+  }, [generatedImage, pushToHistory, sessionQueue, sessionIndex]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
@@ -623,7 +667,7 @@ const App: React.FC = () => {
       setIsAnalyzing(false);
     }
   };
-  const handleGenerate = async (prompt: string) => {
+  const handleGenerate = async (prompt: string, opts?: { fromPack?: boolean }) => {
     if (!originalImage) return;
 
     if (!subscription.canGenerate) {
@@ -643,15 +687,132 @@ const App: React.FC = () => {
       lastPromptRef.current = prompt;
       console.log('[StudioAI] Generation prompt:', prompt);
 
-      const sourceImage = activePanel === 'cleanup' && generatedImage ? generatedImage : originalImage;
+      // Stacking architecture:
+      // - Text prompts and cleanup build on the current result ("source of state").
+      // - Style packs always replace (restart from original) — compounding two full
+      //   room styles produces incoherent output.
+      // - ?chain=1 upgrades text-stacking to multi-image anchor mode: Gemini receives
+      //   BOTH the original (anchor for pixel fidelity) AND the current result (state),
+      //   with explicit role labels. This kills generational drift — every generation
+      //   anchors back to the original photo, so 5 stacked edits look as clean as 1.
+      // - ?stack=1 kept for backward-compat: text stacks but without the anchor.
+      // Chain mode is now default-ON for all users. The anchor + PNG preservation
+      // + commit-at-depth-3 architecture is always applied to text and cleanup
+      // stacking. `?chain=0` or `?stack=0` can opt out for testing.
+      const params = typeof window !== 'undefined'
+        ? new URLSearchParams(window.location.search)
+        : new URLSearchParams();
+      const optOut = params.get('chain') === '0' || params.get('stack') === '0';
+      const chainEnabled = !optOut;
+      const stackEnabled = !optOut;
+      const fromPack = opts?.fromPack === true;
+      const cleanupStack = activePanel === 'cleanup' && generatedImage;
+      const shouldStack = !fromPack && ((stackEnabled && generatedImage) || cleanupStack);
+      const sourceImage = shouldStack ? generatedImage : originalImage;
+      // When chain mode is on AND we're stacking, pass the original as an anchor
+      // so Gemini can preserve pixel fidelity on unchanged regions.
+      // EXCEPTION: cleanup uses masked pixel edits against the current canvas —
+      // sending an anchor + mask together confuses Gemini about which image the
+      // mask coordinates apply to. Let cleanup keep its current single-image flow.
+      const isCleanup = activePanel === 'cleanup';
+      const anchorImage = (chainEnabled && shouldStack && !isCleanup) ? originalImage : null;
+
+      // Intent classifier: certain edit intents trigger Gemini to re-stage the whole
+      // room when the user only wanted a small tweak. We detect those intents and
+      // wrap the prompt with ZERO-TOLERANCE preservation preambles BEFORE handing
+      // it to the outer template.
+      //
+      // Two categories today:
+      //   - lighting — "make it evening", "warmer", "sunset"
+      //   - spatial  — "move the chair", "turn the bed", "reposition the lamp"
+      // Both fail the same way without this guard: Gemini reads the directive as
+      // "this should be the new scene" and deletes/replaces everything else.
+      const lightingKeywords = /\b(evening|dusk|twilight|night|nighttime|dawn|morning light|golden hour|sunset|sunrise|brighter|dimmer|darker|warmer|cooler|moody|dramatic lighting|soft light|soft lighting|sunny|overcast|cloudy|sky|lighter|ambient|bright light|mood lighting|lighting|relight|relit)\b/i;
+      const spatialMoveKeywords = /\b(move|shift|slide|relocate|reposition|place|put|turn|rotate|angle|flip|face|pivot)\b/i;
+      const structuralKeywords = /\b(add|remove|delete|swap|change.*(bed|chair|sofa|couch|table|rug|lamp|light fixture|dresser|nightstand|furniture|decor|art|mirror|plant)|stage|re-?stage|different|new furniture|restyle|redecorate)\b/i;
+      const isLightingOnly = lightingKeywords.test(prompt) && !structuralKeywords.test(prompt) && !spatialMoveKeywords.test(prompt);
+      const isSpatialMove = !isLightingOnly && spatialMoveKeywords.test(prompt) && !structuralKeywords.test(prompt);
+      let effectivePrompt = prompt;
+      if (isLightingOnly) {
+        effectivePrompt = `LIGHTING-ONLY EDIT — ZERO TOLERANCE FOR STRUCTURAL CHANGE.
+You are adjusting ambient light, color temperature, and/or sky only. You are NOT restaging, redecorating, or changing any furniture.
+
+ABSOLUTE PROHIBITIONS:
+- Do NOT add any new furniture, decor, plants, artwork, pillows, rugs, lamps, or objects.
+- Do NOT remove, move, swap, resize, or replace ANY existing furniture or decor.
+- Do NOT change wall colors, paint, floors, rugs, textures, or materials.
+- Do NOT alter architecture, windows, doors, ceiling, or fixtures.
+- Count the furniture in the input. The output must have the EXACT same items in the EXACT same positions.
+
+Allowed changes ONLY:
+- Ambient light direction, warmth, and intensity
+- Shadow length, softness, and direction (matching new light source)
+- Window brightness and sky visible through windows
+- Turning on or off lamps/fixtures that ALREADY EXIST in the photo
+- Subtle warm glow on existing surfaces consistent with the new lighting
+
+Direction from user: ${prompt}`;
+        console.log('[StudioAI] Lighting-only intent detected — using zero-tolerance preamble.');
+      } else if (isSpatialMove) {
+        effectivePrompt = `SPATIAL MOVE EDIT — ZERO TOLERANCE FOR LOSS OF OTHER ITEMS.
+You are relocating/rotating the SPECIFIC item(s) the user named. Every OTHER item in the scene must stay pixel-identical in the same position, same style, same materials.
+
+ABSOLUTE PROHIBITIONS:
+- Do NOT delete, replace, or restyle any furniture, decor, art, lamps, rugs, pillows, bedding, plants, or objects that the user did not name.
+- Do NOT "re-stage the room" — this is a small targeted move of a named item, not a new staging pass.
+- Do NOT change wall colors, floors, windows, doors, lighting, or architecture.
+- Do NOT add any new items.
+- Count the items in the input image. The output must have the EXACT same count, minus any already-moved items which reappear in the new position.
+
+Allowed changes ONLY:
+- The named item(s) move to the described new location with realistic contact shadows at the new spot.
+- The original location where the item used to sit should now show the floor/wall/surface that was beneath it (reveal, don't replace).
+
+Direction from user: ${prompt}`;
+        console.log('[StudioAI] Spatial-move intent detected — using preservation preamble.');
+      }
+
       const rawResults = await withTimeout(
-        generateRoomDesign(sourceImage, prompt, activePanel === 'cleanup' ? maskImage : null, false, 1, subscription.plan === 'pro'),
+        generateRoomDesign(
+          sourceImage,
+          effectivePrompt,
+          activePanel === 'cleanup' ? maskImage : null,
+          false,
+          1,
+          subscription.plan === 'pro',
+          anchorImage
+        ),
         120000,
         'Generation timed out — please try again'
       );
 
-      // Sharpen AI output to counteract diffusion softness
-      const resultImages = await Promise.all(rawResults.map(img => sharpenImage(img, 0.4)));
+      // Sharpen AI output to counteract diffusion softness.
+      // In chain mode, keep PNG (lossless) so the next pass doesn't amplify
+      // JPEG artifacts into texture smoothing.
+      const sharpenFormat: 'png' | 'jpeg' = chainEnabled ? 'png' : 'jpeg';
+      const sharpened = await Promise.all(rawResults.map(img => sharpenImage(img, 0.4, 1, sharpenFormat)));
+
+      // Phase C: mask + composite.
+      // Prompts alone can't prevent Gemini from re-rendering unchanged regions
+      // and softening their textures — even on a first-gen surgical edit like
+      // "remove sign from yard" Gemini touches the entire frame. We diff the
+      // new output against the source, build a feathered mask of what changed,
+      // and composite so unchanged pixels come BYTE-IDENTICAL from the source.
+      // Runs on every non-pack generation; the composite's built-in thresholds
+      // (>95% change → bail to raw, <0.1% → bail) naturally handle full-stage
+      // vs surgical-edit cases without us classifying upfront. Packs are
+      // excluded because they intentionally repaint the full scene.
+      const shouldComposite = !fromPack && sourceImage;
+      const resultImages = shouldComposite
+        ? await Promise.all(
+            sharpened.map(img =>
+              compositeStackedEdit(sourceImage, img, { format: sharpenFormat }).catch(err => {
+                console.warn('[StudioAI] composite failed, falling back to raw output:', err);
+                return img;
+              })
+            )
+          )
+        : sharpened;
 
       // Check if user is still on the same session image (using ref, not stale closure)
       const stillOnSameImage = currentSessionIdRef.current === generatingSessionId;
@@ -743,7 +904,9 @@ const App: React.FC = () => {
         120000,
         'Furniture removal timed out — please try again'
       );
-      const resultImages = await Promise.all(rawResults.map(img => sharpenImage(img, 0.4)));
+      // Chain mode default-on — PNG preserved unless opted out via ?chain=0
+      const chainOptOut = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('chain') === '0';
+      const resultImages = await Promise.all(rawResults.map(img => sharpenImage(img, 0.4, 1, chainOptOut ? 'jpeg' : 'png')));
       if (resultImages[0]) {
         pushToHistory();
         setGeneratedImage(resultImages[0]);
@@ -770,14 +933,45 @@ const App: React.FC = () => {
     }
   };
 
-  const handleDownload = () => {
+  // Re-encode the working-state image to high-quality JPEG for export.
+  // The in-app pipeline stores PNG (chain mode keeps it lossless between stacks
+  // to avoid the JPEG→Gemini→JPEG compression spiral), but that PNG is 20-30MB
+  // for a full-res staged photo. For human/MLS consumption we want a crisp
+  // JPEG at a reasonable size. 0.95 quality is visually indistinguishable from
+  // lossless but keeps file size materially closer to the original input JPEG
+  // (0.92 was too aggressive — users saw sub-MB exports from multi-MB inputs).
+  const handleDownload = async () => {
     if (!generatedImage) return;
-    const link = document.createElement('a');
-    link.href = generatedImage;
-    link.download = `studio_export_${Date.now()}.png`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      const exportJpeg = await new Promise<string>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return reject(new Error('canvas context unavailable'));
+          ctx.drawImage(img, 0, 0);
+          resolve(canvas.toDataURL('image/jpeg', 0.95));
+        };
+        img.onerror = reject;
+        img.src = generatedImage;
+      });
+      const link = document.createElement('a');
+      link.href = exportJpeg;
+      link.download = `studio_export_${Date.now()}.jpg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error('[StudioAI] export re-encode failed, falling back to raw:', err);
+      const link = document.createElement('a');
+      link.href = generatedImage;
+      link.download = `studio_export_${Date.now()}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   };
 
   // Compress an image to fit within the Vercel payload limit
@@ -923,12 +1117,30 @@ const App: React.FC = () => {
 
   const handleBatchCancel = () => {
     setBatchImages(null);
+    setBatchResults(null);
   };
 
+  // Open a single result in the editor WITHOUT dropping the batch. batchImages
+  // and batchResults stay populated so the "← Back to Batch" button in the
+  // editor header can restore the grid view without re-processing.
   const handleBatchLoadImage = (original: string, generated: string) => {
     setOriginalImage(original);
     setGeneratedImage(generated);
-    setBatchImages(null);
+    setHistory([{ generatedImage: generated, stagedFurniture: [], selectedRoom, colors: [] }]);
+    setHistoryIndex(0);
+    setMaskImage(null);
+  };
+
+  // "← Back to Batch" — clears editor state, restores BatchProcessor view.
+  // Component remounts and restores from batchResults via initialResults prop.
+  const handleBackToBatch = () => {
+    setOriginalImage(null);
+    setGeneratedImage(null);
+    setMaskImage(null);
+    setHistory([]);
+    setHistoryIndex(-1);
+    setSessionQueue([]);
+    setSessionIndex(-1);
   };
 
   // ─── Session Queue Handlers ──────────────────────────────────────────────
@@ -1034,7 +1246,7 @@ const App: React.FC = () => {
 
 
   const navItems: Array<{
-    id: 'tools' | 'cleanup' | 'history' | 'settings' | 'mls' | 'listing';
+    id: 'tools' | 'cleanup' | 'history' | 'settings' | 'mls' | 'listing' | 'social';
     label: string;
     icon: React.ReactNode;
     available: boolean;
@@ -1043,6 +1255,7 @@ const App: React.FC = () => {
       { id: 'cleanup', label: 'Cleanup', icon: <Eraser size={21} />, available: true },
       { id: 'mls', label: 'MLS Export', icon: <Download size={21} />, available: true },
       { id: 'listing', label: 'Description', icon: <FileText size={21} />, available: true },
+      { id: 'social', label: 'Social Pack', icon: <Share2 size={21} />, available: true },
       { id: 'history', label: 'History', icon: <HistoryIcon size={21} />, available: true },
     ];
 
@@ -1879,7 +2092,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      <header className="shrink-0 bg-black border-b-[2px] border-[var(--color-primary-dark)] px-3 sm:px-6 py-2 sm:py-3 flex items-center justify-between gap-2 sm:gap-3 relative z-50 shadow-[0_4px_30px_rgba(10,132,255,0.15)]">
+      <header className="shrink-0 bg-black border-b border-white/[0.06] px-3 sm:px-6 py-2 sm:py-3 flex items-center justify-between gap-2 sm:gap-3 relative z-50">
         <div className="flex items-center gap-4 min-w-0">
           <div className="flex items-center gap-3 min-w-0 pr-4 border-r border-[var(--color-border-strong)]">
             <div className="bg-black border border-[var(--color-primary)] shadow-md flex h-10 w-10 items-center justify-center rounded-xl">
@@ -1889,6 +2102,20 @@ const App: React.FC = () => {
               Studio<span className="text-[var(--color-primary)] drop-shadow-md">AI</span>
             </h1>
           </div>
+
+          {originalImage && batchImages && batchResults && batchResults.length > 1 && (
+            <>
+              <div className="hidden sm:block h-5 w-px bg-[var(--color-border)]" />
+              <button
+                type="button"
+                onClick={handleBackToBatch}
+                className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-semibold text-[var(--color-primary)] bg-[var(--color-primary)]/10 border border-[var(--color-primary)]/30 hover:bg-[var(--color-primary)]/20 transition"
+                title="Return to batch results"
+              >
+                ← Batch ({batchResults.filter(r => r.status === 'done').length})
+              </button>
+            </>
+          )}
 
           {originalImage && (
             <>
@@ -2092,6 +2319,8 @@ const App: React.FC = () => {
           <div className="max-w-3xl mx-auto">
             <BatchProcessor
               images={batchImages}
+              initialResults={batchResults ?? undefined}
+              onResultsChange={setBatchResults}
               onComplete={handleBatchComplete}
               onSaveStage={handleBatchSaveStage}
               onCancel={handleBatchCancel}
@@ -2152,7 +2381,7 @@ const App: React.FC = () => {
                 className="text-sm font-bold uppercase tracking-wider text-[var(--color-primary)] hover:text-white transition-colors inline-flex items-center gap-2 disabled:opacity-50"
               >
                 <Sparkles size={16} />
-                Execute Demo Sequence
+                Try a Demo
                 <ArrowRight size={16} />
               </button>
             </div>
@@ -2228,6 +2457,8 @@ const App: React.FC = () => {
             <div className="mx-auto w-full max-w-6xl space-y-4">
               <div className="canvas-frame p-0.5 sm:p-2 rounded-xl sm:rounded-2xl glass-overlay border border-[var(--color-border-strong)] shadow-2xl">
                 <div className="relative overflow-hidden rounded-[10px] sm:rounded-[14px] bg-black aspect-[4/3] sm:aspect-video border border-[var(--color-border-strong)]">
+                  {/* EditingBadge rendered inline next to the room picker below (see left-2.5 top-2.5 flex row)
+                      so the two don't stack or have overlapping dropdowns. */}
                   {isGenerating && (
                     <div className="absolute inset-0 z-10 bg-black/70 backdrop-blur-sm pointer-events-none flex flex-col items-center justify-center">
                       
@@ -2239,10 +2470,10 @@ const App: React.FC = () => {
                             {Math.floor(generationElapsed / 60)}:{String(generationElapsed % 60).padStart(2, '0')}
                           </span>
                         </div>
-                        <div className="font-mono text-center space-y-2 relative h-16 w-full mask-linear-gradient-bottom">
-                          <p className="text-[10px] sm:text-xs text-[var(--color-primary)] opacity-40 typing-effect">-- ANALYZING SPATIAL DEPTH --</p>
-                          <p className="text-[10px] sm:text-xs text-[var(--color-primary)] opacity-70 typing-effect" style={{animationDelay: '0.8s'}}>-- MAPPING AMBIENT OCCLUSION --</p>
-                          <p className="text-[10px] sm:text-xs font-bold text-white typing-effect" style={{animationDelay: '1.6s'}}>SYNTHESIZING RENDER REALITY...</p>
+                        <div className="text-center space-y-2 relative h-16 w-full mask-linear-gradient-bottom">
+                          <p className="text-xs text-white/50 typing-effect">Reading the room…</p>
+                          <p className="text-xs text-white/70 typing-effect" style={{animationDelay: '0.8s'}}>Placing furniture…</p>
+                          <p className="text-xs font-medium text-white typing-effect" style={{animationDelay: '1.6s'}}>Polishing the final render</p>
                         </div>
                       </div>
                     </div>
@@ -2282,7 +2513,8 @@ const App: React.FC = () => {
                     />
                   )}
 
-                  <div className="absolute left-2.5 top-2.5 z-20">
+                  <div className="absolute left-2.5 top-2.5 z-20 flex items-center gap-2">
+                    <div className="relative">
                     <button
                       type="button"
                       onClick={() => setShowRoomPicker((prev) => !prev)}
@@ -2303,7 +2535,7 @@ const App: React.FC = () => {
                     </button>
 
                     {showRoomPicker && (
-                      <div className="mt-1.5 w-48 rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border-strong)] shadow-lg p-1 animate-slide-down">
+                      <div className="absolute left-0 top-full mt-1.5 w-48 rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border-strong)] shadow-lg p-1 animate-slide-down z-30">
                         {roomOptions.map((room) => (
                           <button
                             key={room}
@@ -2316,12 +2548,33 @@ const App: React.FC = () => {
                         ))}
                       </div>
                     )}
+                    </div>
+                    {originalImage && (() => {
+                      const hist = sessionQueue[sessionIndex]?.editHistory || [];
+                      const lastBreak = Math.max(hist.lastIndexOf('reset'), hist.lastIndexOf('commit'));
+                      const chainDepth = hist.length - (lastBreak + 1);
+                      const chainCapped = chainDepth >= 3;
+                      return (
+                        <EditingBadge
+                          hasResult={!!generatedImage}
+                          versionCount={hist.length}
+                          editHistory={hist}
+                          chainDepth={chainDepth}
+                          chainCapped={chainCapped}
+                          onStartOver={handleStartFromOriginal}
+                          onCommitAndContinue={handleCommitAndContinue}
+                          onOpenHistory={() => setActivePanel('history')}
+                        />
+                      );
+                    })()}
                   </div>
 
-                  {(isGenerating || isAnalyzing || activePanel === 'cleanup') && (
+                  {/* Top-right pill reserved for Mask Mode only. "Generating" has the center
+                      overlay; "Detecting Room" already shows in the left-side room picker pill. */}
+                  {!isGenerating && !isAnalyzing && activePanel === 'cleanup' && (
                   <div className="absolute right-3 top-3 z-20 flex items-center gap-2 rounded-full bg-black/80 border border-[rgba(10,132,255,0.3)] shadow-lg px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[#0A84FF] backdrop-blur-xl">
-                    <span className={`status-dot ${isGenerating ? 'bg-[#FF375F] shadow-md animate-pulse' : 'bg-[#0A84FF] shadow-md'}`} />
-                    {isGenerating ? `Generating... ${Math.floor(generationElapsed / 60)}:${String(generationElapsed % 60).padStart(2, '0')}` : isAnalyzing ? 'Detecting Room...' : 'Mask Mode'}
+                    <span className="status-dot bg-[#0A84FF] shadow-md" />
+                    Mask Mode
                   </div>
                   )}
                 </div>
@@ -2427,7 +2680,7 @@ const App: React.FC = () => {
                       key={`controls-${sessionQueue[sessionIndex]?.id || 'single'}`}
                       activeMode="design"
                       hasGenerated={!!generatedImage}
-                      onGenerate={(p) => handleGenerate(p)}
+                      onGenerate={(p, o) => handleGenerate(p, o)}
                       onStageModeChange={setStageMode}
                       isGenerating={isGenerating}
                       hasMask={!!maskImage}
@@ -2543,6 +2796,24 @@ const App: React.FC = () => {
                       sessionQueue.length > 0
                         ? [...new Set(sessionQueue.map(s => s.selectedRoom))]
                         : [selectedRoom]
+                    }
+                  />
+                )}
+
+                {activePanel === 'social' && (
+                  <SocialPack
+                    images={
+                      sessionQueue.length > 0
+                        ? sessionQueue
+                            .filter(s => s.generatedImage)
+                            .map(s => ({
+                              id: s.id,
+                              source: s.generatedImage!,
+                              label: s.selectedRoom || 'Room',
+                            }))
+                        : generatedImage
+                          ? [{ id: 'current', source: generatedImage, label: selectedRoom || 'Room' }]
+                          : []
                     }
                   />
                 )}

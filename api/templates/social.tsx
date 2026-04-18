@@ -89,10 +89,10 @@ function AgentBar({ data, scale }: { data: TemplateData; scale: number }) {
       }) : null,
       e('div', { style: { display: 'flex', flexDirection: 'column' } },
         data.agentName ? e('span', {
-          style: { fontSize: 14 * scale, fontWeight: 700, color: 'white' }
+          style: { fontSize: 16 * scale, fontWeight: 700, color: 'white', letterSpacing: '-0.005em' }
         }, data.agentName) : null,
         data.brokerageName ? e('span', {
-          style: { fontSize: 11 * scale, fontWeight: 400, color: '#555' }
+          style: { fontSize: 12 * scale, fontWeight: 500, color: '#9ca3af' }
         }, data.brokerageName) : null,
       ),
     ),
@@ -104,15 +104,15 @@ function AgentBar({ data, scale }: { data: TemplateData; scale: number }) {
         style: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }
       },
         data.phone ? e('span', {
-          style: { fontSize: 12 * scale, fontWeight: 400, color: '#777' }
+          style: { fontSize: 13 * scale, fontWeight: 600, color: 'white' }
         }, data.phone) : null,
         (data.email || data.website) ? e('span', {
-          style: { fontSize: 10 * scale, fontWeight: 400, color: '#444' }
+          style: { fontSize: 11 * scale, fontWeight: 400, color: '#9ca3af' }
         }, data.website || data.email) : null,
       ),
       data.logo ? e('img', {
         src: data.logo,
-        style: { height: 36 * scale, objectFit: 'contain' }
+        style: { height: 40 * scale, maxWidth: 120 * scale, objectFit: 'contain' }
       }) : null,
     ),
   );
@@ -159,10 +159,10 @@ export function JustListedTemplate(data: TemplateData, width: number, height: nu
     // Accent line top
     e('div', { style: { position: 'absolute', top: 0, left: 0, right: 0, height: 3 * scale, backgroundColor: accent, display: 'flex' } }),
 
-    // Photo area with asymmetric crop — photo bleeds to edges
+    // Photo area — fills all remaining space after content
     e('div', {
       style: {
-        display: 'flex', position: 'relative', width: '100%', height: photoHeight,
+        display: 'flex', position: 'relative', width: '100%', flex: 1,
         overflow: 'hidden',
       }
     },
@@ -196,35 +196,32 @@ export function JustListedTemplate(data: TemplateData, width: number, height: nu
       ) : null,
     ),
 
-    // Content area
+    // Content area — natural height, no dead space
     e('div', {
-      style: { display: 'flex', flexDirection: 'column', flex: 1, padding: `${20 * scale}px ${32 * scale}px ${24 * scale}px`, justifyContent: 'space-between' }
+      style: { display: 'flex', flexDirection: 'column', padding: `${20 * scale}px ${32 * scale}px ${24 * scale}px`, gap: 14 * scale }
     },
-      // Top: address + stats
-      e('div', { style: { display: 'flex', flexDirection: 'column', gap: 16 * scale } },
-        // Address block
-        data.address ? e('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 * scale } },
-          e('span', { style: { fontSize: 20 * scale, fontWeight: 700, color: 'white', lineHeight: 1.3 } }, data.address),
-          e(LocationLine, { data, scale }),
-        ) : null,
+      // Address block
+      data.address ? e('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 * scale } },
+        e('span', { style: { fontSize: 22 * scale, fontWeight: 700, color: 'white', lineHeight: 1.25, letterSpacing: '-0.01em' } }, data.address),
+        e(LocationLine, { data, scale }),
+      ) : null,
 
-        // Stats row — pill style
-        (data.beds || data.baths || data.sqft) ? e('div', {
-          style: { display: 'flex', gap: 10 * scale, flexWrap: 'wrap' }
-        },
-          ...[
-            data.beds ? { value: data.beds, label: 'Beds' } : null,
-            data.baths ? { value: data.baths, label: 'Baths' } : null,
-            data.sqft ? { value: data.sqft.toLocaleString(), label: 'Sq Ft' } : null,
-            data.yearBuilt ? { value: data.yearBuilt, label: 'Built' } : null,
-          ].filter(Boolean).map((stat, i) =>
-            e(StatPill, { key: i, value: stat!.value, label: stat!.label, scale, accent })
-          ),
-        ) : null,
-      ),
+      // Stats row
+      (data.beds || data.baths || data.sqft) ? e('div', {
+        style: { display: 'flex', gap: 10 * scale, flexWrap: 'wrap' }
+      },
+        ...[
+          data.beds ? { value: data.beds, label: 'Beds' } : null,
+          data.baths ? { value: data.baths, label: 'Baths' } : null,
+          data.sqft ? { value: data.sqft.toLocaleString(), label: 'Sq Ft' } : null,
+          data.yearBuilt ? { value: data.yearBuilt, label: 'Built' } : null,
+        ].filter(Boolean).map((stat, i) =>
+          e(StatPill, { key: i, value: stat!.value, label: stat!.label, scale, accent })
+        ),
+      ) : null,
 
-      // Bottom: agent bar
-      e('div', { style: { borderTop: '1px solid #1a1a1a', paddingTop: 14 * scale, display: 'flex' } },
+      // Agent bar — sits right after content, no forced empty space
+      e('div', { style: { borderTop: '1px solid #1a1a1a', paddingTop: 14 * scale, marginTop: 8 * scale, display: 'flex' } },
         e(AgentBar, { data, scale }),
       ),
     ),

@@ -5,92 +5,84 @@
  * Body: { template, format, data }
  * Returns: PNG image
  *
- * Templates: just-listed, just-sold, before-after, open-house, tip-card
- * Formats: ig-post (1080x1080), ig-story (1080x1920), fb-post (1200x630),
- *          flyer (8.5x11@300dpi), postcard (6x4@300dpi)
+ * Runs on Vercel Edge via @vercel/og (Satori + resvg bundled).
  */
 
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-import satori from 'satori';
-import { Resvg } from '@resvg/resvg-js';
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import { ImageResponse } from '@vercel/og';
 import { TEMPLATES } from './templates/social';
 
-// ─── Font Loading (cached) ──────────────────────────────────────────────────
+export const config = { runtime: 'edge' };
 
+const FORMATS: Record<string, { width: number; height: number }> = {
+  'ig-post':  { width: 1080, height: 1080 },
+  'ig-story': { width: 1080, height: 1920 },
+  'fb-post':  { width: 1200, height: 630 },
+  'flyer':    { width: 2550, height: 3300 },
+  'postcard': { width: 1800, height: 1200 },
+};
+
+function assetOrigin(req: Request): string {
+  const url = new URL(req.url);
+  const host = req.headers.get('x-forwarded-host') || req.headers.get('host') || url.host;
+  const proto = req.headers.get('x-forwarded-proto') || url.protocol.replace(':', '') || 'https';
+  return `${proto}://${host}`;
+}
+
+// Font cache per warm container
 let interRegular: ArrayBuffer | null = null;
 let interBold: ArrayBuffer | null = null;
 
-function loadFonts() {
+async function loadFonts(origin: string) {
   if (!interRegular) {
-    interRegular = readFileSync(join(process.cwd(), 'public/fonts/Inter-Regular.ttf')).buffer;
+    interRegular = await fetch(`${origin}/fonts/Inter-Regular.ttf`).then(r => r.arrayBuffer());
   }
   if (!interBold) {
-    interBold = readFileSync(join(process.cwd(), 'public/fonts/Inter-Bold.ttf')).buffer;
+    interBold = await fetch(`${origin}/fonts/Inter-Bold.ttf`).then(r => r.arrayBuffer());
   }
   return [
-    { name: 'Inter', data: interRegular, weight: 400 as const, style: 'normal' as const },
-    { name: 'Inter', data: interBold, weight: 700 as const, style: 'normal' as const },
+    { name: 'Inter', data: interRegular!, weight: 400 as const, style: 'normal' as const },
+    { name: 'Inter', data: interBold!, weight: 700 as const, style: 'normal' as const },
   ];
 }
 
-// ─── Format Dimensions ──────────────────────────────────────────────────────
-
-const FORMATS: Record<string, { width: number; height: number }> = {
-  'ig-post':    { width: 1080, height: 1080 },
-  'ig-story':   { width: 1080, height: 1920 },
-  'fb-post':    { width: 1200, height: 630 },
-  'flyer':      { width: 2550, height: 3300 },
-  'postcard':   { width: 1800, height: 1200 },
-};
-
-// ─── Handler ─────────────────────────────────────────────────────────────────
-
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: Request): Promise<Response> {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'POST only' });
+    return new Response(JSON.stringify({ error: 'POST only' }), { status: 405 });
   }
 
   try {
-    const { template = 'just-listed', format = 'ig-post', data = {} } = req.body || {};
+    const body = await req.json().catch(() => ({}));
+    const { template = 'just-listed', format = 'ig-post', data = {} } = body;
 
     const templateFn = TEMPLATES[template];
     if (!templateFn) {
-      return res.status(400).json({
+      return Response.json({
         error: `Unknown template: ${template}`,
         available: Object.keys(TEMPLATES),
-      });
+      }, { status: 400 });
     }
 
     const dims = FORMATS[format];
     if (!dims) {
-      return res.status(400).json({
+      return Response.json({
         error: `Unknown format: ${format}`,
         available: Object.keys(FORMATS),
-      });
+      }, { status: 400 });
     }
 
-    const fonts = loadFonts();
+    const fonts = await loadFonts(assetOrigin(req));
     const element = templateFn(data, dims.width, dims.height);
 
-    const svg = await satori(element, {
+    return new ImageResponse(element as any, {
       width: dims.width,
       height: dims.height,
       fonts,
+      headers: {
+        'Cache-Control': 'no-store',
+      },
     });
-
-    const resvg = new Resvg(svg, {
-      fitTo: { mode: 'width', value: dims.width },
-    });
-    const pngData = resvg.render();
-    const pngBuffer = pngData.asPng();
-
-    res.setHeader('Content-Type', 'image/png');
-    res.setHeader('Cache-Control', 'no-store');
-    return res.status(200).send(Buffer.from(pngBuffer));
   } catch (err: any) {
     console.error('Template render error:', err);
-    return res.status(500).json({ error: err.message || 'Render failed' });
+    return Response.json({ error: err.message || 'Render failed' }, { status: 500 });
   }
 }

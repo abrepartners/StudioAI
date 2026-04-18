@@ -22,7 +22,7 @@ type StageMode = 'text' | 'packs' | 'furniture';
 interface RenovationControlsProps {
   activeMode: 'cleanup' | 'design';
   hasGenerated: boolean;
-  onGenerate: (prompt: string) => void;
+  onGenerate: (prompt: string, opts?: { fromPack?: boolean }) => void;
   onStageModeChange?: (mode: StageMode) => void;
   isGenerating: boolean;
   hasMask: boolean;
@@ -123,23 +123,23 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
       const isRemovalIntent = /\b(remove|take out|get rid of|clear|empty|no furniture|declutter|strip|clean up|clean out|unstage|delete|erase)\b/.test(lowerPrompt);
 
       if (isRemovalIntent) {
-        prompt = `Edit this ${selectedRoom} photo. Preserve all architecture, wall colors, floor colors, layout, windows, doors, and built-in fixtures exactly. Do NOT change existing surface colors. Do NOT zoom in — maintain the EXACT same framing, crop, and field of view. The camera is locked in place. Direction: ${trimmedPrompt}`;
+        prompt = `Edit this ${selectedRoom}. Direction: ${trimmedPrompt}`;
       } else {
-        prompt = `Virtually stage this ${selectedRoom}. Preserve all architecture, wall colors, floor colors, layout, windows, doors, and built-in fixtures exactly. Do NOT change existing surface colors. Do NOT zoom in — maintain the EXACT same framing, crop, and field of view. The camera is locked in place. SPATIAL RULE: Before placing furniture, identify all doors, doorways, hallways, and walkways. NEVER place furniture blocking a doorway, in a door swing path, or obstructing a hallway entrance. Keep all traffic paths clear. REALISM: This must look like a real photograph — match the photo's grain, lens distortion, and lighting exactly on all new furniture. Use materials with natural imperfections (wood knots, fabric wrinkles, leather creases). Every item needs proper contact shadows. Primary direction: ${trimmedPrompt}`;
+        prompt = `Virtually stage this ${selectedRoom}. Direction: ${trimmedPrompt}`;
       }
     }
 
     if (stageMode === 'packs') {
       if (!selectedPreset) return;
       const details = PACK_DETAILS[selectedPreset] || '';
-      prompt = `Virtually stage this ${selectedRoom} in ${selectedPreset} style. Furniture and decor: ${details}. CRITICAL: Preserve all existing wall colors, floor colors, ceiling, architecture, layout, windows, doors, and built-in fixtures EXACTLY as they are. Do NOT change or color-grade existing surfaces. Do NOT zoom in — maintain the EXACT same framing, crop, and field of view. The camera is locked in place. SPATIAL RULE: Before placing furniture, identify all doors, doorways, hallways, and walkways. NEVER place furniture blocking a doorway, in a door swing path, or obstructing a hallway entrance. Keep all traffic paths clear. REALISM: This must look like a real photograph — match the photo's grain, lens distortion, and lighting exactly on all new furniture. Use materials with natural imperfections (wood knots, fabric wrinkles, leather creases). Every item needs proper contact shadows.`;
+      prompt = `Virtually stage this ${selectedRoom} in ${selectedPreset} style. Add only furniture and decor — keep the architectural shell untouched. Style DNA: ${details}.`;
     }
 
     if (hasMask) {
       prompt += ' ONLY update the masked area, keeping the rest of the image identical.';
     }
 
-    onGenerate(prompt);
+    onGenerate(prompt, { fromPack: stageMode === 'packs' });
   };
 
   if (activeMode === 'cleanup') {
@@ -320,20 +320,30 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
           className={`w-full rounded-2xl px-3 py-3 sm:px-4 sm:py-4 text-xs sm:text-sm font-black uppercase tracking-widest disabled:cursor-not-allowed transition-all duration-300 relative overflow-hidden group ${
             isGenerating || !canGenerate 
             ? 'bg-black/40 text-[var(--color-text)]/30 border border-[var(--color-border-strong)] shadow-inner' 
-            : 'bg-[var(--color-primary)] text-black border border-[#0A84FF] shadow-lg hover:shadow-xl hover:bg-[#00ffd5] scale-100 hover:scale-[1.02]'
+            : 'bg-[var(--color-primary)] text-white border border-[#0A84FF]/60 shadow-lg hover:shadow-xl hover:bg-[#409CFF]'
           }`}
         >
           {(!isGenerating && canGenerate) && (
              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full group-hover:animate-shimmer pointer-events-none"></div>
           )}
           <span className="relative z-10 flex items-center justify-center gap-2">
-             {isGenerating ? <><Loader2 size={18} className="animate-spin text-[var(--color-primary)]" /> Generating...</> : hasGenerated ? <><Wand2 size={18} /> Re-Generate Design</> : <><Sparkles size={18} className="animate-pulse" /> Generate Design</>}
+             {isGenerating ? (
+               <><Loader2 size={18} className="animate-spin text-[var(--color-primary)]" /> Generating...</>
+             ) : hasGenerated ? (
+               <><Wand2 size={18} /> {stageMode === 'packs' ? 'Re-Generate (Replace)' : 'Build on Current'}</>
+             ) : (
+               <><Sparkles size={18} className="animate-pulse" /> Generate Design</>
+             )}
           </span>
         </button>
         <p className="text-center text-xs text-[var(--color-text)]/72">
           {feedbackRequired
             ? 'Feedback checkpoint required. Submit a thumbs rating to continue generating.'
-            : 'Re-generate always starts from the original upload to keep results fresh.'}
+            : !hasGenerated
+              ? 'First generation starts from your uploaded photo.'
+              : stageMode === 'packs'
+                ? 'Packs replace your current result with a fresh staging.'
+                : 'Text prompts build on top of your current result — add, tweak, or refine.'}
         </p>
       </div>
     </div>

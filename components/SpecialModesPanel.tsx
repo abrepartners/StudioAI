@@ -22,6 +22,31 @@ import {
 } from '../services/geminiService';
 import { FurnitureRoomType, SavedStage } from '../types';
 import { sharpenImage } from '../utils/sharpen';
+import { compositeStackedEdit } from '../utils/stackComposite';
+
+// Post-process a Pro AI Tool's raw Gemini output:
+//   1. Sharpen (PNG when chain is on — no JPEG spiral on further stacking)
+//   2. If we have a prior image, composite so regions Gemini didn't meaningfully
+//      change come BYTE-IDENTICAL from the prior buffer. This is the Phase C
+//      compositor applied to Pro AI Tools — helps a LOT for Cleanup /
+//      Renovation (local edits), and for whole-frame Twilight / Sky the
+//      compositor gracefully bails via its >95% change-ratio threshold.
+//   3. On any failure, fall back to the sharpened Gemini output so the user
+//      still sees something reasonable.
+async function postProcessToolOutput(raw: string, prior: string | null): Promise<string> {
+    const chainEnabled = typeof window !== 'undefined'
+        ? new URLSearchParams(window.location.search).get('chain') !== '0'
+        : true;
+    const fmt: 'png' | 'jpeg' = chainEnabled ? 'png' : 'jpeg';
+    const sharpened = await sharpenImage(raw, 0.4, 1, fmt);
+    if (!prior) return sharpened;
+    try {
+        return await compositeStackedEdit(prior, sharpened, { format: fmt });
+    } catch (err) {
+        console.warn('[SpecialModesPanel] composite failed, using raw sharpened output:', err);
+        return sharpened;
+    }
+}
 
 const TONE_OPTIONS: { key: ListingCopyTone; label: string; color: string }[] = [
     { key: 'luxury', label: 'Luxury', color: '#FFD60A' },
@@ -169,7 +194,8 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                     120000,
                     `Image ${i + 1} timed out — please try again`
                 );
-                const result = await sharpenImage(raw);
+                // For batch, the "prior" is the input image (pre-tool state).
+                const result = await postProcessToolOutput(raw, batchImages[i]);
                 results.push(result);
             }
             setBatchProgress({ current: batchImages.length, total: batchImages.length, results });
@@ -259,9 +285,9 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                     disabled={loading !== null || (!currentImage && !canBatch)}
                     onClick={() => canBatch
                         ? runBatch('twilight', (img) => virtualTwilight(img, isPro))
-                        : run('twilight', async () => { const result = await sharpenImage(await virtualTwilight(currentImage!, isPro)); onNewImage(result, 'twilight'); })
+                        : run('twilight', async () => { const result = await postProcessToolOutput(await virtualTwilight(currentImage!, isPro), currentImage); onNewImage(result, 'twilight'); })
                     }
-                    className={`w-full rounded-2xl px-4 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all ${loading === 'twilight' ? 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border)]' : 'bg-black text-[var(--color-primary)] border border-[rgba(0,255,204,0.4)] hover:bg-[rgba(0,255,204,0.1)] hover:shadow-[0_0_15px_rgba(0,255,204,0.3)] shadow-inner flex items-center justify-center gap-2'}`}
+                    className={`w-full rounded-2xl px-4 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all ${loading === 'twilight' ? 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border)]' : 'bg-white/[0.03] text-white border border-white/10 hover:bg-white/[0.06] hover:border-white/20 flex items-center justify-center gap-2 [&_svg]:text-[var(--color-primary)]'}`}
                 >
                     {loading === 'twilight' ? <><Loader2 size={15} className="animate-spin text-[var(--color-primary)]" /> {canBatch ? 'Processing batch...' : 'Converting...'}</> : <><Sunset size={15} /> {canBatch ? `Apply to All (${batchImages.length})` : 'Create Twilight Shot'}</>}
                 </button>
@@ -291,9 +317,9 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                     disabled={loading !== null || (!currentImage && !canBatch)}
                     onClick={() => canBatch
                         ? runBatch('sky', (img) => replaceSky(img, skyStyle, isPro))
-                        : run('sky', async () => { const result = await sharpenImage(await replaceSky(currentImage!, skyStyle, isPro)); onNewImage(result, 'sky'); })
+                        : run('sky', async () => { const result = await postProcessToolOutput(await replaceSky(currentImage!, skyStyle, isPro), currentImage); onNewImage(result, 'sky'); })
                     }
-                    className={`mt-2 w-full rounded-2xl px-4 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all ${loading === 'sky' ? 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border)]' : 'bg-black text-[var(--color-primary)] border border-[rgba(0,255,204,0.4)] hover:bg-[rgba(0,255,204,0.1)] hover:shadow-[0_0_15px_rgba(0,255,204,0.3)] shadow-inner flex items-center justify-center gap-2'}`}
+                    className={`mt-2 w-full rounded-2xl px-4 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all ${loading === 'sky' ? 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border)]' : 'bg-white/[0.03] text-white border border-white/10 hover:bg-white/[0.06] hover:border-white/20 flex items-center justify-center gap-2 [&_svg]:text-[var(--color-primary)]'}`}
                 >
                     {loading === 'sky' ? <><Loader2 size={15} className="animate-spin text-[var(--color-primary)]" /> {canBatch ? 'Processing batch...' : 'Replacing sky...'}</> : <><Cloud size={15} /> {canBatch ? `Apply to All (${batchImages.length})` : 'Replace Sky'}</>}
                 </button>
@@ -309,9 +335,9 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                     disabled={loading !== null || (!currentImage && !canBatch)}
                     onClick={() => canBatch
                         ? runBatch('declutter', (img) => instantDeclutter(img, selectedRoom, isPro))
-                        : run('declutter', async () => { const result = await sharpenImage(await instantDeclutter(currentImage!, selectedRoom, isPro)); onNewImage(result, 'cleanup'); })
+                        : run('declutter', async () => { const result = await postProcessToolOutput(await instantDeclutter(currentImage!, selectedRoom, isPro), currentImage); onNewImage(result, 'cleanup'); })
                     }
-                    className={`w-full rounded-2xl px-4 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all ${loading === 'declutter' ? 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border)]' : 'bg-black text-[var(--color-primary)] border border-[rgba(0,255,204,0.4)] hover:bg-[rgba(0,255,204,0.1)] hover:shadow-[0_0_15px_rgba(0,255,204,0.3)] shadow-inner flex items-center justify-center gap-2'}`}
+                    className={`w-full rounded-2xl px-4 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all ${loading === 'declutter' ? 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border)]' : 'bg-white/[0.03] text-white border border-white/10 hover:bg-white/[0.06] hover:border-white/20 flex items-center justify-center gap-2 [&_svg]:text-[var(--color-primary)]'}`}
                 >
                     {loading === 'declutter' ? <><Loader2 size={15} className="animate-spin text-[var(--color-primary)]" /> {canBatch ? 'Processing batch...' : 'Cleaning up...'}</> : <><Trash2 size={15} /> {canBatch ? `Apply to All (${batchImages.length})` : 'Remove Clutter'}</>}
                 </button>
@@ -343,9 +369,9 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                     disabled={loading !== null || ((!currentImage && !canBatch) || (!cabinets && !countertops && !flooring && !walls))}
                     onClick={() => canBatch
                         ? runBatch('renovation', (img) => virtualRenovation(img, { cabinets, countertops, flooring, walls }))
-                        : run('renovation', async () => { const result = await sharpenImage(await virtualRenovation(currentImage!, { cabinets, countertops, flooring, walls })); onNewImage(result, 'renovation'); })
+                        : run('renovation', async () => { const result = await postProcessToolOutput(await virtualRenovation(currentImage!, { cabinets, countertops, flooring, walls }), currentImage); onNewImage(result, 'renovation'); })
                     }
-                    className={`w-full rounded-2xl px-4 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all ${loading === 'renovation' ? 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border)]' : 'bg-black text-[var(--color-primary)] border border-[rgba(0,255,204,0.4)] hover:bg-[rgba(0,255,204,0.1)] hover:shadow-[0_0_15px_rgba(0,255,204,0.3)] shadow-inner flex items-center justify-center gap-2'}`}
+                    className={`w-full rounded-2xl px-4 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all ${loading === 'renovation' ? 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border)]' : 'bg-white/[0.03] text-white border border-white/10 hover:bg-white/[0.06] hover:border-white/20 flex items-center justify-center gap-2 [&_svg]:text-[var(--color-primary)]'}`}
                 >
                     {loading === 'renovation' ? <><Loader2 size={15} className="animate-spin text-[var(--color-primary)]" /> {canBatch ? 'Processing batch...' : 'Renovating...'}</> : <><Hammer size={15} /> {canBatch ? `Apply to All (${batchImages.length})` : 'Preview Renovation'}</>}
                 </button>
@@ -426,7 +452,7 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                         });
                         setListingCopy(result);
                     })}
-                    className={`w-full rounded-2xl px-4 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all ${loading === 'listing' ? 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border)]' : 'bg-black text-[var(--color-primary)] border border-[rgba(0,255,204,0.4)] hover:bg-[rgba(0,255,204,0.1)] hover:shadow-[0_0_15px_rgba(0,255,204,0.3)] shadow-inner flex items-center justify-center gap-2'}`}
+                    className={`w-full rounded-2xl px-4 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all ${loading === 'listing' ? 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border)]' : 'bg-white/[0.03] text-white border border-white/10 hover:bg-white/[0.06] hover:border-white/20 flex items-center justify-center gap-2 [&_svg]:text-[var(--color-primary)]'}`}
                 >
                     {loading === 'listing' ? <><Loader2 size={15} className="animate-spin text-[var(--color-primary)]" /> Writing copy...</> : <><FileText size={15} /> Generate {TONE_OPTIONS.find(t => t.key === listingTone)?.label} Copy</>}
                 </button>

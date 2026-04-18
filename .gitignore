@@ -26,3 +26,10 @@ dist-ssr
 *.sln
 *.sw?
 .vercel
+
+# QA harness — per-user binary fixtures & transient reports
+tests/qa-harness/fixtures/**/*.jpg
+tests/qa-harness/fixtures/**/*.jpeg
+tests/qa-harness/fixtures/**/*.png
+tests/qa-harness/reports/
+tests/composite-sandbox/output/

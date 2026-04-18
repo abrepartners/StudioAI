@@ -53,6 +53,24 @@ const TEMPERATURE = {
 // Aspect ratio detection removed — we no longer force a ratio on Gemini.
 // Letting Gemini match the input image's native dimensions preserves framing.
 
+/**
+ * Get pixel dimensions of a base64 image via an off-screen Image element.
+ * Used to validate anchor/source dimension parity before multi-image generation.
+ */
+function getDataUrlDimensions(base64: string): Promise<{ w: number; h: number } | null> {
+  return new Promise((resolve) => {
+    try {
+      const src = base64.startsWith('data:') ? base64 : `data:image/jpeg;base64,${base64}`;
+      const img = new Image();
+      img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+      img.onerror = () => resolve(null);
+      img.src = src;
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
 export const detectRoomType = async (imageBase64: string): Promise<FurnitureRoomType> => {
   try {
     const ai = getAI();
@@ -91,7 +109,8 @@ export const generateRoomDesign = async (
   maskImageBase64?: string | null,
   isHighRes: boolean = false,
   count = 1,
-  isPro: boolean = false
+  isPro: boolean = false,
+  anchorImageBase64?: string | null
 ): Promise<string[]> => {
   try {
     const ai = getAI();
@@ -106,81 +125,98 @@ export const generateRoomDesign = async (
 
     const isGrassTask = prompt.toLowerCase().includes('grass') || prompt.toLowerCase().includes('turf') || prompt.toLowerCase().includes('landscape');
 
+    const hasAnchor = !!anchorImageBase64 && anchorImageBase64.length > 100;
+    // Dimension-mismatch guard: Gemini can distort or crop when the two reference
+    // images have different dimensions. We only have base64 here, so decode header
+    // bytes to check dims. Non-fatal — log and strip the anchor if mismatched so
+    // we degrade to single-image mode instead of shipping distorted output.
+    if (hasAnchor) {
+      try {
+        const anchorDims = await getDataUrlDimensions(anchorImageBase64!);
+        const sourceDims = await getDataUrlDimensions(imageBase64);
+        if (anchorDims && sourceDims &&
+            (anchorDims.w !== sourceDims.w || anchorDims.h !== sourceDims.h)) {
+          console.warn(
+            `[generateRoomDesign] Anchor/source dimension mismatch — ` +
+            `anchor: ${anchorDims.w}x${anchorDims.h}, source: ${sourceDims.w}x${sourceDims.h}. ` +
+            `Dropping anchor to prevent distortion.`
+          );
+          anchorImageBase64 = null;
+        }
+      } catch {
+        // If dim-check fails, let the call proceed — better than blocking.
+      }
+    }
+    const hasAnchorFinal = !!anchorImageBase64;
+    const roleHeader = hasAnchorFinal
+      ? `\n        IMAGE ROLES:
+        - IMAGE 1 (ANCHOR / SOURCE OF TRUTH): The original uploaded photo. Every pixel you do NOT intentionally modify must match IMAGE 1 exactly — walls, ceilings, floors, windows, doors, framing, lighting, color, grain.
+        - IMAGE 2 (CURRENT WORKING STATE): The user's accumulated staging so far. Keep all already-added furniture, decor, and modifications from IMAGE 2 unless the assignment tells you to change them.
+        - Your job: apply the new assignment on top of IMAGE 2, while anchoring pixel-level fidelity to IMAGE 1 on every unchanged region. Do NOT regenerate untouched areas — preserve them from IMAGE 1.\n`
+      : '';
+
     const parts: any[] = [
       {
-        text: `Act as a Master Architectural Photo Editor for Real Estate.
-        Current Assignment: ${prompt}. 
-        
-        CRITICAL ARCHITECTURAL INTEGRITY RULES:
-        1. **PERMANENT FIXTURES**: Do NOT modify or remove doors, window frames, ceiling lights, fans, vents, or outlets. Do NOT cover windows with new walls or furniture. If they are not masked, keep them exactly as they appear.
-        2. **WINDOWS ARE SACRED**: NEVER add new windows. NEVER remove existing windows. NEVER change the shape, size, or placement of any window. Altering the structural shell is a critical failure.
-        3. **NO HALLUCINATIONS**: Do NOT add mirrors, artwork, door handles, knobs, or light switches to empty wall space. Only add specific furniture/decor requested in the prompt.
-        4. **REVEAL THE TRUTH**: If removing an object, reveal the original background (hallways, doorways, open spaces). Do NOT "hallucinate" a new wall over a structural opening.
-        5. **DEPTH & PERSPECTIVE**: Use the original photo's vanishing points. Match the lens distortion and angle perfectly.
+        text: `You are a Master Architectural Photo Editor for Real Estate. Your job is a LOCAL EDIT on a real photograph — preservation is your highest priority. The assignment is at the bottom.
+        ${roleHeader}
+        ========================================
+        ABSOLUTE RULES — VIOLATING ANY IS A CRITICAL FAILURE
+        ========================================
+        1. DO NOT MIRROR, FLIP, OR ROTATE the image. Left stays left, right stays right. Window on the right must remain on the right.
+        2. DO NOT CHANGE THE CAMERA. Identical framing, crop, field of view, zoom, and angle. Every wall edge, ceiling line, floor boundary, window edge, and door frame must stay at the exact same pixel position. All four image borders must show the same content. The camera is LOCKED.
+        3. DO NOT CHANGE WALLS, FLOORS, OR CEILINGS. Preserve their original colors, tones, textures, and materials exactly. Do not repaint, recolor, re-grade, or replace any existing surface. If the walls are white, they stay white.
+        4. DO NOT TOUCH WINDOWS, DOORS, OR OPENINGS. Never add, remove, move, resize, or reshape a window or door. Never cover them with new walls or furniture.
+        5. DO NOT CHANGE PERMANENT FIXTURES. Ceiling lights, fans, vents, outlets, switches, and built-ins stay exactly as they appear. Do not swap flush mounts for recessed lights or vice versa.
+        6. DO NOT ADD WALL DECOR to empty wall space unless the assignment specifically asks for it — no mirrors, artwork, or fixtures invented out of thin air.
+        7. DO NOT RE-LIGHT THE SCENE. Match the original's light direction, color temperature, intensity, and shadow softness exactly on every new element.
 
-        PHOTOGRAPHIC REALISM REQUIREMENTS (this must look like a REAL PHOTOGRAPH, not a 3D render):
-        - **COLOR FIDELITY**: Preserve the original wall colors, floor colors, ceiling colors, and existing surface tones EXACTLY. Do NOT shift, enhance, saturate, or re-grade the colors of existing surfaces. Only new furniture/decor should introduce new colors.
-        - **LIGHTING**: Match the direction, intensity, and color temperature of the original ambient light exactly. New furniture must receive the SAME lighting as the existing scene — same shadow direction, same highlights, same exposure. Do NOT re-light the scene.
-        - **SHADOWS**: Every piece of furniture must cast realistic soft contact shadows on the floor. Shadow darkness and diffusion must match the room's existing light softness. Hard light = harder shadows. Soft/ambient light = diffused shadows. No shadow = obvious fake.
-        - **TEXTURE & MATERIALS**: Use photorealistic materials with visible imperfections — real wood grain with knots and tonal variation, fabric with visible weave and slight wrinkles, leather with natural creasing, metal with environment reflections. NO perfectly smooth CG surfaces.
-        - **PHOTOGRAPHIC NOISE & GRAIN**: Match the original photo's noise profile exactly. If the source image has sensor grain (common in real estate photos shot at higher ISO), the furniture must have the same grain pattern. Clean CG furniture on a grainy photo is an instant tell.
-        - **LENS CHARACTERISTICS**: Match the original lens — if the source has slight barrel distortion, chromatic aberration at edges, or vignetting, the added furniture must conform to the same optical characteristics. Furniture at frame edges should show the same subtle distortion as the walls.
-        - **DEPTH OF FIELD**: If background elements are slightly soft, furniture at the same depth should match. Do not make furniture razor-sharp if the original scene has natural softness.
-        - **SPECULAR HIGHLIGHTS**: Shiny surfaces (wood tabletops, glass, lacquered furniture) must show reflections consistent with the room's light sources — window reflections, ceiling light reflections. No specular highlights = flat and fake.
-        - **SHARPNESS**: The output must be AS SHARP as the input photo. Do NOT soften, blur, or reduce detail. Maintain crisp edges, texture clarity, and the original noise profile. Unchanged areas must be pixel-identical in sharpness.
-        - **ANTI-RENDER TELLS**: Avoid these common AI staging giveaways: perfectly symmetrical furniture arrangements, furniture floating above the floor, impossibly clean/new-looking items, uniform lighting on all surfaces, missing contact shadows, plastic-looking fabrics, unnaturally saturated accent colors.
+        Unchanged regions must be pixel-identical to the source in sharpness, grain, and color. If an area is not being modified by the assignment, it should look like it was copied directly from the original.
 
-        ${isGrassTask ? `
-        LANDSCAPING REALISM PROTOCOL:
-        - When adding grass or turf, it MUST look natural, photorealistic, and organic. 
-        - DO NOT USE: Flat green colors, cartoonish textures, or uniform synthetic patterns.
-        - INCLUDE: Micro-variations in blade height, "tan/brown thatch" layers at the root base, and multi-tonal greens.
-        - LIGHTING: Grass must cast micro-shadows and have realistic specularity matching the scene's light source.
-        - BORDERS: Natural blending with mulch, dirt, or concrete edges.` : ''}
+        ========================================
+        REALISM REQUIREMENTS FOR NEW FURNITURE/DECOR
+        ========================================
+        - Photorealistic materials with natural imperfections: wood grain with knots, fabric weave and slight wrinkles, leather with creasing, metal with environment reflections. No CG-smooth surfaces.
+        - Soft contact shadows where every piece meets the floor, matching the room's existing light softness.
+        - Match the original photo's grain, lens distortion, vignetting, and depth of field. A clean CG chair on a grainy photo is an instant tell.
+        - Specular highlights on shiny surfaces must reflect the actual light sources in the room.
+        - Furniture legs sit flat on the floor plane. No floating, no clipping through walls.
+        - Output sharpness equal to the input. Do not soften or blur.
+        - Avoid AI tells: unnaturally symmetric arrangements, plastic-looking fabrics, over-saturated accents, uniform lighting on all surfaces.
 
-        ${isRemovalTask ? `
-        RESTORATION PROTOCOL:
-        - Sample the floor and wall textures from the original image to fill gaps.
-        - Prioritize "Vacant Home" look—clean, empty, and spacious.` : ''}
+        ========================================
+        FURNITURE PLACEMENT
+        ========================================
+        - Estimate real-world room size from door height (~6'8"), outlet height (~12"), and ceiling height. Small rooms (<12x12) get compact pieces only — queen bed max, loveseat not sectional. Medium (~12x14) fits standard furniture. Large (>14x16) tolerates king beds and sectionals. When in doubt, go smaller.
+        - Map doorways, hallways, windows, and traffic paths first. Never place furniture in a door swing, blocking a hallway, or in front of a window or door. Keep 36" clearance in walkways and around beds.
+        - Never place shelves, art, mirrors, or wall decor on or in front of a door.
+        - Align all furniture to the floor's vanishing points.
+        - Group logically: nightstands flank a bed, chairs sit around a table — not scattered.
 
-        FRAMING PROTOCOL (CRITICAL — HIGHEST PRIORITY):
-        - The output image MUST have the EXACT same framing, crop, field of view, and zoom level as the input.
-        - Do NOT zoom in, zoom out, shift, pan, re-crop, or change the camera angle in any way.
-        - Every wall edge, ceiling line, floor boundary, window edge, and door frame must remain at the EXACT same pixel position.
-        - If the original shows 3 feet of ceiling, the output must show 3 feet of ceiling — not less.
-        - The edges of the image (all four borders) must show the same content as the input edges.
-        - NEVER tighten the frame. NEVER lose any part of the original scene at the edges.
-        - Think of it as: the camera is LOCKED in place. Only the furniture changes.
+        ${isGrassTask ? `========================================
+        LANDSCAPING
+        ========================================
+        - Natural, multi-tonal grass with blade-height variation and thatch at the base. Never flat green. Micro-shadows and specularity matching the scene's light. Natural blending at mulch/dirt/concrete edges.
 
-        STAGING PROTOCOL:
-        - Only add furniture that aligns with the vanishing points of the existing floor.
-        - Ensure soft contact shadows where furniture meets the floor.
+        ` : ''}${isRemovalTask ? `========================================
+        REMOVAL / RESTORATION
+        ========================================
+        - Sample the floor and wall textures from the original to fill gaps. Aim for a clean, empty "vacant home" look. If removing an object reveals a hallway or opening, keep that opening — never hallucinate a wall to close it off.
 
-        ROOM SCALE ANALYSIS (CRITICAL — READ THE ROOM SIZE FIRST):
-        - Before selecting ANY furniture, estimate the room's real-world dimensions using visual cues: standard door height (~6'8"), outlet height (~12" from floor), window sizes, ceiling height, and visible floor area.
-        - SMALL ROOMS (under ~12x12 ft): Use compact furniture ONLY. Bedrooms get a full or queen bed (NOT king), one nightstand max per side, no bench/chaise. Living rooms get a loveseat or small sofa, not a sectional. No oversized area rugs.
-        - MEDIUM ROOMS (~12x14 ft): Standard furniture is fine. Queen bed with two small nightstands. Standard 3-seat sofa.
-        - LARGE ROOMS (over ~14x16 ft): King bed is acceptable. Sectional sofas, accent chairs, larger furniture groupings are appropriate.
-        - The furniture must look like it ACTUALLY FITS — if a piece would leave less than 24 inches of walkable space on any side, it is too large for the room.
-        - When in doubt, go SMALLER. Undersized furniture looks intentional (minimalist). Oversized furniture looks like a mistake.
-
-        SPATIAL AWARENESS & FURNITURE PLACEMENT (CRITICAL):
-        - Before placing ANY furniture, mentally map the room layout: identify all doors (open or closed), doorways, hallways, walkways, windows, and traffic paths.
-        - NEVER place furniture in front of a doorway, in a door swing path, or blocking a hallway entrance. Doorways and passages must remain fully clear and walkable.
-        - NEVER place furniture where it would block a window or overlap with a wall opening.
-        - Maintain realistic walking clearance: at least 36 inches (visual equivalent) around beds, between seating and walls, and in any path a person would walk.
-        - If a door is open in the photo, keep the entire door swing arc clear of furniture. Nightstands, chairs, and tables must not encroach into the doorway zone.
-        - NOTHING IN FRONT OF DOORS: Do NOT place ANY items — shelves, artwork, mirrors, coat racks, bookcases, or wall-mounted decor — on or in front of a door, doorway, or door frame. The door and its surrounding wall space must remain completely clear and functional. This applies to BOTH floor furniture AND wall-mounted items.
-        - Furniture legs must sit flat on the floor plane — no floating, no clipping through walls or other objects.
-        - Group furniture logically: nightstands flanking a bed, dining chairs around a table, not scattered randomly. Maintain functional room flow.`
+        ` : ''}========================================
+        ASSIGNMENT
+        ========================================
+        ${prompt}`
       },
-      {
-        inlineData: {
-          mimeType: 'image/jpeg',
-          data: clean
-        }
-      }
+      // IMAGE 1 = anchor (original) when stacking; otherwise the main image is the anchor
+      hasAnchorFinal && anchorImageBase64
+        ? { inlineData: { mimeType: 'image/jpeg', data: cleanBase64(anchorImageBase64) } }
+        : { inlineData: { mimeType: 'image/jpeg', data: clean } }
     ];
+
+    // IMAGE 2 = current working state (only when stacking on top of a prior result)
+    if (hasAnchorFinal) {
+      parts.push({ inlineData: { mimeType: 'image/jpeg', data: clean } });
+    }
 
     if (maskImageBase64) {
       const cleanMask = cleanBase64(maskImageBase64);

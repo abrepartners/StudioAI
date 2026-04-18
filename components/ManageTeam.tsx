@@ -95,10 +95,11 @@ const ManageTeam: React.FC<ManageTeamProps> = ({ adminEmail }) => {
     setCheckingOut(true);
     setError('');
     try {
-      const res = await fetch('/api/brokerage-checkout', {
+      const res = await fetch('/api/brokerage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          action: 'checkout',
           adminEmail,
           tier: selectedTier,
           brokerageId: brokerage.id,

@@ -96,13 +96,31 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
         if (rendered) finalImage = rendered;
       }
 
+      // Re-encode to high-quality JPEG (0.95) for export. Our in-app pipeline
+      // keeps PNG between stacks (chain mode, lossless) but exported PNGs run
+      // 20-30MB for a full-res staged photo. JPEG 0.95 is visually identical
+      // and keeps export size materially close to the original input JPEG.
+      const exportJpeg: string = await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return reject(new Error('canvas context unavailable'));
+          ctx.drawImage(img, 0, 0);
+          resolve(canvas.toDataURL('image/jpeg', 0.95));
+        };
+        img.onerror = reject;
+        img.src = finalImage;
+      }).catch(() => finalImage); // fallback to PNG if re-encode fails
+
       const link = document.createElement('a');
-      link.href = finalImage;
-      // Build filename from edit history: studioai_staging+cleanup+twilight_1234.png
+      link.href = exportJpeg;
       const toolSlug = editHistory.length > 0
         ? `_${[...new Set(editHistory)].join('+')}`
         : '';
-      link.download = `studioai${toolSlug}_${Date.now()}.png`;
+      link.download = `studioai${toolSlug}_${Date.now()}.jpg`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

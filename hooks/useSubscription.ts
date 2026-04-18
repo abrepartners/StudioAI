@@ -110,7 +110,7 @@ export function useSubscription(userEmail: string | null) {
     try {
       const res = await fetch('/api/stripe-checkout', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: userEmail, userId, plan: 'pro', returnUrl: window.location.origin }),
+        body: JSON.stringify({ action: 'subscribe', email: userEmail, userId, plan: 'pro', returnUrl: window.location.origin }),
       });
       const data = await res.json();
       if (data.already_subscribed) { checkStatus(); return; }
@@ -133,9 +133,9 @@ export function useSubscription(userEmail: string | null) {
   const buyCredits = useCallback(async (pack: 'starter' | 'pro_pack' | 'agency', userId: string) => {
     if (!userEmail) return;
     try {
-      const res = await fetch('/api/credit-checkout', {
+      const res = await fetch('/api/stripe-checkout', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: userEmail, userId, pack, returnUrl: window.location.origin }),
+        body: JSON.stringify({ action: 'credits', email: userEmail, userId, pack, returnUrl: window.location.origin }),
       });
       const data = await res.json();
       if (data.url) { window.location.href = data.url; }
@@ -148,7 +148,7 @@ export function useSubscription(userEmail: string | null) {
     if (params.get('credits') === 'success' && params.get('session_id')) {
       const sessionId = params.get('session_id');
       window.history.replaceState({}, '', window.location.pathname);
-      fetch('/api/credit-checkout', {
+      fetch('/api/stripe-checkout', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'fulfill', sessionId }),
       }).then(() => setTimeout(() => checkStatus(), 1500)).catch(() => {});

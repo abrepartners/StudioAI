@@ -12,11 +12,15 @@
  * @param imageBase64 - The image to sharpen (data URL or raw base64)
  * @param amount - Sharpening strength (0-1). Default 0.4 for subtle. 0.6+ for aggressive.
  * @param radius - Blur radius for the unsharp mask. Default 1 (fine detail). 2 = broader.
+ * @param format - Output format. Default 'jpeg' for storage size; use 'png' when the
+ *   result will be fed back into another Gemini pass (chain mode) to avoid the
+ *   JPEG → Gemini → JPEG compression spiral that smooths textures over 3+ passes.
  */
 export async function sharpenImage(
   imageBase64: string,
   amount: number = 0.4,
-  radius: number = 1
+  radius: number = 1,
+  format: 'jpeg' | 'png' = 'jpeg'
 ): Promise<string> {
   return new Promise((resolve) => {
     const img = new Image();
@@ -56,7 +60,14 @@ export async function sharpenImage(
       }
 
       ctx.putImageData(output, 0, 0);
-      resolve(canvas.toDataURL('image/png'));
+      // JPEG q=0.92 is ~85% smaller for one-shot renders. For chain mode we need
+      // lossless PNG — each pass feeds its output back to Gemini, and JPEG
+      // artifacts compound into texture smoothing after 3+ iterations.
+      resolve(
+        format === 'png'
+          ? canvas.toDataURL('image/png')
+          : canvas.toDataURL('image/jpeg', 0.92)
+      );
     };
     img.onerror = () => resolve(imageBase64);
     img.src = imageBase64.startsWith('data:') ? imageBase64 : `data:image/png;base64,${imageBase64}`;

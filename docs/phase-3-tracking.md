@@ -10,8 +10,8 @@ Phase 3 from `docs/overhaul-2026-04/02-execution-backlog.md` = Differentiate (D1
 
 | # | Title | Status | Notes |
 |---|---|---|---|
-| R36 | GHL email nurture — Day 0/2/5/7/14/30 for free users | todo | Templates only. User wires to workflows. |
-| R38 | Winback emails — Day 7/30/90 post-cancel | todo | Templates only. |
+| R36 | GHL email nurture — Day 0/2/5/7/14/30 for free users | done | 6 templates in GHL, prefix `StudioAI_Nurture_`. See `docs/ghl-lifecycle-2026-04/README.md`. User wires workflow. |
+| R38 | Winback emails — Day 7/30/90 post-cancel | done | 3 templates in GHL, prefix `StudioAI_Winback_`. D30 needs Stripe coupon `COMEBACK30` (user-generated). |
 | R37 | Cancellation survey | manual | Stripe Portal Dashboard config. Not agent-doable. |
 
 ---

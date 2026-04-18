@@ -24,6 +24,8 @@ import {
 import { FurnitureRoomType, SavedStage } from '../types';
 import { sharpenImage } from '../utils/sharpen';
 import { compositeStackedEdit } from '../utils/stackComposite';
+import PanelHeader from './PanelHeader';
+import { Badge, Button } from './ui';
 
 // Post-process a Pro AI Tool's raw Gemini output:
 //   1. Sharpen (PNG when chain is on — no JPEG spiral on further stacking)
@@ -240,9 +242,8 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
     return (
         <div className="space-y-2 sm:space-y-3">
             <div className="px-1">
-                <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--color-text)]/70">Special Modes</p>
-                <h3 className="font-display text-lg sm:text-xl mt-0.5">Pro AI Tools</h3>
-                <p className="text-xs text-[var(--color-text)]/75 mt-1 hidden sm:block">Advanced tools that go beyond basic staging. These features work on uploaded photos.</p>
+                <PanelHeader title="Pro AI Tools" subtitle="Special Modes" />
+                <p className="text-xs text-[var(--color-text)]/75 mt-1 hidden sm:block">Tools that go past basic staging — dusk, skies, cleanup, renovation previews, and listing copy.</p>
             </div>
 
             {/* Batch Mode Toggle */}
@@ -315,9 +316,9 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
             )}
 
             {/* Virtual Twilight -> Twilight Compute */}
-            <Section id="twilight" icon={<Sunset size={18} />} title="Day to Dusk" subtitle="Transform daytime photos into twilight shots" isOpen={openSection === 'twilight'} onToggle={toggleSection}>
+            <Section id="twilight" icon={<Sunset size={18} />} title="Day to Dusk" subtitle="Turn daytime exteriors into twilight shots" isOpen={openSection === 'twilight'} onToggle={toggleSection}>
                 <p className="text-sm text-[var(--color-text)]/80 mb-3">
-                    Turn any daytime exterior into a stunning twilight photo with warm interior glow and golden-hour lighting.
+                    Convert any daytime exterior into a twilight shot with warm interior glow and golden-hour light — the #1 photographer trick for sell-faster listings.
                 </p>
                 <button
                     type="button"
@@ -333,8 +334,8 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
             </Section>
 
             {/* Sky Replacement -> Atmosphere Override */}
-            <Section id="sky" icon={<Cloud size={18} />} title="Sky Replacement" subtitle="Replace dull skies with beautiful ones" isOpen={openSection === 'sky'} onToggle={toggleSection}>
-                <p className="text-sm text-[var(--color-text)]/80 mb-3">Swap out overcast or dull skies with a beautiful replacement. Choose from four presets below.</p>
+            <Section id="sky" icon={<Cloud size={18} />} title="Sky Replacement" subtitle="Swap dull skies for a cleaner one" isOpen={openSection === 'sky'} onToggle={toggleSection}>
+                <p className="text-sm text-[var(--color-text)]/80 mb-3">Swap overcast or blown-out skies for blue, dramatic, golden-hour, or stormy. Pick a preset below.</p>
                 <div className="grid grid-cols-2 gap-2">
                     {(['blue', 'dramatic', 'golden', 'stormy'] as SkyStyle[]).map((s) => (
                         <button
@@ -365,9 +366,9 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
             </Section>
 
             {/* Instant Declutter -> Data Scrub */}
-            <Section id="declutter" icon={<Trash2 size={18} />} title="Smart Cleanup" subtitle="Remove clutter and personal items automatically" isOpen={openSection === 'declutter'} onToggle={toggleSection}>
+            <Section id="declutter" icon={<Trash2 size={18} />} title="Smart Cleanup" subtitle="Clear clutter and personal items" isOpen={openSection === 'declutter'} onToggle={toggleSection}>
                 <p className="text-sm text-[var(--color-text)]/80 mb-3">
-                    Automatically remove personal items, clutter, and distractions to present a clean, show-ready space.
+                    Remove personal items, clutter, and distractions so buyers see the room, not the seller's stuff.
                 </p>
                 <button
                     type="button"
@@ -383,8 +384,8 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
             </Section>
 
             {/* Virtual Renovation -> Matter Reconstitution */}
-            <Section id="renovation" icon={<Hammer size={18} />} title="Virtual Renovation" subtitle="Preview new finishes and materials" isOpen={openSection === 'renovation'} onToggle={toggleSection}>
-                <p className="text-sm text-[var(--color-text)]/80 mb-3">Preview new cabinets, countertops, flooring, and wall colors on your listing photos before any work is done.</p>
+            <Section id="renovation" icon={<Hammer size={18} />} title="Virtual Renovation" subtitle="Preview finishes before the work" isOpen={openSection === 'renovation'} onToggle={toggleSection}>
+                <p className="text-sm text-[var(--color-text)]/80 mb-3">Preview new cabinets, countertops, flooring, and wall colors on the listing photo before a contractor picks up a hammer.</p>
                 <div className="space-y-3 mb-3">
                     {[
                         { label: 'Cabinets', value: cabinets, set: setCabinets, placeholder: 'e.g. white shaker with brushed nickel' },

@@ -146,6 +146,8 @@ const roomOptions: FurnitureRoomType[] = [
 type StageMode = 'text' | 'packs' | 'furniture';
 
 // ─── Hero Rotating Headline ────────────────────────────────────────────
+// R1 (Phase 2 Cluster A): rotating verticals retired in favor of a single
+// agent-focused promise. Kept as a legacy constant in case anything imports it.
 const HERO_WORDS = ['real estate.', 'interior design.', 'property flipping.', 'RE photography.', 'renovations.', 'property management.'];
 
 // ─── Tooltip Wrapper ───────────────────────────────────────────────────
@@ -161,32 +163,13 @@ const Tip: React.FC<{ label: string; children: React.ReactNode; position?: 'top'
 );
 
 const HeroHeadline: React.FC = () => {
-  const [index, setIndex] = useState(0);
-  const [isAnimating, setIsAnimating] = useState(false);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setIsAnimating(true);
-      setTimeout(() => {
-        setIndex(prev => (prev + 1) % HERO_WORDS.length);
-        setIsAnimating(false);
-      }, 400);
-    }, 3000);
-    return () => clearInterval(interval);
-  }, []);
-
+  // R1: fixed headline — "Staged listing photos in 15 seconds. Not 15 days."
+  // Leads with the agent's turnaround KPI, names the deliverable, drops the
+  // 6-way vertical hedge.
   return (
     <h1 className="font-display text-[clamp(2.5rem,6vw,4.5rem)] font-black leading-[1] tracking-tighter text-white mb-5 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-      AI photo editing<br />for{' '}
-      <span className="inline-block relative">
-        <span
-          className={`inline-block text-[var(--color-primary)] transition-all duration-400 ${
-            isAnimating ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'
-          }`}
-        >
-          {HERO_WORDS[index]}
-        </span>
-      </span>
+      Staged listing photos<br />
+      <span className="text-[var(--color-primary)]">in 15 seconds.</span> Not 15 days.
     </h1>
   );
 };
@@ -1554,8 +1537,8 @@ Direction from user: ${prompt}`;
               onClick={triggerGoogleSignIn}
               className="inline-flex items-center gap-2 px-3 sm:px-5 py-1.5 sm:py-2 rounded-full bg-white text-black text-[11px] sm:text-sm font-semibold hover:bg-zinc-200 transition-all whitespace-nowrap"
             >
-              <span className="hidden sm:inline">Start Free — No Credit Card</span>
-              <span className="sm:hidden">Start Free</span>
+              <span className="hidden sm:inline">Stage 3 rooms free</span>
+              <span className="sm:hidden">Stage 3 free</span>
             </button>
           </div>
           <div ref={googleButtonRef} className="hidden" />
@@ -1578,7 +1561,7 @@ Direction from user: ${prompt}`;
               <HeroHeadline />
 
               <p className="text-base sm:text-lg text-zinc-400 max-w-lg mb-6 leading-relaxed animate-fade-in" style={{ animationDelay: '0.2s' }}>
-                Stage empty rooms. Clean up yards. Convert day to dusk. Replace skies. Visualize renovations. One tool for agents, photographers, designers, and flippers.
+                Upload a photo. Get it staged, de-cluttered, or twilight-converted before your seller meeting. Cancel physical staging.
               </p>
 
               {/* Cost Comparison Hook — moved up from bottom CTA */}
@@ -1592,7 +1575,7 @@ Direction from user: ${prompt}`;
               <div className="flex flex-col sm:flex-row items-start gap-3 mb-8 animate-fade-in" style={{ animationDelay: '0.3s' }}>
                 <button type="button" onClick={triggerGoogleSignIn} className="inline-flex items-center gap-2.5 px-7 py-3.5 rounded-xl bg-white text-black text-sm font-bold hover:bg-zinc-200 transition-all">
                   <svg width="16" height="16" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-                  Start Free — No Credit Card
+                  Stage 3 rooms free
                 </button>
                 <a href="#pricing" className="inline-flex items-center px-7 py-3.5 rounded-xl text-sm font-semibold text-zinc-400 border border-white/[0.08] hover:border-white/[0.16] hover:text-white transition-all">
                   See Pricing
@@ -1920,7 +1903,7 @@ Direction from user: ${prompt}`;
                   onClick={triggerGoogleSignIn}
                   className="mt-auto w-full py-3 rounded-xl bg-[#FFD60A] text-black text-sm font-bold hover:bg-[#FFD60A]/90 transition-all"
                 >
-                  Start Free — No Credit Card
+                  Stage 3 rooms free
                 </button>
               </div>
 
@@ -1945,7 +1928,7 @@ Direction from user: ${prompt}`;
                   onClick={triggerGoogleSignIn}
                   className="mt-auto w-full py-3 rounded-xl bg-white/10 text-white text-sm font-bold hover:bg-white/20 transition-all border border-white/10"
                 >
-                  Start Free — No Credit Card
+                  Stage 3 rooms free
                 </button>
               </div>
             </div>
@@ -2065,10 +2048,10 @@ Direction from user: ${prompt}`;
         <section className="px-5 sm:px-8 lg:px-12 py-24 sm:py-32">
           <div className="max-w-3xl mx-auto text-center reveal">
             <h2 className="font-display text-3xl sm:text-5xl font-black text-white tracking-tight mb-4">
-              Stop Paying $300 Per Staging.
+              One staging service costs more than a year of StudioAI.
             </h2>
             <p className="text-base text-zinc-400 mb-10 max-w-xl mx-auto">
-              Professional results in seconds — not days. Join agents already saving thousands.
+              $29/mo covers every listing. Cancel the month you stop listing.
             </p>
             <div className="inline-flex flex-col items-center gap-3">
               <button
@@ -2141,9 +2124,9 @@ Direction from user: ${prompt}`;
                   <Crown size={22} />
                 </div>
                 <div>
-                  <h2 id={upgradeModal.titleId} className="font-display text-xl font-bold text-white">Upgrade to Pro</h2>
+                  <h2 id={upgradeModal.titleId} className="font-display text-xl font-bold text-white">Unlimited listings, forever.</h2>
                   <p className="text-xs text-zinc-400">
-                    {referralPrice ? 'Referred — special rate locked in forever' : 'Unlimited AI generations'}
+                    {referralPrice ? 'Referred — rate locked forever' : 'One price. Every tool. No per-photo math.'}
                   </p>
                 </div>
               </div>
@@ -2151,16 +2134,35 @@ Direction from user: ${prompt}`;
                 <X size={16} />
               </button>
             </div>
-            <div className={`mb-6 rounded-xl border p-4 ${referralPrice ? 'border-[#FFD60A]/30 bg-[#FFD60A]/[0.06]' : 'border-[rgba(10,132,255,0.3)] bg-[rgba(10,132,255,0.08)]'}`}>
+            <div className={`mb-4 rounded-xl border p-4 ${referralPrice ? 'border-[#FFD60A]/30 bg-[#FFD60A]/[0.06]' : 'border-[rgba(10,132,255,0.3)] bg-[rgba(10,132,255,0.08)]'}`}>
               <div className="flex items-baseline gap-1 mb-1">
-                <span className="text-3xl font-black text-white">${referralPrice ? (referralPrice / 100).toFixed(0) : '29'}</span>
+                <span className="text-3xl font-black text-white">${referralPrice ? (referralPrice / 100).toFixed(0) : '49'}</span>
                 <span className="text-sm text-zinc-400">/month</span>
-                {referralPrice && <span className="text-sm text-zinc-600 line-through ml-1">$29</span>}
+                {!referralPrice && <span className="text-[11px] text-zinc-500 ml-2">or $39/mo billed annually</span>}
               </div>
               {referralPrice && referralCode && (
-                <p className="text-[10px] text-[#FFD60A] font-semibold">Referral code {referralCode} applied</p>
+                <p className="text-[10px] text-[#FFD60A] font-semibold">Referral code {referralCode} applied — locked forever</p>
               )}
+              <p className="mt-2 text-[11px] text-zinc-400 leading-relaxed">
+                Less than $0.05 per staged photo at typical use. Stage 12 listings a month and you've paid for the year.
+              </p>
             </div>
+
+            {/* Feature bullets — reinforces "every tool" */}
+            <ul className="mb-6 space-y-2 text-[12px] text-zinc-300">
+              {[
+                'Unlimited staging, cleanup, day-to-dusk, sky, virtual reno',
+                'Batch processing — upload a full listing at once',
+                'Custom-logo watermark + MLS-ready exports',
+                'Priority rendering + community showcase access',
+              ].map((f) => (
+                <li key={f} className="flex items-start gap-2">
+                  <Check size={13} className="text-[#30D158] mt-0.5 shrink-0" />
+                  <span>{f}</span>
+                </li>
+              ))}
+            </ul>
+
             <button
               type="button"
               onClick={async () => {
@@ -2194,18 +2196,18 @@ Direction from user: ${prompt}`;
               }}
               className="cta-primary w-full rounded-xl py-3.5 text-sm font-bold flex items-center justify-center gap-2"
             >
-              <CreditCard size={16} /> {referralPrice ? `Start Pro — $${(referralPrice / 100).toFixed(0)}/mo` : 'Start Pro Plan'}
+              <CreditCard size={16} /> {referralPrice ? `Start Pro — $${(referralPrice / 100).toFixed(0)}/mo` : 'Start Pro — $49/mo'}
             </button>
-            <p className="mt-3 text-center text-[10px] text-zinc-500">Cancel anytime. Rate locked in forever. Powered by Stripe.</p>
+            <p className="mt-3 text-center text-[10px] text-zinc-500">Cancel anytime. Early Bird + current Pro rates honored per grandfathering. Powered by Stripe.</p>
 
             {/* Credit Packs Alternative */}
             <div className="mt-6 pt-5 border-t border-white/[0.06]">
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-600 text-center mb-3">Or buy credits — no subscription</p>
               <div className="space-y-2">
                 {[
-                  { id: 'starter' as const, name: '10 Credits', price: '$19', per: '$1.90/image' },
-                  { id: 'pro_pack' as const, name: '25 Credits', price: '$39', per: '$1.56/image' },
-                  { id: 'agency' as const, name: '50 Credits', price: '$69', per: '$1.38/image' },
+                  { id: 'starter' as const, name: '10 Credits', price: '$15', per: '$1.50/image' },
+                  { id: 'pro_pack' as const, name: '25 Credits', price: '$29', per: '$1.16/image' },
+                  { id: 'agency' as const, name: '75 Credits', price: '$69', per: '$0.92/image' },
                 ].map((pack) => (
                   <button
                     key={pack.id}
@@ -2947,7 +2949,13 @@ Direction from user: ${prompt}`;
 
                 {historyTab === 'recent' ? (
                   history.filter(h => h.generatedImage).length === 0 ? (
-                    <p className="text-sm text-[var(--color-text)] py-8 text-center">No renders yet. Generate your first design.</p>
+                    <div className="py-10 text-center">
+                      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.02] text-[var(--color-text)]/60">
+                        <ImageIcon size={20} />
+                      </div>
+                      <p className="text-sm font-semibold text-[var(--color-ink)]">Nothing staged yet.</p>
+                      <p className="mt-1 text-xs text-[var(--color-text)]/60">Your saved results will live here — one per version.</p>
+                    </div>
                   ) : (
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       {history.filter(h => h.generatedImage).map((state, i) => (

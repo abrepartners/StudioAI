@@ -16,6 +16,8 @@ import {
   FilePenLine,
   Loader2,
 } from 'lucide-react';
+import PanelHeader from './PanelHeader';
+import { Pill } from './ui';
 
 type StageMode = 'text' | 'packs' | 'furniture';
 
@@ -155,15 +157,12 @@ HARD PRESERVATION RULES — these override any instinct to "improve" the room:
     return (
       <div className="space-y-5">
         <div className="premium-surface rounded-2xl p-5">
-          <div className="mb-3 flex items-center gap-3">
-            <div className="subtle-card rounded-xl p-2 text-[var(--color-primary)]">
-              <Eraser size={18} />
-            </div>
-            <div>
-              <h3 className="font-display text-lg font-semibold">Architectural Cleanup</h3>
-              <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-text)]/70">Masked precision edit</p>
-            </div>
-          </div>
+          <PanelHeader
+            icon={<Eraser size={18} />}
+            title="Architectural Cleanup"
+            subtitle="Masked precision edit"
+            className="mb-3"
+          />
           <p className="text-sm leading-relaxed text-[var(--color-text)]/85">
             Paint over unwanted objects to remove them while preserving doors, windows, and lighting.
           </p>
@@ -196,10 +195,11 @@ HARD PRESERVATION RULES — these override any instinct to "improve" the room:
   return (
     <div className="space-y-4">
       <div className="premium-surface rounded-2xl p-5">
-        <div className="mb-4">
-          <h3 className="font-display text-lg font-semibold">Mode</h3>
-          <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-text)]/70">Pick one path for this render</p>
-        </div>
+        <PanelHeader
+          title="Mode"
+          subtitle="Pick one path for this render"
+          className="mb-4"
+        />
         
         {/* Apple-Style Segmented Control (Jobs) */}
         <div className="relative flex p-1.5 rounded-xl bg-black/60 border border-[var(--color-border-strong)] shadow-inner">
@@ -236,15 +236,12 @@ HARD PRESERVATION RULES — these override any instinct to "improve" the room:
 
       {stageMode === 'text' && (
         <div className="premium-surface rounded-2xl p-5">
-          <div className="mb-3 flex items-center gap-3">
-            <div className="subtle-card rounded-xl p-2 text-[var(--color-primary)]">
-              <FilePenLine size={18} />
-            </div>
-            <div>
-              <h3 className="font-display text-lg font-semibold">Design Direction</h3>
-              <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-text)]/70">Describe the look you want</p>
-            </div>
-          </div>
+          <PanelHeader
+            icon={<FilePenLine size={18} />}
+            title="Design Direction"
+            subtitle="Describe the look you want"
+            className="mb-3"
+          />
           <p className="mb-3 text-sm text-[var(--color-text)]/80">
             {hasGenerated ? 'Update your direction, then re-generate for a fresh composition.' : 'Describe the first design you want to generate.'}
           </p>
@@ -262,14 +259,12 @@ HARD PRESERVATION RULES — these override any instinct to "improve" the room:
               "Coastal contemporary with natural textures",
               "Industrial loft with exposed brick"
             ].map(suggestion => (
-              <button
+              <Pill
                 key={suggestion}
-                type="button"
                 onClick={() => setCustomPrompt(suggestion)}
-                className="text-[10px] font-semibold uppercase tracking-wide px-3 py-1.5 rounded-full border border-[var(--color-border-strong)] bg-black/40 hover:bg-[var(--color-primary)]/10 hover:border-[var(--color-primary)]/50 transition-all text-[var(--color-text)]/70 hover:text-[var(--color-primary)] whitespace-nowrap shrink-0"
               >
                 {suggestion}
-              </button>
+              </Pill>
             ))}
           </div>
         </div>
@@ -277,15 +272,12 @@ HARD PRESERVATION RULES — these override any instinct to "improve" the room:
 
       {stageMode === 'packs' && (
         <div className="premium-surface rounded-2xl p-5">
-          <div className="mb-4 flex items-center gap-3">
-            <div className="subtle-card rounded-xl p-2 text-[var(--color-primary)]">
-              <Wand2 size={18} />
-            </div>
-            <div>
-              <h3 className="font-display text-lg font-semibold">Style Packs</h3>
-              <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-text)]/70">Select a curated direction</p>
-            </div>
-          </div>
+          <PanelHeader
+            icon={<Wand2 size={18} />}
+            title="Style Packs"
+            subtitle="Select a curated direction"
+            className="mb-4"
+          />
           <p className="mb-4 text-sm text-[var(--color-text)]/80">Choose one pack to generate a complete staging direction.</p>
 
           <div className="max-h-[280px] overflow-y-auto pr-1 grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -337,22 +329,22 @@ HARD PRESERVATION RULES — these override any instinct to "improve" the room:
           )}
           <span className="relative z-10 flex items-center justify-center gap-2">
              {isGenerating ? (
-               <><Loader2 size={18} className="animate-spin text-[var(--color-primary)]" /> Generating...</>
+               <><Loader2 size={18} className="animate-spin text-[var(--color-primary)]" /> Staging...</>
              ) : hasGenerated ? (
-               <><Wand2 size={18} /> {stageMode === 'packs' ? 'Re-Generate (Replace)' : 'Build on Current'}</>
+               <><Wand2 size={18} /> {stageMode === 'packs' ? 'Restage in this style' : 'Apply this tweak'}</>
              ) : (
-               <><Sparkles size={18} className="animate-pulse" /> Generate Design</>
+               <><Sparkles size={18} className="animate-pulse" /> Stage this room</>
              )}
           </span>
         </button>
         <p className="text-center text-xs text-[var(--color-text)]/72">
           {feedbackRequired
-            ? 'Feedback checkpoint required. Submit a thumbs rating to continue generating.'
+            ? 'Feedback checkpoint required. Submit a thumbs rating to continue staging.'
             : !hasGenerated
-              ? 'First generation starts from your uploaded photo.'
+              ? 'First staging starts from your uploaded photo.'
               : stageMode === 'packs'
                 ? 'Packs replace your current result with a fresh staging.'
-                : 'Text prompts build on top of your current result — add, tweak, or refine.'}
+                : 'We keep everything already in the room and change only what you ask for.'}
         </p>
       </div>
     </div>

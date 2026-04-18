@@ -12,43 +12,43 @@ interface TutorialStep {
 
 const STEPS: TutorialStep[] = [
   {
-    title: 'Upload Your Photos',
-    description: 'Drag and drop listing photos here — one at a time or multiple for batch editing. We auto-detect the room type for you.',
+    title: "You're in. Here's how it works.",
+    description: "We'll walk you through the 5 things that matter. Takes about 20 seconds.",
     icon: <Upload size={24} />,
     highlight: 'upload',
     position: 'center',
   },
   {
-    title: 'Choose a Style Pack',
-    description: 'Select PACKS mode, then pick a design style like Coastal Modern or Mid-Century. The AI stages the room to match.',
+    title: 'Pick a style.',
+    description: 'Open PACKS mode and tap a style — Coastal Modern, Mid-Century, Scandinavian. We stage the room in that look without touching walls, floors, or windows.',
     icon: <Layers size={24} />,
     highlight: 'style',
     position: 'top-right',
   },
   {
-    title: 'Or Describe What You Want',
-    description: 'Use TEXT mode to type a custom direction like "modern minimalist with warm wood tones" — the AI follows your lead.',
+    title: 'Or type your own direction.',
+    description: 'Switch to TEXT mode and describe it: "warm oak, linen drapes, one sculptural lamp." We follow your lead.',
     icon: <Wand2 size={24} />,
     highlight: 'text',
     position: 'top-right',
   },
   {
-    title: 'Special Modes',
-    description: 'Scroll down in the side panel for Day to Dusk, Sky Replacement, Smart Cleanup, and Virtual Renovation. Each does one thing well.',
+    title: 'Go past staging.',
+    description: 'Day to Dusk, Sky Replacement, Smart Cleanup, and Virtual Renovation live under Pro AI Tools. Each does one job well.',
     icon: <Sunset size={24} />,
     highlight: 'special',
     position: 'top-right',
   },
   {
-    title: 'Work on Multiple Photos',
-    description: 'Use the + Add button in the header to upload more photos. Navigate between them with the < 1/4 > arrows. Each keeps its own edits.',
+    title: 'Work a whole listing.',
+    description: 'Tap + Add in the header to bring in more photos. The arrows at the top switch between them — every photo keeps its own edits.',
     icon: <Images size={24} />,
     highlight: 'nav',
     position: 'top-left',
   },
   {
-    title: 'Export When Done',
-    description: 'Hit Export in the header to download your staged image. Use Save to keep it in your history for later.',
+    title: 'Export MLS-ready.',
+    description: 'Hit Export to download. Save keeps a version in your history so you can compare looks before you send to the seller.',
     icon: <Download size={24} />,
     highlight: 'export',
     position: 'top-right',
@@ -59,10 +59,15 @@ const STORAGE_KEY = 'studioai_tutorial_seen';
 
 interface QuickStartTutorialProps {
   forceShow?: boolean;
+  // R8: fires the tutorial after the user's first upload (not on first visit).
+  // When this transitions truthy and the user hasn't seen the tutorial yet,
+  // we show it automatically. Stale/repeat transitions are a no-op because
+  // the STORAGE_KEY is set once the tutorial is closed.
+  firstUpload?: boolean;
   onClose?: () => void;
 }
 
-const QuickStartTutorial: React.FC<QuickStartTutorialProps> = ({ forceShow, onClose }) => {
+const QuickStartTutorial: React.FC<QuickStartTutorialProps> = ({ forceShow, firstUpload, onClose }) => {
   const [step, setStep] = useState(0);
   const [visible, setVisible] = useState(false);
 
@@ -72,11 +77,16 @@ const QuickStartTutorial: React.FC<QuickStartTutorialProps> = ({ forceShow, onCl
       setStep(0);
       return;
     }
-    const seen = localStorage.getItem(STORAGE_KEY);
-    if (!seen) {
-      setVisible(true);
+    // R8: first-upload trigger. Only auto-opens if the user hasn't already
+    // seen the tutorial (or dismissed it) in a prior session.
+    if (firstUpload) {
+      const seen = localStorage.getItem(STORAGE_KEY);
+      if (!seen) {
+        setVisible(true);
+        setStep(0);
+      }
     }
-  }, [forceShow]);
+  }, [forceShow, firstUpload]);
 
   const handleClose = useCallback(() => {
     setVisible(false);

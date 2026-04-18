@@ -118,6 +118,9 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
     const [loading, setLoading] = useState<SectionId | null>(null);
     const [openSection, setOpenSection] = useState<SectionId | null>(null);
     const [error, setError] = useState<string>('');
+    // R11: retry handle for the last failed tool run. Cleared on success and
+    // on user-initiated cancel. Populated in the catch block of `run`.
+    const [retryFn, setRetryFn] = useState<(() => void) | null>(null);
     // F9: AbortController for the currently-running Pro AI tool.
     const activeAbortRef = useRef<AbortController | null>(null);
 
@@ -156,24 +159,29 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
     };
 
     const run = async (id: SectionId, fn: (signal: AbortSignal) => Promise<void>) => {
-        if (!currentImage) { setError('Upload a photo first.'); return; }
+        if (!currentImage) { setError('Upload a photo first, then open this tool.'); setRetryFn(null); return; }
         // F9: reset any stale controller, then attach a fresh one to this run.
         activeAbortRef.current?.abort();
         const controller = new AbortController();
         activeAbortRef.current = controller;
         setLoading(id);
         setError('');
+        setRetryFn(null);
         try {
             await withTimeout(fn(controller.signal), 120000, 'Processing timed out — please try again');
         } catch (e: any) {
             if (e.message === 'ABORTED' || e.name === 'AbortError' || controller.signal.aborted) {
                 setError('Cancelled.');
+                setRetryFn(null);
             } else if (e.message === 'API_KEY_REQUIRED') {
                 onRequireKey();
             } else if (e.message?.includes('timed out')) {
-                setError('Processing timed out — please try again.');
+                // R11: probable cause + next step + inline Retry.
+                setError("This one's taking longer than usual — usually a busy-scene problem. Try a tighter crop or retry.");
+                setRetryFn(() => () => run(id, fn));
             } else {
-                setError(e?.message || 'Something went wrong. Try again.');
+                setError(e?.message || "Didn't finish — usually a connection hiccup. Retry should do it.");
+                setRetryFn(() => () => run(id, fn));
             }
         } finally {
             setLoading(null);
@@ -296,7 +304,18 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
             )}
 
             {error && (
-                <div className="rounded-2xl border border-rose-300/60 bg-rose-50 px-4 py-2.5 text-xs text-rose-900">{error}</div>
+                <div className="rounded-2xl border border-rose-300/60 bg-rose-50 px-4 py-2.5 text-xs text-rose-900 flex items-start justify-between gap-3">
+                    <span className="flex-1 leading-snug">{error}</span>
+                    {retryFn && (
+                        <button
+                            type="button"
+                            onClick={() => { const fn = retryFn; setRetryFn(null); fn?.(); }}
+                            className="shrink-0 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider bg-rose-900 text-white hover:opacity-90 active:scale-95 transition-all"
+                        >
+                            Retry
+                        </button>
+                    )}
+                </div>
             )}
 
             {/* F9: Cancel button — visible only while a Pro AI tool is running. */}

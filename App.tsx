@@ -1238,9 +1238,18 @@ Direction from user: ${prompt}`;
         }
         return updated;
       });
-      showToast(<BookmarkPlus size={14} className="text-[var(--color-primary)]" />, 'Design saved');
+      showToast(<BookmarkPlus size={14} className="text-[var(--color-primary)]" />, 'Saved to your history');
     } catch {
-      showToast(<X size={14} className="text-[#FF375F]" />, 'Failed to save');
+      // R11: probable-cause + retry. Save failures almost always = localStorage
+      // full; suggest the fix and offer a one-tap retry.
+      showToast(
+        <X size={14} className="text-[#FF375F]" />,
+        "Couldn't save — local storage may be full. Delete a couple older stages and retry.",
+        {
+          durationMs: 6000,
+          action: { label: 'Retry', onClick: () => { void handleSaveStage(); } },
+        },
+      );
     }
   };
 

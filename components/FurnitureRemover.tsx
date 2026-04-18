@@ -1,5 +1,6 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { Trash2, MousePointer2, Undo2, Check, X, Loader2 } from 'lucide-react';
+import { useModal } from '../hooks/useModal';
 
 interface FurnitureRemoverProps {
   generatedImage: string;
@@ -138,18 +139,35 @@ const FurnitureRemover: React.FC<FurnitureRemoverProps> = ({
     onProcess(maskDataUrl, descriptions);
   };
 
+  // F6: accessible modal semantics. Don't lock body scroll — the remover is
+  // overlayed on the canvas, not the full viewport, and the surrounding editor
+  // still benefits from scrolling.
+  const { dialogProps, titleId } = useModal({
+    isOpen: true,
+    onClose,
+    closeOnOverlayClick: false, // destructive flow; require explicit X click
+    lockScroll: false,
+  });
+  // onOverlayClick unused (closeOnOverlayClick false) — discard it.
+  const { onOverlayClick: _onOverlayClick, ...panelProps } = dialogProps;
+  void _onOverlayClick;
+
   return (
-    <div className="absolute inset-0 z-30 flex flex-col bg-black/95">
+    <div
+      {...panelProps}
+      className="absolute inset-0 z-30 flex flex-col bg-black/95 focus:outline-none"
+    >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)]">
         <div className="flex items-center gap-2">
           <Trash2 size={16} className="text-[#FF375F]" />
-          <h3 className="text-sm font-bold text-white">Remove Furniture</h3>
+          <h3 id={titleId} className="text-sm font-bold text-white">Remove Furniture</h3>
         </div>
         <button
           type="button"
           onClick={onClose}
           disabled={isProcessing}
+          aria-label="Close furniture remover"
           className="rounded-lg p-1.5 text-[var(--color-text)] hover:bg-[var(--color-bg)] transition disabled:opacity-50"
         >
           <X size={16} />

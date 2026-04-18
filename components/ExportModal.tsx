@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Download, X, Type, Image as ImageIcon, Check, Share2, Heart, Video, Loader2 } from 'lucide-react';
 import { compositePreserve } from '../utils/compositePreserve';
 import type { BrandKit } from '../hooks/useBrandKit';
+import { useModal } from '../hooks/useModal';
 
 const STORAGE_KEY = 'studioai_export_settings';
 
@@ -472,16 +473,26 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
 
   const update = (partial: Partial<ExportSettings>) => setSettings(prev => ({ ...prev, ...partial }));
 
+  // F6: wire up accessible-dialog semantics (role, aria, Escape, focus trap, scroll lock).
+  const { dialogProps, titleId } = useModal({ isOpen: true, onClose });
+  const { onOverlayClick, ...panelProps } = dialogProps;
+
   return (
-    <div className="fixed inset-0 z-[100] grid place-items-center modal-overlay p-4 animate-fade-in">
-      <div className="modal-panel w-full max-w-lg rounded-2xl animate-scale-in overflow-hidden max-h-[90vh] flex flex-col">
+    <div
+      className="fixed inset-0 z-[100] grid place-items-center modal-overlay p-4 animate-fade-in"
+      onClick={onOverlayClick}
+    >
+      <div
+        {...panelProps}
+        className="modal-panel w-full max-w-lg rounded-2xl animate-scale-in overflow-hidden max-h-[90vh] flex flex-col focus:outline-none"
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-[var(--color-border)] shrink-0">
           <div className="flex items-center gap-2">
             <Download size={18} className="text-[var(--color-primary)]" />
-            <h3 className="font-display text-lg font-bold text-white">Export Image</h3>
+            <h3 id={titleId} className="font-display text-lg font-bold text-white">Export Image</h3>
           </div>
-          <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-zinc-400 hover:text-white hover:bg-white/10 transition">
+          <button type="button" onClick={onClose} aria-label="Close export dialog" className="rounded-lg p-1.5 text-zinc-400 hover:text-white hover:bg-white/10 transition">
             <X size={16} />
           </button>
         </div>

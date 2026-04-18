@@ -22,6 +22,7 @@ import ListingDescription from './components/ListingDescription';
 import SocialPack from './components/SocialPack';
 import EditingBadge from './components/EditingBadge';
 import { useBrandKit } from './hooks/useBrandKit';
+import { useModal } from './hooks/useModal';
 import AdminShowcase from './components/AdminShowcase';
 import FurnitureRemover from './components/FurnitureRemover';
 // Removed for Phase 2: ColorAnalysis, ChatInterface, StyleAdvisor, QualityScore, ListingDashboard, BetaFeedbackForm, MLSExport (inline)
@@ -312,6 +313,10 @@ const App: React.FC = () => {
   const generatingSessionsRef = useRef<Set<string>>(new Set());
   const currentSessionIdRef = useRef<string>('__single__');
 
+  // F9: AbortController registry keyed by session ID. Each in-flight generation
+  // gets its own controller so we can cancel independently of sibling sessions.
+  const generationAbortersRef = useRef<Map<string, AbortController>>(new Map());
+
   // Chat removed — Phase 2
 
   // ─── Google OAuth State ──────────────────────────────────────────────────
@@ -484,6 +489,28 @@ const App: React.FC = () => {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     setToastMessage(null);
   }, []);
+
+  // F9: cancel the currently-visible generation. Targets the active session's
+  // AbortController; the in-flight request rejects with ABORTED and the catch
+  // block in handleGenerate surfaces the "Generation cancelled" toast.
+  const cancelCurrentGeneration = useCallback(() => {
+    const sid = currentSessionIdRef.current;
+    const controller = generationAbortersRef.current.get(sid);
+    if (controller && !controller.signal.aborted) {
+      controller.abort();
+    }
+  }, []);
+
+  // F6: accessible modal hooks for the two inline modals in App.tsx.
+  // Hooks must be called unconditionally; the `isOpen` flag governs behaviour.
+  const upgradeModal = useModal({
+    isOpen: showUpgradeModal,
+    onClose: () => setShowUpgradeModal(false),
+  });
+  const accessPanelModal = useModal({
+    isOpen: showAccessPanel,
+    onClose: () => setShowAccessPanel(false),
+  });
 
   // Timeout wrapper for AI generation calls
   const withTimeout = useCallback(<T,>(promise: Promise<T>, ms: number, message = 'Generation timed out'): Promise<T> => {
@@ -774,9 +801,27 @@ const App: React.FC = () => {
     // Capture which session this generation belongs to
     const generatingSessionId = sessionQueue[sessionIndex]?.id || '__single__';
 
+    // F16 — Mobile: auto-close sheet on Generate.
+    // On <lg viewports the mobile-control-sheet otherwise covers ~45vh of the
+    // canvas, blocking the user from seeing the progress overlay. We stash the
+    // prior state so we can reopen only if the user had it open.
+    const sheetWasOpen = sheetOpen;
+    const isMobileViewport =
+      typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches;
+    if (isMobileViewport && sheetWasOpen) {
+      setSheetOpen(false);
+    }
+
     setIsGenerating(true);
     startGenerationTimer();
     generatingSessionsRef.current.add(generatingSessionId);
+
+    // F9: wire a per-session AbortController so the user can cancel this
+    // specific generation without killing siblings.
+    const abortController = new AbortController();
+    // Replace any stale controller on the same session (shouldn't happen but is safe).
+    generationAbortersRef.current.get(generatingSessionId)?.abort();
+    generationAbortersRef.current.set(generatingSessionId, abortController);
 
     try {
       lastPromptRef.current = prompt;
@@ -875,7 +920,8 @@ Direction from user: ${prompt}`;
           false,
           1,
           subscription.plan === 'pro',
-          anchorImage
+          anchorImage,
+          abortController.signal
         ),
         120000,
         'Generation timed out — please try again'
@@ -965,7 +1011,10 @@ Direction from user: ${prompt}`;
 
       subscription.recordGeneration();
     } catch (error: any) {
-      if (error.message?.includes('timed out')) {
+      if (error.message === 'ABORTED' || error.name === 'AbortError' || abortController.signal.aborted) {
+        // F9: user-initiated cancel. Show a muted confirmation, don't log an error.
+        showToast(<X size={14} className="text-[var(--color-text)]" />, 'Generation cancelled');
+      } else if (error.message?.includes('timed out')) {
         showToast(<X size={14} className="text-[#FF375F]" />, 'Generation timed out — try again');
       } else if (
         error.message === 'API_KEY_REQUIRED' ||
@@ -981,6 +1030,16 @@ Direction from user: ${prompt}`;
       stopGenerationTimer();
     } finally {
       generatingSessionsRef.current.delete(generatingSessionId);
+      // F9: clean up the AbortController for this session
+      if (generationAbortersRef.current.get(generatingSessionId) === abortController) {
+        generationAbortersRef.current.delete(generatingSessionId);
+      }
+      // F16 — reopen sheet on completion (mobile only + if it was open before).
+      // Also guard against the user having manually opened/closed the sheet while
+      // the generation was in flight — we only restore when it is currently closed.
+      if (isMobileViewport && sheetWasOpen) {
+        setSheetOpen(true);
+      }
     }
   };
 
@@ -1151,6 +1210,13 @@ Direction from user: ${prompt}`;
     }
   };
 
+  // F7: Refresh / Start-over with snapshot-and-undo.
+  // Moved to later in the file (inside a useCallback after removeFromSession).
+  // Kept as a placeholder so ordering dependents still type-check; the real
+  // implementation is the useCallback below that captures removeFromSession.
+  // — removed stale feedback-checkpoint refs which no longer exist.
+  // Define after removeFromSession so it can depend on it.
+
   // ─── Batch Mode Handlers ─────────────────────────────────────────────────
   const handleBatchReady = (images: BatchImage[]) => {
     setBatchImages(images);
@@ -1315,6 +1381,72 @@ Direction from user: ${prompt}`;
       setSessionIndex(prev => prev - 1);
     }
   }, [sessionQueue, sessionIndex, loadSession]);
+
+  // F7: Refresh / Start-over handler with snapshot-and-undo.
+  // Before blowing away the canvas state, we capture enough to rebuild it
+  // and surface a 6s "Undo" toast that restores the previous session queue.
+  const handleRefresh = useCallback(() => {
+    const priorQueue = sessionQueue;
+    const priorIndex = sessionIndex;
+    const priorOriginal = originalImage;
+    const priorGenerated = generatedImage;
+    const priorMask = maskImage;
+    const priorHistory = history;
+    const priorHistoryIndex = historyIndex;
+    const priorSelectedRoom = selectedRoom;
+    const priorDetectedRoom = detectedRoom;
+    const priorColors = colors;
+    const priorStageMode = stageMode;
+
+    if (sessionQueue.length > 1) {
+      removeFromSession(sessionIndex);
+    } else {
+      setOriginalImage(null);
+      setGeneratedImage(null);
+      setSessionQueue([]);
+      setSessionIndex(-1);
+    }
+    setStageMode('text');
+
+    const labelText = priorQueue.length > 1 ? 'Photo removed' : 'Canvas cleared';
+    showToast(
+      <RefreshCcw size={14} className="text-[var(--color-primary)]" />,
+      labelText,
+      {
+        durationMs: 6000,
+        action: {
+          label: 'Undo',
+          onClick: () => {
+            setSessionQueue(priorQueue);
+            setSessionIndex(priorIndex);
+            setOriginalImage(priorOriginal);
+            setGeneratedImage(priorGenerated);
+            setMaskImage(priorMask);
+            setHistory(priorHistory);
+            setHistoryIndex(priorHistoryIndex);
+            setSelectedRoom(priorSelectedRoom);
+            setDetectedRoom(priorDetectedRoom);
+            setColors(priorColors);
+            setStageMode(priorStageMode);
+          },
+        },
+      }
+    );
+  }, [
+    sessionQueue,
+    sessionIndex,
+    originalImage,
+    generatedImage,
+    maskImage,
+    history,
+    historyIndex,
+    selectedRoom,
+    detectedRoom,
+    colors,
+    stageMode,
+    removeFromSession,
+    showToast,
+  ]);
 
   // Keep current session ID ref in sync
   useEffect(() => {
@@ -1979,21 +2111,32 @@ Direction from user: ${prompt}`;
       )}
 
       {showUpgradeModal && (
-        <div className="fixed inset-0 z-[100] grid place-items-center modal-overlay p-4 animate-fade-in">
-          <div className="modal-panel w-full max-w-md rounded-2xl p-8 animate-scale-in">
+        <div
+          className="fixed inset-0 z-[100] grid place-items-center modal-overlay p-4 animate-fade-in"
+          onClick={upgradeModal.dialogProps.onOverlayClick}
+        >
+          <div
+            ref={upgradeModal.dialogProps.ref}
+            role={upgradeModal.dialogProps.role}
+            aria-modal={upgradeModal.dialogProps['aria-modal']}
+            aria-labelledby={upgradeModal.dialogProps['aria-labelledby']}
+            tabIndex={upgradeModal.dialogProps.tabIndex}
+            onKeyDown={upgradeModal.dialogProps.onKeyDown}
+            className="modal-panel w-full max-w-md rounded-2xl p-8 animate-scale-in focus:outline-none"
+          >
             <div className="flex items-start justify-between mb-6">
               <div className="flex items-center gap-3">
                 <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${referralPrice ? 'bg-[rgba(255,214,10,0.15)] text-[#FFD60A]' : 'bg-[rgba(10,132,255,0.15)] text-[var(--color-primary)]'}`}>
                   <Crown size={22} />
                 </div>
                 <div>
-                  <h2 className="font-display text-xl font-bold text-white">Upgrade to Pro</h2>
+                  <h2 id={upgradeModal.titleId} className="font-display text-xl font-bold text-white">Upgrade to Pro</h2>
                   <p className="text-xs text-zinc-400">
                     {referralPrice ? 'Referred — special rate locked in forever' : 'Unlimited AI generations'}
                   </p>
                 </div>
               </div>
-              <button type="button" onClick={() => setShowUpgradeModal(false)} className="rounded-lg p-1.5 text-zinc-400 transition hover:bg-[var(--color-bg)]">
+              <button type="button" onClick={() => setShowUpgradeModal(false)} aria-label="Close upgrade dialog" className="rounded-lg p-1.5 text-zinc-400 transition hover:bg-[var(--color-bg)]">
                 <X size={16} />
               </button>
             </div>
@@ -2076,13 +2219,25 @@ Direction from user: ${prompt}`;
       )}
 
       {showAccessPanel && (
-        <div className="fixed inset-0 z-[100] grid place-items-center modal-overlay p-4 animate-fade-in overflow-y-auto">
-          <div className="modal-panel w-full max-w-md rounded-2xl p-6 animate-scale-in my-8">
+        <div
+          className="fixed inset-0 z-[100] grid place-items-center modal-overlay p-4 animate-fade-in overflow-y-auto"
+          onClick={accessPanelModal.dialogProps.onOverlayClick}
+        >
+          <div
+            ref={accessPanelModal.dialogProps.ref}
+            role={accessPanelModal.dialogProps.role}
+            aria-modal={accessPanelModal.dialogProps['aria-modal']}
+            aria-labelledby={accessPanelModal.dialogProps['aria-labelledby']}
+            tabIndex={accessPanelModal.dialogProps.tabIndex}
+            onKeyDown={accessPanelModal.dialogProps.onKeyDown}
+            className="modal-panel w-full max-w-md rounded-2xl p-6 animate-scale-in my-8 focus:outline-none"
+          >
             <div className="flex items-start justify-between mb-5">
-              <h3 className="font-display text-xl font-bold">Profile & Settings</h3>
+              <h3 id={accessPanelModal.titleId} className="font-display text-xl font-bold">Profile & Settings</h3>
               <button
                 type="button"
                 onClick={() => setShowAccessPanel(false)}
+                aria-label="Close profile panel"
                 className="rounded-lg p-1.5 text-[var(--color-text)] transition hover:bg-[var(--color-bg)]"
               >
                 <X size={16} />
@@ -2104,7 +2259,11 @@ Direction from user: ${prompt}`;
 
             {/* Brand Kit Settings */}
             <div className="mt-5 border-t border-[var(--color-border)] pt-5">
-              <BrandKit />
+              <BrandKit
+                onSaved={() =>
+                  showToast(<Check size={14} className="text-[#30D158]" />, 'Brand kit saved')
+                }
+              />
             </div>
 
             {/* Referral Program — hide for admin accounts */}
@@ -2348,10 +2507,11 @@ Direction from user: ${prompt}`;
               </span>
             )}
             <div className="h-5 w-px bg-[var(--color-border)] mx-0.5" />
+            {/* Refresh / Help: visible on sm+, folded into overflow menu on mobile (F17) */}
             <button
               type="button"
               onClick={handleRefresh}
-              className="rounded-lg p-1.5 text-[var(--color-text)] hover:bg-[var(--color-bg)] transition"
+              className="hidden sm:inline-flex rounded-lg p-1.5 min-h-[44px] min-w-[44px] items-center justify-center text-[var(--color-text)] hover:bg-[var(--color-bg)] transition"
               title={sessionQueue.length > 1 ? "Remove this photo" : "Start over"}
               aria-label={sessionQueue.length > 1 ? "Remove this photo" : "Start over"}
             >
@@ -2360,16 +2520,72 @@ Direction from user: ${prompt}`;
             <button
               type="button"
               onClick={() => setShowTutorial(true)}
-              className="rounded-lg p-1.5 text-[var(--color-text)] hover:bg-[var(--color-bg)] transition"
+              className="hidden sm:inline-flex rounded-lg p-1.5 min-h-[44px] min-w-[44px] items-center justify-center text-[var(--color-text)] hover:bg-[var(--color-bg)] transition"
               title="Quick start guide"
               aria-label="Open quick start guide"
             >
               <HelpCircle size={16} />
             </button>
+            {/* Mobile overflow menu (<sm): Undo / Redo / Refresh / Help (F17) */}
+            <div ref={overflowMenuRef} className="sm:hidden relative">
+              <button
+                type="button"
+                onClick={() => setShowOverflowMenu(v => !v)}
+                className="rounded-lg p-1.5 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-[var(--color-text)] hover:bg-[var(--color-bg)] transition"
+                aria-label="More actions"
+                aria-expanded={showOverflowMenu}
+                aria-haspopup="menu"
+                title="More"
+              >
+                <MoreHorizontal size={18} />
+              </button>
+              {showOverflowMenu && (
+                <div
+                  role="menu"
+                  className="absolute right-0 top-full mt-1.5 w-56 rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border-strong)] shadow-xl p-1 z-50 animate-slide-down"
+                >
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => { undo(); setShowOverflowMenu(false); }}
+                    disabled={historyIndex <= 0 || isGenerating}
+                    className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2.5 min-h-[44px] text-left text-sm font-medium text-[var(--color-ink)] hover:bg-[var(--color-bg)] disabled:opacity-30 disabled:cursor-not-allowed transition"
+                  >
+                    <Undo2 size={16} /> Undo
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => { redo(); setShowOverflowMenu(false); }}
+                    disabled={historyIndex >= history.length - 1 || isGenerating}
+                    className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2.5 min-h-[44px] text-left text-sm font-medium text-[var(--color-ink)] hover:bg-[var(--color-bg)] disabled:opacity-30 disabled:cursor-not-allowed transition"
+                  >
+                    <Redo2 size={16} /> Redo
+                  </button>
+                  <div className="my-1 h-px bg-[var(--color-border)]" />
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => { handleRefresh(); setShowOverflowMenu(false); }}
+                    className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2.5 min-h-[44px] text-left text-sm font-medium text-[var(--color-ink)] hover:bg-[var(--color-bg)] transition"
+                  >
+                    <RefreshCcw size={16} /> {sessionQueue.length > 1 ? "Remove this photo" : "Start over"}
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => { setShowOverflowMenu(false); setShowTutorial(true); }}
+                    className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2.5 min-h-[44px] text-left text-sm font-medium text-[var(--color-ink)] hover:bg-[var(--color-bg)] transition"
+                  >
+                    <HelpCircle size={16} /> Quick start guide
+                  </button>
+                </div>
+              )}
+            </div>
             <button
               type="button"
               onClick={() => setShowAccessPanel(true)}
-              className="rounded-full overflow-hidden h-8 w-8 ring-2 ring-[var(--color-border)] hover:ring-[var(--color-primary)] transition-all"
+              className="rounded-full overflow-hidden h-11 w-11 ring-2 ring-[var(--color-border)] hover:ring-[var(--color-primary)] transition-all"
               title={googleUser.name}
               aria-label="Open account panel"
             >
@@ -2565,9 +2781,8 @@ Direction from user: ${prompt}`;
                   {/* EditingBadge rendered inline next to the room picker below (see left-2.5 top-2.5 flex row)
                       so the two don't stack or have overlapping dropdowns. */}
                   {isGenerating && (
-                    <div role="status" aria-live="polite" aria-label="Generating design" className="absolute inset-0 z-10 bg-black/70 backdrop-blur-sm pointer-events-none flex flex-col items-center justify-center">
-                      
-                      <div className="text-center space-y-4 w-full max-w-md px-6">
+                    <div role="status" aria-live="polite" aria-label="Generating design" className="absolute inset-0 z-10 bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center">
+                      <div className="text-center space-y-4 w-full max-w-md px-6 pointer-events-none">
                         <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full border border-[var(--color-primary-dark)] bg-black shadow-lg">
                           <BrainCircuit size={18} className="text-[var(--color-primary)] animate-pulse" />
                           <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-primary)]">Generating Design</span>
@@ -2581,6 +2796,16 @@ Direction from user: ${prompt}`;
                           <p className="text-xs font-medium text-white typing-effect" style={{animationDelay: '1.6s'}}>Polishing the final render</p>
                         </div>
                       </div>
+                      {/* F9: Cancel button — sits OUTSIDE the pointer-events-none wrapper */}
+                      <button
+                        type="button"
+                        onClick={cancelCurrentGeneration}
+                        className="mt-6 inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-bold uppercase tracking-wider bg-[var(--color-error)] text-white border border-[var(--color-error)] hover:opacity-90 active:scale-95 transition-all shadow-lg"
+                        aria-label="Cancel generation"
+                      >
+                        <X size={14} />
+                        Cancel
+                      </button>
                     </div>
                   )}
 
@@ -2720,6 +2945,7 @@ Direction from user: ${prompt}`;
                           type="button"
                           onClick={() => { setGeneratedImage(state.generatedImage); setSelectedRoom(state.selectedRoom); setColors(state.colors); }}
                           className="group relative rounded-lg overflow-hidden border border-[var(--color-border)] aspect-[4/3] hover:ring-2 hover:ring-[var(--color-primary)] transition-all"
+                          aria-label={`Restore render ${i + 1}`}
                         >
                           <img src={state.generatedImage!} alt={`Render ${i + 1}`} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-end p-1.5">

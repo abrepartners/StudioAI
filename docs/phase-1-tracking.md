@@ -49,10 +49,10 @@ Live status board for Phase 1 execution (F1-F28). Each cluster lead updates thei
 
 | # | Title | Status | Notes |
 |---|---|---|---|
-| F6 | `useModal` hook | todo | 8 modals — biggest single item in Phase 1 |
-| F7 | Undo toast pattern | todo | 6-second snapshot + inline Undo |
-| F8 | Silent-success toasts | todo | 6 silent paths |
-| F9 | `AbortController` on generations | todo | Cancel button in overlay |
+| F6 | `useModal` hook | done | Hook at `hooks/useModal.ts` (role/aria/Escape/focus-trap/scroll-lock/click-outside). Applied to ExportModal, QuickStartTutorial, FurnitureRemover, Upgrade modal (inline App.tsx), AccessPanel wrapper (inline App.tsx). The 4 embedded sub-sections (BrandKit, ManageTeam, AdminShowcase, ReferralDashboard) inherit AccessPanel's Escape/trap/scroll-lock — they get promoted to standalone dialogs in Phase 2 R21 (`/settings` route). |
+| F7 | Undo toast pattern | done | 6-second toast with inline Undo action on Start-from-Original, Delete Saved Stage, Refresh/Remove-photo, and Commit-and-Continue. Extended `showToast` signature to `{ durationMs, action }` + added `.toast-action` style + `animate-toast-long` 6s variant in `index.css`. |
+| F8 | Silent-success toasts | done | Wired into ⌘Z undo, ⌘Y redo, Brand Kit save, Commit-and-Continue, session nav (prev/next), Delete Saved Stage. While touching the Refresh button, fixed a stale `setShowFeedbackCheckpoint` / `setGenerationsSinceFeedback` ref pair that had been broken since Phase 2 feedback-state removal. |
+| F9 | `AbortController` on generations | done | Per-session AbortController registry in App.tsx (`generationAbortersRef`) + per-run controller in SpecialModesPanel. `abortSignal` param threaded through `generateRoomDesign`, `virtualTwilight`, `replaceSky`, `instantDeclutter`, `virtualRenovation`, `generateListingCopy`. Red Cancel button in the main generation overlay + a Cancel bar above Pro AI tool sections while running. Abort surfaces as a muted "Generation cancelled" toast. |
 
 ---
 
@@ -109,6 +109,15 @@ _Cross-cluster dependencies discovered during execution. Tag with `@agent-x` whe
 - @agent-c was mid-way through F9 (AbortController + cancel button) when @agent-d started F16. Both touch the same try / finally block in `handleGenerate`.
 - @agent-d interleaved F16 logic (sheet snapshot → close → reopen in finally) ahead of C's abort-controller cleanup. No semantic conflict — both write to `finally`, my block only touches `sheetOpen` state, C's block only touches `generationAbortersRef`.
 - @agent-c: when you commit F9, expect the `finally` block to already have the F16 reopen lines. Merge is additive.
+
+### 2026-04-18 — @agent-c wrap-up (F6/F7/F8/F9)
+
+- **F6 scope note:** The backlog lists 8 modals to receive `useModal`. In the current codebase, 4 of those (`BrandKit`, `ManageTeam`, `AdminShowcase`, `ReferralDashboard`) are rendered as embedded sections inside the `showAccessPanel` dialog — they are not standalone surfaces. Rather than forcing a focus-trap wrapper around each (which would nest dialogs and break focus order), the hook is applied to the AccessPanel container. Those components will get their own `useModal` instances in Phase 2 R21 when they become standalone routes under `/settings`. The 4 true standalone modals (ExportModal, QuickStartTutorial, FurnitureRemover, Upgrade inline) all ship with their own hook instance this phase. **Net:** Escape + focus-trap pass on all 5 currently-standalone modal surfaces.
+- **F9 Gemini streaming:** `@google/genai` supports `config.abortSignal` on `generateContent` — we verified via the bundled ESM. No streaming quirks encountered because every StudioAI call uses the non-streaming `generateContent` path; there's no `generateContentStream` consumer today. If R5/R35's per-tool progress copy later moves to a streaming model, revisit the cancel path — SSE reader loops need an explicit `.return()` to unwind on abort.
+- **BrandKit coupling:** added an optional `onSaved` prop so the parent (App.tsx) fires the toast, keeping the toast infrastructure centralized. The component still shows its own green "Saved" button state as a local confirmation for the second or two after click.
+- **@agent-a / @agent-d dependency:** F7's Refresh-with-undo handler consolidates the `handleRefresh` that was spread inline in the header and later re-declared by a prior fix. Consolidated into a single useCallback. A's aria-label pass on the Refresh button is preserved.
+- **Generation overlay pointer-events:** the existing overlay had `pointer-events-none` on the wrapper so the user could still click the canvas. Added the F9 Cancel button as a sibling **outside** the pointer-events-none block so it's reachable.
+- **@agent-b follow-up:** the new `.toast-action` button uses `var(--color-primary)` for its background with `#000` text. Contrast is fine on the current blue (`#0A84FF` vs `#000` → 8.6:1), but flag for a recheck once the tokens pass (F13) touches `--color-primary`.
 
 ### 2026-04-18 — Pre-existing CSS bug noticed (not mine)
 

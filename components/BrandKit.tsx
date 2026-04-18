@@ -26,7 +26,12 @@ import { useBrandKit, readFileAsDataURL } from '../hooks/useBrandKit';
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-const BrandKit: React.FC = () => {
+interface BrandKitProps {
+  /** F8: fire a parent-managed toast when the brand kit is saved */
+  onSaved?: () => void;
+}
+
+const BrandKit: React.FC<BrandKitProps> = ({ onSaved }) => {
   const { brandKit, updateBrandKit, resetBrandKit, hasBrandKit } = useBrandKit();
   const [showSaved, setShowSaved] = useState(false);
   const [showReset, setShowReset] = useState(false);
@@ -54,6 +59,7 @@ const BrandKit: React.FC = () => {
     // Data is already persisted via hook effect, this is just UX feedback
     setShowSaved(true);
     setTimeout(() => setShowSaved(false), 2000);
+    onSaved?.();
   };
 
   const handleReset = () => {

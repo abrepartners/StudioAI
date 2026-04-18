@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, ChevronRight, ChevronLeft, Upload, Wand2, Layers, Sunset, Download, Images } from 'lucide-react';
+import { useModal } from '../hooks/useModal';
 
 interface TutorialStep {
   title: string;
@@ -95,6 +96,10 @@ const QuickStartTutorial: React.FC<QuickStartTutorialProps> = ({ forceShow, onCl
     if (step > 0) setStep(s => s - 1);
   };
 
+  // F6: useModal before the early return so the hook-count stays stable.
+  const { dialogProps, titleId } = useModal({ isOpen: visible, onClose: handleClose });
+  const { onOverlayClick, ...panelProps } = dialogProps;
+
   if (!visible) return null;
 
   const current = STEPS[step];
@@ -102,15 +107,18 @@ const QuickStartTutorial: React.FC<QuickStartTutorialProps> = ({ forceShow, onCl
   const isFirst = step === 0;
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-        onClick={handleClose}
-      />
+    <div
+      className="fixed inset-0 z-[200] flex items-center justify-center"
+      onClick={onOverlayClick}
+    >
+      {/* Backdrop — click bubbles to the overlay parent so useModal's onOverlayClick can decide */}
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm pointer-events-none" />
 
       {/* Tutorial Card */}
-      <div className="relative z-10 w-full max-w-md mx-4 animate-scale-in">
+      <div
+        {...panelProps}
+        className="relative z-10 w-full max-w-md mx-4 animate-scale-in focus:outline-none"
+      >
         <div className="rounded-2xl bg-[#1a1a1a] border border-white/[0.08] shadow-2xl overflow-hidden">
           {/* Progress bar */}
           <div className="h-1 bg-black/40">
@@ -130,6 +138,7 @@ const QuickStartTutorial: React.FC<QuickStartTutorialProps> = ({ forceShow, onCl
               <button
                 type="button"
                 onClick={handleClose}
+                aria-label="Close tutorial"
                 className="rounded-lg p-1 text-zinc-500 hover:text-white hover:bg-white/10 transition"
               >
                 <X size={16} />
@@ -142,7 +151,7 @@ const QuickStartTutorial: React.FC<QuickStartTutorialProps> = ({ forceShow, onCl
             </div>
 
             {/* Text */}
-            <h3 className="font-display text-xl font-bold text-white mb-2">{current.title}</h3>
+            <h3 id={titleId} className="font-display text-xl font-bold text-white mb-2">{current.title}</h3>
             <p className="text-sm text-zinc-400 leading-relaxed">{current.description}</p>
           </div>
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
     Sunset,
     Cloud,
@@ -11,6 +11,7 @@ import {
     CheckCircle2,
     ChevronDown,
     ChevronUp,
+    X,
 } from 'lucide-react';
 import {
     virtualTwilight,
@@ -115,6 +116,8 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
     const [loading, setLoading] = useState<SectionId | null>(null);
     const [openSection, setOpenSection] = useState<SectionId | null>(null);
     const [error, setError] = useState<string>('');
+    // F9: AbortController for the currently-running Pro AI tool.
+    const activeAbortRef = useRef<AbortController | null>(null);
 
     // Batch mode
     const [batchMode, setBatchMode] = useState(false);
@@ -150,14 +153,20 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
         ]);
     };
 
-    const run = async (id: SectionId, fn: () => Promise<void>) => {
+    const run = async (id: SectionId, fn: (signal: AbortSignal) => Promise<void>) => {
         if (!currentImage) { setError('Upload a photo first.'); return; }
+        // F9: reset any stale controller, then attach a fresh one to this run.
+        activeAbortRef.current?.abort();
+        const controller = new AbortController();
+        activeAbortRef.current = controller;
         setLoading(id);
         setError('');
         try {
-            await withTimeout(fn(), 120000, 'Processing timed out — please try again');
+            await withTimeout(fn(controller.signal), 120000, 'Processing timed out — please try again');
         } catch (e: any) {
-            if (e.message === 'API_KEY_REQUIRED') {
+            if (e.message === 'ABORTED' || e.name === 'AbortError' || controller.signal.aborted) {
+                setError('Cancelled.');
+            } else if (e.message === 'API_KEY_REQUIRED') {
                 onRequireKey();
             } else if (e.message?.includes('timed out')) {
                 setError('Processing timed out — please try again.');
@@ -166,7 +175,13 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
             }
         } finally {
             setLoading(null);
+            if (activeAbortRef.current === controller) activeAbortRef.current = null;
         }
+    };
+
+    // F9: Cancel the currently-running Pro AI tool.
+    const cancelCurrent = () => {
+        activeAbortRef.current?.abort();
     };
 
     const copyText = async (text: string, key: string) => {
@@ -180,17 +195,22 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
     const batchImages = savedStages.map(s => s.generatedImage || s.originalImage);
     const canBatch = batchMode && batchImages.length > 0;
 
-    const runBatch = async (id: SectionId, processFn: (img: string) => Promise<string>) => {
+    const runBatch = async (id: SectionId, processFn: (img: string, signal: AbortSignal) => Promise<string>) => {
         if (!canBatch) return;
+        // F9: one controller covers the whole batch.
+        activeAbortRef.current?.abort();
+        const controller = new AbortController();
+        activeAbortRef.current = controller;
         setLoading(id);
         setError('');
         setBatchProgress({ current: 0, total: batchImages.length, results: [] });
         try {
             const results: string[] = [];
             for (let i = 0; i < batchImages.length; i++) {
+                if (controller.signal.aborted) throw new Error('ABORTED');
                 setBatchProgress({ current: i + 1, total: batchImages.length, results });
                 const raw = await withTimeout(
-                    processFn(batchImages[i]),
+                    processFn(batchImages[i], controller.signal),
                     120000,
                     `Image ${i + 1} timed out — please try again`
                 );
@@ -202,7 +222,9 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
             // Apply the first result to the canvas
             if (results.length > 0) onNewImage(results[0]);
         } catch (e: any) {
-            if (e.message === 'API_KEY_REQUIRED') {
+            if (e.message === 'ABORTED' || e.name === 'AbortError' || controller.signal.aborted) {
+                setError('Cancelled.');
+            } else if (e.message === 'API_KEY_REQUIRED') {
                 onRequireKey();
             } else if (e.message?.includes('timed out')) {
                 setError(e.message);
@@ -211,6 +233,7 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
             }
         } finally {
             setLoading(null);
+            if (activeAbortRef.current === controller) activeAbortRef.current = null;
         }
     };
 
@@ -275,6 +298,22 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                 <div className="rounded-2xl border border-rose-300/60 bg-rose-50 px-4 py-2.5 text-xs text-rose-900">{error}</div>
             )}
 
+            {/* F9: Cancel button — visible only while a Pro AI tool is running. */}
+            {loading !== null && (
+                <div className="flex items-center justify-between rounded-2xl border border-[var(--color-error)]/40 bg-[var(--color-error)]/5 px-3 py-2">
+                    <span className="text-[11px] uppercase tracking-[0.16em] text-[var(--color-error)] font-semibold">Running</span>
+                    <button
+                        type="button"
+                        onClick={cancelCurrent}
+                        className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider bg-[var(--color-error)] text-white border border-[var(--color-error)] hover:opacity-90 active:scale-95 transition-all"
+                        aria-label="Cancel generation"
+                    >
+                        <X size={12} />
+                        Cancel
+                    </button>
+                </div>
+            )}
+
             {/* Virtual Twilight -> Twilight Compute */}
             <Section id="twilight" icon={<Sunset size={18} />} title="Day to Dusk" subtitle="Transform daytime photos into twilight shots" isOpen={openSection === 'twilight'} onToggle={toggleSection}>
                 <p className="text-sm text-[var(--color-text)]/80 mb-3">
@@ -284,8 +323,8 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                     type="button"
                     disabled={loading !== null || (!currentImage && !canBatch)}
                     onClick={() => canBatch
-                        ? runBatch('twilight', (img) => virtualTwilight(img, isPro))
-                        : run('twilight', async () => { const result = await postProcessToolOutput(await virtualTwilight(currentImage!, isPro), currentImage); onNewImage(result, 'twilight'); })
+                        ? runBatch('twilight', (img, signal) => virtualTwilight(img, isPro, signal))
+                        : run('twilight', async (signal) => { const result = await postProcessToolOutput(await virtualTwilight(currentImage!, isPro, signal), currentImage); onNewImage(result, 'twilight'); })
                     }
                     className={`w-full rounded-2xl px-4 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all ${loading === 'twilight' ? 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border)]' : 'bg-white/[0.03] text-white border border-white/10 hover:bg-white/[0.06] hover:border-white/20 flex items-center justify-center gap-2 [&_svg]:text-[var(--color-primary)]'}`}
                 >
@@ -316,8 +355,8 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                     type="button"
                     disabled={loading !== null || (!currentImage && !canBatch)}
                     onClick={() => canBatch
-                        ? runBatch('sky', (img) => replaceSky(img, skyStyle, isPro))
-                        : run('sky', async () => { const result = await postProcessToolOutput(await replaceSky(currentImage!, skyStyle, isPro), currentImage); onNewImage(result, 'sky'); })
+                        ? runBatch('sky', (img, signal) => replaceSky(img, skyStyle, isPro, signal))
+                        : run('sky', async (signal) => { const result = await postProcessToolOutput(await replaceSky(currentImage!, skyStyle, isPro, signal), currentImage); onNewImage(result, 'sky'); })
                     }
                     className={`mt-2 w-full rounded-2xl px-4 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all ${loading === 'sky' ? 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border)]' : 'bg-white/[0.03] text-white border border-white/10 hover:bg-white/[0.06] hover:border-white/20 flex items-center justify-center gap-2 [&_svg]:text-[var(--color-primary)]'}`}
                 >
@@ -334,8 +373,8 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                     type="button"
                     disabled={loading !== null || (!currentImage && !canBatch)}
                     onClick={() => canBatch
-                        ? runBatch('declutter', (img) => instantDeclutter(img, selectedRoom, isPro))
-                        : run('declutter', async () => { const result = await postProcessToolOutput(await instantDeclutter(currentImage!, selectedRoom, isPro), currentImage); onNewImage(result, 'cleanup'); })
+                        ? runBatch('declutter', (img, signal) => instantDeclutter(img, selectedRoom, isPro, signal))
+                        : run('declutter', async (signal) => { const result = await postProcessToolOutput(await instantDeclutter(currentImage!, selectedRoom, isPro, signal), currentImage); onNewImage(result, 'cleanup'); })
                     }
                     className={`w-full rounded-2xl px-4 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all ${loading === 'declutter' ? 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border)]' : 'bg-white/[0.03] text-white border border-white/10 hover:bg-white/[0.06] hover:border-white/20 flex items-center justify-center gap-2 [&_svg]:text-[var(--color-primary)]'}`}
                 >
@@ -368,8 +407,8 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                     type="button"
                     disabled={loading !== null || ((!currentImage && !canBatch) || (!cabinets && !countertops && !flooring && !walls))}
                     onClick={() => canBatch
-                        ? runBatch('renovation', (img) => virtualRenovation(img, { cabinets, countertops, flooring, walls }))
-                        : run('renovation', async () => { const result = await postProcessToolOutput(await virtualRenovation(currentImage!, { cabinets, countertops, flooring, walls }), currentImage); onNewImage(result, 'renovation'); })
+                        ? runBatch('renovation', (img, signal) => virtualRenovation(img, { cabinets, countertops, flooring, walls }, signal))
+                        : run('renovation', async (signal) => { const result = await postProcessToolOutput(await virtualRenovation(currentImage!, { cabinets, countertops, flooring, walls }, signal), currentImage); onNewImage(result, 'renovation'); })
                     }
                     className={`w-full rounded-2xl px-4 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all ${loading === 'renovation' ? 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border)]' : 'bg-white/[0.03] text-white border border-white/10 hover:bg-white/[0.06] hover:border-white/20 flex items-center justify-center gap-2 [&_svg]:text-[var(--color-primary)]'}`}
                 >
@@ -438,7 +477,7 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                 <button
                     type="button"
                     disabled={loading !== null || !currentImage}
-                    onClick={() => run('listing', async () => {
+                    onClick={() => run('listing', async (signal) => {
                         const details = (propertyAddress || propertyBeds || propertyBaths || propertySqft || propertyPrice) ? {
                             address: propertyAddress || undefined,
                             beds: propertyBeds ? Number(propertyBeds) : undefined,
@@ -449,6 +488,7 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                         const result = await generateListingCopy(currentImage!, selectedRoom, {
                             propertyDetails: details,
                             tone: listingTone,
+                            abortSignal: signal,
                         });
                         setListingCopy(result);
                     })}

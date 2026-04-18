@@ -110,7 +110,8 @@ export const generateRoomDesign = async (
   isHighRes: boolean = false,
   count = 1,
   isPro: boolean = false,
-  anchorImageBase64?: string | null
+  anchorImageBase64?: string | null,
+  abortSignal?: AbortSignal
 ): Promise<string[]> => {
   try {
     const ai = getAI();
@@ -236,6 +237,7 @@ export const generateRoomDesign = async (
         numberOfImages: count,
       },
     };
+    if (abortSignal) config.abortSignal = abortSignal;
 
     const response: GenerateContentResponse = await ai.models.generateContent({
       model: modelName,
@@ -247,6 +249,7 @@ export const generateRoomDesign = async (
     if (images.length > 0) return images;
     throw new Error("No image generated.");
   } catch (error: any) {
+    if (error?.name === 'AbortError' || abortSignal?.aborted) throw new Error('ABORTED');
     if (error.message?.includes("Requested entity was not found")) throw new Error("API_KEY_REQUIRED");
     throw error;
   }
@@ -452,10 +455,11 @@ export const sendMessageToChat = async (chat: Chat, message: string, currentImag
  * golden-hour / blue-hour dusk shot by changing only the sky and ambient lighting.
  * Preserves all architecture, landscaping, and objects exactly — adds nothing new.
  */
-export const virtualTwilight = async (imageBase64: string, isPro: boolean = false): Promise<string> => {
+export const virtualTwilight = async (imageBase64: string, isPro: boolean = false, abortSignal?: AbortSignal): Promise<string> => {
   const ai = getAI();
   const clean = cleanBase64(imageBase64);
 
+  try {
   const response = await ai.models.generateContent({
     model: isPro ? 'gemini-3-pro-image-preview' : 'gemini-3.1-flash-image-preview',
     contents: [
@@ -495,12 +499,17 @@ The result should look like the SAME photo taken at dusk — nothing added, noth
       imageConfig: {
         numberOfImages: 1,
       },
+      ...(abortSignal ? { abortSignal } : {}),
     },
   });
 
   const image = extractImageFromResponse(response);
   if (image) return image;
   throw new Error('No twilight image generated');
+  } catch (error: any) {
+    if (error?.name === 'AbortError' || abortSignal?.aborted) throw new Error('ABORTED');
+    throw error;
+  }
 };
 
 
@@ -509,7 +518,7 @@ The result should look like the SAME photo taken at dusk — nothing added, noth
  * photo with a dramatic, photorealistic alternative (blue sky, dramatic clouds,
  * golden sunset, etc.) while perfectly preserving the ground and architecture.
  */
-export const replaceSky = async (imageBase64: string, skyStyle: 'blue' | 'dramatic' | 'golden' | 'stormy' = 'blue', isPro: boolean = false): Promise<string> => {
+export const replaceSky = async (imageBase64: string, skyStyle: 'blue' | 'dramatic' | 'golden' | 'stormy' = 'blue', isPro: boolean = false, abortSignal?: AbortSignal): Promise<string> => {
   const ai = getAI();
   const clean = cleanBase64(imageBase64);
 
@@ -520,6 +529,7 @@ export const replaceSky = async (imageBase64: string, skyStyle: 'blue' | 'dramat
     stormy: 'a moody stormy sky with dark charcoal clouds and dramatic lighting',
   };
 
+  try {
   const response = await ai.models.generateContent({
     model: isPro ? 'gemini-3-pro-image-preview' : 'gemini-3.1-flash-image-preview',
     contents: [
@@ -541,11 +551,16 @@ BLENDING REQUIREMENTS:
         ],
       }
     ],
+    ...(abortSignal ? { config: { abortSignal } } : {}),
   });
 
   const image = extractImageFromResponse(response);
   if (image) return image;
   throw new Error('No sky replacement image returned');
+  } catch (error: any) {
+    if (error?.name === 'AbortError' || abortSignal?.aborted) throw new Error('ABORTED');
+    throw error;
+  }
 };
 
 /**
@@ -553,10 +568,11 @@ BLENDING REQUIREMENTS:
  * items — family photos, kids' toys, pet items, counter clutter, laundry —
  * while preserving all furniture, architecture, and structural elements.
  */
-export const instantDeclutter = async (imageBase64: string, selectedRoom: string, isPro: boolean = false): Promise<string> => {
+export const instantDeclutter = async (imageBase64: string, selectedRoom: string, isPro: boolean = false, abortSignal?: AbortSignal): Promise<string> => {
   const ai = getAI();
   const clean = cleanBase64(imageBase64);
 
+  try {
   const response = await ai.models.generateContent({
     model: isPro ? 'gemini-3-pro-image-preview' : 'gemini-3.1-flash-image-preview',
     contents: [
@@ -613,12 +629,17 @@ RESTORATION:
       imageConfig: {
         numberOfImages: 1,
       },
+      ...(abortSignal ? { abortSignal } : {}),
     },
   });
 
   const image = extractImageFromResponse(response);
   if (image) return image;
   throw new Error('No decluttered image returned');
+  } catch (error: any) {
+    if (error?.name === 'AbortError' || abortSignal?.aborted) throw new Error('ABORTED');
+    throw error;
+  }
 };
 
 /**
@@ -628,7 +649,8 @@ RESTORATION:
  */
 export const virtualRenovation = async (
   imageBase64: string,
-  changes: { cabinets?: string; countertops?: string; flooring?: string; walls?: string; fixtures?: string }
+  changes: { cabinets?: string; countertops?: string; flooring?: string; walls?: string; fixtures?: string },
+  abortSignal?: AbortSignal
 ): Promise<string> => {
   const ai = getAI();
   const clean = cleanBase64(imageBase64);
@@ -641,6 +663,7 @@ export const virtualRenovation = async (
     changes.fixtures && `Fixtures: ${changes.fixtures}`,
   ].filter(Boolean).join(', ');
 
+  try {
   const response = await ai.models.generateContent({
     model: 'gemini-3.1-flash-image-preview',
     contents: [
@@ -661,11 +684,16 @@ CRITICAL RULES:
         ],
       }
     ],
+    ...(abortSignal ? { config: { abortSignal } } : {}),
   });
 
   const image = extractImageFromResponse(response);
   if (image) return image;
   throw new Error('No renovation image returned');
+  } catch (error: any) {
+    if (error?.name === 'AbortError' || abortSignal?.aborted) throw new Error('ABORTED');
+    throw error;
+  }
 };
 
 /**
@@ -686,7 +714,7 @@ export type ListingCopyTone = 'luxury' | 'casual' | 'investment';
 export const generateListingCopy = async (
   imageBase64: string,
   selectedRoom: string,
-  options?: { styleNotes?: string; propertyDetails?: ListingCopyPropertyDetails; tone?: ListingCopyTone }
+  options?: { styleNotes?: string; propertyDetails?: ListingCopyPropertyDetails; tone?: ListingCopyTone; abortSignal?: AbortSignal }
 ): Promise<{
   headline: string;
   description: string;
@@ -699,6 +727,7 @@ export const generateListingCopy = async (
   const tone = options?.tone || 'casual';
   const details = options?.propertyDetails;
   const styleNotes = options?.styleNotes;
+  const abortSignal = options?.abortSignal;
 
   const toneInstructions: Record<ListingCopyTone, string> = {
     luxury: 'Write in a sophisticated, elevated tone. Emphasize architectural integrity, premium materials, and exclusivity. Avoid clichés like "stunning", "gorgeous", or "dream home".',
@@ -710,6 +739,7 @@ export const generateListingCopy = async (
     ? `\n\nPROPERTY DETAILS:\n${details.address ? `- Address: ${details.address}` : ''}${details.beds ? `\n- Bedrooms: ${details.beds}` : ''}${details.baths ? `\n- Bathrooms: ${details.baths}` : ''}${details.sqft ? `\n- Square Footage: ${details.sqft.toLocaleString()}` : ''}${details.price ? `\n- Price: $${details.price.toLocaleString()}` : ''}`
     : '';
 
+  try {
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: [{
@@ -741,13 +771,18 @@ Generate:
           hashtags: { type: Type.ARRAY, items: { type: Type.STRING } }
         },
         required: ['headline', 'description', 'socialCaption', 'hashtags']
-      }
+      },
+      ...(abortSignal ? { abortSignal } : {}),
     },
   });
 
   return response.text
     ? JSON.parse(response.text)
     : { headline: '', description: '', socialCaption: '', hashtags: [] };
+  } catch (error: any) {
+    if (error?.name === 'AbortError' || abortSignal?.aborted) throw new Error('ABORTED');
+    throw error;
+  }
 };
 
 // ─── Competitive Feature: Style Advisor ──────────────────────────────────────

@@ -27,6 +27,7 @@ import {
   type WatermarkConfig,
 } from '../utils/imageExport';
 import { useBrandKit } from '../hooks/useBrandKit';
+import PanelHeader from './PanelHeader';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -129,20 +130,17 @@ const MLSExport: React.FC<MLSExportProps> = ({ images, mode = 'batch' }) => {
   return (
     <div className="premium-surface rounded-2xl p-5 space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-white font-semibold text-lg flex items-center gap-2">
-            <Package className="w-5 h-5 text-[#0A84FF]" />
-            Export for MLS
-          </h3>
-          <p className="text-zinc-400 text-sm mt-0.5">
-            Resize, clean metadata, and download MLS-ready files
-          </p>
-        </div>
-        <span className="text-xs text-zinc-500 premium-surface-strong px-2 py-1 rounded-lg">
-          {selectedImages.size} of {images.length} selected
-        </span>
-      </div>
+      <PanelHeader
+        icon={<Package className="w-5 h-5" />}
+        title="Export for MLS"
+        subtitle="Resize, clean metadata, and download MLS-ready files"
+        subtitleStyle="plain"
+        right={
+          <span className="text-xs text-zinc-500 premium-surface-strong px-2 py-1 rounded-lg">
+            {selectedImages.size} of {images.length} selected
+          </span>
+        }
+      />
 
       {/* Preset Selector */}
       <div>

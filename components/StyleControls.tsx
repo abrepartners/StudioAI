@@ -17,7 +17,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import PanelHeader from './PanelHeader';
-import { Pill } from './ui';
+import { Pill, Badge } from './ui';
 
 type StageMode = 'text' | 'packs' | 'furniture';
 
@@ -229,7 +229,7 @@ HARD PRESERVATION RULES — these override any instinct to "improve" the room:
             disabled
             className="relative z-10 flex-1 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-[var(--color-text)]/30 cursor-not-allowed flex items-center justify-center gap-1"
           >
-            Furnish <span className="text-[8px] bg-amber-500/10 text-amber-500 px-1 rounded border border-amber-500/20 hidden sm:inline">SOON</span>
+            Furnish <Badge tone="warn" className="hidden sm:inline-flex ml-1">SOON</Badge>
           </button>
         </div>
       </div>

@@ -302,16 +302,16 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
             {/* F9: Cancel button — visible only while a Pro AI tool is running. */}
             {loading !== null && (
                 <div className="flex items-center justify-between rounded-2xl border border-[var(--color-error)]/40 bg-[var(--color-error)]/5 px-3 py-2">
-                    <span className="text-[11px] uppercase tracking-[0.16em] text-[var(--color-error)] font-semibold">Running</span>
-                    <button
-                        type="button"
+                    <Badge tone="danger">Running</Badge>
+                    <Button
+                        variant="danger"
+                        size="sm"
                         onClick={cancelCurrent}
-                        className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider bg-[var(--color-error)] text-white border border-[var(--color-error)] hover:opacity-90 active:scale-95 transition-all"
+                        leftIcon={<X size={12} />}
                         aria-label="Cancel generation"
                     >
-                        <X size={12} />
                         Cancel
-                    </button>
+                    </Button>
                 </div>
             )}
 

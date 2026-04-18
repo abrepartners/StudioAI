@@ -23,6 +23,8 @@ import {
   Save,
 } from 'lucide-react';
 import { useBrandKit, readFileAsDataURL } from '../hooks/useBrandKit';
+import PanelHeader from './PanelHeader';
+import { Badge, Button } from './ui';
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -75,26 +77,25 @@ const BrandKit: React.FC<BrandKitProps> = ({ onSaved }) => {
   return (
     <div className="max-w-2xl mx-auto space-y-8 p-6">
       {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-          <Palette className="w-6 h-6 text-[#0A84FF]" />
-          Brand Kit
-        </h2>
-        <p className="text-zinc-400 text-sm mt-1">
-          Set up your brand once. Every export, website, and print piece will use it automatically.
-        </p>
-      </div>
+      <PanelHeader
+        icon={<Palette className="w-5 h-5" />}
+        title="Brand Kit"
+        subtitle="Set up your brand once. Every export, website, and print piece will use it automatically."
+        subtitleStyle="plain"
+      />
 
       {/* Status Badge */}
       {hasBrandKit ? (
         <div className="flex items-center gap-2 bg-[#30D158]/10 border border-[#30D158]/20 rounded-lg px-3 py-2">
           <Check className="w-4 h-4 text-[#30D158]" />
           <span className="text-sm text-[#30D158]">Brand kit active — your exports will be branded</span>
+          <Badge tone="success" className="ml-auto">Active</Badge>
         </div>
       ) : (
         <div className="flex items-center gap-2 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2">
           <Palette className="w-4 h-4 text-zinc-500" />
           <span className="text-sm text-zinc-400">Add your name and logo to activate branding</span>
+          <Badge tone="neutral" className="ml-auto">Empty</Badge>
         </div>
       )}
 

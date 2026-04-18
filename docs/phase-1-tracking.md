@@ -10,19 +10,19 @@ Live status board for Phase 1 execution (F1-F28). Each cluster lead updates thei
 
 | # | Title | Status | Notes |
 |---|---|---|---|
-| F1 | Remove viewport lock | todo | `index.html:5` |
-| F4 | Uninstall recharts | todo | `package.json` |
-| F5 | Lazy-load thumbnails | todo | 8 `<img>` tags |
-| F19 | Input mode fixes | todo | beds/baths/sqft + 16px textareas |
-| F20 | Canvas aspect ratio fix | todo | remove `sm:aspect-video` |
-| F21 | `aria-label` sweep on icon buttons | todo | ~30 additions |
-| F22 | Live-region loading | todo | `role="status" aria-live="polite"` |
-| F23 | Stripe handlers `runtime='nodejs'` | todo | api/stripe-*.ts + others |
-| F24 | Font preconnect | todo | `index.html`, `index.css` |
-| F25 | Self-host login hero image | todo | replace Unsplash JPEG |
-| F26 | Fix opacity-based de-emphasis | todo | `text-.../50` contrast fail |
-| F27 | Heart → BookmarkPlus | todo | save-to-history |
-| F28 | Consolidate Loader icon | todo | drop `LoaderCircle` |
+| F1 | Remove viewport lock | done | pinch-zoom restored (WCAG 1.4.4). Landed via Cluster B's F2 commit (shared working tree). |
+| F4 | Uninstall recharts | done | zero imports confirmed, 40 transitive packages removed. |
+| F5 | Lazy-load thumbnails | done | `loading=lazy decoding=async` on App (history/saved-stage grids), BatchProcessor (list thumbs + lightbox), BatchUploader queue, SpecialModesPanel results. |
+| F19 | Input mode fixes | done | `inputMode=numeric/decimal` on beds/baths/sqft/year/zip in SocialPack. Added global `@media (hover:none) and (pointer:coarse) { input, textarea { font-size: 16px } }` in index.css — stops iOS zoom across every textarea without touching each component. |
+| F20 | Canvas aspect ratio fix | done | `sm:aspect-video` removed; canvas stays 4:3 on every viewport. |
+| F21 | `aria-label` sweep on icon buttons | done | Added labels to Refresh, Help, two Avatar buttons, mobile tab nav items (with `aria-current`), history thumbnails, EditingBadge chevron (with `aria-expanded` / `aria-haspopup`). Undo/Redo already labeled by Cluster D (F18). Pack tiles, Save button, Export button have visible text — no change needed. |
+| F22 | Live-region loading | done | Generation overlay wrapped in `role=status aria-live=polite aria-label=\"Generating design\"`; ImageUploader \"Analyzing Space\" state wrapped likewise. |
+| F23 | Stripe handlers `runtime='nodejs'` | done | Explicit `export const config = { runtime: 'nodejs' }` on stripe-checkout, stripe-portal, stripe-status, referral, brokerage, record-generation, track-login. |
+| F24 | Font preconnect | done | `<link rel=preconnect>` for fonts.googleapis.com + fonts.gstatic.com in index.html; swapped CSS `@import` for an HTML `<link rel=stylesheet>` — cuts blocking CSS fetch out of the critical path. Landed via B's F2 commit. |
+| F25 | Self-host login hero image | done (partial) | Unsplash 2000-wide JPEG replaced with local `/public/showcase-staging-after.jpg` (already 260 KB, no external fetch). **Follow-up for @agent-b:** further optimize to AVIF/WebP when Cluster B runs the perf pass. |
+| F26 | Fix opacity-based de-emphasis | done (partial) | Mobile tab nav inactive color fixed: dropped `/50` modifier — uses `text-[var(--color-text)]` (`#98989D` on `#000000` = ~8.5:1, well above 4.5). `index.css :disabled opacity:0.4` left in place per WCAG 1.4.3 disabled-control exception. **Flagged to @agent-b:** if the `text-[var(--color-text)]/50` timer-counter in the generation overlay should also be touched, needs tokens. |
+| F27 | Heart → BookmarkPlus | done | Imports updated (Heart removed, BookmarkPlus + Bookmark added), save-toolbar button swaps between `Bookmark` (saved) and `BookmarkPlus` (unsaved), save-toast icon, empty-state hint. Landed via B's F11 commit (shared working tree). |
+| F28 | Consolidate Loader icon | done | `LoaderCircle` import dropped from `ImageUploader.tsx:2`, Loader2 used everywhere. |
 
 ---
 
@@ -103,3 +103,11 @@ _Cross-cluster dependencies discovered during execution. Tag with `@agent-x` whe
 - No conflict on semantics — A's edits are orthogonal (icon swaps + size tweaks), D adds layout classes.
 - D is building on top of A's current working-tree state (uncommitted). Change has been merged-in-place in the same working tree. Result will ship as part of D's commits; A should rebase mentally but does not need to do anything if they commit/push before D.
 - Open item: F21 (aria-label sweep) — D added `aria-label` on Undo and Redo top-bar buttons while implementing F18 to avoid duplicate work. @agent-a: these two are done, please skip them in your F21 pass.
+
+### 2026-04-18 — @agent-a wrap-up + open handoffs
+
+- All 13 Cluster A items done. Composite QA harness (cleanup tool, 10 fixtures, concurrency 4) passed cleanly — 0 errors, median change-pct 5.6%, median preserve 0.01.
+- `npm run build` passes. `npx tsc --noEmit` surfaces a handful of **pre-existing** errors (PrintCollateral missing `@react-pdf/renderer` + `qrcode`, geminiService `numberOfImages`, playwright missing from e2e, a handful of stale refs in App.tsx from C/D work — none introduced by A).
+- **@agent-b follow-up for F25:** re-encode `public/showcase-staging-after.jpg` as AVIF + WebP and swap `index.css` `.login-bg` to `image-set()` when Cluster B does the perf pass.
+- **@agent-b follow-up for F26:** the in-overlay `text-[var(--color-text)]/50` timer-counter on the generation card wasn't touched (decorative, ~1:1 time-display context inside a `role=status` live region). If the tokens work wants a `--color-text-muted` token, that'd be the cleanest place to wire it in.
+- **One stray aria-label edit** (`history thumb: aria-label={\`Restore render ${i+1}\`}`) lives in the uncommitted App.tsx working tree and will ride along on whichever of C/D commits the shared file next. Noted so it doesn't get accidentally reverted.

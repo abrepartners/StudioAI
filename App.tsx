@@ -68,7 +68,8 @@ import {
   Copy,
   Check,
   Lock,
-  Heart,
+  BookmarkPlus,
+  Bookmark,
   LogOut,
   ArrowRight,
   Image as ImageIcon,
@@ -90,6 +91,7 @@ import {
   Zap,
   Share2,
   Trash2,
+  MoreHorizontal,
 } from 'lucide-react';
 import { Analytics } from '@vercel/analytics/react';
 
@@ -275,8 +277,14 @@ const App: React.FC = () => {
   const [showAccessPanel, setShowAccessPanel] = useState(false);
   const [showRoomPicker, setShowRoomPicker] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(true);
+  const [showOverflowMenu, setShowOverflowMenu] = useState(false);
+  const overflowMenuRef = useRef<HTMLDivElement>(null);
   // Feedback state removed — Phase 2
-  const [toastMessage, setToastMessage] = useState<{ icon: React.ReactNode; label: string } | null>(null);
+  const [toastMessage, setToastMessage] = useState<{
+    icon: React.ReactNode;
+    label: string;
+    action?: { label: string; onClick: () => void };
+  } | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [colors, setColors] = useState<ColorData[]>([]);
@@ -350,6 +358,25 @@ const App: React.FC = () => {
     const savedS = localStorage.getItem('realestate_ai_stages');
     if (savedS) setSavedStages(JSON.parse(savedS));
   }, []);
+
+  // Close header overflow menu on outside click / Escape
+  useEffect(() => {
+    if (!showOverflowMenu) return;
+    const onClick = (e: MouseEvent) => {
+      if (overflowMenuRef.current && !overflowMenuRef.current.contains(e.target as Node)) {
+        setShowOverflowMenu(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowOverflowMenu(false);
+    };
+    window.addEventListener('mousedown', onClick);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('mousedown', onClick);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [showOverflowMenu]);
 
   // ─── Google OAuth: restore session & initialize GIS ─────────────────────
   const handleGoogleCredential = useCallback((response: any) => {
@@ -441,10 +468,21 @@ const App: React.FC = () => {
   }, []);
 
 
-  const showToast = useCallback((icon: React.ReactNode, label: string) => {
+  const showToast = useCallback((
+    icon: React.ReactNode,
+    label: string,
+    options?: { durationMs?: number; action?: { label: string; onClick: () => void } }
+  ) => {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    setToastMessage({ icon, label });
-    toastTimerRef.current = setTimeout(() => setToastMessage(null), 2500);
+    const duration = options?.durationMs ?? 2500;
+    setToastMessage({ icon, label, action: options?.action });
+    toastTimerRef.current = setTimeout(() => setToastMessage(null), duration);
+  }, []);
+
+  // F7: dismiss the current toast immediately. Used by Undo toast action.
+  const dismissToast = useCallback(() => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToastMessage(null);
   }, []);
 
   // Timeout wrapper for AI generation calls
@@ -502,7 +540,8 @@ const App: React.FC = () => {
     setSelectedRoom(state.selectedRoom);
     setColors(state.colors);
     setHistoryIndex(prevIndex);
-  }, [history, historyIndex]);
+    showToast(<Undo2 size={14} className="text-[var(--color-primary)]" />, 'Undone');
+  }, [history, historyIndex, showToast]);
 
   const redo = useCallback(() => {
     if (historyIndex >= history.length - 1) return;
@@ -513,24 +552,49 @@ const App: React.FC = () => {
     setSelectedRoom(state.selectedRoom);
     setColors(state.colors);
     setHistoryIndex(nextIndex);
-  }, [history, historyIndex]);
+    showToast(<Redo2 size={14} className="text-[var(--color-primary)]" />, 'Redone');
+  }, [history, historyIndex, showToast]);
 
   // "Start from original" — wipes the canvas back to the uploaded photo while
   // pushing a marker into history so users can still undo back to the stacked
   // result if they change their mind. editHistory gets a 'reset' entry.
   const handleStartFromOriginal = useCallback(() => {
     if (!generatedImage) return;
+    // F7: snapshot for undo
+    const snapshotImage = generatedImage;
+    const snapshotMask = maskImage;
+    const snapshotSessionId = sessionQueue[sessionIndex]?.id;
     // Push current state into history first so undo returns to it
     pushToHistory();
     setGeneratedImage(null);
     setMaskImage(null);
-    const sid = sessionQueue[sessionIndex]?.id;
-    if (sid) {
+    if (snapshotSessionId) {
       setSessionQueue(prev => prev.map(s =>
-        s.id === sid ? { ...s, editHistory: [...s.editHistory, 'reset'] } : s
+        s.id === snapshotSessionId ? { ...s, editHistory: [...s.editHistory, 'reset'] } : s
       ));
     }
-  }, [generatedImage, pushToHistory, sessionQueue, sessionIndex]);
+    showToast(
+      <RefreshCcw size={14} className="text-[var(--color-primary)]" />,
+      'Reset to original',
+      {
+        durationMs: 6000,
+        action: {
+          label: 'Undo',
+          onClick: () => {
+            setGeneratedImage(snapshotImage);
+            setMaskImage(snapshotMask);
+            if (snapshotSessionId) {
+              setSessionQueue(prev => prev.map(s =>
+                s.id === snapshotSessionId
+                  ? { ...s, editHistory: s.editHistory.slice(0, -1) }
+                  : s
+              ));
+            }
+          },
+        },
+      }
+    );
+  }, [generatedImage, maskImage, pushToHistory, sessionQueue, sessionIndex, showToast]);
 
   // "Commit & Continue" — promotes the current stacked result to the new base
   // (originalImage). Resets the chain so future edits anchor on a fresh, lossless
@@ -539,19 +603,50 @@ const App: React.FC = () => {
   // iterative drift becomes visible.
   const handleCommitAndContinue = useCallback(() => {
     if (!generatedImage) return;
+    // F7: snapshot for undo
+    const priorOriginal = originalImage;
+    const snapshotImage = generatedImage;
+    const snapshotMask = maskImage;
+    const snapshotSessionId = sessionQueue[sessionIndex]?.id;
     pushToHistory();
     setOriginalImage(generatedImage);
     setGeneratedImage(null);
     setMaskImage(null);
-    const sid = sessionQueue[sessionIndex]?.id;
-    if (sid) {
+    if (snapshotSessionId) {
       setSessionQueue(prev => prev.map(s =>
-        s.id === sid
+        s.id === snapshotSessionId
           ? { ...s, originalImage: generatedImage!, editHistory: [...s.editHistory, 'commit'] }
           : s
       ));
     }
-  }, [generatedImage, pushToHistory, sessionQueue, sessionIndex]);
+    // F7+F8: confirm with 6s Undo toast
+    showToast(
+      <Check size={14} className="text-[#30D158]" />,
+      'Committed as new base',
+      {
+        durationMs: 6000,
+        action: {
+          label: 'Undo',
+          onClick: () => {
+            setOriginalImage(priorOriginal);
+            setGeneratedImage(snapshotImage);
+            setMaskImage(snapshotMask);
+            if (snapshotSessionId) {
+              setSessionQueue(prev => prev.map(s =>
+                s.id === snapshotSessionId
+                  ? {
+                      ...s,
+                      originalImage: priorOriginal ?? s.originalImage,
+                      editHistory: s.editHistory.slice(0, -1),
+                    }
+                  : s
+              ));
+            }
+          },
+        },
+      }
+    );
+  }, [generatedImage, originalImage, maskImage, pushToHistory, sessionQueue, sessionIndex, showToast]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1050,7 +1145,7 @@ Direction from user: ${prompt}`;
         }
         return updated;
       });
-      showToast(<Heart size={14} className="text-[var(--color-primary)]" />, 'Design saved');
+      showToast(<BookmarkPlus size={14} className="text-[var(--color-primary)]" />, 'Design saved');
     } catch {
       showToast(<X size={14} className="text-[#FF375F]" />, 'Failed to save');
     }
@@ -1193,7 +1288,15 @@ Direction from user: ${prompt}`;
     // Set isGenerating based on whether the target image has an active generation
     const targetId = sessionQueue[newIndex]?.id;
     setIsGenerating(targetId ? generatingSessionsRef.current.has(targetId) : false);
-  }, [sessionIndex, sessionQueue, saveCurrentSession, loadSession]);
+
+    // F8: silent-success toast on nav
+    showToast(
+      direction === 'next'
+        ? <ChevronRight size={14} className="text-[var(--color-primary)]" />
+        : <ChevronLeft size={14} className="text-[var(--color-primary)]" />,
+      `Photo ${newIndex + 1} of ${sessionQueue.length}`
+    );
+  }, [sessionIndex, sessionQueue, saveCurrentSession, loadSession, showToast]);
 
   const removeFromSession = useCallback((index: number) => {
     setSessionQueue(prev => prev.filter((_, i) => i !== index));
@@ -1251,12 +1354,12 @@ Direction from user: ${prompt}`;
     icon: React.ReactNode;
     available: boolean;
   }> = [
-      { id: 'tools', label: 'Design Studio', icon: <LayoutGrid size={21} />, available: true },
-      { id: 'cleanup', label: 'Cleanup', icon: <Eraser size={21} />, available: true },
-      { id: 'mls', label: 'MLS Export', icon: <Download size={21} />, available: true },
-      { id: 'listing', label: 'Description', icon: <FileText size={21} />, available: true },
-      { id: 'social', label: 'Social Pack', icon: <Share2 size={21} />, available: true },
-      { id: 'history', label: 'History', icon: <HistoryIcon size={21} />, available: true },
+      { id: 'tools', label: 'Design Studio', icon: <LayoutGrid size={20} />, available: true },
+      { id: 'cleanup', label: 'Cleanup', icon: <Eraser size={20} />, available: true },
+      { id: 'mls', label: 'MLS Export', icon: <Download size={20} />, available: true },
+      { id: 'listing', label: 'Description', icon: <FileText size={20} />, available: true },
+      { id: 'social', label: 'Social Pack', icon: <Share2 size={20} />, available: true },
+      { id: 'history', label: 'History', icon: <HistoryIcon size={20} />, available: true },
     ];
 
 
@@ -2053,7 +2156,7 @@ Direction from user: ${prompt}`;
                       }}
                       className="w-full rounded-xl px-3 py-2.5 text-xs font-semibold bg-white/5 text-[var(--color-text)] border border-[var(--color-border)] hover:bg-white/10 transition inline-flex items-center justify-center gap-2"
                     >
-                      <CreditCard size={13} /> Manage Billing
+                      <CreditCard size={14} /> Manage Billing
                     </button>
                     <p className="text-[9px] text-[var(--color-text)]/40 text-center">Update payment method, view invoices, or cancel</p>
                   </div>
@@ -2067,7 +2170,7 @@ Direction from user: ${prompt}`;
                       onClick={() => { setShowAccessPanel(false); setShowUpgradeModal(true); }}
                       className="w-full rounded-xl px-3 py-2.5 text-xs font-bold bg-[var(--color-primary)] text-white hover:opacity-90 transition inline-flex items-center justify-center gap-2"
                     >
-                      <Crown size={13} /> Upgrade to Pro
+                      <Crown size={14} /> Upgrade to Pro
                     </button>
                   </div>
                 )}
@@ -2086,7 +2189,7 @@ Direction from user: ${prompt}`;
               onClick={() => { handleSignOut(); setShowAccessPanel(false); }}
               className="mt-5 cta-secondary w-full rounded-xl px-3 py-2.5 text-sm font-medium inline-flex items-center justify-center gap-2"
             >
-              <LogOut size={15} /> Sign Out
+              <LogOut size={16} /> Sign Out
             </button>
           </div>
         </div>
@@ -2126,9 +2229,10 @@ Direction from user: ${prompt}`;
                     type="button"
                     onClick={undo}
                     disabled={historyIndex <= 0 || isGenerating}
-                    className="rounded-lg p-1.5 text-[var(--color-text)] transition hover:bg-[var(--color-bg)] disabled:opacity-30"
+                    className="rounded-lg p-1.5 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-[var(--color-text)] transition hover:bg-[var(--color-bg)] disabled:opacity-30"
+                    aria-label="Undo (Ctrl+Z)"
                   >
-                    <Undo2 size={15} />
+                    <Undo2 size={16} />
                   </button>
                 </Tip>
                 <Tip label="Redo (Ctrl+Y)">
@@ -2136,9 +2240,10 @@ Direction from user: ${prompt}`;
                     type="button"
                     onClick={redo}
                     disabled={historyIndex >= history.length - 1 || isGenerating}
-                    className="rounded-lg p-1.5 text-[var(--color-text)] transition hover:bg-[var(--color-bg)] disabled:opacity-30"
+                    className="rounded-lg p-1.5 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-[var(--color-text)] transition hover:bg-[var(--color-bg)] disabled:opacity-30"
+                    aria-label="Redo (Ctrl+Y)"
                   >
-                  <Redo2 size={15} />
+                  <Redo2 size={16} />
                   </button>
                 </Tip>
               </div>
@@ -2152,10 +2257,11 @@ Direction from user: ${prompt}`;
                       type="button"
                       onClick={() => navigateSession('prev')}
                       disabled={sessionIndex <= 0}
-                      className="rounded-lg p-1.5 text-[var(--color-text)] transition hover:bg-[var(--color-bg)] disabled:opacity-30"
+                      className="rounded-lg p-1.5 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-[var(--color-text)] transition hover:bg-[var(--color-bg)] disabled:opacity-30"
+                      aria-label="Previous photo"
                       title="Previous photo"
                     >
-                      <ChevronLeft size={15} />
+                      <ChevronLeft size={16} />
                     </button>
                     <span className="text-[10px] font-bold text-[var(--color-text)]/70 tabular-nums min-w-[2rem] text-center">
                       {sessionIndex + 1}/{sessionQueue.length}
@@ -2164,10 +2270,11 @@ Direction from user: ${prompt}`;
                       type="button"
                       onClick={() => navigateSession('next')}
                       disabled={sessionIndex >= sessionQueue.length - 1}
-                      className="rounded-lg p-1.5 text-[var(--color-text)] transition hover:bg-[var(--color-bg)] disabled:opacity-30"
+                      className="rounded-lg p-1.5 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-[var(--color-text)] transition hover:bg-[var(--color-bg)] disabled:opacity-30"
+                      aria-label="Next photo"
                       title="Next photo"
                     >
-                      <ChevronRight size={15} />
+                      <ChevronRight size={16} />
                     </button>
                   </div>
                 </>
@@ -2186,7 +2293,7 @@ Direction from user: ${prompt}`;
                     onClick={() => setShowExportModal(true)}
                     className="cta-secondary rounded-lg px-3 py-1.5 text-xs font-medium inline-flex items-center gap-1.5"
                   >
-                    <Download size={13} />
+                    <Download size={14} />
                     <span className="hidden sm:inline">Export</span>
                   </button>
                 </Tip>
@@ -2196,12 +2303,16 @@ Direction from user: ${prompt}`;
                     onClick={handleSaveStage}
                     className="cta-secondary rounded-lg px-3 py-1.5 text-xs font-medium inline-flex items-center gap-1.5"
                   >
-                    <Heart size={13} className={savedStages.some(s => s.generatedImage === generatedImage) ? 'fill-[var(--color-primary)] text-[var(--color-primary)]' : ''} />
+                    {savedStages.some(s => s.generatedImage === generatedImage) ? (
+                      <Bookmark size={14} className="fill-[var(--color-primary)] text-[var(--color-primary)]" />
+                    ) : (
+                      <BookmarkPlus size={14} />
+                    )}
                     <span className="hidden sm:inline">Save</span>
                   </button>
                 </Tip>
                 <label className="cta-secondary rounded-lg px-3 py-1.5 text-xs font-medium inline-flex items-center gap-1.5 cursor-pointer">
-                  <Plus size={13} />
+                  <Plus size={14} />
                   <span className="hidden sm:inline">Add</span>
                   <input
                     type="file"
@@ -2232,44 +2343,35 @@ Direction from user: ${prompt}`;
               </button>
             ) : (
               <span className="rounded-lg px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-widest inline-flex items-center gap-1.5 bg-[rgba(10,132,255,0.15)] text-[var(--color-primary)] border border-[rgba(10,132,255,0.3)]">
-                <Crown size={11} />
+                <Crown size={12} />
                 Pro
               </span>
             )}
             <div className="h-5 w-px bg-[var(--color-border)] mx-0.5" />
             <button
               type="button"
-              onClick={() => {
-                if (sessionQueue.length > 1) {
-                  removeFromSession(sessionIndex);
-                } else {
-                  setOriginalImage(null);
-                  setGeneratedImage(null);
-                  setSessionQueue([]);
-                  setSessionIndex(-1);
-                }
-                setStageMode('text');
-                setShowFeedbackCheckpoint(false);
-                setGenerationsSinceFeedback(0);
-              }}
+              onClick={handleRefresh}
               className="rounded-lg p-1.5 text-[var(--color-text)] hover:bg-[var(--color-bg)] transition"
               title={sessionQueue.length > 1 ? "Remove this photo" : "Start over"}
+              aria-label={sessionQueue.length > 1 ? "Remove this photo" : "Start over"}
             >
-              <RefreshCcw size={15} />
+              <RefreshCcw size={16} />
             </button>
             <button
               type="button"
               onClick={() => setShowTutorial(true)}
               className="rounded-lg p-1.5 text-[var(--color-text)] hover:bg-[var(--color-bg)] transition"
               title="Quick start guide"
+              aria-label="Open quick start guide"
             >
-              <HelpCircle size={15} />
+              <HelpCircle size={16} />
             </button>
             <button
               type="button"
               onClick={() => setShowAccessPanel(true)}
               className="rounded-full overflow-hidden h-8 w-8 ring-2 ring-[var(--color-border)] hover:ring-[var(--color-primary)] transition-all"
               title={googleUser.name}
+              aria-label="Open account panel"
             >
               <img
                 src={googleUser.picture}
@@ -2292,7 +2394,7 @@ Direction from user: ${prompt}`;
               </button>
             ) : (
               <span className="rounded-lg px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-widest inline-flex items-center gap-1.5 bg-[rgba(10,132,255,0.15)] text-[var(--color-primary)] border border-[rgba(10,132,255,0.3)]">
-                <Crown size={11} />
+                <Crown size={12} />
                 Pro
               </span>
             )}
@@ -2301,6 +2403,7 @@ Direction from user: ${prompt}`;
               onClick={() => setShowAccessPanel(true)}
               className="rounded-full overflow-hidden h-8 w-8 ring-2 ring-[var(--color-border)] hover:ring-[var(--color-primary)] transition-all"
               title={googleUser.name}
+              aria-label="Open account panel"
             >
               <img
                 src={googleUser.picture}
@@ -2443,8 +2546,10 @@ Direction from user: ${prompt}`;
                     showToast(item.icon, item.label);
                   }}
                   className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all ${
-                    active ? 'text-[var(--color-primary)]' : 'text-[var(--color-text)]/50'
+                    active ? 'text-[var(--color-primary)]' : 'text-[var(--color-text)]'
                   }`}
+                  aria-label={item.label}
+                  aria-current={active ? 'page' : undefined}
                 >
                   <div className="w-5 h-5 flex items-center justify-center">{React.cloneElement(item.icon as React.ReactElement, { size: 18 })}</div>
                   <span className="text-[9px] font-bold uppercase tracking-wider">{item.label}</span>
@@ -2456,11 +2561,11 @@ Direction from user: ${prompt}`;
           <main className="order-1 lg:order-2 flex-1 min-h-0 overflow-y-auto overscroll-contain editor-canvas-bg p-1.5 sm:p-5 lg:p-6 pb-24 lg:pb-6 relative z-10">
             <div className="mx-auto w-full max-w-6xl space-y-4">
               <div className="canvas-frame p-0.5 sm:p-2 rounded-xl sm:rounded-2xl glass-overlay border border-[var(--color-border-strong)] shadow-2xl">
-                <div className="relative overflow-hidden rounded-[10px] sm:rounded-[14px] bg-black aspect-[4/3] sm:aspect-video border border-[var(--color-border-strong)]">
+                <div className="relative overflow-hidden rounded-[10px] sm:rounded-[14px] bg-black aspect-[4/3] border border-[var(--color-border-strong)]">
                   {/* EditingBadge rendered inline next to the room picker below (see left-2.5 top-2.5 flex row)
                       so the two don't stack or have overlapping dropdowns. */}
                   {isGenerating && (
-                    <div className="absolute inset-0 z-10 bg-black/70 backdrop-blur-sm pointer-events-none flex flex-col items-center justify-center">
+                    <div role="status" aria-live="polite" aria-label="Generating design" className="absolute inset-0 z-10 bg-black/70 backdrop-blur-sm pointer-events-none flex flex-col items-center justify-center">
                       
                       <div className="text-center space-y-4 w-full max-w-md px-6">
                         <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full border border-[var(--color-primary-dark)] bg-black shadow-lg">
@@ -2522,7 +2627,7 @@ Direction from user: ${prompt}`;
                     >
                       {detectedRoom ? (
                         <>
-                          <BrainCircuit size={13} className="text-[var(--color-primary)]" />
+                          <BrainCircuit size={14} className="text-[var(--color-primary)]" />
                           <span>{selectedRoom}</span>
                           <ChevronDown size={12} className={`transition-transform ${showRoomPicker ? 'rotate-180' : ''}`} />
                         </>
@@ -2616,7 +2721,7 @@ Direction from user: ${prompt}`;
                           onClick={() => { setGeneratedImage(state.generatedImage); setSelectedRoom(state.selectedRoom); setColors(state.colors); }}
                           className="group relative rounded-lg overflow-hidden border border-[var(--color-border)] aspect-[4/3] hover:ring-2 hover:ring-[var(--color-primary)] transition-all"
                         >
-                          <img src={state.generatedImage!} alt={`Render ${i + 1}`} className="w-full h-full object-cover" />
+                          <img src={state.generatedImage!} alt={`Render ${i + 1}`} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-end p-1.5">
                             <span className="opacity-0 group-hover:opacity-100 text-white text-[10px] font-medium bg-black/60 rounded-md px-2 py-0.5 transition-all">
                               #{i + 1}
@@ -2628,12 +2733,12 @@ Direction from user: ${prompt}`;
                   )
                 ) : (
                   savedStages.length === 0 ? (
-                    <p className="text-sm text-[var(--color-text)] py-8 text-center">No saved stages. Use <Heart size={13} className="inline-block mx-0.5 mb-0.5" /> to save designs.</p>
+                    <p className="text-sm text-[var(--color-text)] py-8 text-center">No saved stages. Use <BookmarkPlus size={14} className="inline-block mx-0.5 mb-0.5" /> to save designs.</p>
                   ) : (
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       {savedStages.map((stage) => (
                         <div key={stage.id} className="group relative rounded-lg overflow-hidden border border-[var(--color-border)] aspect-[4/3] hover:ring-2 hover:ring-[var(--color-primary)] transition-all">
-                          <img src={stage.generatedImage} alt={stage.name} className="w-full h-full object-cover" />
+                          <img src={stage.generatedImage} alt={stage.name} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex flex-col justify-end p-1.5 opacity-0 group-hover:opacity-100">
                             <button
                               onClick={() => { setGeneratedImage(stage.generatedImage); setOriginalImage(stage.originalImage); }}
@@ -2643,9 +2748,30 @@ Direction from user: ${prompt}`;
                             </button>
                             <button
                               onClick={() => {
+                                // F7: snapshot for undo
+                                const deletedStage = stage;
+                                const prior = savedStages;
                                 const updated = savedStages.filter(s => s.id !== stage.id);
                                 setSavedStages(updated);
                                 localStorage.setItem('realestate_ai_stages', JSON.stringify(updated));
+                                showToast(
+                                  <Trash2 size={14} className="text-[#FF375F]" />,
+                                  'Saved stage deleted',
+                                  {
+                                    durationMs: 6000,
+                                    action: {
+                                      label: 'Undo',
+                                      onClick: () => {
+                                        setSavedStages(prior);
+                                        try {
+                                          localStorage.setItem('realestate_ai_stages', JSON.stringify(prior));
+                                        } catch { /* restore best-effort */ }
+                                      },
+                                    },
+                                  }
+                                );
+                                // Silence unused warning
+                                void deletedStage;
                               }}
                               className="bg-black/50 text-white rounded-md py-1 text-[10px] font-medium w-full hover:bg-red-500/80 transition-colors"
                             >
@@ -2834,10 +2960,22 @@ Direction from user: ${prompt}`;
 
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="toast-container">
-          <div className="toast-notification animate-toast">
+        <div className="toast-container" role="status" aria-live="polite">
+          <div className={`toast-notification ${toastMessage.action ? 'animate-toast-long' : 'animate-toast'}`}>
             <span className="toast-icon">{toastMessage.icon}</span>
             <span className="toast-label">{toastMessage.label}</span>
+            {toastMessage.action && (
+              <button
+                type="button"
+                onClick={() => {
+                  toastMessage.action?.onClick();
+                  dismissToast();
+                }}
+                className="toast-action"
+              >
+                {toastMessage.action.label}
+              </button>
+            )}
           </div>
         </div>
       )}

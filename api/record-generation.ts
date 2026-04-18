@@ -3,10 +3,66 @@ import { json, setCors, handleOptions, rejectMethod, parseBody } from './utils.j
 export const config = { runtime: 'nodejs' };
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
+const SUPABASE_URL = process.env.SUPABASE_URL || '';
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
 
-function getCurrentPeriod(): string {
+const FREE_LIFETIME_CAP = 5;
+
+function getCurrentDay(): string {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+function getCurrentMonth(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+}
+
+/**
+ * Increment lifetime free-gens counter in Supabase for a given email.
+ * Returns the new lifetime count. Idempotent via RPC if present, else upserts.
+ */
+async function bumpLifetimeFreeGens(email: string): Promise<number> {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) return 0;
+  try {
+    // Prefer RPC if schema includes it (created in migration).
+    const rpc = await fetch(`${SUPABASE_URL}/rest/v1/rpc/bump_lifetime_free_gens`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ user_email: email.toLowerCase() }),
+    });
+    if (rpc.ok) {
+      const out = await rpc.json();
+      if (typeof out === 'number') return out;
+      if (out && typeof out.lifetime_free_gens_used === 'number') return out.lifetime_free_gens_used;
+    }
+    // Fallback: read-then-write (non-atomic, acceptable for free-tier bookkeeping).
+    const readRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/users?email=eq.${encodeURIComponent(email.toLowerCase())}&select=lifetime_free_gens_used`,
+      { headers: { 'apikey': SUPABASE_SERVICE_KEY, 'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}` } }
+    ).then(r => r.json());
+    const current = (readRes && readRes[0]?.lifetime_free_gens_used) || 0;
+    const next = current + 1;
+    await fetch(
+      `${SUPABASE_URL}/rest/v1/users?email=eq.${encodeURIComponent(email.toLowerCase())}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'apikey': SUPABASE_SERVICE_KEY,
+          'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal',
+        },
+        body: JSON.stringify({ lifetime_free_gens_used: next }),
+      }
+    );
+    return next;
+  } catch {
+    return 0;
+  }
 }
 
 export default async function handler(req: any, res: any) {
@@ -27,67 +83,112 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
-    // Find or create the Stripe customer
     const searchRes = await fetch(
       `https://api.stripe.com/v1/customers/search?query=email:'${encodeURIComponent(email)}'`,
       { headers: { Authorization: `Basic ${btoa(STRIPE_SECRET_KEY + ':')}` } }
     ).then(r => r.json());
 
     let customerId: string;
+    let customer: any = null;
 
     if (searchRes.data && searchRes.data.length > 0) {
-      customerId = searchRes.data[0].id;
+      customer = searchRes.data[0];
+      customerId = customer.id;
     } else {
       // Create customer so we can track generations
-      const createRes = await fetch('https://api.stripe.com/v1/customers', {
+      const created = await fetch('https://api.stripe.com/v1/customers', {
         method: 'POST',
         headers: {
           Authorization: `Basic ${btoa(STRIPE_SECRET_KEY + ':')}`,
           'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: `email=${encodeURIComponent(email)}&metadata[generation_period]=${getCurrentPeriod()}&metadata[generations_used]=1`,
+        body: `email=${encodeURIComponent(email)}&metadata[generation_period]=${getCurrentDay()}&metadata[generations_used]=1`,
       }).then(r => r.json());
+      customerId = created.id;
 
-      json(res, 200, { ok: true, generationsUsed: 1, period: getCurrentPeriod() });
+      // First-ever gen for this email — lifetime counter goes to 1.
+      const lifetime = await bumpLifetimeFreeGens(email);
+      json(res, 200, {
+        ok: true,
+        generationsUsed: 1,
+        period: getCurrentDay(),
+        lifetimeFreeGensUsed: lifetime,
+      });
       return;
     }
 
-    // Check if subscribed (unlimited generations)
+    // Check for active subscription + plan
     const subs = await fetch(
       `https://api.stripe.com/v1/subscriptions?customer=${customerId}&status=active&limit=1`,
       { headers: { Authorization: `Basic ${btoa(STRIPE_SECRET_KEY + ':')}` } }
     ).then(r => r.json());
 
-    if (subs.data && subs.data.length > 0) {
-      // Pro user — no limit, just ack
-      json(res, 200, { ok: true, generationsUsed: -1, period: getCurrentPeriod() });
+    const sub = subs.data && subs.data[0];
+    const plan = sub?.metadata?.studioai_plan || sub?.items?.data?.[0]?.price?.metadata?.studioai_plan || (sub ? 'pro' : null);
+
+    // Pro / Team: unlimited — just acknowledge.
+    if (plan === 'pro' || plan === 'team') {
+      json(res, 200, { ok: true, generationsUsed: -1, period: getCurrentDay() });
       return;
     }
 
-    // Free user — increment server-side counter in customer metadata
-    const customer = searchRes.data[0];
-    const storedPeriod = customer.metadata?.generation_period || '';
-    const currentPeriod = getCurrentPeriod();
-    let currentCount = parseInt(customer.metadata?.generations_used || '0', 10);
-
-    // Reset counter if we're in a new billing period
-    if (storedPeriod !== currentPeriod) {
-      currentCount = 0;
+    // Starter: monthly-metered cap (40/mo).
+    if (plan === 'starter') {
+      const storedPeriod = customer.metadata?.generation_period || '';
+      const currentMonth = getCurrentMonth();
+      let currentCount = parseInt(customer.metadata?.generations_used || '0', 10);
+      if (storedPeriod !== currentMonth) currentCount = 0;
+      const newCount = currentCount + 1;
+      await fetch(`https://api.stripe.com/v1/customers/${customerId}`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Basic ${btoa(STRIPE_SECRET_KEY + ':')}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `metadata[generations_used]=${newCount}&metadata[generation_period]=${currentMonth}`,
+      });
+      json(res, 200, { ok: true, generationsUsed: newCount, period: currentMonth, plan });
+      return;
     }
 
+    // Free tier — Fork #3: 5 lifetime, then 1/day.
+    // Bump lifetime counter first.
+    const lifetime = await bumpLifetimeFreeGens(email);
+
+    // If still within the lifetime allowance, we don't also count it against
+    // the daily window (lifetime phase takes precedence).
+    if (lifetime <= FREE_LIFETIME_CAP) {
+      json(res, 200, {
+        ok: true,
+        generationsUsed: lifetime,
+        period: getCurrentDay(),
+        lifetimeFreeGensUsed: lifetime,
+      });
+      return;
+    }
+
+    // Post-lifetime: track 1/day in Stripe customer metadata.
+    const storedPeriod = customer.metadata?.generation_period || '';
+    const currentDay = getCurrentDay();
+    let currentCount = parseInt(customer.metadata?.generations_used || '0', 10);
+    if (storedPeriod !== currentDay) currentCount = 0;
     const newCount = currentCount + 1;
 
-    // Update customer metadata
     await fetch(`https://api.stripe.com/v1/customers/${customerId}`, {
       method: 'POST',
       headers: {
         Authorization: `Basic ${btoa(STRIPE_SECRET_KEY + ':')}`,
         'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: `metadata[generations_used]=${newCount}&metadata[generation_period]=${currentPeriod}`,
+      body: `metadata[generations_used]=${newCount}&metadata[generation_period]=${currentDay}`,
     });
 
-    json(res, 200, { ok: true, generationsUsed: newCount, period: currentPeriod });
+    json(res, 200, {
+      ok: true,
+      generationsUsed: newCount,
+      period: currentDay,
+      lifetimeFreeGensUsed: lifetime,
+    });
   } catch (err: any) {
     console.error('Record generation error:', err);
     json(res, 500, { ok: false, error: err.message || 'Internal error' });

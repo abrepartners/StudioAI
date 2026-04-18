@@ -1,19 +1,41 @@
 import { useState, useEffect, useCallback } from 'react';
 
+export type PlanId = 'free' | 'starter' | 'pro' | 'team' | 'credits';
+
 export interface SubscriptionState {
   loading: boolean;
-  plan: 'free' | 'pro' | 'credits';
+  plan: PlanId;
   subscribed: boolean;
+  /** Usage in the active counting window (daily for free, monthly for starter, n/a for pro/team). */
   generationsUsed: number;
+  /** -1 = unlimited. Starter = 40. Free-daily = 1. Free-lifetime = 5 (until exhausted, then switches). */
   generationsLimit: number;
   canGenerate: boolean;
   credits: number;
+  /** Free-tier phase tracker (Fork #3). */
+  lifetimeFreeGensUsed: number;
+  lifetimeFreeGensCap: number;
+  /** Next monthly/daily reset (unix seconds). 0 = unlimited/no reset. */
+  generationsResetAt: number;
+  /** Paused subscription metadata (R18). */
+  pausedUntil?: number;
   customerId?: string;
   subscriptionId?: string;
   currentPeriodEnd?: number;
+  /** Billing interval if subscribed. */
+  interval?: 'month' | 'year';
+  /** Seats on Team plan. */
+  seats?: number;
 }
 
 const ADMIN_DOMAINS = ['averyandbryant.com'];
+
+// Fork #3 free tier: 5 lifetime generations, then 1/day after.
+const FREE_LIFETIME_CAP = 5;
+const FREE_DAILY_LIMIT_AFTER_LIFETIME = 1;
+
+// R13 Starter metered monthly cap.
+const STARTER_MONTHLY_LIMIT = 40;
 
 const isAdminEmail = (email: string) =>
   ADMIN_DOMAINS.some(domain => email.toLowerCase().endsWith(`@${domain}`));
@@ -21,7 +43,10 @@ const isAdminEmail = (email: string) =>
 export function useSubscription(userEmail: string | null) {
   const [state, setState] = useState<SubscriptionState>({
     loading: true, plan: 'free', subscribed: false,
-    generationsUsed: 0, generationsLimit: 3, canGenerate: true, credits: 0,
+    generationsUsed: 0, generationsLimit: FREE_LIFETIME_CAP,
+    canGenerate: true, credits: 0,
+    lifetimeFreeGensUsed: 0, lifetimeFreeGensCap: FREE_LIFETIME_CAP,
+    generationsResetAt: 0,
   });
 
   const checkStatus = useCallback(async () => {
@@ -32,6 +57,8 @@ export function useSubscription(userEmail: string | null) {
       setState({
         loading: false, plan: 'pro', subscribed: true,
         generationsUsed: 0, generationsLimit: -1, canGenerate: true, credits: 0,
+        lifetimeFreeGensUsed: 0, lifetimeFreeGensCap: FREE_LIFETIME_CAP,
+        generationsResetAt: 0,
       });
       return;
     }
@@ -40,17 +67,60 @@ export function useSubscription(userEmail: string | null) {
       const res = await fetch(`/api/stripe-status?email=${encodeURIComponent(userEmail)}`);
       const data = await res.json();
       if (data.ok) {
-        const genCount = data.generationsUsed ?? 0;
-        const limit = data.generationsLimit ?? 3;
+        const plan: PlanId = data.plan || 'free';
         const credits = data.credits ?? 0;
-        const plan = data.plan || 'free';
+        const lifetimeFreeGensUsed = data.lifetimeFreeGensUsed ?? data.generationsUsed ?? 0;
+        const lifetimeFreeGensCap  = data.lifetimeFreeGensCap  ?? FREE_LIFETIME_CAP;
+
+        // Compute effective limit per Fork #3 — 5 lifetime first, then 1/day.
+        let generationsLimit: number;
+        let generationsUsed: number;
+
+        if (plan === 'pro' || plan === 'team') {
+          generationsLimit = -1; // unlimited
+          generationsUsed  = 0;
+        } else if (plan === 'starter') {
+          generationsLimit = data.generationsLimit ?? STARTER_MONTHLY_LIMIT;
+          generationsUsed  = data.generationsUsed ?? 0;
+        } else if (plan === 'credits') {
+          // Credit-only users: limit == credits remaining, used tracked externally.
+          generationsLimit = credits;
+          generationsUsed  = 0;
+        } else {
+          // Free tier — two-phase per Fork #3.
+          if (lifetimeFreeGensUsed < lifetimeFreeGensCap) {
+            generationsLimit = lifetimeFreeGensCap;
+            generationsUsed  = lifetimeFreeGensUsed;
+          } else {
+            // Exhausted lifetime — switch to 1/day window.
+            generationsLimit = FREE_DAILY_LIMIT_AFTER_LIFETIME;
+            generationsUsed  = data.generationsUsed ?? 0;
+          }
+        }
+
+        const canGenerate =
+          plan === 'pro' || plan === 'team' ||
+          generationsLimit === -1 ||
+          generationsUsed < generationsLimit ||
+          credits > 0;
+
         setState({
-          loading: false, plan, subscribed: data.subscribed || false,
-          generationsUsed: genCount, generationsLimit: limit,
-          canGenerate: plan === 'pro' || limit === -1 || genCount < limit || credits > 0,
+          loading: false,
+          plan,
+          subscribed: data.subscribed || false,
+          generationsUsed,
+          generationsLimit,
+          canGenerate,
           credits,
-          customerId: data.customerId, subscriptionId: data.subscriptionId,
+          lifetimeFreeGensUsed,
+          lifetimeFreeGensCap,
+          generationsResetAt: data.generationsResetAt ?? 0,
+          pausedUntil: data.pausedUntil,
+          customerId: data.customerId,
+          subscriptionId: data.subscriptionId,
           currentPeriodEnd: data.currentPeriodEnd,
+          interval: data.interval,
+          seats: data.seats,
         });
       } else { setState(prev => ({ ...prev, loading: false })); }
     } catch { setState(prev => ({ ...prev, loading: false })); }
@@ -79,9 +149,15 @@ export function useSubscription(userEmail: string | null) {
     // Optimistic update
     setState(prev => {
       const newCount = prev.generationsUsed + 1;
+      const newLifetimeUsed = prev.plan === 'free'
+        ? Math.min(prev.lifetimeFreeGensCap, prev.lifetimeFreeGensUsed + 1)
+        : prev.lifetimeFreeGensUsed;
       return {
-        ...prev, generationsUsed: newCount,
-        canGenerate: prev.generationsLimit === -1 || newCount < prev.generationsLimit,
+        ...prev,
+        generationsUsed: newCount,
+        lifetimeFreeGensUsed: newLifetimeUsed,
+        canGenerate: prev.plan === 'pro' || prev.plan === 'team' ||
+          prev.generationsLimit === -1 || newCount < prev.generationsLimit,
       };
     });
 
@@ -97,7 +173,9 @@ export function useSubscription(userEmail: string | null) {
         setState(prev => ({
           ...prev,
           generationsUsed: data.generationsUsed,
-          canGenerate: prev.generationsLimit === -1 || data.generationsUsed < prev.generationsLimit,
+          lifetimeFreeGensUsed: data.lifetimeFreeGensUsed ?? prev.lifetimeFreeGensUsed,
+          canGenerate: prev.plan === 'pro' || prev.plan === 'team' ||
+            prev.generationsLimit === -1 || data.generationsUsed < prev.generationsLimit,
         }));
       }
     } catch {
@@ -105,12 +183,23 @@ export function useSubscription(userEmail: string | null) {
     }
   }, [userEmail]);
 
-  const startCheckout = useCallback(async (userId: string) => {
+  const startCheckout = useCallback(async (
+    userId: string,
+    opts?: { plan?: 'starter' | 'pro' | 'team'; interval?: 'month' | 'year'; seats?: number },
+  ) => {
     if (!userEmail) return;
     try {
       const res = await fetch('/api/stripe-checkout', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'subscribe', email: userEmail, userId, plan: 'pro', returnUrl: window.location.origin }),
+        body: JSON.stringify({
+          action: 'subscribe',
+          email: userEmail,
+          userId,
+          plan: opts?.plan || 'pro',
+          interval: opts?.interval || 'month',
+          seats: opts?.seats || 1,
+          returnUrl: window.location.origin,
+        }),
       });
       const data = await res.json();
       if (data.already_subscribed) { checkStatus(); return; }
@@ -142,6 +231,32 @@ export function useSubscription(userEmail: string | null) {
     } catch (err) { console.error('Credit checkout error:', err); }
   }, [userEmail]);
 
+  const pauseSubscription = useCallback(async (days: 30 | 60 | 90) => {
+    if (!userEmail) return { ok: false };
+    try {
+      const res = await fetch('/api/stripe-checkout', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'pause_subscription', email: userEmail, days }),
+      });
+      const data = await res.json();
+      if (data.ok) setTimeout(() => checkStatus(), 800);
+      return data;
+    } catch (err) { console.error('Pause error:', err); return { ok: false }; }
+  }, [userEmail, checkStatus]);
+
+  const resumeSubscription = useCallback(async () => {
+    if (!userEmail) return { ok: false };
+    try {
+      const res = await fetch('/api/stripe-checkout', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'resume_subscription', email: userEmail }),
+      });
+      const data = await res.json();
+      if (data.ok) setTimeout(() => checkStatus(), 800);
+      return data;
+    } catch (err) { console.error('Resume error:', err); return { ok: false }; }
+  }, [userEmail, checkStatus]);
+
   // Fulfill credits after successful purchase (check URL params)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -155,5 +270,14 @@ export function useSubscription(userEmail: string | null) {
     }
   }, [checkStatus]);
 
-  return { ...state, recordGeneration, startCheckout, openPortal, buyCredits, refresh: checkStatus };
+  return {
+    ...state,
+    recordGeneration,
+    startCheckout,
+    openPortal,
+    buyCredits,
+    pauseSubscription,
+    resumeSubscription,
+    refresh: checkStatus,
+  };
 }

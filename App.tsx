@@ -776,7 +776,16 @@ const App: React.FC = () => {
     if (!originalImage) return;
 
     if (!subscription.canGenerate) {
-      setShowUpgradeModal(true);
+      // R7: show a named-value toast before the upgrade modal, so the user
+      // understands what hit them (free cap) and what the two next moves are.
+      showToast(
+        <Crown size={14} className="text-[#FFD60A]" />,
+        "You've staged 3 rooms today. That's the free cap.",
+        {
+          durationMs: 6000,
+          action: { label: 'Upgrade', onClick: () => setShowUpgradeModal(true) },
+        },
+      );
       return;
     }
 
@@ -1005,20 +1014,38 @@ Direction from user: ${prompt}`;
 
       subscription.recordGeneration();
     } catch (error: any) {
+      // R11: actionable error toasts — probable cause, next step, inline Retry.
+      // Retry re-runs handleGenerate with the exact prompt + opts that failed.
+      const retryAction = {
+        label: 'Retry',
+        onClick: () => { void handleGenerate(prompt, opts); },
+      };
       if (error.message === 'ABORTED' || error.name === 'AbortError' || abortController.signal.aborted) {
         // F9: user-initiated cancel. Show a muted confirmation, don't log an error.
         showToast(<X size={14} className="text-[var(--color-text)]" />, 'Generation cancelled');
       } else if (error.message?.includes('timed out')) {
-        showToast(<X size={14} className="text-[#FF375F]" />, 'Generation timed out — try again');
+        showToast(
+          <X size={14} className="text-[#FF375F]" />,
+          "This room's taking longer than usual — usually a busy-scene problem. Try cropping tighter, then retry.",
+          { durationMs: 6000, action: retryAction },
+        );
       } else if (
         error.message === 'API_KEY_REQUIRED' ||
         error.message?.includes('Requested entity was not found') ||
         error.message?.toLowerCase().includes('api key') ||
         error.message?.includes('API_KEY_INVALID')
       ) {
-        showToast(<X size={14} className="text-[#FF375F]" />, 'Service temporarily unavailable');
+        showToast(
+          <X size={14} className="text-[#FF375F]" />,
+          "Staging service is offline right now. We're on it — try again in a minute.",
+          { durationMs: 6000, action: retryAction },
+        );
       } else {
-        showToast(<X size={14} className="text-[#FF375F]" />, 'Generation failed. Try again.');
+        showToast(
+          <X size={14} className="text-[#FF375F]" />,
+          "Staging didn't finish. Usually a connection hiccup — retry should do it.",
+          { durationMs: 6000, action: retryAction },
+        );
       }
       setIsGenerating(false);
       stopGenerationTimer();
@@ -1071,10 +1098,23 @@ Direction from user: ${prompt}`;
       }
     } catch (error: any) {
       console.error('Furniture removal failed:', error);
+      // R11: probable-cause + next-step error copy with inline Retry.
+      const retryAction = {
+        label: 'Retry',
+        onClick: () => { void handleFurnitureRemoval(maskDataUrl, itemDescriptions); },
+      };
       if (error.message?.includes('timed out')) {
-        showToast(<X size={14} className="text-[#FF375F]" />, 'Removal timed out — try again');
+        showToast(
+          <X size={14} className="text-[#FF375F]" />,
+          "Removal is taking longer than usual. Try a smaller mask or retry.",
+          { durationMs: 6000, action: retryAction },
+        );
       } else {
-        showToast(<X size={14} className="text-[#FF375F]" />, 'Removal failed. Try again.');
+        showToast(
+          <X size={14} className="text-[#FF375F]" />,
+          "Removal didn't finish. Usually a connection issue — retry should do it.",
+          { durationMs: 6000, action: retryAction },
+        );
       }
     } finally {
       setIsRemovingFurniture(false);
@@ -2087,9 +2127,12 @@ Direction from user: ${prompt}`;
   return (
     <div className="studio-shell h-[100dvh] overflow-hidden flex flex-col">
 
-      {/* Quick Start Tutorial */}
+      {/* Quick Start Tutorial — R8: fire AFTER the first upload, not first visit.
+          `firstUpload` toggles true once an originalImage exists, which the
+          tutorial guards behind its own storage-key check. */}
       <QuickStartTutorial
         forceShow={showTutorial}
+        firstUpload={Boolean(originalImage)}
         onClose={() => setShowTutorial(false)}
       />
 
@@ -2798,15 +2841,27 @@ Direction from user: ${prompt}`;
                       <div className="text-center space-y-4 w-full max-w-md px-6 pointer-events-none">
                         <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full border border-[var(--color-primary-dark)] bg-black shadow-lg">
                           <BrainCircuit size={18} className="text-[var(--color-primary)] animate-pulse" />
-                          <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-primary)]">Generating Design</span>
+                          <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-primary)]">
+                            {activePanel === 'cleanup' ? 'Cleaning up your room' : 'Staging your room'}
+                          </span>
                           <span className="text-[10px] font-mono text-[var(--color-text)]/50 tabular-nums">
                             {Math.floor(generationElapsed / 60)}:{String(generationElapsed % 60).padStart(2, '0')}
                           </span>
                         </div>
                         <div className="text-center space-y-2 relative h-16 w-full mask-linear-gradient-bottom">
-                          <p className="text-xs text-white/50 typing-effect">Reading the room…</p>
-                          <p className="text-xs text-white/70 typing-effect" style={{animationDelay: '0.8s'}}>Placing furniture…</p>
-                          <p className="text-xs font-medium text-white typing-effect" style={{animationDelay: '1.6s'}}>Polishing the final render</p>
+                          {activePanel === 'cleanup' ? (
+                            <>
+                              <p className="text-xs text-white/50 typing-effect">Reading what to remove…</p>
+                              <p className="text-xs text-white/70 typing-effect" style={{animationDelay: '0.8s'}}>Rebuilding the surface behind it…</p>
+                              <p className="text-xs font-medium text-white typing-effect" style={{animationDelay: '1.6s'}}>Matching your lighting</p>
+                            </>
+                          ) : (
+                            <>
+                              <p className="text-xs text-white/50 typing-effect">Measuring the room…</p>
+                              <p className="text-xs text-white/70 typing-effect" style={{animationDelay: '0.8s'}}>Placing furniture that fits…</p>
+                              <p className="text-xs font-medium text-white typing-effect" style={{animationDelay: '1.6s'}}>Matching your lighting</p>
+                            </>
+                          )}
                         </div>
                       </div>
                       {/* F9: Cancel button — sits OUTSIDE the pointer-events-none wrapper */}

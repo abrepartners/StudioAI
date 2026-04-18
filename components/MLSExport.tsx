@@ -127,7 +127,7 @@ const MLSExport: React.FC<MLSExportProps> = ({ images, mode = 'batch' }) => {
   }, [images, selectedImages, selectedPreset, getWatermarkConfig]);
 
   return (
-    <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-5 space-y-5">
+    <div className="premium-surface rounded-2xl p-5 space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -139,7 +139,7 @@ const MLSExport: React.FC<MLSExportProps> = ({ images, mode = 'batch' }) => {
             Resize, clean metadata, and download MLS-ready files
           </p>
         </div>
-        <span className="text-xs text-zinc-500 bg-zinc-800 px-2 py-1 rounded-lg">
+        <span className="text-xs text-zinc-500 premium-surface-strong px-2 py-1 rounded-lg">
           {selectedImages.size} of {images.length} selected
         </span>
       </div>

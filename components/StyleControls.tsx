@@ -132,7 +132,16 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
     if (stageMode === 'packs') {
       if (!selectedPreset) return;
       const details = PACK_DETAILS[selectedPreset] || '';
-      prompt = `Virtually stage this ${selectedRoom} in ${selectedPreset} style. Add only furniture and decor — keep the architectural shell untouched. Style DNA: ${details}.`;
+      prompt = `Virtually stage this ${selectedRoom} in ${selectedPreset} style. Add only furniture and decor. Style DNA: ${details}.
+
+HARD PRESERVATION RULES — these override any instinct to "improve" the room:
+- DO NOT modify, replace, or restyle any cabinets, vanities, built-ins, or millwork. Existing cabinet color, wood tone, and door style stay identical.
+- DO NOT modify any appliances (refrigerator, range, dishwasher, washer, dryer, microwave, hood). If an appliance is present in the photo, it stays pixel-identical in the output.
+- DO NOT change plumbing fixtures (toilets, sinks, tubs, showers, faucets). Bathrooms keep their existing fixtures — add only accessories (towels, soap, decor).
+- DO NOT modify windows, doors, door trim, baseboards, crown molding, flooring, floor color, wall color, or ceiling.
+- DO NOT change the camera framing, crop, angle, or field of view. Room dimensions stay the same.
+- If the room is narrow, awkward, or small, stage within its actual footprint — do NOT extend walls or rearrange architecture to accommodate new furniture.
+- Stage based on what the image actually shows, not what the room label suggests.`;
     }
 
     if (hasMask) {

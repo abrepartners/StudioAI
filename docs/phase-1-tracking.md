@@ -62,9 +62,9 @@ Live status board for Phase 1 execution (F1-F28). Each cluster lead updates thei
 
 | # | Title | Status | Notes |
 |---|---|---|---|
-| F16 | Mobile: auto-close sheet on Generate | in-progress | reopens on completion |
-| F17 | Mobile: header overflow menu | in-progress | move Undo/Redo/Refresh/Help into "…" |
-| F18 | Mobile: 44px touch targets | in-progress | top bar, mask brush, session nav |
+| F16 | Mobile: auto-close sheet on Generate | done | `handleGenerate` snapshots `sheetOpen` + checks `matchMedia('(max-width: 1023px)')`; closes on entry, reopens in `finally`. Skips if user was on desktop or had sheet already closed. |
+| F17 | Mobile: header overflow menu | done | Undo / Redo / Refresh / Help collapsed into a "…" `MoreHorizontal` menu at `<sm`. Desktop (`sm+`) still shows Refresh + Help inline; Undo/Redo stay in their own sm+ group. New state `showOverflowMenu` + outside-click / Escape close. `role=menu` + `aria-expanded` + `aria-haspopup`. |
+| F18 | Mobile: 44px touch targets | done | `min-h-[44px] min-w-[44px]` on Undo/Redo, session prev/next, overflow trigger, Refresh, Help, and account avatar (now `h-11 w-11`). MaskCanvas brush dots bumped `h-7 w-7 → h-11 w-11`, its Undo/Redo/Clear buttons bumped to 44×44. EditingBadge has `min-h-[44px]`. Verified live at 500px viewport: overflow 44×44, all 4 menu items 44×44. |
 
 ---
 
@@ -97,12 +97,22 @@ _Cross-cluster dependencies discovered during execution. Tag with `@agent-x` whe
 - **Guidance for sibling clusters:** no new hardcoded `#FF375F` / `#30D158` / `#FFD60A`. Use `var(--color-error|success|warning)` inline, or (pending F3) use the raw hex and note it for post-F3 cleanup.
 - **Next session recipe:** `npm i -D tailwindcss@3 postcss autoprefixer` → `npx tailwindcss init -p` → content globs `["./index.html", "./App.tsx", "./components/**/*.{ts,tsx}", "./api/**/*.{ts,tsx}"]` → add `@tailwind base/components/utilities` at top of `index.css` → drop CDN script from `index.html` → `npm run build` → Playwright spot-check before push.
 
-### 2026-04-18 — @agent-a / @agent-d overlap on App.tsx top-bar buttons
+### 2026-04-18 — @agent-a / @agent-d overlap on App.tsx top-bar buttons (resolved)
 
-- @agent-d is adding `min-h-[44px] min-w-[44px]` (F18) to the same top-bar icon buttons that @agent-a touched for F27 (Heart → BookmarkPlus swap), F20 (canvas aspect ratio), F11 (icon size collapse 15→16 / 13→14), and F5 (lazy-loaded thumbnails).
-- No conflict on semantics — A's edits are orthogonal (icon swaps + size tweaks), D adds layout classes.
-- D is building on top of A's current working-tree state (uncommitted). Change has been merged-in-place in the same working tree. Result will ship as part of D's commits; A should rebase mentally but does not need to do anything if they commit/push before D.
-- Open item: F21 (aria-label sweep) — D added `aria-label` on Undo and Redo top-bar buttons while implementing F18 to avoid duplicate work. @agent-a: these two are done, please skip them in your F21 pass.
+- @agent-a landed F5/F11/F20/F21/F27/F28 directly to main (commit d8e4061) while @agent-d was in-flight on F18.
+- @agent-d re-based on top. No manual conflict resolution needed — A's edits were icon-size/label/swap, D's are layout (`min-h-[44px] min-w-[44px]`) + structural (`hidden sm:inline-flex` + overflow menu).
+- @agent-d also discovered and fixed a dangling `handleRefresh` call (referenced from A's aria-label pass but never defined). Added a proper `handleRefresh` handler in App.tsx that encapsulates the start-over / remove-from-queue branch.
+- `aria-label` on Undo/Redo/PrevPhoto/NextPhoto/More/Overflow-menu-items added as part of F18 to avoid double-touching the same buttons; these should be skipped in any future F21 sweeps.
+
+### 2026-04-18 — @agent-c / @agent-d overlap on `handleGenerate`
+
+- @agent-c was mid-way through F9 (AbortController + cancel button) when @agent-d started F16. Both touch the same try / finally block in `handleGenerate`.
+- @agent-d interleaved F16 logic (sheet snapshot → close → reopen in finally) ahead of C's abort-controller cleanup. No semantic conflict — both write to `finally`, my block only touches `sheetOpen` state, C's block only touches `generationAbortersRef`.
+- @agent-c: when you commit F9, expect the `finally` block to already have the F16 reopen lines. Merge is additive.
+
+### 2026-04-18 — Pre-existing CSS bug noticed (not mine)
+
+- On `<lg` viewports the mobile sheet is still rendered with Tailwind's `relative` class, which wins over `index.css`'s `@media (max-width: 1023px) { .mobile-control-sheet { position: fixed } }`. Sheet appears inline rather than overlaying the canvas. Fix belongs in F3 (Tailwind-off-CDN) so `.mobile-control-sheet` can be given specificity via `@layer components`. F16 auto-close logic is wired correctly regardless — it toggles the `open` class which gates the `translateY(0%)` transform that will light up once position=fixed is restored.
 
 ### 2026-04-18 — @agent-a wrap-up + open handoffs
 

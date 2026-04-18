@@ -233,7 +233,7 @@ const MaskCanvas: React.FC<MaskCanvasProps> = ({ imageSrc, onMaskChange, isActiv
                   key={size}
                   type="button"
                   onClick={() => setBrushSize(size)}
-                  className={`flex h-7 w-7 items-center justify-center rounded-full transition-all ${
+                  className={`flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full transition-all ${
                     brushSize === size ? 'bg-[var(--color-secondary)] text-[var(--color-ink)]' : 'hover:bg-white/20'
                   }`}
                   aria-label={`Set brush size ${size}`}
@@ -248,7 +248,7 @@ const MaskCanvas: React.FC<MaskCanvasProps> = ({ imageSrc, onMaskChange, isActiv
             type="button"
             onClick={undo}
             disabled={historyIndexRef.current <= 0}
-            className="rounded-full p-2 transition-all hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-35"
+            className="rounded-full p-2 min-h-[44px] min-w-[44px] inline-flex items-center justify-center transition-all hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-35"
             aria-label="Undo mask stroke"
           >
             <Undo2 size={16} />
@@ -257,7 +257,7 @@ const MaskCanvas: React.FC<MaskCanvasProps> = ({ imageSrc, onMaskChange, isActiv
             type="button"
             onClick={redo}
             disabled={historyIndexRef.current >= historyRef.current.length - 1}
-            className="rounded-full p-2 transition-all hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-35"
+            className="rounded-full p-2 min-h-[44px] min-w-[44px] inline-flex items-center justify-center transition-all hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-35"
             aria-label="Redo mask stroke"
           >
             <Redo2 size={16} />
@@ -266,7 +266,7 @@ const MaskCanvas: React.FC<MaskCanvasProps> = ({ imageSrc, onMaskChange, isActiv
           <button
             type="button"
             onClick={clearCanvas}
-            className="rounded-full p-2 transition-all hover:bg-rose-400/30"
+            className="rounded-full p-2 min-h-[44px] min-w-[44px] inline-flex items-center justify-center transition-all hover:bg-rose-400/30"
             aria-label="Clear mask"
           >
             <Trash2 size={16} />

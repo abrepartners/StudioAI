@@ -943,7 +943,18 @@ Direction from user: ${prompt}`;
       // (>95% change → bail to raw, <0.1% → bail) naturally handle full-stage
       // vs surgical-edit cases without us classifying upfront. Packs are
       // excluded because they intentionally repaint the full scene.
-      const shouldComposite = !fromPack && sourceImage;
+      //
+      // ALSO excluded: restage-with-removal prompts ("remove the old furniture
+      // and add X"). These keep cluttered pixels in roughly the same color
+      // so pixelmatch flags them as unchanged, letting the original clutter
+      // ghost through the new furniture. Auto-detected by pairing remove-verbs
+      // with add-verbs; trust Gemini's raw output upscaled instead.
+      const removeAddKeywords = /\b(remove|clear|take out|get rid of|strip|empty|replace|swap).{0,40}\b(add|stage|place|put|new|furnish|include)\b|\b(restage|re-?stage|redecorate|refurnish)\b/i;
+      const isRestageWithRemoval = removeAddKeywords.test(prompt);
+      const shouldComposite = !fromPack && !isRestageWithRemoval && sourceImage;
+      if (isRestageWithRemoval) {
+        console.log('[StudioAI] Restage-with-removal intent — skipping composite to avoid ghosting.');
+      }
       const resultImages = shouldComposite
         ? await Promise.all(
             sharpened.map(img =>

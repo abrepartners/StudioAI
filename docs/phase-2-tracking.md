@@ -49,14 +49,14 @@ Gate: QA harness still passes on all 5 tools after each cluster merge.
 
 | # | Title | Status | Notes |
 |---|---|---|---|
-| F3  | Tailwind off CDN | blocked-retry | needs `npm install`; was blocked prior session |
-| F10 | Type scale collapse | blocked-retry | depends on F3 |
-| F12 | Radius collapse | blocked-retry | depends on F3 |
-| R20 | Router introduction | todo | Fork #4 Option A = `react-router-dom` |
-| R21 | `/settings` route + sub-tabs | todo | XL — brand/team/billing/referral/integrations/account |
-| R22 | Mount ListingDashboard at `/listings` | todo | useListing.ts already exists |
-| R24 | Real marketing URLs | todo | `/pricing`, `/features`, `/faq`, `/gallery` |
-| R25 | `/try` unauth demo | todo | 1 free gen before sign-in gate |
+| F3  | Tailwind off CDN | shipped | tailwind v3.4.19 (v4 rejected — CDN class parity). Configs: `tailwind.config.js` + `postcss.config.js`; `@tailwind` directives in `index.css`; CDN `<script>` removed. Build: 66 kB CSS / 12.8 kB gzip. |
+| F10 | Type scale collapse | partial | Scale added to `tailwind.config.js theme.extend.fontSize` (2xs/xs/sm/base/lg/xl/display). 211 `text-[Npx]` occurrences across 24 files still need sweep — deferred because JIT compiles brackets (no compile failure, just design-polish). |
+| F12 | Radius collapse | partial | Tokens in `tailwind.config.js`; CompareSlider.tsx migrated. App.tsx `rounded-[2rem]`/`[2.5rem]` waiting on Cluster A/D settle. |
+| R20 | Router introduction | shipped | `react-router-dom@^7`; `src/routes/AppRouter.tsx` wraps entry. `/` still mounts existing `<App />` (deliberate — avoid Cluster A/D conflicts). |
+| R21 | `/settings` route + sub-tabs | shipped | `src/routes/SettingsRoute.tsx`, 6 tabs. Reuses BrandKit/ManageTeam/ReferralDashboard as-is (Fork #5). Billing/Integrations/Account are placeholder shells pending Cluster B. |
+| R22 | Mount ListingDashboard at `/listings` | shipped | `src/routes/ListingsRoute.tsx`; `/listings` + `/listings/:id`. ListingDashboard + useListing used as-is. |
+| R24 | Real marketing URLs | shipped | `src/routes/MarketingRoute.tsx` — `/pricing`, `/features`, `/faq` scroll into App's landing sections; `/gallery` placeholder. |
+| R25 | `/try` unauth demo | shipped | `src/routes/TryRoute.tsx` — localStorage-gated 1-free counter + Google CTA. |
 
 ---
 
@@ -113,3 +113,7 @@ _Cross-cluster deps. Tag with @agent-x._
 - **@agent-a → @agent-c (R2 / R10)** — 5 `Start Free — No Credit Card` strings replaced with `Stage 3 rooms free`. If Cluster C extracts the pricing page, the two pricing-card CTAs carry forward.
 - **@agent-a → @agent-b (R7)** — free-cap toast uses the existing `setShowUpgradeModal(true)` action. Pricing restructure (R6, R12, R15, R17) may need this toast string updated when the 5-lifetime + 1/day free tier lands (Fork #3). Coordinate copy when R17 ships.
 - **@agent-a re R4/R10 residuals** — landing eyebrow pill still references `$14/mo` Early Bird and the cost-comparison shows `$300/room → $1.38/room`. Both belong to Cluster B's pricing restructure; deliberately untouched.
+- **@agent-c → all** — App.tsx left UNTOUCHED in my router session. `/` still mounts the existing shell; routes live as siblings in `src/routes/`. Auth is probed via `src/routes/authStorage.ts` (reads `studioai_google_user`). Follow-up: after A/B/D settle I'll lift `activePanel` into `/studio/:panel` routes and extract `<MarketingPage />` so marketing routes stop trampolining through the editor shell.
+- **@agent-c → @agent-b** — `/settings/billing` is a placeholder pointing at `/pricing`. When R19 ships, swap its body. Same for the Billing tab in `src/routes/SettingsRoute.tsx`.
+- **@agent-c → @agent-d** — R23 (Pro AI Tools sidebar) will want a `<Link to="/studio/pro-tools">`. I'll wire it when activePanel lifts.
+- **@agent-c build notes** — `<BrowserRouter>` needs SPA fallback on deep links; Vercel's default `index.html` rewrite already handles it. Verified via `vite build`.

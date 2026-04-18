@@ -12,16 +12,16 @@ Gate: QA harness still passes on all 5 tools after each cluster merge.
 
 | # | Title | Status | Notes |
 |---|---|---|---|
-| R1 | Hero rewrite | todo | "Staged listing photos in 15 seconds. Not 15 days." |
-| R2 | Primary CTA rewrite | todo | "Stage 3 rooms free" in 5 locations |
-| R3 | Editor primary CTAs | todo | "Stage this room" / "Apply this tweak" / "Restage in this style" |
-| R4 | Pro AI Tools copy scrub | todo | Delete "stunning/beautiful" |
-| R5 | Loading overlay rewrite | todo | Per-tool progress copy |
-| R7 | Free-limit-hit toast | todo | currently silent |
-| R8 | Onboarding tutorial rewrite | todo | 6 steps, fire after first upload |
-| R9 | History empty state | todo | new illustration + copy |
-| R10 | Hero subhead cost comparison | todo | final CTA section |
-| R11 | Error messages — actionable | todo | + inline Retry button |
+| R1 | Hero rewrite | done | "Staged listing photos in 15 seconds. Not 15 days." + new subhead shipped |
+| R2 | Primary CTA rewrite | done | "Stage 3 rooms free" in all 5 locations (nav, hero, 2 pricing, final CTA) |
+| R3 | Editor primary CTAs | done | "Stage this room" / "Apply this tweak" / "Restage in this style"; helper copy too |
+| R4 | Pro AI Tools copy scrub | done | "stunning / beautiful / show-ready" removed across SpecialModesPanel |
+| R5 | Loading overlay rewrite | done | Per-tool label + per-tool progress lines (staging vs cleanup) |
+| R7 | Free-limit-hit toast | done | Toast w/ inline Upgrade action fires before modal |
+| R8 | Onboarding tutorial rewrite | done | 6 steps rewritten in agent voice + `firstUpload` trigger prop |
+| R9 | History empty state | done | ImageIcon + "Nothing staged yet" + expectation-setting sub |
+| R10 | Hero subhead cost comparison | done | Final CTA now leads with "One staging service costs more than a year of StudioAI" |
+| R11 | Error messages — actionable | done | Retry action on handleGenerate / furniture removal / save; SPMP inline banner extended |
 
 ---
 
@@ -108,3 +108,8 @@ _Cluster leads: log QA failures here._
 ## Collaboration
 
 _Cross-cluster deps. Tag with @agent-x._
+
+- **@agent-a → @agent-d (R8)** — tutorial now takes a `firstUpload` prop. If Cluster D restructures mount points or sidebar, preserve `firstUpload={Boolean(originalImage)}` wiring on `<QuickStartTutorial>`.
+- **@agent-a → @agent-c (R2 / R10)** — 5 `Start Free — No Credit Card` strings replaced with `Stage 3 rooms free`. If Cluster C extracts the pricing page, the two pricing-card CTAs carry forward.
+- **@agent-a → @agent-b (R7)** — free-cap toast uses the existing `setShowUpgradeModal(true)` action. Pricing restructure (R6, R12, R15, R17) may need this toast string updated when the 5-lifetime + 1/day free tier lands (Fork #3). Coordinate copy when R17 ships.
+- **@agent-a re R4/R10 residuals** — landing eyebrow pill still references `$14/mo` Early Bird and the cost-comparison shows `$300/room → $1.38/room`. Both belong to Cluster B's pricing restructure; deliberately untouched.

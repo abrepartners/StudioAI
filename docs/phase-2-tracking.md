@@ -31,15 +31,15 @@ Gate: QA harness still passes on all 5 tools after each cluster merge.
 
 | # | Title | Status | Notes |
 |---|---|---|---|
-| R6 | Upgrade modal rewrite | todo | "Unlimited listings, forever." |
-| R12 | Stripe Pro price → $49 | todo | `unit_amount: 4900` + grandfathering |
-| R13 | Stripe Starter $19 product | todo | 40/mo metered |
-| R14 | Stripe Team $99 product | todo | 3 seats |
-| R15 | Annual plans + 20% discount toggle | todo | $180/$468/$948 |
-| R16 | Credit pack reprice | todo | $15/10, $29/25, $69/75 |
-| R17 | Free-tier rewrite | todo | 5-lifetime + 1/day (Fork #3) |
-| R18 | Pause subscription action | todo | 30/60/90 day options |
-| R19 | Pricing page component | todo | XL — 4 tiers, decoy, annual toggle |
+| R6 | Upgrade modal rewrite | shipped | `App.tsx` modal — "Unlimited listings, forever." + per-photo framing + annual hint + grandfather note. Reuses `useModal` (Phase 1 F6). |
+| R12 | Stripe Pro price → $49 | shipped | `PLAN_CATALOG.pro.month=4900`. Early Bird honored forever via `metadata.studioai_grandfather=early_bird`. Legacy Pro $29 for 12mo from 2026-04-18. |
+| R13 | Stripe Starter $19 product | shipped | 40/mo metered; `plan==='starter'` wired in `useSubscription` + `record-generation` (monthly window). |
+| R14 | Stripe Team $99 product | shipped | 3-seat product (`PLAN_CATALOG.team.seats=3`); quantity passes through checkout. |
+| R15 | Annual plans + 20% toggle | shipped | `interval:'year'` plumbed through checkout. Starter $180 / Pro $468 / Team $948. PricingPage toggle default-on. |
+| R16 | Credit pack reprice | shipped | `CREDIT_PACKS`: 10/$15, 25/$29, 75/$69 (was 10/$19, 25/$39, 50/$69). |
+| R17 | Free-tier rewrite | shipped (code) / pending (migration) | 5 lifetime then 1/day. Migration at `docs/migrations/2026-04-18_free_tier_rewrite.sql` — **needs apply via Supabase dashboard**. |
+| R18 | Pause subscription action | shipped | `action:'pause_subscription'` + `'resume_subscription'` (pause_collection.behavior=void, 30/60/90 day). |
+| R19 | Pricing page component | shipped | `components/PricingPage.tsx`. 4 tiers decoy-ordered (Team, Pro, Starter, Free), annual default-on, per-photo framing, grandfathering footnote. Early Bird teaser kept off-grid. |
 
 ---
 
@@ -113,6 +113,22 @@ _Cross-cluster deps. Tag with @agent-x._
 - **@agent-a → @agent-c (R2 / R10)** — 5 `Start Free — No Credit Card` strings replaced with `Stage 3 rooms free`. If Cluster C extracts the pricing page, the two pricing-card CTAs carry forward.
 - **@agent-a → @agent-b (R7)** — free-cap toast uses the existing `setShowUpgradeModal(true)` action. Pricing restructure (R6, R12, R15, R17) may need this toast string updated when the 5-lifetime + 1/day free tier lands (Fork #3). Coordinate copy when R17 ships.
 - **@agent-a re R4/R10 residuals** — landing eyebrow pill still references `$14/mo` Early Bird and the cost-comparison shows `$300/room → $1.38/room`. Both belong to Cluster B's pricing restructure; deliberately untouched.
+
+### Cluster B — Stripe Dashboard actions required
+
+Code ships the product/price creation idempotently on first checkout (looked up by `metadata.studioai_meta`). But these one-time dashboard actions unblock full functionality:
+
+1. **Tag Early Bird customers** — for every existing Early Bird subscriber, set `metadata.studioai_grandfather=early_bird` on their Stripe Customer. Optionally pin their current Stripe Price id to `metadata.studioai_pinned_price_id` so the server reuses it verbatim.
+2. **Tag legacy Pro customers (optional)** — they're auto-detected by creation date, but an explicit `metadata.studioai_grandfather=legacy_pro` is safer if any were imported from another system.
+3. **Apply Supabase migration** — `docs/migrations/2026-04-18_free_tier_rewrite.sql` (adds `users.lifetime_free_gens_used` + `bump_lifetime_free_gens` RPC). Free-tier fallback works without it (0 lifetime → daily cap kicks in immediately), but new accounts need the column to honor the 5-lifetime promise.
+4. **Billing Portal — pause + cancellation survey** — enable `pause_collection` toggle in Stripe → Billing → Customer Portal config (R18 code calls the API; Portal can expose it too). Add cancellation-reason survey per R37 (already deferred).
+5. **Retire legacy prices (optional)** — old $29/mo Pro price remains valid for grandfathering; don't archive it. New customers always hit the $49 price because `ensurePrice` matches by exact amount.
+
+### @agent-b → @agent-c + @agent-d
+
+- Cluster C's `MarketingRoute` targets `#pricing`, which is the `id` on `<PricingPage>`. Anchor still works.
+- `SettingsRoute` Billing tab should use `subscription.pauseSubscription(30|60|90)` + `resumeSubscription()` from `useSubscription` when it gets built out (currently placeholder).
+- New plan shape: `plan: 'free' | 'starter' | 'pro' | 'team' | 'credits'`. Any UI branching on `plan === 'pro'` needs to also handle `'team'` for unlimited behavior.
 - **@agent-c → all** — App.tsx left UNTOUCHED in my router session. `/` still mounts the existing shell; routes live as siblings in `src/routes/`. Auth is probed via `src/routes/authStorage.ts` (reads `studioai_google_user`). Follow-up: after A/B/D settle I'll lift `activePanel` into `/studio/:panel` routes and extract `<MarketingPage />` so marketing routes stop trampolining through the editor shell.
 - **@agent-c → @agent-b** — `/settings/billing` is a placeholder pointing at `/pricing`. When R19 ships, swap its body. Same for the Billing tab in `src/routes/SettingsRoute.tsx`.
 - **@agent-c → @agent-d** — R23 (Pro AI Tools sidebar) will want a `<Link to="/studio/pro-tools">`. I'll wire it when activePanel lifts.

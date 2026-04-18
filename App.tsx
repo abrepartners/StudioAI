@@ -25,6 +25,7 @@ import { useBrandKit } from './hooks/useBrandKit';
 import { useModal } from './hooks/useModal';
 import AdminShowcase from './components/AdminShowcase';
 import FurnitureRemover from './components/FurnitureRemover';
+import PricingPage from './components/PricingPage';
 // Removed for Phase 2: ColorAnalysis, ChatInterface, StyleAdvisor, QualityScore, ListingDashboard, BetaFeedbackForm, MLSExport (inline)
 import {
   ColorData,
@@ -1632,7 +1633,7 @@ Direction from user: ${prompt}`;
               </div>
 
               <div className="flex gap-8 animate-fade-in" style={{ animationDelay: '0.4s' }}>
-                {[{ value: '3/day', label: 'Free generations' }, { value: '~15s', label: 'Per render' }, { value: '12+', label: 'Styles' }].map((s) => (
+                {[{ value: '5 free', label: 'To start' }, { value: '~15s', label: 'Per render' }, { value: '12+', label: 'Styles' }].map((s) => (
                   <div key={s.label}>
                     <div className="text-lg font-black text-white">{s.value}</div>
                     <div className="text-[9px] font-bold uppercase tracking-[0.15em] text-zinc-600">{s.label}</div>
@@ -1917,89 +1918,43 @@ Direction from user: ${prompt}`;
         {/* ─── Community Gallery ─── */}
         <CommunityGallery />
 
-        {/* ─── Pricing ─── */}
-        <section id="pricing" className="px-5 sm:px-8 lg:px-12 py-24 sm:py-32 scroll-mt-20">
-          <div className="max-w-4xl mx-auto">
-            <div className="text-center mb-16 reveal">
-              <h2 className="font-display text-3xl sm:text-5xl font-black text-white tracking-tight mb-4">
-                Simple Pricing.
-              </h2>
-              <p className="text-zinc-500 text-base max-w-lg mx-auto">Start free. Upgrade when you're ready. Cancel anytime.</p>
-            </div>
+        {/* ─── Pricing (R19 — PricingPage component) ─── */}
+        <PricingPage
+          email={googleUser?.email ?? null}
+          onRequireSignIn={triggerGoogleSignIn}
+          onStartCheckout={(plan, interval) => {
+            // Unauthed path never reaches here (PricingPage calls onRequireSignIn
+            // first). Authed: start Stripe checkout for the selected plan/interval.
+            if (!googleUser?.sub) { triggerGoogleSignIn(); return; }
+            subscription.startCheckout(googleUser.sub, { plan, interval });
+          }}
+        />
 
-            {/* Early Bird + Pro side by side */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl mx-auto mb-20 reveal">
-              {/* Early Bird */}
-              <div className="relative p-8 rounded-2xl bg-[#FFD60A]/[0.03] border border-[#FFD60A]/20 flex flex-col hover:border-[#FFD60A]/40 transition-all">
+        {/* ─── Early Bird + Brokerages (kept off-grid per Fork #2 grandfathering) ─── */}
+        <section className="px-5 sm:px-8 lg:px-12 pb-24 scroll-mt-20">
+          <div className="max-w-5xl mx-auto">
+
+            {/* Early Bird teaser — honored forever, separate from main grid */}
+            <div className="mb-16 reveal">
+              <div className="relative p-8 rounded-2xl bg-[#FFD60A]/[0.03] border border-[#FFD60A]/20 max-w-2xl mx-auto flex flex-col sm:flex-row items-start sm:items-center gap-6">
                 <div className="absolute -top-3 left-6 px-3 py-0.5 rounded-full bg-[#FFD60A] text-[9px] font-bold uppercase tracking-widest text-black">First 20 Users</div>
-                <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#FFD60A] mb-4">Early Bird</div>
-                <div className="flex items-baseline gap-1 mb-1">
-                  <span className="text-5xl font-black text-white">$14</span>
-                  <span className="text-sm text-zinc-500">/mo</span>
-                  <span className="text-sm text-zinc-600 line-through ml-2">$29</span>
+                <div className="flex-1">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#FFD60A] mb-2">Early Bird — honored forever</p>
+                  <div className="flex items-baseline gap-1 mb-2">
+                    <span className="text-3xl font-black text-white">$14</span>
+                    <span className="text-sm text-zinc-500">/mo</span>
+                    <span className="text-sm text-zinc-600 line-through ml-2">$49</span>
+                  </div>
+                  <p className="text-xs text-zinc-400">Unlimited. Rate never increases. Referral code locks the same price for 5 friends.</p>
                 </div>
-                <p className="text-xs text-zinc-500 mb-6">Unlimited. Locked in forever.</p>
-                <ul className="space-y-3 text-[13px] text-zinc-300 mb-8">
-                  {['All features, unlimited', 'Rate never increases', 'Referral code (5 uses)', 'Friends get your rate too'].map((f) => (
-                    <li key={f} className="flex items-start gap-2.5">
-                      <Check size={14} className="text-[#FFD60A] mt-0.5 shrink-0" />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
                 <button
                   type="button"
                   onClick={triggerGoogleSignIn}
-                  className="mt-auto w-full py-3 rounded-xl bg-[#FFD60A] text-black text-sm font-bold hover:bg-[#FFD60A]/90 transition-all"
+                  className="w-full sm:w-auto px-6 py-3 rounded-xl bg-[#FFD60A] text-black text-sm font-bold hover:bg-[#FFD60A]/90 transition-all whitespace-nowrap"
                 >
-                  Stage 3 rooms free
+                  Claim Early Bird
                 </button>
               </div>
-
-              {/* Pro */}
-              <div className="relative p-8 rounded-2xl bg-white/[0.02] border border-white/[0.08] flex flex-col hover:border-white/[0.16] transition-all">
-                <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-4">Pro</div>
-                <div className="flex items-baseline gap-1 mb-1">
-                  <span className="text-5xl font-black text-white">$29</span>
-                  <span className="text-sm text-zinc-500">/mo</span>
-                </div>
-                <p className="text-xs text-zinc-500 mb-6">Unlimited generations.</p>
-                <ul className="space-y-3 text-[13px] text-zinc-400 mb-8">
-                  {['All features, unlimited', 'Batch processing', 'All special modes', 'Priority rendering'].map((f) => (
-                    <li key={f} className="flex items-start gap-2.5">
-                      <Check size={14} className="text-zinc-600 mt-0.5 shrink-0" />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                <button
-                  type="button"
-                  onClick={triggerGoogleSignIn}
-                  className="mt-auto w-full py-3 rounded-xl bg-white/10 text-white text-sm font-bold hover:bg-white/20 transition-all border border-white/10"
-                >
-                  Stage 3 rooms free
-                </button>
-              </div>
-            </div>
-
-            {/* Pay-As-You-Go Credits */}
-            <div className="text-center mb-8 reveal">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-600 mb-2">Pay-As-You-Go Credits</p>
-              <p className="text-sm text-zinc-500 mb-4">No subscription. Buy credits, use anytime.</p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row justify-center gap-4 max-w-3xl mx-auto mb-20 reveal">
-              {[
-                { name: '10 Credits', price: '$19', per: '$1.90/image' },
-                { name: '25 Credits', price: '$39', per: '$1.56/image' },
-                { name: '50 Credits', price: '$69', per: '$1.38/image' },
-              ].map((pack) => (
-                <div key={pack.name} className="flex-1 p-5 rounded-xl bg-white/[0.02] border border-white/[0.06] text-center hover:border-white/[0.12] transition-all">
-                  <p className="text-xs font-bold text-white mb-1">{pack.name}</p>
-                  <p className="text-lg font-black text-white">{pack.price}</p>
-                  <p className="text-[10px] text-zinc-500">{pack.per}</p>
-                </div>
-              ))}
             </div>
 
             {/* Brokerages — consolidated single section with admin mockup */}
@@ -2070,7 +2025,7 @@ Direction from user: ${prompt}`;
                 },
                 {
                   q: 'Can I try before I pay?',
-                  a: 'Yes — every account gets 3 free generations per day. No credit card required. Just sign in with Google and start uploading photos.',
+                  a: 'Yes — every account gets 5 free generations to start, then 1 per day after that. No credit card required. Just sign in with Google and start uploading photos.',
                 },
                 {
                   q: 'How does brokerage pricing work?',

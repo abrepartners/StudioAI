@@ -546,7 +546,11 @@ BLENDING REQUIREMENTS:
 - The horizon line and roofline edges must be razor-sharp with no halos, fringing, or ghosting artifacts.
 - Tree branches and leaves must have natural, clean edges against the new sky — no color bleeding.
 - The new sky's lighting must affect the building subtly: a golden sky should cast warm tones on light-colored surfaces; a stormy sky should slightly cool the building's appearance.
-- Ensure cloud scale and perspective match the camera's focal length and angle.` },
+- Ensure cloud scale and perspective match the camera's focal length and angle.
+
+ANTI-GHOST RULE:
+- Do NOT draw, echo, duplicate, or silhouette the roofline, chimney, or house shape anywhere in the sky region.
+- If you see a faint outline of the house shape appearing in the sky, erase it completely — the sky above the roofline must contain ONLY sky and clouds, never a secondary roof outline.` },
           { inlineData: { mimeType: 'image/jpeg', data: clean } },
         ],
       }

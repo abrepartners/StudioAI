@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Users, Plus, Trash2, Loader2, Building2, AlertCircle, Crown, Check } from 'lucide-react';
+import Tooltip from './Tooltip';
 
 interface Agent {
   id: string;
@@ -389,14 +390,16 @@ const ManageTeam: React.FC<ManageTeamProps> = ({ adminEmail }) => {
               <div className="min-w-0">
                 <p className="text-[10px] text-[var(--color-text)]/70 truncate">{agent.email}</p>
               </div>
-              <button
-                type="button"
-                onClick={() => handleRemoveAgent(agent.email)}
-                className="shrink-0 rounded-lg p-1.5 text-[var(--color-text)]/40 hover:text-[#FF375F] hover:bg-[#FF375F]/10 transition"
-                title="Remove agent"
-              >
-                <Trash2 size={12} />
-              </button>
+              <Tooltip label="Remove agent">
+                <button
+                  type="button"
+                  onClick={() => handleRemoveAgent(agent.email)}
+                  className="shrink-0 rounded-lg p-1.5 text-[var(--color-text)]/40 hover:text-[#FF375F] hover:bg-[#FF375F]/10 transition"
+                  aria-label="Remove agent"
+                >
+                  <Trash2 size={12} />
+                </button>
+              </Tooltip>
             </div>
           ))}
         </div>

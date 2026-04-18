@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Check, X, Clock, Image as ImageIcon, ChevronDown, ChevronUp } from 'lucide-react';
+import Tooltip from './Tooltip';
 
 interface ShowcaseItem {
   id: string;
@@ -174,24 +175,28 @@ const AdminShowcase: React.FC<AdminShowcaseProps> = ({ adminEmail }) => {
 
                       {/* Approve / Reject buttons */}
                       <div className="flex items-center gap-1.5 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => handleReview(item.id, 'rejected')}
-                          disabled={actionInProgress === item.id}
-                          className="rounded-lg p-1.5 border border-[#FF375F]/30 bg-[#FF375F]/10 text-[#FF375F] hover:bg-[#FF375F]/20 transition disabled:opacity-40"
-                          title="Reject"
-                        >
-                          <X size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleReview(item.id, 'approved')}
-                          disabled={actionInProgress === item.id}
-                          className="rounded-lg p-1.5 border border-[#30D158]/30 bg-[#30D158]/10 text-[#30D158] hover:bg-[#30D158]/20 transition disabled:opacity-40"
-                          title="Approve"
-                        >
-                          <Check size={14} />
-                        </button>
+                        <Tooltip label="Reject">
+                          <button
+                            type="button"
+                            onClick={() => handleReview(item.id, 'rejected')}
+                            disabled={actionInProgress === item.id}
+                            className="rounded-lg p-1.5 border border-[#FF375F]/30 bg-[#FF375F]/10 text-[#FF375F] hover:bg-[#FF375F]/20 transition disabled:opacity-40"
+                            aria-label="Reject"
+                          >
+                            <X size={14} />
+                          </button>
+                        </Tooltip>
+                        <Tooltip label="Approve">
+                          <button
+                            type="button"
+                            onClick={() => handleReview(item.id, 'approved')}
+                            disabled={actionInProgress === item.id}
+                            className="rounded-lg p-1.5 border border-[#30D158]/30 bg-[#30D158]/10 text-[#30D158] hover:bg-[#30D158]/20 transition disabled:opacity-40"
+                            aria-label="Approve"
+                          >
+                            <Check size={14} />
+                          </button>
+                        </Tooltip>
                       </div>
                     </div>
                   </div>

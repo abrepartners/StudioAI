@@ -23,6 +23,7 @@ import {
 } from '../services/geminiService';
 import { FurnitureRoomType, SavedStage } from '../types';
 import { type BatchImage, type BatchAction } from './BatchUploader';
+import Tooltip from './Tooltip';
 import { batchExportMLS, MLS_PRESETS } from '../utils/imageExport';
 import { sharpenImage } from '../utils/sharpen';
 import { compositeStackedEdit } from '../utils/stackComposite';
@@ -440,14 +441,15 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
               </button>
             )}
             {allDone && (
-              <button
-                type="button"
-                onClick={() => onComplete(results)}
-                className="rounded-lg px-2.5 py-1 text-[10px] font-semibold bg-white/[0.04] border border-white/10 text-white hover:bg-white/[0.08] transition inline-flex items-center gap-1"
-                title="Import all into editor (keeps them stacked in the session queue)"
-              >
-                <CheckCircle2 size={10} /> Open in Editor
-              </button>
+              <Tooltip label="Import all into editor (keeps them stacked in the session queue)">
+                <button
+                  type="button"
+                  onClick={() => onComplete(results)}
+                  className="rounded-lg px-2.5 py-1 text-[10px] font-semibold bg-white/[0.04] border border-white/10 text-white hover:bg-white/[0.08] transition inline-flex items-center gap-1"
+                >
+                  <CheckCircle2 size={10} /> Open in Editor
+                </button>
+              </Tooltip>
             )}
             <button
               type="button"

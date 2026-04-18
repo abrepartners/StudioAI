@@ -1,6 +1,7 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { Trash2, MousePointer2, Undo2, Check, X, Loader2 } from 'lucide-react';
 import { useModal } from '../hooks/useModal';
+import Tooltip from './Tooltip';
 
 interface FurnitureRemoverProps {
   generatedImage: string;
@@ -219,14 +220,16 @@ const FurnitureRemover: React.FC<FurnitureRemoverProps> = ({
             ))}
           </div>
           <div className="h-6 w-px bg-white/25" />
-          <button
-            type="button"
-            onClick={clearCanvas}
-            className="rounded-full p-2 transition-all hover:bg-rose-400/30"
-            title="Clear all marks"
-          >
-            <Undo2 size={16} />
-          </button>
+          <Tooltip label="Clear all marks">
+            <button
+              type="button"
+              onClick={clearCanvas}
+              className="rounded-full p-2 transition-all hover:bg-rose-400/30"
+              aria-label="Clear all marks"
+            >
+              <Undo2 size={16} />
+            </button>
+          </Tooltip>
         </div>
       </div>
 

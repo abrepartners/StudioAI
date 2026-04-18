@@ -16,6 +16,10 @@ const MaskCanvas: React.FC<MaskCanvasProps> = ({ imageSrc, onMaskChange, isActiv
   const [isDrawing, setIsDrawing] = useState(false);
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
   const [brushSize, setBrushSize] = useState(isMobile ? 80 : 40);
+  // R31: track mouse position inside the canvas (in client coords) so we can
+  // render a DOM circle that previews the current brush size.  Only shown on
+  // non-touch mouseover.
+  const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null);
   const historyRef = useRef<ImageData[]>([]);
   const historyIndexRef = useRef(-1);
   const [, forceUpdate] = useState(0); // trigger re-render for undo/redo button states
@@ -147,6 +151,19 @@ const MaskCanvas: React.FC<MaskCanvasProps> = ({ imageSrc, onMaskChange, isActiv
   };
 
   const draw = (e: React.MouseEvent | React.TouchEvent) => {
+    // R31: update DOM-circle cursor position on every mouse move, not just
+    // when drawing — the preview should follow the mouse any time the mask
+    // tool is active.
+    if (isActive && !('touches' in e)) {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const rect = canvas.getBoundingClientRect();
+        setCursorPos({
+          x: (e as React.MouseEvent).clientX - rect.left,
+          y: (e as React.MouseEvent).clientY - rect.top,
+        });
+      }
+    }
     if (!isDrawing || !isActive) return;
     e.preventDefault();
     const { x, y } = getCoordinates(e);
@@ -158,6 +175,9 @@ const MaskCanvas: React.FC<MaskCanvasProps> = ({ imageSrc, onMaskChange, isActiv
       currentPathRef.current.push({ x, y });
     }
   };
+
+  // R31: hide the DOM circle when the cursor leaves the canvas.
+  const hideCursor = () => setCursorPos(null);
 
   const stopDrawing = () => {
     if (!isDrawing) return;
@@ -213,16 +233,52 @@ const MaskCanvas: React.FC<MaskCanvasProps> = ({ imageSrc, onMaskChange, isActiv
       <canvas
         ref={canvasRef}
         className={`absolute inset-0 h-full w-full object-contain ${
-          isActive ? 'cursor-crosshair' : 'cursor-default'
+          isActive ? 'cursor-none' : 'cursor-default'
         }`}
         onMouseDown={startDrawing}
         onMouseMove={draw}
         onMouseUp={stopDrawing}
-        onMouseLeave={stopDrawing}
+        onMouseLeave={(e) => { stopDrawing(); hideCursor(); }}
+        onMouseEnter={(e) => {
+          if (!isActive) return;
+          const canvas = canvasRef.current;
+          if (canvas) {
+            const rect = canvas.getBoundingClientRect();
+            setCursorPos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+          }
+        }}
         onTouchStart={startDrawing}
         onTouchMove={draw}
         onTouchEnd={stopDrawing}
       />
+
+      {/* R31: DOM brush-size cursor.  Scales brush size from canvas-space to
+          screen-space (canvas is drawn with object-contain, so we scale by
+          the ratio of rendered width to canvas width). */}
+      {isActive && cursorPos && canvasRef.current ? (() => {
+        const canvas = canvasRef.current;
+        const rect = canvas.getBoundingClientRect();
+        // canvas.width is the image-space width; rect.width is the on-screen
+        // width after object-contain scaling. We want the circle in screen px.
+        const ratio = rect.width > 0 && canvas.width > 0 ? rect.width / canvas.width : 1;
+        const displayDiameter = Math.max(8, brushSize * ratio);
+        return (
+          <div
+            aria-hidden
+            className="absolute pointer-events-none rounded-full border-2 transition-[width,height] duration-100"
+            style={{
+              width: displayDiameter,
+              height: displayDiameter,
+              left: cursorPos.x,
+              top: cursorPos.y,
+              transform: 'translate(-50%, -50%)',
+              borderColor: 'rgba(0, 200, 255, 0.9)',
+              background: 'rgba(0, 200, 255, 0.12)',
+              boxShadow: '0 0 0 1px rgba(0,0,0,0.35)',
+            }}
+          />
+        );
+      })() : null}
 
       {isActive && (
         <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-full bg-[var(--color-ink)]/84 px-3 py-2 text-white shadow-[0_20px_36px_rgba(15,23,42,0.4)] backdrop-blur-md">

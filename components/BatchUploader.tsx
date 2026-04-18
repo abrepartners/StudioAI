@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { detectRoomType } from '../services/geminiService';
 import { FurnitureRoomType } from '../types';
+import Tooltip from './Tooltip';
 
 export type BatchAction = 'stage' | 'cleanup' | 'twilight' | 'sky' | 'export';
 
@@ -295,14 +296,16 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
           >
             Clear
           </button>
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="ml-2 rounded-lg p-1.5 text-[var(--color-text)] hover:bg-[var(--color-bg)] transition"
-            title="Add more photos"
-          >
-            <Upload size={14} />
-          </button>
+          <Tooltip label="Add more photos">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="ml-2 rounded-lg p-1.5 text-[var(--color-text)] hover:bg-[var(--color-bg)] transition"
+              aria-label="Add more photos"
+            >
+              <Upload size={14} />
+            </button>
+          </Tooltip>
         </div>
       </div>
 

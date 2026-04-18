@@ -390,16 +390,49 @@ a:focus-visible {
 }
 
 /* ─── Modal Overlay ────────────────────────────────────────────── */
+/* R30: 220ms fade-in on overlay, 220ms scale(0.96 → 1) + fade on content. */
 .modal-overlay {
   background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  animation: modal-overlay-in 220ms ease-out both;
 }
 
-.modal-panel {
+.modal-panel,
+.modal-content {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   box-shadow: var(--shadow-xl);
+  animation: modal-content-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  transform-origin: center center;
+}
+
+@keyframes modal-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modal-content-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-overlay,
+  .modal-panel,
+  .modal-content {
+    animation: none;
+  }
 }
 
 /* ─── Feature Badge ────────────────────────────────────────────── */

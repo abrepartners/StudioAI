@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { Upload, Image as ImageIcon, Camera, Loader2 } from 'lucide-react';
 
 interface ImageUploaderProps {
@@ -9,6 +9,12 @@ interface ImageUploaderProps {
 const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload, isAnalyzing }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  // R29: track whether a file is hovering over the drop zone so we can flash
+  // the border + show a "Drop to upload" overlay.
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  // onDragLeave fires on every child transition; we use a counter so the
+  // overlay doesn't flicker as the cursor crosses internal elements.
+  const dragCounter = useRef(0);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -28,9 +34,27 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload, isAnalyzin
 
   const handleDrop = (event: React.DragEvent) => {
     event.preventDefault();
+    dragCounter.current = 0;
+    setIsDraggingOver(false);
     if (isAnalyzing) return;
     const file = event.dataTransfer.files?.[0];
     if (file && file.type.startsWith('image/')) processFile(file);
+  };
+
+  const handleDragEnter = (event: React.DragEvent) => {
+    event.preventDefault();
+    if (isAnalyzing) return;
+    // Only react to file drags, not random DOM drags (e.g. text selection).
+    const hasFiles = Array.from(event.dataTransfer.types || []).includes('Files');
+    if (!hasFiles) return;
+    dragCounter.current += 1;
+    setIsDraggingOver(true);
+  };
+
+  const handleDragLeave = (event: React.DragEvent) => {
+    event.preventDefault();
+    dragCounter.current = Math.max(0, dragCounter.current - 1);
+    if (dragCounter.current === 0) setIsDraggingOver(false);
   };
 
   const triggerFileUpload = () => {
@@ -45,12 +69,37 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload, isAnalyzin
 
   return (
     <div
-      className={`premium-surface rounded-2xl p-6 text-center transition-all duration-200 ${
-        isAnalyzing ? 'opacity-75 cursor-not-allowed' : 'hover:-translate-y-0.5 hover:shadow-md'
+      className={`premium-surface rounded-2xl p-6 text-center transition-all duration-200 relative ${
+        isAnalyzing
+          ? 'opacity-75 cursor-not-allowed'
+          : isDraggingOver
+            ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/5 shadow-xl'
+            : 'hover:-translate-y-0.5 hover:shadow-md'
       }`}
+      style={isDraggingOver ? { borderColor: 'var(--color-primary)', borderWidth: 2 } : undefined}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
       onDragOver={(e) => e.preventDefault()}
       onDrop={handleDrop}
     >
+      {/* R29: drag-over overlay */}
+      {isDraggingOver && !isAnalyzing ? (
+        <div
+          className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-2xl pointer-events-none"
+          style={{
+            background:
+              'linear-gradient(180deg, rgba(10,132,255,0.12), rgba(10,132,255,0.05))',
+            border: '2px dashed var(--color-primary)',
+          }}
+          aria-hidden
+        >
+          <Upload size={28} className="text-[var(--color-primary)] animate-pulse" />
+          <p className="mt-2 text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]">
+            Drop to upload
+          </p>
+        </div>
+      ) : null}
+
       {isAnalyzing ? (
         <div role="status" aria-live="polite" className="flex flex-col items-center gap-3 py-2">
           <Loader2 size={32} className="text-[var(--color-primary)] animate-spin" />

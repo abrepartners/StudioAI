@@ -57,7 +57,10 @@ const EditingBadge: React.FC<EditingBadgeProps> = ({
     <div ref={ref} className="relative z-10">
       <button
         onClick={() => setOpen(v => !v)}
-        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-medium backdrop-blur-md transition-all ${badgeClass}`}
+        className={`flex items-center gap-1.5 px-2.5 py-1.5 min-h-[44px] rounded-full text-[11px] font-medium backdrop-blur-md transition-all ${badgeClass}`}
+        aria-label={`${label} — open edit menu`}
+        aria-expanded={open}
+        aria-haspopup="menu"
       >
         <Layers className="w-3 h-3" />
         <span>{label}</span>

@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { Upload, Image as ImageIcon, Camera, LoaderCircle } from 'lucide-react';
+import { Upload, Image as ImageIcon, Camera, Loader2 } from 'lucide-react';
 
 interface ImageUploaderProps {
   onImageUpload: (base64: string) => void;
@@ -52,8 +52,8 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload, isAnalyzin
       onDrop={handleDrop}
     >
       {isAnalyzing ? (
-        <div className="flex flex-col items-center gap-3 py-2">
-          <LoaderCircle size={32} className="text-[var(--color-primary)] animate-spin" />
+        <div role="status" aria-live="polite" className="flex flex-col items-center gap-3 py-2">
+          <Loader2 size={32} className="text-[var(--color-primary)] animate-spin" />
           <div>
             <h3 className="font-display text-lg font-semibold text-[var(--color-ink)]">Analyzing Space</h3>
             <p className="mt-1 text-xs text-[var(--color-text)]">Extracting room type and palette...</p>

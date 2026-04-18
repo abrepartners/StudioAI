@@ -329,7 +329,7 @@ const SocialPack: React.FC<SocialPackProps> = ({ images, propertyDetails }) => {
           <div className="grid grid-cols-[1fr_60px_80px] gap-2">
             <input type="text" placeholder="City" value={city} onChange={e => setCity(e.target.value)} className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#0A84FF] outline-none" />
             <input type="text" placeholder="State" maxLength={2} value={state} onChange={e => setStateField(e.target.value)} className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#0A84FF] outline-none" />
-            <input type="text" placeholder="Zip" maxLength={5} value={zip} onChange={e => setZip(e.target.value)} className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#0A84FF] outline-none" />
+            <input type="text" inputMode="numeric" placeholder="Zip" maxLength={5} value={zip} onChange={e => setZip(e.target.value)} className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#0A84FF] outline-none" />
           </div>
           <input
             type="text"
@@ -339,10 +339,10 @@ const SocialPack: React.FC<SocialPackProps> = ({ images, propertyDetails }) => {
             className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#0A84FF] outline-none"
           />
           <div className="grid grid-cols-4 gap-2">
-            <input type="text" placeholder="Beds" value={beds} onChange={e => setBeds(e.target.value)} className="px-2 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#0A84FF] outline-none" />
-            <input type="text" placeholder="Baths" value={baths} onChange={e => setBaths(e.target.value)} className="px-2 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#0A84FF] outline-none" />
-            <input type="text" placeholder="Sq Ft" value={sqft} onChange={e => setSqft(e.target.value)} className="px-2 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#0A84FF] outline-none" />
-            <input type="text" placeholder="Year" value={yearBuilt} onChange={e => setYearBuilt(e.target.value)} className="px-2 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#0A84FF] outline-none" />
+            <input type="text" inputMode="decimal" placeholder="Beds" value={beds} onChange={e => setBeds(e.target.value)} className="px-2 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#0A84FF] outline-none" />
+            <input type="text" inputMode="decimal" placeholder="Baths" value={baths} onChange={e => setBaths(e.target.value)} className="px-2 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#0A84FF] outline-none" />
+            <input type="text" inputMode="numeric" placeholder="Sq Ft" value={sqft} onChange={e => setSqft(e.target.value)} className="px-2 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#0A84FF] outline-none" />
+            <input type="text" inputMode="numeric" placeholder="Year" value={yearBuilt} onChange={e => setYearBuilt(e.target.value)} className="px-2 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#0A84FF] outline-none" />
           </div>
         </div>
       )}

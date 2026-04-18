@@ -534,6 +534,8 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
                 }
                 alt={result.roomType}
                 className="w-full h-full object-cover"
+                loading="lazy"
+                decoding="async"
               />
 
               {/* Status overlay */}
@@ -645,6 +647,8 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
                 src={lightboxResult.originalImage}
                 alt="Before"
                 className="w-full h-auto rounded-xl"
+                loading="lazy"
+                decoding="async"
               />
               <span className="absolute bottom-2 left-2 bg-black/80 text-[10px] font-bold text-white uppercase px-2 py-1 rounded">Before</span>
             </div>
@@ -653,6 +657,8 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
                 src={lightboxResult.generatedImage.startsWith('data:') ? lightboxResult.generatedImage : `data:image/jpeg;base64,${lightboxResult.generatedImage}`}
                 alt="After"
                 className="w-full h-auto rounded-xl"
+                loading="lazy"
+                decoding="async"
               />
               <span className="absolute bottom-2 left-2 bg-[var(--color-primary)]/90 text-[10px] font-bold text-white uppercase px-2 py-1 rounded">After</span>
             </div>

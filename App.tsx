@@ -28,6 +28,7 @@ const SocialPack = lazy(() => import('./components/SocialPack'));
 const AdminShowcase = lazy(() => import('./components/AdminShowcase'));
 const FurnitureRemover = lazy(() => import('./components/FurnitureRemover'));
 const PricingPage = lazy(() => import('./components/PricingPage'));
+const ListingKitPipeline = lazy(() => import('./components/ListingKitPipeline'));
 import type { BatchResult } from './components/BatchProcessor';
 import { useBrandKit } from './hooks/useBrandKit';
 import { useModal } from './hooks/useModal';
@@ -323,6 +324,10 @@ const App: React.FC = () => {
   // Mirror of BatchProcessor's internal results so we can restore them when
   // the user opens a single result in the editor and returns via "← Back to Batch".
   const [batchResults, setBatchResults] = useState<BatchResult[] | null>(null);
+
+  // D4 — Cluster K: Listing Kit one-click pipeline modal visibility. Opens
+  // from the batch view header and consumes whatever's in batchImages.
+  const [listingKitOpen, setListingKitOpen] = useState(false);
 
   // ─── Session Queue ──────────────────────────────────────────────────────
   const [sessionQueue, setSessionQueue] = useState<SessionImage[]>([]);
@@ -2834,7 +2839,30 @@ Direction from user: ${prompt}`;
       {/* ─── Batch Processing View ──────────────────────────────────── */}
       {batchImages && !originalImage ? (
         <main className="flex-1 overflow-y-auto editor-canvas-bg relative z-10 p-4 sm:p-6">
-          <div className="max-w-3xl mx-auto">
+          <div className="max-w-3xl mx-auto space-y-3">
+            {/* D4 — Cluster K: one-click Listing Kit button. Visible only after
+                a batch upload. Opens the full-pipeline modal that runs stage →
+                dusk hero → cleanup → MLS → social → copy and returns a zip. */}
+            <div className="flex items-center justify-between rounded-2xl px-4 py-3 bg-gradient-to-r from-[#0A84FF]/10 via-[#0A84FF]/5 to-transparent border border-[#0A84FF]/25">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-[#0A84FF]/20 text-[#0A84FF] flex items-center justify-center">
+                  <Sparkles size={14} />
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-white leading-tight">AI Listing Kit</div>
+                  <div className="text-[10px] text-zinc-400">Stage · dusk hero · cleanup · MLS · social · copy — one download.</div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setListingKitOpen(true)}
+                className="rounded-lg px-3 py-2 text-xs font-semibold bg-[#0A84FF] text-white hover:opacity-90 transition inline-flex items-center gap-1.5"
+                data-testid="generate-listing-kit"
+              >
+                <Sparkles size={12} /> Generate Listing Kit
+              </button>
+            </div>
+
             <BatchProcessor
               images={batchImages}
               initialResults={batchResults ?? undefined}
@@ -2846,6 +2874,18 @@ Direction from user: ${prompt}`;
               isPro={subscription.plan === 'pro'}
             />
           </div>
+
+          {/* D4 — Listing Kit modal. Lazy-mounted only when open. */}
+          {listingKitOpen && batchImages && (
+            <Suspense fallback={null}>
+              <ListingKitPipeline
+                images={batchImages}
+                isOpen={listingKitOpen}
+                onClose={() => setListingKitOpen(false)}
+                isPro={subscription.plan === 'pro'}
+              />
+            </Suspense>
+          )}
         </main>
       ) : !originalImage ? (
         <main className="flex-1 flex items-center justify-center overflow-auto editor-canvas-bg relative z-10">

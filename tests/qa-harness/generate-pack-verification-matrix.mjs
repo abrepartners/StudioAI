@@ -157,6 +157,13 @@ async function renderWithRetry(packName, roomLabel, inputBase64, retries = 1) {
 
 async function resizeTo1024(buffer) {
     const img = await loadImage(buffer);
+    // Gemini typically returns ~1264x843 already — close to 1024w. If the
+    // source is within 1.3× the target, keep it native so we don't throw
+    // away detail to the JPEG encoder (which dropped 700KB → 7KB at q=0.85
+    // and triggered "low resolution / pixelation" scorer complaints).
+    if (img.width <= 1024 * 1.3) {
+        return { buf: buffer, w: img.width, h: img.height };
+    }
     const targetW = 1024;
     const targetH = Math.round(img.height * (targetW / img.width));
     const canvas = createCanvas(targetW, targetH);
@@ -164,7 +171,9 @@ async function resizeTo1024(buffer) {
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(img, 0, 0, targetW, targetH);
-    return { buf: canvas.toBuffer('image/jpeg', 0.85), w: targetW, h: targetH };
+    // q=0.92 preserves more detail than 0.85 while keeping file size
+    // reasonable (~100-150KB).
+    return { buf: canvas.toBuffer('image/jpeg', 0.92), w: targetW, h: targetH };
 }
 
 async function loadRoomAsBase64(roomFile) {

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-19T20:13:57.371Z",
+  "generatedAt": "2026-04-19T20:55:36.403Z",
   "model": "gemini-3.1-flash-image-preview",
   "rooms": [
     {
@@ -15,10 +15,10 @@
       "path": "rooms/bedroom.jpg"
     },
     {
-      "slug": "kitchen",
-      "label": "Kitchen",
-      "file": "kitchen.jpg",
-      "path": "rooms/kitchen.jpg"
+      "slug": "primary-bedroom",
+      "label": "Primary Bedroom",
+      "file": "primary-bedroom.jpg",
+      "path": "rooms/primary-bedroom.jpg"
     }
   ],
   "packs": [
@@ -66,28 +66,28 @@
       "packSlug": "coastal-modern",
       "status": "ok",
       "file": "renders/living-room__coastal-modern.jpg",
-      "w": 1024,
-      "h": 683,
-      "kb": 7,
-      "ms": 14357,
+      "w": 1264,
+      "h": 843,
+      "kb": 730,
+      "ms": 16587,
       "retries": 0,
       "score": {
-        "overall": 6,
+        "overall": 8,
         "architecture": {
-          "score": 6,
-          "callout": "Ceiling fan blades are warped; dishwasher area lacks depth and realistic textures."
+          "score": 9,
+          "callout": "Excellent preservation of structural lines; ceiling fan blades show minor warping."
         },
         "lighting": {
-          "score": 5,
-          "callout": "Strong green color cast on the rug; shadows under furniture are too faint and generic."
+          "score": 7,
+          "callout": "Lamp light is flat; needs realistic glow and stronger contact shadows under the sofa."
         },
         "perspective": {
           "score": 7,
-          "callout": "Furniture alignment is mostly correct, though the couch appears slightly elevated."
+          "callout": "Foreground side table and rug edge near the door show slight perspective distortion."
         },
         "staging": {
-          "score": 6,
-          "callout": "Furniture scale is good, but the TV is mounted too high and the foreground bin is messy."
+          "score": 9,
+          "callout": "Cohesive coastal palette and professional furniture scaling create a high-end feel."
         }
       },
       "quality_warning": false
@@ -99,31 +99,31 @@
       "packSlug": "urban-loft",
       "status": "ok",
       "file": "renders/living-room__urban-loft.jpg",
-      "w": 1024,
-      "h": 683,
-      "kb": 8,
-      "ms": 17717,
+      "w": 1264,
+      "h": 843,
+      "kb": 779,
+      "ms": 14374,
       "retries": 0,
       "score": {
-        "overall": 5,
+        "overall": 6.8,
         "architecture": {
           "score": 5,
-          "callout": "Fix distorted kitchen backsplash and artifacts around the ceiling fan."
+          "callout": "Fix track lighting hallucinations and correct the mirror's reflected room layout."
         },
         "lighting": {
-          "score": 4,
-          "callout": "Add directional light from sliding door and improve furniture contact shadows."
+          "score": 6,
+          "callout": "Add realistic light throw and contact shadows from the Edison bulb fixtures."
         },
         "perspective": {
-          "score": 6,
-          "callout": "Correct the skew on the shelving unit and align coffee table better with the rug."
+          "score": 7,
+          "callout": "Align the shelving unit and track lighting to the room's primary vanishing points."
         },
         "staging": {
-          "score": 5,
-          "callout": "Simplify shelf decor to remove AI blobs and reduce coffee table scale."
+          "score": 9,
+          "callout": "Excellent industrial-chic styling with appropriate scale and cohesive decor."
         }
       },
-      "quality_warning": true
+      "quality_warning": false
     },
     {
       "roomSlug": "living-room",
@@ -132,31 +132,31 @@
       "packSlug": "farmhouse-chic",
       "status": "ok",
       "file": "renders/living-room__farmhouse-chic.jpg",
-      "w": 1024,
-      "h": 683,
-      "kb": 7,
-      "ms": 14075,
+      "w": 1264,
+      "h": 843,
+      "kb": 738,
+      "ms": 13074,
       "retries": 0,
       "score": {
-        "overall": 4.8,
+        "overall": 7.5,
         "architecture": {
-          "score": 4,
-          "callout": "Ceiling fan is a hallucinated mess; green artifacts appear on kitchen counters."
+          "score": 7,
+          "callout": "Ceiling fan blades are distorted; floor transition at entry is messy."
         },
         "lighting": {
-          "score": 5,
-          "callout": "Shadows under furniture are unnaturally dark and don't match ambient light sources."
+          "score": 6,
+          "callout": "Mirror reflection is hallucinated; lighting lacks directional depth from windows."
         },
         "perspective": {
-          "score": 6,
-          "callout": "Rug orientation clashes with floor tile grout lines; coffee table looks skewed."
+          "score": 9,
+          "callout": "Excellent alignment of furniture and rug with the room's vanishing points."
         },
         "staging": {
-          "score": 4,
-          "callout": "Coffee table is disproportionately large; rug is too small for the seating area."
+          "score": 8,
+          "callout": "Cohesive farmhouse style; mirror is placed slightly too high on the wall."
         }
       },
-      "quality_warning": true
+      "quality_warning": false
     },
     {
       "roomSlug": "living-room",
@@ -165,31 +165,31 @@
       "packSlug": "minimalist",
       "status": "ok",
       "file": "renders/living-room__minimalist.jpg",
-      "w": 1024,
-      "h": 683,
-      "kb": 8,
-      "ms": 19246,
+      "w": 1264,
+      "h": 843,
+      "kb": 656,
+      "ms": 24475,
       "retries": 0,
       "score": {
-        "overall": 5.3,
+        "overall": 8,
         "architecture": {
-          "score": 5,
-          "callout": "Kitchen cabinetry is severely warped and lacks structural integrity."
+          "score": 10,
+          "callout": "Walls, windows, and ceiling fan are perfectly preserved without any distortion."
         },
         "lighting": {
-          "score": 5,
-          "callout": "Harsh floor glare contrasts with flat, unrealistic shadows under the furniture."
+          "score": 6,
+          "callout": "Soften the harsh black shadows under the sofa to match the bright ambient light."
         },
         "perspective": {
           "score": 7,
-          "callout": "Coffee table and rug align with floor lines but feel slightly ungrounded."
+          "callout": "Adjust the sofa's contact point with the rug to eliminate the floating appearance."
         },
         "staging": {
-          "score": 4,
-          "callout": "Furniture is too sparse and basic; kitchen clutter ruins the staged aesthetic."
+          "score": 9,
+          "callout": "Furniture selection and placement are aesthetically pleasing and scale-appropriate."
         }
       },
-      "quality_warning": true
+      "quality_warning": false
     },
     {
       "roomSlug": "living-room",
@@ -198,31 +198,31 @@
       "packSlug": "mid-century-modern",
       "status": "ok",
       "file": "renders/living-room__mid-century-modern.jpg",
-      "w": 1024,
-      "h": 683,
-      "kb": 8,
-      "ms": 13618,
+      "w": 1264,
+      "h": 843,
+      "kb": 706,
+      "ms": 12264,
       "retries": 0,
       "score": {
-        "overall": 5,
+        "overall": 7.8,
         "architecture": {
-          "score": 6,
-          "callout": "Basic structure preserved but ceiling fan and vent integration is messy."
+          "score": 7,
+          "callout": "Fix the asymmetrical ceiling fan blades and the warped tile transition at the door."
         },
         "lighting": {
-          "score": 4,
-          "callout": "No realistic shadows under the dining set; lighting is overly flat."
+          "score": 6,
+          "callout": "Increase shadow density under the coffee table and ottoman to match the sofa."
         },
         "perspective": {
-          "score": 5,
-          "callout": "Rug angle conflicts with floor tiles; right-side chair perspective is skewed."
+          "score": 9,
+          "callout": "Furniture and rug are perfectly keyed to the room's perspective and floor plane."
         },
         "staging": {
-          "score": 5,
-          "callout": "Furniture style is cohesive but sofa scale is too small for the room depth."
+          "score": 9,
+          "callout": "Highly cohesive mid-century modern aesthetic with professional-grade scaling."
         }
       },
-      "quality_warning": true
+      "quality_warning": false
     },
     {
       "roomSlug": "living-room",
@@ -231,31 +231,31 @@
       "packSlug": "scandinavian",
       "status": "ok",
       "file": "renders/living-room__scandinavian.jpg",
-      "w": 1024,
-      "h": 683,
-      "kb": 7,
-      "ms": 19539,
+      "w": 1264,
+      "h": 843,
+      "kb": 698,
+      "ms": 13613,
       "retries": 0,
       "score": {
-        "overall": 3.5,
+        "overall": 9,
         "architecture": {
-          "score": 4,
-          "callout": "Ceiling fan is distorted and heavy compression hides wall/ceiling transitions."
+          "score": 10,
+          "callout": "Architectural lines and fixtures are perfectly preserved with zero distortion."
         },
         "lighting": {
-          "score": 3,
-          "callout": "Flat lighting with no realistic shadows or light bounce from the exterior source."
+          "score": 8,
+          "callout": "Contact shadows under the sofa are a bit too heavy for the bright ambient light."
         },
         "perspective": {
-          "score": 5,
-          "callout": "Furniture follows basic vanishing points but lacks grounding on the tiled floor."
+          "score": 9,
+          "callout": "Furniture is correctly grounded and follows the room's vanishing points."
         },
         "staging": {
-          "score": 2,
-          "callout": "Extremely low resolution and poor asset integration make this unusable for MLS."
+          "score": 9,
+          "callout": "Modern style is well-scaled and creates a cohesive, inviting atmosphere."
         }
       },
-      "quality_warning": true
+      "quality_warning": false
     },
     {
       "roomSlug": "living-room",
@@ -264,28 +264,28 @@
       "packSlug": "bohemian",
       "status": "ok",
       "file": "renders/living-room__bohemian.jpg",
-      "w": 1024,
-      "h": 683,
-      "kb": 8,
-      "ms": 14081,
+      "w": 1264,
+      "h": 843,
+      "kb": 817,
+      "ms": 13698,
       "retries": 0,
       "score": {
-        "overall": 6,
+        "overall": 8.3,
         "architecture": {
           "score": 6,
-          "callout": "Ceiling fan blades are warped; kitchen cabinet edges are blurry and lack definition."
+          "callout": "Hallucinated door hardware and warped ceiling fan blades require correction."
         },
         "lighting": {
-          "score": 5,
-          "callout": "Missing contact shadows under the sofa and coffee table create a floating effect."
+          "score": 9,
+          "callout": "Natural light integration and soft shadow casting are exceptionally realistic."
         },
         "perspective": {
-          "score": 6,
-          "callout": "The rug and coffee table do not align correctly with the floor tile grid lines."
+          "score": 9,
+          "callout": "Furniture placement and rug orientation perfectly match the room's geometry."
         },
         "staging": {
-          "score": 7,
-          "callout": "Furniture style is cohesive, but the foreground table is scaled too large."
+          "score": 9,
+          "callout": "Sophisticated boho styling with excellent texture layering and spatial awareness."
         }
       },
       "quality_warning": false
@@ -297,28 +297,28 @@
       "packSlug": "coastal-modern",
       "status": "ok",
       "file": "renders/bedroom__coastal-modern.jpg",
-      "w": 1024,
-      "h": 683,
-      "kb": 6,
-      "ms": 13799,
+      "w": 1264,
+      "h": 843,
+      "kb": 645,
+      "ms": 15787,
       "retries": 0,
       "score": {
-        "overall": 7.5,
+        "overall": 8,
         "architecture": {
           "score": 9,
-          "callout": "Walls and ceiling lines are sharp and structurally sound."
+          "callout": "Structural integrity is maintained with perfect alignment of walls and ceiling."
         },
         "lighting": {
-          "score": 5,
-          "callout": "Overexposed highlights and weak contact shadows create a flat, artificial look."
+          "score": 7,
+          "callout": "Reduce the harsh, blown-out light splash on the wall behind the left lamp."
         },
         "perspective": {
-          "score": 9,
-          "callout": "Excellent alignment of the bed and bench with the room's geometry."
+          "score": 7,
+          "callout": "Deepen contact shadows under the bed and bench to prevent a floating effect."
         },
         "staging": {
-          "score": 7,
-          "callout": "Furniture is well-scaled, but the overall aesthetic feels clinical and lacks texture."
+          "score": 9,
+          "callout": "Coastal aesthetic is well-defined with appropriate furniture scale and textures."
         }
       },
       "quality_warning": false
@@ -330,31 +330,31 @@
       "packSlug": "urban-loft",
       "status": "ok",
       "file": "renders/bedroom__urban-loft.jpg",
-      "w": 1024,
-      "h": 683,
-      "kb": 7,
-      "ms": 13555,
+      "w": 1264,
+      "h": 843,
+      "kb": 653,
+      "ms": 19368,
       "retries": 0,
       "score": {
-        "overall": 5,
+        "overall": 8.3,
         "architecture": {
-          "score": 5,
-          "callout": "Left doorway is warped and wall textures show significant AI artifacts."
+          "score": 10,
+          "callout": "Flawless preservation of room structure and architectural details."
         },
         "lighting": {
-          "score": 4,
-          "callout": "Harsh, unrealistic shadows and neon-orange lamp glow lack natural falloff."
+          "score": 9,
+          "callout": "Excellent balance between warm interior lamps and cool natural light."
         },
         "perspective": {
-          "score": 6,
-          "callout": "Bench at foot of bed is skewed; console table doesn't sit flush with the wall."
+          "score": 7,
+          "callout": "Fix: Adjust pet steps on ottoman to sit flush and match floor-level perspective."
         },
         "staging": {
-          "score": 5,
-          "callout": "Heavy, dark furniture choices overwhelm the small room and feel poorly scaled."
+          "score": 7,
+          "callout": "Fix: Remove pet steps and crate to declutter and maintain a professional look."
         }
       },
-      "quality_warning": true
+      "quality_warning": false
     },
     {
       "roomSlug": "bedroom",
@@ -363,28 +363,28 @@
       "packSlug": "farmhouse-chic",
       "status": "ok",
       "file": "renders/bedroom__farmhouse-chic.jpg",
-      "w": 1024,
-      "h": 683,
-      "kb": 7,
-      "ms": 23639,
+      "w": 1264,
+      "h": 843,
+      "kb": 635,
+      "ms": 13786,
       "retries": 0,
       "score": {
-        "overall": 6.8,
+        "overall": 8.8,
         "architecture": {
-          "score": 9,
-          "callout": "Structural lines, walls, and door frames are perfectly preserved and straight."
+          "score": 10,
+          "callout": "Room geometry and architectural details are flawlessly maintained."
         },
         "lighting": {
-          "score": 5,
-          "callout": "Lighting is washed out and flat; lamps lack realistic glow and shadow depth."
+          "score": 9,
+          "callout": "Natural and artificial light sources are balanced with high realism."
         },
         "perspective": {
-          "score": 7,
-          "callout": "Bed feels slightly disconnected from the floor; rug perspective is a bit skewed."
+          "score": 9,
+          "callout": "Furniture is accurately scaled and grounded within the room's depth."
         },
         "staging": {
-          "score": 6,
-          "callout": "Rug texture is messy and distracting; low resolution obscures staging details."
+          "score": 7,
+          "callout": "Distorted dog in crate and awkward scale of wall art on the right need correction."
         }
       },
       "quality_warning": false
@@ -396,28 +396,28 @@
       "packSlug": "minimalist",
       "status": "ok",
       "file": "renders/bedroom__minimalist.jpg",
-      "w": 1024,
-      "h": 683,
-      "kb": 6,
-      "ms": 19940,
+      "w": 1264,
+      "h": 843,
+      "kb": 588,
+      "ms": 14054,
       "retries": 0,
       "score": {
         "overall": 7.8,
         "architecture": {
-          "score": 9,
-          "callout": "Room structure is perfectly preserved with no warping or hallucinations."
+          "score": 10,
+          "callout": "Structural lines are perfectly maintained with no warping in the ceiling or doors."
         },
         "lighting": {
-          "score": 6,
-          "callout": "Artificial lamp glow lacks natural fall-off; shadows are inconsistent with ambient light."
+          "score": 8,
+          "callout": "Strong integration of ambient and lamp light, though shadows lack some depth."
         },
         "perspective": {
-          "score": 9,
-          "callout": "Bed and nightstands are accurately placed within the room's 3D space."
+          "score": 7,
+          "callout": "The pet steps on the floor and ottoman don't perfectly share the same vanishing point."
         },
         "staging": {
-          "score": 7,
-          "callout": "Bedding looks overly stiff and synthetic; rug placement feels slightly undersized."
+          "score": 6,
+          "callout": "Remove pet-specific items and reduce the scale of the oversized leather ottoman."
         }
       },
       "quality_warning": false
@@ -429,28 +429,28 @@
       "packSlug": "mid-century-modern",
       "status": "ok",
       "file": "renders/bedroom__mid-century-modern.jpg",
-      "w": 1024,
-      "h": 683,
-      "kb": 7,
-      "ms": 19008,
+      "w": 1264,
+      "h": 843,
+      "kb": 619,
+      "ms": 20269,
       "retries": 0,
       "score": {
-        "overall": 6,
+        "overall": 8.8,
         "architecture": {
-          "score": 6,
-          "callout": "Ceiling fan is a distorted hallucination; floor lacks realistic material definition."
+          "score": 10,
+          "callout": "Flawless preservation of the tray ceiling, moldings, and door structures."
         },
         "lighting": {
-          "score": 5,
-          "callout": "Lighting is overly flat; shadows under the bed don't match the bedside lamp sources."
+          "score": 9,
+          "callout": "Warm lamp glows and natural light from the door blend seamlessly with soft shadows."
         },
         "perspective": {
-          "score": 7,
-          "callout": "Bed and nightstands align well, but the accent chair feels disconnected from the floor."
+          "score": 9,
+          "callout": "Bed and rug are perfectly anchored to the floor with correct vanishing points."
         },
         "staging": {
-          "score": 6,
-          "callout": "MCM style is cohesive, but heavy pixelation and scaling issues reduce the premium feel."
+          "score": 7,
+          "callout": "The black wall panels on the right are distracting and lack the quality of other items."
         }
       },
       "quality_warning": false
@@ -462,31 +462,31 @@
       "packSlug": "scandinavian",
       "status": "ok",
       "file": "renders/bedroom__scandinavian.jpg",
-      "w": 1024,
-      "h": 683,
-      "kb": 6,
-      "ms": 26693,
+      "w": 1264,
+      "h": 843,
+      "kb": 619,
+      "ms": 20236,
       "retries": 0,
       "score": {
-        "overall": 3.5,
+        "overall": 7.5,
         "architecture": {
-          "score": 3,
-          "callout": "Fix the severe artifacts on the left door and the distorted window blinds."
+          "score": 9,
+          "callout": "Excellent preservation of tray ceiling and trim; clean transitions to adjacent rooms."
         },
         "lighting": {
-          "score": 4,
-          "callout": "Lighting is flat and overexposed; needs depth and realistic shadow casting."
+          "score": 7,
+          "callout": "Shadows under furniture lack depth; lamp glow on wall feels slightly artificial."
         },
         "perspective": {
-          "score": 5,
-          "callout": "Bench and bed lack proper contact shadows, making them appear to float."
+          "score": 8,
+          "callout": "Furniture alignment is strong, though dog crate angle feels slightly disconnected."
         },
         "staging": {
-          "score": 2,
-          "callout": "Resolution is too low for professional use; textures and decor lack any detail."
+          "score": 6,
+          "callout": "Pet crate and stairs clutter the shot; nightstands appear undersized for the bed."
         }
       },
-      "quality_warning": true
+      "quality_warning": false
     },
     {
       "roomSlug": "bedroom",
@@ -495,270 +495,270 @@
       "packSlug": "bohemian",
       "status": "ok",
       "file": "renders/bedroom__bohemian.jpg",
-      "w": 1024,
-      "h": 683,
-      "kb": 8,
-      "ms": 15761,
-      "retries": 0,
+      "w": 1264,
+      "h": 843,
+      "kb": 738,
+      "ms": 19274,
+      "retries": 1,
       "score": {
-        "overall": 4.3,
+        "overall": 8.3,
         "architecture": {
-          "score": 4,
-          "callout": "Ceiling and wall behind bed show heavy AI artifacts and structural hallucinations."
+          "score": 9,
+          "callout": "Excellent preservation of tray ceiling and wall lines; vent detail is slightly soft."
         },
         "lighting": {
-          "score": 4,
-          "callout": "Lighting is extremely flat with no realistic shadow casting from lamps or furniture."
+          "score": 9,
+          "callout": "Natural light from the right and warm lamp glows are perfectly balanced."
         },
         "perspective": {
-          "score": 5,
-          "callout": "The green chest and pet steps appear tilted and don't sit naturally on the floor."
+          "score": 8,
+          "callout": "Furniture alignment is strong, though pet stairs look slightly disconnected from floor."
         },
         "staging": {
-          "score": 4,
-          "callout": "Cluttered layout with poorly scaled wall art and jarring color choices for furniture."
+          "score": 7,
+          "callout": "Boho style is cohesive, but pet stairs and excess baskets create unnecessary clutter."
         }
       },
-      "quality_warning": true
+      "quality_warning": false
     },
     {
-      "roomSlug": "kitchen",
-      "roomLabel": "Kitchen",
+      "roomSlug": "primary-bedroom",
+      "roomLabel": "Primary Bedroom",
       "pack": "Coastal Modern",
       "packSlug": "coastal-modern",
       "status": "ok",
-      "file": "renders/kitchen__coastal-modern.jpg",
-      "w": 1024,
-      "h": 684,
-      "kb": 7,
-      "ms": 16050,
+      "file": "renders/primary-bedroom__coastal-modern.jpg",
+      "w": 1264,
+      "h": 843,
+      "kb": 712,
+      "ms": 17965,
       "retries": 0,
       "score": {
-        "overall": 3.5,
+        "overall": 9.5,
         "architecture": {
-          "score": 4,
-          "callout": "Severe masking errors and color bleeding on cabinets; structural lines are distorted."
+          "score": 10,
+          "callout": "Original structural lines are perfectly preserved with no warping or hallucinations."
         },
         "lighting": {
-          "score": 3,
-          "callout": "Flat, artificial lighting with no contact shadows or realistic light interaction."
+          "score": 9,
+          "callout": "Convincing light interaction between the window and the interior light sources."
         },
         "perspective": {
-          "score": 5,
-          "callout": "Island and stools appear to float due to lack of perspective-aligned shadows."
+          "score": 10,
+          "callout": "Perfect furniture placement that respects the room's vanishing points and floor."
         },
         "staging": {
-          "score": 2,
-          "callout": "Aggressive green color application looks like a digital glitch rather than staging."
+          "score": 9,
+          "callout": "Beautifully executed coastal theme with realistic fabric and wood textures."
         }
       },
-      "quality_warning": true
+      "quality_warning": false
     },
     {
-      "roomSlug": "kitchen",
-      "roomLabel": "Kitchen",
+      "roomSlug": "primary-bedroom",
+      "roomLabel": "Primary Bedroom",
       "pack": "Urban Loft",
       "packSlug": "urban-loft",
       "status": "ok",
-      "file": "renders/kitchen__urban-loft.jpg",
-      "w": 1024,
-      "h": 684,
-      "kb": 7,
-      "ms": 23222,
+      "file": "renders/primary-bedroom__urban-loft.jpg",
+      "w": 1264,
+      "h": 843,
+      "kb": 719,
+      "ms": 13358,
       "retries": 0,
       "score": {
-        "overall": 3.3,
+        "overall": 8.3,
         "architecture": {
-          "score": 4,
-          "callout": "Masking for green cabinets is sloppy, bleeding onto the floor and white trim."
+          "score": 7,
+          "callout": "Warped ceiling fan hub and unfinished outlet box detract from the professional finish."
         },
         "lighting": {
-          "score": 3,
-          "callout": "Stools lack realistic contact shadows and don't react to the room's light sources."
+          "score": 7,
+          "callout": "Inconsistent lamp glow; the right lamp illuminates the wall while the left does not."
         },
         "perspective": {
-          "score": 4,
-          "callout": "Stools are angled incorrectly relative to the island and floor grid."
+          "score": 10,
+          "callout": "Flawless perspective; all items are perfectly anchored to the floor and wall planes."
         },
         "staging": {
-          "score": 2,
-          "callout": "Low-quality assets and poor image resolution render this unusable for marketing."
+          "score": 9,
+          "callout": "Industrial-chic style is expertly executed with realistic textures and proper scaling."
         }
       },
-      "quality_warning": true
+      "quality_warning": false
     },
     {
-      "roomSlug": "kitchen",
-      "roomLabel": "Kitchen",
+      "roomSlug": "primary-bedroom",
+      "roomLabel": "Primary Bedroom",
       "pack": "Farmhouse Chic",
       "packSlug": "farmhouse-chic",
       "status": "ok",
-      "file": "renders/kitchen__farmhouse-chic.jpg",
-      "w": 1024,
-      "h": 684,
-      "kb": 7,
-      "ms": 12273,
+      "file": "renders/primary-bedroom__farmhouse-chic.jpg",
+      "w": 1264,
+      "h": 843,
+      "kb": 691,
+      "ms": 23217,
       "retries": 0,
       "score": {
-        "overall": 3.3,
+        "overall": 9.5,
         "architecture": {
-          "score": 4,
-          "callout": "Green cabinet masking is imprecise and bleeds onto the white trim and appliances."
+          "score": 9,
+          "callout": "Structural lines are perfectly preserved; minor AI softening on the door handle."
         },
         "lighting": {
-          "score": 3,
-          "callout": "Lack of contact shadows makes the island and countertop items look floating."
+          "score": 9,
+          "callout": "Natural and artificial light sources blend seamlessly with realistic shadow depth."
         },
         "perspective": {
-          "score": 4,
-          "callout": "The island's base does not align with the perspective of the floor tile grid."
+          "score": 10,
+          "callout": "Flawless furniture grounding; the rug and bed perfectly follow the floor plane."
         },
         "staging": {
-          "score": 2,
-          "callout": "Unusable resolution and flat color fills lack any realistic material texture."
+          "score": 10,
+          "callout": "Exceptional farmhouse styling; items are appropriately scaled and professionally placed."
         }
       },
-      "quality_warning": true
+      "quality_warning": false
     },
     {
-      "roomSlug": "kitchen",
-      "roomLabel": "Kitchen",
+      "roomSlug": "primary-bedroom",
+      "roomLabel": "Primary Bedroom",
       "pack": "Minimalist",
       "packSlug": "minimalist",
       "status": "ok",
-      "file": "renders/kitchen__minimalist.jpg",
-      "w": 1024,
-      "h": 684,
-      "kb": 7,
-      "ms": 18112,
+      "file": "renders/primary-bedroom__minimalist.jpg",
+      "w": 1264,
+      "h": 843,
+      "kb": 556,
+      "ms": 13958,
       "retries": 0,
       "score": {
-        "overall": 3.5,
+        "overall": 8.3,
         "architecture": {
-          "score": 4,
-          "callout": "Severe pixelation and compression artifacts obscure all fine architectural details."
+          "score": 10,
+          "callout": "Walls, door, and window are perfectly preserved with no warping or hallucinations."
         },
         "lighting": {
-          "score": 3,
-          "callout": "Lighting is extremely flat with no realistic contact shadows or light falloff."
+          "score": 8,
+          "callout": "Shadows under the bed are consistent with the primary light source from the window."
         },
         "perspective": {
-          "score": 5,
-          "callout": "Basic vanishing points are correct but edges are jagged and poorly defined."
+          "score": 9,
+          "callout": "Excellent placement; furniture sits naturally on the floor plane and follows lines."
         },
         "staging": {
-          "score": 2,
-          "callout": "The green cabinet overlay is a flat color block lacking realistic texture and finish."
+          "score": 6,
+          "callout": "The nightstand is undersized and the room feels empty without a rug or more decor."
         }
       },
-      "quality_warning": true
+      "quality_warning": false
     },
     {
-      "roomSlug": "kitchen",
-      "roomLabel": "Kitchen",
+      "roomSlug": "primary-bedroom",
+      "roomLabel": "Primary Bedroom",
       "pack": "Mid-Century Modern",
       "packSlug": "mid-century-modern",
       "status": "ok",
-      "file": "renders/kitchen__mid-century-modern.jpg",
-      "w": 1024,
-      "h": 684,
-      "kb": 7,
-      "ms": 14728,
-      "retries": 0,
-      "score": {
-        "overall": 2.8,
-        "architecture": {
-          "score": 3,
-          "callout": "Correct warped cabinet lines and fix the unnatural green color masking on base units."
-        },
-        "lighting": {
-          "score": 2,
-          "callout": "Introduce realistic shadows and fix overexposed areas to create depth and realism."
-        },
-        "perspective": {
-          "score": 4,
-          "callout": "Ground the floating side table and floor lamp to match the floor's vanishing point."
-        },
-        "staging": {
-          "score": 2,
-          "callout": "Remove the floor lamp and side table; they are illogical for a kitchen workspace."
-        }
-      },
-      "quality_warning": true
-    },
-    {
-      "roomSlug": "kitchen",
-      "roomLabel": "Kitchen",
-      "pack": "Scandinavian",
-      "packSlug": "scandinavian",
-      "status": "ok",
-      "file": "renders/kitchen__scandinavian.jpg",
-      "w": 1024,
-      "h": 684,
-      "kb": 7,
-      "ms": 12244,
-      "retries": 0,
-      "score": {
-        "overall": 4,
-        "architecture": {
-          "score": 5,
-          "callout": "Cabinet recoloring is flat and masks textures; pixelation obscures fine details."
-        },
-        "lighting": {
-          "score": 3,
-          "callout": "Complete lack of contact shadows makes the island and stool appear to float."
-        },
-        "perspective": {
-          "score": 6,
-          "callout": "Stool angle is slightly inconsistent with the island's vanishing points."
-        },
-        "staging": {
-          "score": 2,
-          "callout": "Jarring color palette and low-res assets are unsuitable for professional listings."
-        }
-      },
-      "quality_warning": true
-    },
-    {
-      "roomSlug": "kitchen",
-      "roomLabel": "Kitchen",
-      "pack": "Bohemian",
-      "packSlug": "bohemian",
-      "status": "ok",
-      "file": "renders/kitchen__bohemian.jpg",
-      "w": 1024,
-      "h": 684,
-      "kb": 7,
-      "ms": 24425,
+      "file": "renders/primary-bedroom__mid-century-modern.jpg",
+      "w": 1264,
+      "h": 843,
+      "kb": 563,
+      "ms": 29615,
       "retries": 0,
       "score": {
         "overall": 4.8,
         "architecture": {
-          "score": 5,
-          "callout": "Fix messy cabinet edges and improve resolution to define wall boundaries."
+          "score": 4,
+          "callout": "Ceiling fan is a distorted hallucination; walls and floor suffer from posterization."
         },
         "lighting": {
           "score": 4,
-          "callout": "Balance window exposure and add directional shadows for realistic depth."
+          "callout": "Lighting lacks depth; shadows are blotchy and unnatural due to poor image quality."
         },
         "perspective": {
-          "score": 6,
-          "callout": "Adjust rug alignment and ground the bar stools more firmly to the floor."
+          "score": 5,
+          "callout": "Rug does not sit flat on the floor; dresser perspective is slightly skewed."
         },
         "staging": {
-          "score": 4,
-          "callout": "Reduce counter clutter and choose a more neutral, modern color palette."
+          "score": 6,
+          "callout": "Furniture style is consistent, but items look like stickers rather than 3D objects."
         }
       },
       "quality_warning": true
+    },
+    {
+      "roomSlug": "primary-bedroom",
+      "roomLabel": "Primary Bedroom",
+      "pack": "Scandinavian",
+      "packSlug": "scandinavian",
+      "status": "ok",
+      "file": "renders/primary-bedroom__scandinavian.jpg",
+      "w": 1264,
+      "h": 843,
+      "kb": 644,
+      "ms": 13931,
+      "retries": 0,
+      "score": {
+        "overall": 8.5,
+        "architecture": {
+          "score": 9,
+          "callout": "Excellent preservation of structural lines, door hardware, and ceiling fan details."
+        },
+        "lighting": {
+          "score": 7,
+          "callout": "Shadows under bed legs are slightly disconnected; lighting lacks directional depth."
+        },
+        "perspective": {
+          "score": 9,
+          "callout": "Furniture aligns well with vanishing points; rug placement feels grounded and natural."
+        },
+        "staging": {
+          "score": 9,
+          "callout": "Cohesive Scandi-modern aesthetic with perfectly scaled furniture for the floor plan."
+        }
+      },
+      "quality_warning": false
+    },
+    {
+      "roomSlug": "primary-bedroom",
+      "roomLabel": "Primary Bedroom",
+      "pack": "Bohemian",
+      "packSlug": "bohemian",
+      "status": "ok",
+      "file": "renders/primary-bedroom__bohemian.jpg",
+      "w": 1264,
+      "h": 843,
+      "kb": 780,
+      "ms": 25695,
+      "retries": 0,
+      "score": {
+        "overall": 7.3,
+        "architecture": {
+          "score": 6,
+          "callout": "Ceiling fan blades are warped; door trim merges incorrectly with the wall corner."
+        },
+        "lighting": {
+          "score": 7,
+          "callout": "Light from the ceiling fixture lacks realistic falloff and shadow interaction."
+        },
+        "perspective": {
+          "score": 7,
+          "callout": "Mirror reflection is inaccurate, showing a large plant not present in the room."
+        },
+        "staging": {
+          "score": 9,
+          "callout": "Highly cohesive boho-chic aesthetic with furniture perfectly scaled to the space."
+        }
+      },
+      "quality_warning": false
     }
   ],
   "stats": {
     "ok": 21,
     "fail": 0,
-    "retries": 0,
+    "retries": 1,
     "total": 21
   },
-  "scored_at": "2026-04-19T20:20:51.730Z",
-  "score_warnings": 15
+  "scored_at": "2026-04-19T20:59:38.745Z",
+  "score_warnings": 1
 }

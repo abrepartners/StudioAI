@@ -625,17 +625,49 @@ Before changing prompts or composite parameters, run the affected tool's harness
 
 ### 10.1 Pack verification matrix
 
-Admin-only visual audit at `/admin/pack-matrix` — every Style Pack × three canonical rooms (Living Room / Bedroom / Kitchen) in a 7×3 grid. Spot-check before shipping a new pack or adjusting pack DNA / preservation rules.
+Admin-only visual audit at `/admin/pack-matrix` — every Style Pack × three canonical rooms in a 7×3 grid. Spot-check before shipping a new pack or adjusting pack DNA / preservation rules.
+
+**Room scope (Fix 1, 2026-04-18):** matrix covers the `furniture` pack tier only — rooms where packs place actual furniture. Kitchen / Bathroom / Laundry Room (`decor-only` tier) and Exterior / Patio / Garage / Basement / Closet (`disabled` tier) are out of scope because their pack behavior is fundamentally different and isn't comparable in a grid.
+
+**Canonical fixtures (all single-purpose, empty-or-lightly-staged):**
+
+| Slug | Label | Source fixture |
+|---|---|---|
+| `living-room` | Living Room | `Amber_photos_BM8A4996.jpg` — empty LR, defined couch zone, windows + ceiling fan |
+| `bedroom` | Bedroom | `Jordan_Roehrenbeck_..._NUR65764.jpg` — master w/ tray ceiling, lightly staged |
+| `primary-bedroom` | Primary Bedroom | `Amber_photos_BM8A5021.jpg` — empty primary BR, window, neutral walls |
+
+**Room-type-aware pack prompts (Fix 2, 2026-04-18):** `components/StyleControls.tsx` `buildPrompt` branches on `selectedRoom`:
+- **furniture tier** (Living Room, Bedroom, Primary Bedroom, Dining Room, Office, Nursery): full furniture staging + HARD PRESERVATION RULES block (unchanged behavior).
+- **decor-only tier** (Kitchen, Bathroom, Laundry Room): accessories only — pendant styling, barstool cushions, dish towels, fruit bowls, window treatments. Cabinets / appliances / countertops / fixtures stay pixel-identical. Explicit "do not place sofas / beds / dining tables" line.
+- **disabled tier** (Exterior, Patio, Garage, Basement, Closet): pack mode gated in UI, toast directs user to Text mode or Pro AI Tools.
+
+The generator script mirrors all three branches so the matrix reflects production.
+
+**Expected performance (baseline target):**
+
+| Pack | Living Room | Bedroom | Primary Bedroom |
+|---|---|---|---|
+| Coastal Modern | ≥6 | ≥7 | ≥6 |
+| Urban Loft | ≥5 | ≥5 | ≥5 |
+| Farmhouse Chic | ≥6 | ≥6 | ≥6 |
+| Minimalist | ≥7 | ≥7 | ≥7 |
+| Mid-Century Modern | ≥6 | ≥6 | ≥6 |
+| Scandinavian | ≥5 | ≥5 | ≥5 |
+| Bohemian | ≥5 | ≥5 | ≥5 |
+
+Ship gate: **≥14/21 cells score ≥6** on re-run. Below that, something regressed — investigate before committing.
 
 **Generator:** `tests/qa-harness/generate-pack-verification-matrix.mjs`
-**Inputs:** `public/pack-verification/rooms/{living-room,bedroom,kitchen}.jpg` — canonical fixtures committed to the repo.
-**Outputs:** `public/pack-verification/renders/<room-slug>__<pack-slug>.jpg` (21 files, 1024w JPEG, q=0.85) + `public/pack-verification/manifest.json` (metadata consumed by the admin UI).
-**Prompt:** identical to production (`components/StyleControls.tsx` `buildPrompt` for `stageMode='packs'`) — the HARD PRESERVATION RULES block is mirrored verbatim. If the production prompt changes, update the script in the same PR.
-**Cost:** 21 Gemini image calls ≈ $0.84 per full regen.
+**Scorer:** `tests/qa-harness/score-pack-matrix.mjs` (reads manifest, grades every cell 1-10 on architecture / lighting / perspective / staging, writes scores back).
+**Outputs:** `public/pack-verification/renders/<room-slug>__<pack-slug>.jpg` (21 files, 1024w JPEG, q=0.85) + `public/pack-verification/manifest.json` (metadata + scores consumed by the admin UI).
+**Prompt:** identical to production (`components/StyleControls.tsx` `buildPrompt` for `stageMode='packs'`) — HARD PRESERVATION RULES and the room-type branching are mirrored verbatim. If the production prompt changes, update the script in the same PR.
+**Cost:** 21 Gemini image calls ≈ $0.84 per full regen + ~$0.10 for scoring pass.
 
 **Runbook (run locally):**
 ```sh
-node tests/qa-harness/generate-pack-verification-matrix.mjs
+node tests/qa-harness/generate-pack-verification-matrix.mjs   # renders 21 cells
+node tests/qa-harness/score-pack-matrix.mjs                   # second-pass scores
 git add public/pack-verification/
 git commit -m "chore: refresh pack verification matrix"
 ```

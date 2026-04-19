@@ -22,15 +22,41 @@ The matrix is **7 packs × 3 canonical rooms = 21 renders** laid out in a grid. 
 
 ## Canonical rooms
 
-Three fixtures under `public/pack-verification/rooms/`:
+Three fixtures under `public/pack-verification/rooms/`. Post-Fix-1 (2026-04-18) the matrix is pure single-purpose rooms — open-concept + kitchen fixtures were swapped out because packs confuse zones and don't restyle cabinets.
 
 | Slug | Label | Source | Why picked |
 |---|---|---|---|
-| `living-room` | Living Room | `tests/qa-harness/fixtures/interiors/Lane_Photos_BM8A1572.jpg` | Clean, large empty footprint, light tile, gray walls, slider + ceiling fan. Also used in `generate-pack-previews.mjs` so renders are cross-comparable. |
-| `bedroom` | Bedroom | `tests/qa-harness/fixtures/interiors/Jordan_Roehrenbeck_..._NUR65764.jpg` | Master bedroom with tray ceiling, neutral walls, hardwood floor, French door. Lightly staged → tests the pack's ability to override existing decor. |
-| `kitchen` | Kitchen | `tests/qa-harness/fixtures/interiors/Amber_photos_BM8A5086.jpg` | Cream cabinets, island, pendant light, stainless + white appliances. Tests the appliance / cabinet preservation rule hard. |
+| `living-room` | Living Room | `Amber_photos_BM8A4996.jpg` | Pure empty living room — clear couch-zone floor, no kitchen, ceiling fan, double-window daylight, neutral walls. Packs have a defined footprint to work with. |
+| `bedroom` | Bedroom | `Jordan_Roehrenbeck_..._NUR65764.jpg` | Master bedroom with tray ceiling, neutral walls, hardwood floor, French door. Lightly staged — tests the pack's ability to override existing decor. Best performer in the Apr 2026 baseline scoring. |
+| `primary-bedroom` | Primary Bedroom | `Amber_photos_BM8A5021.jpg` | Empty primary bedroom — neutral walls, daylight window, vinyl plank floor. Replaced Kitchen fixture because packs are **decor-only** in kitchens (see Fix 2 in `StyleControls.tsx`) and the matrix should test the furniture-tier prompt. |
 
 If you swap a fixture, update both this table **and** the `ROOMS` array in the generator.
+
+### Room scope
+
+Not every `FurnitureRoomType` is part of the matrix. The audit covers the three fixtures above only — they represent the **furniture tier** of `packTierFor()` in `components/StyleControls.tsx`. Other tiers:
+
+| Tier | Rooms | Pack behavior in production | Covered by matrix? |
+|---|---|---|---|
+| `furniture` | Living Room, Bedroom, Primary Bedroom, Dining Room, Office, Nursery | Full furniture staging with HARD PRESERVATION RULES | Yes (3 of 6 sampled) |
+| `decor-only` | Kitchen, Bathroom, Laundry Room | Accessories only — no furniture, no cabinet restyling, no appliance changes | No — separate manual spot-check; packs deliberately minimize visible change |
+| `disabled` | Exterior, Patio, Garage, Basement, Closet | Pack mode gated in UI, toast directs to Text mode | No — nothing to render |
+
+### Expected pack × room pairings
+
+Which combos should score ≥6 after Fix 1 + Fix 2?
+
+| Pack | Living Room | Bedroom | Primary Bedroom |
+|---|---|---|---|
+| Coastal Modern | strong (airy pack + empty LR) | strong (prior baseline 7.5) | strong |
+| Urban Loft | moderate (dark pack may over-fill empty LR) | moderate | moderate |
+| Farmhouse Chic | strong | strong (prior baseline 6.8) | strong |
+| Minimalist | strong | strong (prior baseline 7.8) | strong |
+| Mid-Century Modern | strong | strong | strong |
+| Scandinavian | moderate (risk of washed-out result) | moderate | moderate |
+| Bohemian | moderate | moderate | moderate |
+
+Target: ≥14/21 cells score ≥6. Below that, something regressed.
 
 ---
 
@@ -109,10 +135,11 @@ The admin UI would poll `GET /api/regen-pack-matrix?jobId=X` every 5s and flip t
 
 | Path | Role |
 |---|---|
-| `tests/qa-harness/generate-pack-verification-matrix.mjs` | Generator script (local run). |
-| `public/pack-verification/rooms/{living-room,bedroom,kitchen}.jpg` | Canonical room fixtures. |
+| `tests/qa-harness/generate-pack-verification-matrix.mjs` | Generator script (local run). Mirrors the room-type branching from production. |
+| `tests/qa-harness/score-pack-matrix.mjs` | Second-pass scorer — grades renders 1-10 across 4 dimensions (architecture / lighting / perspective / staging). |
+| `public/pack-verification/rooms/{living-room,bedroom,primary-bedroom}.jpg` | Canonical room fixtures (Fix 1 swapped kitchen → primary-bedroom). |
 | `public/pack-verification/renders/*.jpg` | 21 static renders. |
-| `public/pack-verification/manifest.json` | Metadata consumed by admin UI. |
+| `public/pack-verification/manifest.json` | Metadata + per-cell scores consumed by admin UI. |
 | `src/routes/AdminPackMatrixRoute.tsx` | Admin surface. |
 | `src/routes/AppRouter.tsx` | Mounts `/admin/pack-matrix`. |
 | `docs/SOP.md` §10.1 | SOP entry point. |

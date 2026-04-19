@@ -18,10 +18,13 @@
  */
 export async function sharpenImage(
   imageBase64: string,
-  amount: number = 0.4,
+  amount: number = 0.2,
   radius: number = 1,
   format: 'jpeg' | 'png' = 'jpeg'
 ): Promise<string> {
+  // amount lowered 0.4 → 0.2 in 2026-04-19: 0.4 was amplifying low-contrast
+  // halftone bands in Gemini's averaged inpaint regions, surfacing as
+  // "gray marks" on Cleanup output where the user expected a clean fill.
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';

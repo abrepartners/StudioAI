@@ -3431,39 +3431,9 @@ Direction from user: ${prompt}`;
                       referenceImage={referenceImage}
                       onReferenceImageChange={setReferenceImage}
                     />
-                    <SpecialModesPanel
-                      key={sessionQueue[sessionIndex]?.id || 'single'}
-                      originalImage={originalImage}
-                      generatedImage={generatedImage}
-                      selectedRoom={selectedRoom}
-                      onNewImage={(() => {
-                        const capturedSessionId = sessionQueue[sessionIndex]?.id;
-                        return (img: string, toolName?: string) => {
-                          const tool = toolName || 'edit';
-                          if (currentSessionIdRef.current === capturedSessionId) {
-                            pushToHistory();
-                            setGeneratedImage(img);
-                            // Track tool in edit history
-                            setSessionQueue(prev => prev.map(s =>
-                              s.id === capturedSessionId
-                                ? { ...s, editHistory: [...s.editHistory, tool] }
-                                : s
-                            ));
-                          } else if (capturedSessionId) {
-                            setSessionQueue(prev =>
-                              prev.map(s =>
-                                s.id === capturedSessionId
-                                  ? { ...s, generatedImage: img, editHistory: [...s.editHistory, tool] }
-                                  : s
-                              )
-                            );
-                          }
-                        };
-                      })()}
-                      onRequireKey={() => setShowUpgradeModal(true)}
-                      savedStages={savedStages}
-                      isPro={subscription.plan === 'pro'}
-                    />
+
+                    {/* Pro AI Tools live in their own sidebar tab (R23) — do
+                        NOT render the panel here too. Selective Removal stays. */}
 
                     {/* Selective Removal — only show after a generation */}
                     {generatedImage && (

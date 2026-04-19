@@ -15,6 +15,8 @@ import {
   ShieldCheck,
   FilePenLine,
   Loader2,
+  AlertTriangle,
+  Lock,
 } from 'lucide-react';
 import PanelHeader from './PanelHeader';
 import { Pill, Badge } from './ui';
@@ -36,7 +38,26 @@ interface RenovationControlsProps {
   initialPreset?: string | null;
   onStageModeChanged?: (mode: 'text' | 'packs' | 'furniture') => void;
   onPresetChanged?: (preset: string | null) => void;
+  /**
+   * X3: Source image (data URL or base64) used only to read naturalWidth /
+   * naturalHeight so we can flag narrow/awkward room geometry before packs
+   * fire. Packs extend/reframe narrow rooms (width:height > 2.2 or < 0.6) to
+   * fit bedroom furniture — adversarial fail from Phase 2 real-world QA.
+   */
+  sourceImage?: string | null;
+  // D2: Structural Lock toggle — ON preserves architecture (default),
+  // OFF lets Gemini modify walls/floors/fixtures for renovation mockups.
+  structuralLock?: boolean;
+  onStructuralLockChange?: (value: boolean) => void;
 }
+
+/**
+ * X3: Narrow-room detection. Returns true if the room aspect ratio (w:h)
+ * is > 2.2 (very wide panoramic kitchen, short hallway) or < 0.6 (unusually
+ * tall/pinched frame). Packs reframe these to shoehorn furniture.
+ */
+const NARROW_ASPECT_MAX = 2.2;
+const NARROW_ASPECT_MIN = 0.6;
 
 const RenovationControls: React.FC<RenovationControlsProps> = ({
   activeMode,
@@ -53,10 +74,35 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
   initialPreset = null,
   onStageModeChanged,
   onPresetChanged,
+  sourceImage,
+  structuralLock = true,
+  onStructuralLockChange,
 }) => {
   const [selectedPreset, setSelectedPreset] = useState<StylePreset | null>(initialPreset as StylePreset | null);
   const [customPrompt, setCustomPrompt] = useState(initialPrompt);
   const [stageMode, setStageMode] = useState<StageMode>(initialStageMode);
+
+  // X3: Narrow-room detection for pack mode. Kick a hidden Image load and
+  // cache whether the source ratio is "awkward" (too wide or too tall). Packs
+  // on these frames tend to extend walls or reframe the room to fit standard
+  // bedroom/living-room furniture — adversarial fail from Phase 2 QA.
+  const [aspectRatio, setAspectRatio] = useState<number | null>(null);
+  useEffect(() => {
+    if (!sourceImage) { setAspectRatio(null); return; }
+    let cancelled = false;
+    const img = new Image();
+    img.onload = () => {
+      if (cancelled) return;
+      if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+        setAspectRatio(img.naturalWidth / img.naturalHeight);
+      }
+    };
+    img.onerror = () => { if (!cancelled) setAspectRatio(null); };
+    img.src = sourceImage.startsWith('data:') ? sourceImage : `data:image/jpeg;base64,${sourceImage}`;
+    return () => { cancelled = true; };
+  }, [sourceImage]);
+  const isNarrowGeometry =
+    aspectRatio !== null && (aspectRatio > NARROW_ASPECT_MAX || aspectRatio < NARROW_ASPECT_MIN);
 
   // Keep stable refs to avoid re-render loops when parent passes inline callbacks
   const onPromptChangeRef = useRef(onPromptChange);
@@ -79,14 +125,14 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
     onPresetChangedRef.current?.(selectedPreset);
   }, [selectedPreset]);
 
-  const presets: Array<{ id: StylePreset; icon: React.ReactNode; description: string }> = [
-    { id: 'Coastal Modern', icon: <Palmtree size={16} />, description: 'Light and airy flow' },
-    { id: 'Urban Loft', icon: <Factory size={16} />, description: 'Industrial edge' },
-    { id: 'Farmhouse Chic', icon: <Wheat size={16} />, description: 'Rustic warmth' },
-    { id: 'Minimalist', icon: <Sparkles size={16} />, description: 'Quiet simplicity' },
-    { id: 'Mid-Century Modern', icon: <Layers size={16} />, description: 'Retro balance' },
-    { id: 'Scandinavian', icon: <Cloud size={16} />, description: 'Natural calm' },
-    { id: 'Bohemian', icon: <Flower2 size={16} />, description: 'Textured eclectic' },
+  const presets: Array<{ id: StylePreset; icon: React.ReactNode; description: string; slug: string }> = [
+    { id: 'Coastal Modern', icon: <Palmtree size={16} />, description: 'Light and airy flow', slug: 'coastal-modern' },
+    { id: 'Urban Loft', icon: <Factory size={16} />, description: 'Industrial edge', slug: 'urban-loft' },
+    { id: 'Farmhouse Chic', icon: <Wheat size={16} />, description: 'Rustic warmth', slug: 'farmhouse-chic' },
+    { id: 'Minimalist', icon: <Sparkles size={16} />, description: 'Quiet simplicity', slug: 'minimalist' },
+    { id: 'Mid-Century Modern', icon: <Layers size={16} />, description: 'Retro balance', slug: 'mid-century-modern' },
+    { id: 'Scandinavian', icon: <Cloud size={16} />, description: 'Natural calm', slug: 'scandinavian' },
+    { id: 'Bohemian', icon: <Flower2 size={16} />, description: 'Textured eclectic', slug: 'bohemian' },
   ];
 
   useEffect(() => {
@@ -100,8 +146,11 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
   };
 
   const trimmedPrompt = customPrompt.trim();
+  // X3: Block pack generation on narrow geometry — packs reframe these rooms.
+  const packsBlockedByGeometry = stageMode === 'packs' && isNarrowGeometry;
   const canGenerate =
     !feedbackRequired &&
+    !packsBlockedByGeometry &&
     (stageMode === 'text' ? trimmedPrompt.length > 0 : stageMode === 'packs' ? Boolean(selectedPreset) : false);
 
   const PACK_DETAILS: Record<string, string> = {
@@ -232,6 +281,43 @@ HARD PRESERVATION RULES — these override any instinct to "improve" the room:
             Furnish <Badge tone="warn" className="hidden sm:inline-flex ml-1">SOON</Badge>
           </button>
         </div>
+
+        {/* D2: Structural Lock toggle. Default ON preserves walls/floors/fixtures
+            (matches current production rules). Flip OFF for gutted-renovation
+            scenarios where Gemini has more architectural freedom. */}
+        {onStructuralLockChange && (
+          <div className="mt-4 flex items-start justify-between gap-3 rounded-xl border border-[var(--color-border)] bg-black/40 px-3 py-2.5">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <Lock size={13} className={structuralLock ? 'text-[var(--color-primary)]' : 'text-[var(--color-text)]/50'} />
+                <span className="text-xs font-semibold text-[var(--color-ink)]">Preserve architecture</span>
+              </div>
+              <p
+                className="mt-0.5 text-[10.5px] leading-snug text-[var(--color-text)]/60"
+                title="ON: walls, floors, ceilings, windows, doors, and fixtures stay pixel-identical — ideal for staging. OFF: Gemini can repaint, re-floor, and restyle architecture — use for gutted renovation mockups."
+              >
+                {structuralLock
+                  ? 'Walls, floors, fixtures stay locked (staging mode).'
+                  : 'Renovation mode — walls/floors/fixtures can change.'}
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={structuralLock}
+              onClick={() => onStructuralLockChange(!structuralLock)}
+              className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors duration-200 ${
+                structuralLock ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-border-strong)]'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ${
+                  structuralLock ? 'translate-x-[18px]' : 'translate-x-[2px]'
+                }`}
+              />
+            </button>
+          </div>
+        )}
       </div>
 
       {stageMode === 'text' && (
@@ -267,6 +353,91 @@ HARD PRESERVATION RULES — these override any instinct to "improve" the room:
               </Pill>
             ))}
           </div>
+
+          {/* D3: Reference-image drop zone. Shown inside text mode only. Packs
+              skip this — pack style-DNA shouldn't be diluted by ad-hoc references. */}
+          {onReferenceImageChange && (
+            <div className="mt-4 border-t border-[var(--color-border)] pt-4">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-bold text-[var(--color-text)]/60">
+                  <ImageIcon size={12} />
+                  Reference element
+                  <span className="normal-case tracking-normal font-normal text-[var(--color-text)]/50">(optional)</span>
+                </div>
+                {referenceImage && (
+                  <button
+                    type="button"
+                    onClick={() => onReferenceImageChange(null)}
+                    className="text-[10px] uppercase tracking-wider text-[var(--color-text)]/50 hover:text-[#FF375F] transition-colors flex items-center gap-1"
+                    aria-label="Clear reference image"
+                  >
+                    <X size={11} />
+                    Clear
+                  </button>
+                )}
+              </div>
+              <input
+                ref={referenceInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  loadReferenceFile(e.target.files?.[0]);
+                  // Reset so selecting the same file again still fires onChange.
+                  if (e.target) e.target.value = '';
+                }}
+              />
+              {referenceImage ? (
+                <div className="flex items-start gap-3 rounded-xl border border-[var(--color-border)] bg-black/40 p-2.5">
+                  <img
+                    src={referenceImage}
+                    alt="Reference element"
+                    className="h-16 w-16 rounded-lg object-cover border border-[var(--color-border-strong)] shrink-0"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold text-[var(--color-ink)]">Reference attached</p>
+                    <p className="text-[10.5px] leading-snug text-[var(--color-text)]/60 mt-0.5">
+                      Name the piece in your prompt — e.g. "use this sofa" — so Gemini applies only this element's style.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => referenceInputRef.current?.click()}
+                      className="mt-1.5 text-[10px] uppercase tracking-wider font-semibold text-[var(--color-primary)] hover:underline"
+                    >
+                      Replace
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => referenceInputRef.current?.click()}
+                  onDragOver={(e) => { e.preventDefault(); setIsReferenceDragging(true); }}
+                  onDragLeave={() => setIsReferenceDragging(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsReferenceDragging(false);
+                    loadReferenceFile(e.dataTransfer.files?.[0]);
+                  }}
+                  className={`w-full rounded-xl border border-dashed px-3 py-3 text-left transition-all flex items-center gap-3 ${
+                    isReferenceDragging
+                      ? 'border-[var(--color-primary)] bg-[rgba(10,132,255,0.08)]'
+                      : 'border-[var(--color-border-strong)] bg-black/30 hover:border-[var(--color-primary)]/60 hover:bg-black/50'
+                  }`}
+                >
+                  <div className="h-10 w-10 shrink-0 rounded-lg bg-[var(--color-bg-deep)] border border-[var(--color-border-strong)] flex items-center justify-center">
+                    <ImageIcon size={16} className="text-[var(--color-text)]/60" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-[var(--color-ink)]">Add reference</p>
+                    <p className="text-[10.5px] leading-snug text-[var(--color-text)]/60">
+                      Drop an image of a sofa, lamp, rug — Gemini will use it as a style guide for the piece you name.
+                    </p>
+                  </div>
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -279,6 +450,18 @@ HARD PRESERVATION RULES — these override any instinct to "improve" the room:
             className="mb-4"
           />
           <p className="mb-4 text-sm text-[var(--color-text)]/80">Choose one pack to generate a complete staging direction.</p>
+          {/* X3: Narrow-room guard. Prevents pack-mode from being fired on
+              frames Gemini can't stage without reframing walls. */}
+          {isNarrowGeometry && aspectRatio !== null && (
+            <div className="mb-4 rounded-xl border border-[#FF9F0A]/40 bg-[#FF9F0A]/5 px-3 py-2.5 text-[11px] leading-relaxed text-[#FFC15C] flex items-start gap-2">
+              <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+              <span>
+                This pack may not fit this room shape ({aspectRatio.toFixed(2)}:1 aspect).
+                Packs can reframe narrow or unusually tall rooms to fit furniture.
+                Try <strong>Text</strong> mode for a tailored direction, or crop the photo tighter.
+              </span>
+            </div>
+          )}
 
           <div className="max-h-[280px] overflow-y-auto pr-1 grid grid-cols-1 gap-2 sm:grid-cols-2">
             {presets.map((preset) => {
@@ -294,7 +477,9 @@ HARD PRESERVATION RULES — these override any instinct to "improve" the room:
                   onClick={() => {
                     if (active) {
                       // Second click on already-selected tile → pre-fire.
-                      if (!isGenerating && !feedbackRequired) {
+                      // X3: Suppress pre-fire on narrow rooms; user must bail
+                      // via the warning banner or switch to Text mode first.
+                      if (!isGenerating && !feedbackRequired && !isNarrowGeometry) {
                         buildPrompt();
                       }
                       return;
@@ -302,26 +487,40 @@ HARD PRESERVATION RULES — these override any instinct to "improve" the room:
                     setSelectedPreset(preset.id);
                   }}
                   aria-pressed={active}
-                  className={`relative overflow-hidden rounded-2xl border px-3 py-3 text-left transition-all duration-300 ${active
-                    ? 'border-[var(--color-primary)] bg-[rgba(10,132,255,0.05)] shadow-md scale-[1.02] ring-2 ring-[var(--color-primary)]/40'
-                    : 'border-[var(--color-border)] bg-black/40 hover:bg-black hover:border-[var(--color-border-strong)] hover:scale-[1.01]'
+                  className={`group relative overflow-hidden rounded-2xl border text-left transition-all duration-300 aspect-[3/2] ${active
+                    ? 'border-[var(--color-primary)] shadow-lg scale-[1.02] ring-2 ring-[var(--color-primary)]/50'
+                    : 'border-[var(--color-border)] hover:border-[var(--color-border-strong)] hover:scale-[1.01]'
                     }`}
                 >
-                  {active && <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-primary)]/10 to-transparent pointer-events-none"></div>}
-                  <div className="flex items-center gap-3 relative z-10">
+                  {/* D7: per-pack static preview render (see public/pack-previews/) */}
+                  <img
+                    src={`/pack-previews/${preset.slug}.jpg`}
+                    alt={`${preset.id} staged preview`}
+                    loading="lazy"
+                    decoding="async"
+                    className={`absolute inset-0 h-full w-full object-cover transition-transform duration-500 ${active ? 'scale-105' : 'group-hover:scale-105'}`}
+                  />
+                  {/* Bottom-anchored dark gradient so icon+label read against any preview */}
+                  <div className="absolute inset-x-0 bottom-0 h-3/5 bg-gradient-to-t from-black/90 via-black/55 to-transparent pointer-events-none" />
+                  {active && (
+                    <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-primary)]/20 to-transparent pointer-events-none" />
+                  )}
+                  <div className="absolute inset-x-0 bottom-0 flex items-center gap-3 p-3 z-10">
                     <span
-                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${active ? 'bg-[var(--color-primary)] text-black shadow-md' : 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border-strong)]'
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${active
+                        ? 'bg-[var(--color-primary)] text-black shadow-md'
+                        : 'bg-black/70 text-white border border-white/20 backdrop-blur-sm'
                         }`}
                     >
                       {preset.icon}
                     </span>
                     <span className="min-w-0">
-                      <span className={`block text-sm font-bold transition-colors ${active ? 'text-white' : 'text-[var(--color-ink)]'}`}>{preset.id}</span>
-                      <span className={`block text-[10px] uppercase tracking-wider truncate transition-colors ${active ? 'text-[var(--color-primary)]' : 'text-[var(--color-text)]/60'}`}>{preset.description}</span>
+                      <span className="block text-sm font-bold text-white drop-shadow">{preset.id}</span>
+                      <span className={`block text-[10px] uppercase tracking-wider truncate drop-shadow ${active ? 'text-[var(--color-primary)]' : 'text-white/75'}`}>{preset.description}</span>
                     </span>
                   </div>
                   {active && (
-                    <span className="absolute bottom-1.5 right-2 text-[9px] uppercase tracking-wider text-[var(--color-primary)]/80 font-semibold pointer-events-none">
+                    <span className="absolute top-2 right-2 text-[9px] uppercase tracking-wider text-white font-semibold bg-[var(--color-primary)]/90 px-2 py-1 rounded-md shadow pointer-events-none">
                       Click again to generate
                     </span>
                   )}

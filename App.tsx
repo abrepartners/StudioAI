@@ -1,32 +1,36 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'; 
+import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   generateRoomDesign,
   detectRoomType,
 } from './services/geminiService';
 import { sharpenImage } from './utils/sharpen';
 import { compositeStackedEdit } from './utils/stackComposite';
+// Hot-path components — kept static (editor core, used immediately)
 import ImageUploader from './components/ImageUploader';
 import BatchUploader, { type BatchImage } from './components/BatchUploader';
-import BatchProcessor, { type BatchResult } from './components/BatchProcessor';
 import CompareSlider from './components/CompareSlider';
 import RenovationControls from './components/StyleControls';
 import MaskCanvas from './components/MaskCanvas';
 import SpecialModesPanel from './components/SpecialModesPanel';
-import BrandKit from './components/BrandKit';
-import ManageTeam from './components/ManageTeam';
-import ReferralDashboard from './components/ReferralDashboard';
-import QuickStartTutorial from './components/QuickStartTutorial';
-import ExportModal from './components/ExportModal';
-import MLSExport from './components/MLSExport';
-import ListingDescription from './components/ListingDescription';
-import SocialPack from './components/SocialPack';
 import EditingBadge from './components/EditingBadge';
+// D9 code-split: admin + modal components deferred until user opens them.
+// Saves ~200KB off the initial bundle.
+const BatchProcessor = lazy(() => import('./components/BatchProcessor'));
+const BrandKit = lazy(() => import('./components/BrandKit'));
+const ManageTeam = lazy(() => import('./components/ManageTeam'));
+const ReferralDashboard = lazy(() => import('./components/ReferralDashboard'));
+const QuickStartTutorial = lazy(() => import('./components/QuickStartTutorial'));
+const ExportModal = lazy(() => import('./components/ExportModal'));
+const MLSExport = lazy(() => import('./components/MLSExport'));
+const ListingDescription = lazy(() => import('./components/ListingDescription'));
+const SocialPack = lazy(() => import('./components/SocialPack'));
+const AdminShowcase = lazy(() => import('./components/AdminShowcase'));
+const FurnitureRemover = lazy(() => import('./components/FurnitureRemover'));
+const PricingPage = lazy(() => import('./components/PricingPage'));
+import type { BatchResult } from './components/BatchProcessor';
 import { useBrandKit } from './hooks/useBrandKit';
 import { useModal } from './hooks/useModal';
 import useKeyboardShortcuts, { KEYBOARD_SHORTCUTS } from './hooks/useKeyboardShortcuts';
-import AdminShowcase from './components/AdminShowcase';
-import FurnitureRemover from './components/FurnitureRemover';
-import PricingPage from './components/PricingPage';
 // Removed for Phase 2: ColorAnalysis, ChatInterface, StyleAdvisor, QualityScore, ListingDashboard, BetaFeedbackForm, MLSExport (inline)
 import {
   ColorData,
@@ -264,6 +268,20 @@ const App: React.FC = () => {
   const proToolsAutoExpandedRef = useRef(false);
   const [stageMode, setStageMode] = useState<StageMode>('text');
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // D2: Structural Lock. ON by default preserves walls/floors/fixtures (current
+  // production behavior). OFF opts into "gutted renovation" mode. Persists to
+  // localStorage so the setting survives reloads.
+  const [structuralLock, setStructuralLock] = useState<boolean>(() => {
+    try {
+      const v = localStorage.getItem('studioai_structural_lock');
+      return v === null ? true : v === 'true';
+    } catch { return true; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('studioai_structural_lock', String(structuralLock)); } catch { /* ignore */ }
+  }, [structuralLock]);
+
   const [showAccessPanel, setShowAccessPanel] = useState(false);
   const [showRoomPicker, setShowRoomPicker] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(true);
@@ -922,7 +940,8 @@ Direction from user: ${prompt}`;
           1,
           subscription.plan === 'pro',
           anchorImage,
-          abortController.signal
+          abortController.signal,
+          structuralLock
         ),
         120000,
         'Generation timed out — please try again'
@@ -2155,6 +2174,7 @@ Direction from user: ${prompt}`;
   }
 
   return (
+    <Suspense fallback={<div className="fixed inset-0 flex items-center justify-center bg-[var(--color-bg-deep,#000)] text-[var(--color-text,#fff)]/60 text-sm">Loading…</div>}>
     <div className="studio-shell h-[100dvh] overflow-hidden flex flex-col">
 
       {/* Quick Start Tutorial — R8: fire AFTER the first upload, not first visit.
@@ -3212,6 +3232,8 @@ Direction from user: ${prompt}`;
                       isGenerating={isGenerating}
                       hasMask={!!maskImage}
                       selectedRoom={selectedRoom}
+                      // X3: source image for narrow-room detection (packs guard).
+                      sourceImage={generatedImage || originalImage}
                       initialPrompt={sessionQueue[sessionIndex]?.customPrompt || ''}
                       onPromptChange={(prompt) => {
                         setSessionQueue(prev => prev.map((s, i) =>
@@ -3230,6 +3252,9 @@ Direction from user: ${prompt}`;
                           i === sessionIndex ? { ...s, selectedPreset: preset } : s
                         ));
                       }}
+                      // D2: Structural Lock (persisted in localStorage via App.tsx).
+                      structuralLock={structuralLock}
+                      onStructuralLockChange={setStructuralLock}
                     />
                     <SpecialModesPanel
                       key={sessionQueue[sessionIndex]?.id || 'single'}
@@ -3419,6 +3444,7 @@ Direction from user: ${prompt}`;
 
       <Analytics />
     </div>
+    </Suspense>
   );
 };
 

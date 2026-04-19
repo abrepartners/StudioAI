@@ -513,30 +513,58 @@ export const virtualTwilight = async (imageBase64: string, isPro: boolean = fals
       {
         parts: [
           {
-            text: `Convert this daytime exterior real estate photo to a natural twilight / dusk look.
+            text: `Convert this daytime exterior real estate photo into a MAGAZINE-QUALITY twilight / blue-hour listing shot. Target reference: Architectural Digest cover, Sotheby's luxury listing, professional twilight real estate photography. The sky is EASY — the hard part is making the HOUSE itself feel lit from within and from above by a dusk sky. Do not return a flat, washed, or under-lit result.
 
-THIS IS A LIGHTING-ONLY EDIT. You are changing ONLY the sky and ambient light.
+THIS IS A LIGHTING-ONLY EDIT. You are changing sky + the light that sky casts on the existing structure. No new objects.
 
-DO (lighting changes only):
-- Replace the sky with a realistic dusk gradient (deep blue to warm orange at horizon)
-- Shift ambient light to golden hour — warmer tones, softer shadows
-- Make windows that are ALREADY VISIBLE glow with warm interior light
-- If exterior lights (porch lights, sconces) ALREADY EXIST in the photo, turn them on
+=== THE LIGHTING CHECKLIST — EVERY ITEM MUST BE VISIBLE IN THE OUTPUT ===
 
-ABSOLUTE PROHIBITIONS — ZERO TOLERANCE:
-- Do NOT add ANY new objects. Nothing. Not a single item that is not already in the photo.
-- Do NOT add pathway lights, landscape lights, uplights, string lights, lanterns, potted plants, bushes, furniture, planters, or decorative items.
+1. SKY: Replace with a cinematic dusk gradient — deep indigo/navy at top, transitioning through magenta/violet, to warm amber/orange near the horizon. Subtle wispy clouds lit from below by the setting sun are welcome. The sky must have visible color variance top-to-bottom, not a single flat hue.
+
+2. WARM INTERIOR WINDOW GLOW — MANDATORY ON EVERY VISIBLE WINDOW:
+   - Every window that is visible in the photo MUST glow with warm interior light (approximately 2700K — soft amber/honey, NOT white, NOT blue).
+   - Do not glow only a few windows — glow ALL of them. Uniformly illuminated interior = occupied home = listing-ready.
+   - The glow must be bright enough to cast a faint warm rectangle of light on surrounding siding/trim directly beside the window frame.
+   - Where curtains/blinds are visible, the glow should silhouette them softly, not obliterate them.
+
+3. RIM LIGHTING ON THE STRUCTURE:
+   - The roof ridge, gable edges, chimney top, eaves, and any silhouetted architectural edge where the house meets the sky MUST carry a thin warm rim of light from the dusk sky behind them. This is the #1 tell of a real twilight shot — without it the house looks pasted.
+   - Top edges of dormers, parapets, and roof peaks should catch the warmest light.
+
+4. EXTERIOR FIXTURES ON:
+   - If porch lights, sconces, post lamps, garage-door lights, path lights, or any exterior fixture ALREADY EXIST in the photo, turn them on with a warm halo and a soft light spill onto the nearest wall/ground surface.
+   - Do NOT invent new fixtures — only light the ones physically present.
+
+5. SKY-GLOW REFLECTIONS & SPECULAR HIGHLIGHTS:
+   - Any glossy or reflective surface — window glass, vehicle paint/windshields, glossy front doors, metal gutters, chrome/brass hardware, wet or polished surfaces — must pick up a subtle sky-colored highlight (warm amber on sun-facing sides, cool violet/blue on shadow sides).
+   - Edges of metalwork (railings, light fixtures, door hardware) should have crisp specular highlights.
+
+6. CONTACT SHADOWS DEEPENED:
+   - Where the house meets the ground, where eaves meet walls, and beneath any overhang or protrusion, deepen the shadow to a rich cool blue-violet. Dusk shadows are DARKER than daytime shadows, not lighter.
+
+7. WARM BLEED ON LIGHT SURFACES:
+   - Light-colored surfaces — white trim, beige/cream stucco, light siding, painted brick — must subtly catch the warm horizon light on their sky-facing planes. Think 10-15% warm amber tint, not orange paint.
+
+8. COOL SHADOW SIDE:
+   - The side of the house FACING AWAY from the dusk horizon should carry cool blue-violet ambient tones in the shadows. This contrast (warm highlight / cool shadow) is what sells cinematic dusk.
+
+=== ABSOLUTE PROHIBITIONS — ZERO TOLERANCE ===
+- Do NOT add ANY new physical objects. Nothing. Not a single item absent from the original.
+- Do NOT add pathway lights, landscape uplights, string lights, lanterns, tiki torches, potted plants, bushes, furniture, planters, wreaths, flags, or decorative items.
 - Do NOT add door handles, house numbers, mailboxes, welcome mats, or any detail not already present.
-- Do NOT change the landscaping, yard, driveway, walkways, fencing, or any physical surface.
-- Do NOT change, add, or remove any architectural element — windows, doors, trim, siding, roof.
-- Do NOT improve or "fix" anything about the house. It must be IDENTICAL except for lighting/sky.
+- Do NOT change the landscaping, yard, driveway, walkways, fencing, or any physical surface geometry.
+- Do NOT change, add, or remove any architectural element — windows, doors, trim, siding, roof, shingles.
+- Do NOT improve or "fix" anything about the house structure. Same geometry, different light.
+- Do NOT wash out the house. If the output looks as bright as the daytime input, you failed. Dusk has DIRECTIONAL light + DEEPER shadows.
+- Do NOT flatten contrast. The dynamic range between warm window glow and cool exterior shadow is what makes the shot feel real.
 
-FRAMING:
-- Do NOT zoom in. Maintain the EXACT same framing, crop, and field of view. Camera is locked.
+=== FRAMING ===
+Do NOT zoom in or crop. Maintain the EXACT same framing, field of view, and camera angle. Camera is locked.
 
-Count the objects in the original. The output must have the EXACT same number of objects. If you added anything, you failed.
+=== FINAL SELF-CHECK BEFORE YOU RETURN ===
+Ask yourself: (a) Does every visible window glow warm? (b) Do the roof edges rim-light against the sky? (c) Are the shadows deeper and cooler than the input? (d) Would a luxury listing agent show this as the hero shot? If any answer is no, re-do the lighting pass before returning.
 
-The result should look like the SAME photo taken at dusk — nothing added, nothing removed, nothing changed except light and sky.`
+Count the objects in the original. The output must have the EXACT same number of objects. If you added anything, you failed. Return the image ONLY — no text, no explanation.`
           },
           { inlineData: { mimeType: 'image/jpeg', data: clean } },
         ],

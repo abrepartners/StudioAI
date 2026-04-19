@@ -22,8 +22,8 @@ Phase 3 from `docs/overhaul-2026-04/02-execution-backlog.md` = Differentiate (D1
 
 | # | Title | Status | Notes |
 |---|---|---|---|
-| D2 | Structural Lock toggle | todo | Already enforced server-side; expose as UI switch |
-| D3 | Reference-image prompt | todo | "Use this sofa" — add moodboard image alongside text |
+| D2 | Structural Lock toggle | done | Toggle in StyleControls (under mode tabs) + `structuralLock` state in App.tsx (localStorage-persisted) + branched `rulesBlock` in `generateRoomDesign`. OFF swaps in "gutted renovation" preamble; rules 1/2 (no flip, same camera) always stay. |
+| D3 | Reference-image prompt | done | Drop-zone/file-picker in StyleControls text mode + `referenceImage` state in App.tsx + third `inlineData` part in `generateRoomDesign` gated by new `referenceImageBase64` param. Packs skip (single-image). IMAGE ROLES prompt updates when reference is attached. |
 
 ---
 
@@ -33,7 +33,7 @@ Phase 3 from `docs/overhaul-2026-04/02-execution-backlog.md` = Differentiate (D1
 
 | # | Title | Status | Notes |
 |---|---|---|---|
-| D7 | Static pack preview images | todo | 7 packs × 1 reference render per pack. Zero Gemini cost at runtime |
+| D7 | Static pack preview images | done | 7 packs × 1 reference render @ 1024x683 JPEG 0.85 → `public/pack-previews/<slug>.jpg`. Tile swapped to image bg + dark-gradient icon/label overlay. Fixture: `Lane_Photos_BM8A1572.jpg`. Generator: `tests/qa-harness/generate-pack-previews.mjs`. |
 
 ---
 

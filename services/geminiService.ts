@@ -2,6 +2,7 @@
 import { GoogleGenAI, Type, Chat, GenerateContentResponse } from "@google/genai";
 import { ColorData, StagedFurniture, FurnitureRoomType, PropertyDetails, ListingDescriptions } from "../types";
 import { cleanBase64, extractImageFromResponse, extractAllImagesFromResponse } from "./geminiHelpers";
+import { resizeForUpload } from "../utils/resizeForUpload";
 
 // API key storage key
 const API_KEY_STORAGE = 'studioai_gemini_key';
@@ -74,7 +75,7 @@ function getDataUrlDimensions(base64: string): Promise<{ w: number; h: number } 
 export const detectRoomType = async (imageBase64: string): Promise<FurnitureRoomType> => {
   try {
     const ai = getAI();
-    const clean = cleanBase64(imageBase64);
+    const clean = cleanBase64(await resizeForUpload(imageBase64));
 
     const response: GenerateContentResponse = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -111,12 +112,13 @@ export const generateRoomDesign = async (
   count = 1,
   isPro: boolean = false,
   anchorImageBase64?: string | null,
-  abortSignal?: AbortSignal
+  abortSignal?: AbortSignal,
+  structuralLock: boolean = true
 ): Promise<string[]> => {
   try {
     const ai = getAI();
     const modelName = isPro ? 'gemini-3-pro-image-preview' : 'gemini-3.1-flash-image-preview';
-    const clean = cleanBase64(imageBase64);
+    const clean = cleanBase64(await resizeForUpload(imageBase64));
 
     const isRemovalTask = prompt.toLowerCase().includes('remove') ||
       prompt.toLowerCase().includes('clear') ||
@@ -156,12 +158,14 @@ export const generateRoomDesign = async (
         - Your job: apply the new assignment on top of IMAGE 2, while anchoring pixel-level fidelity to IMAGE 1 on every unchanged region. Do NOT regenerate untouched areas — preserve them from IMAGE 1.\n`
       : '';
 
-    const parts: any[] = [
-      {
-        text: `You are a Master Architectural Photo Editor for Real Estate. Your job is a LOCAL EDIT on a real photograph — preservation is your highest priority. The assignment is at the bottom.
-        ${roleHeader}
-        ========================================
-        ABSOLUTE RULES — VIOLATING ANY IS A CRITICAL FAILURE
+    // D2: Structural Lock. When ON (default) we enforce the original
+    // wall/floor/ceiling/window preservation rules. When OFF, the user has
+    // opted in to a "gutted renovation" mode where Gemini has freedom to
+    // repaint, refloor, and restyle architecture. We relax rules 3/4/5 and
+    // the unchanged-region requirement; rules 1/2 (no flip, same camera) stay
+    // because losing framing is never desired.
+    const rulesBlock = structuralLock
+      ? `        ABSOLUTE RULES — VIOLATING ANY IS A CRITICAL FAILURE
         ========================================
         1. DO NOT MIRROR, FLIP, OR ROTATE the image. Left stays left, right stays right. Window on the right must remain on the right.
         2. DO NOT CHANGE THE CAMERA. Identical framing, crop, field of view, zoom, and angle. Every wall edge, ceiling line, floor boundary, window edge, and door frame must stay at the exact same pixel position. All four image borders must show the same content. The camera is LOCKED.
@@ -171,7 +175,23 @@ export const generateRoomDesign = async (
         6. DO NOT ADD WALL DECOR to empty wall space unless the assignment specifically asks for it — no mirrors, artwork, or fixtures invented out of thin air.
         7. DO NOT RE-LIGHT THE SCENE. Match the original's light direction, color temperature, intensity, and shadow softness exactly on every new element.
 
-        Unchanged regions must be pixel-identical to the source in sharpness, grain, and color. If an area is not being modified by the assignment, it should look like it was copied directly from the original.
+        Unchanged regions must be pixel-identical to the source in sharpness, grain, and color. If an area is not being modified by the assignment, it should look like it was copied directly from the original.`
+      : `        STRUCTURAL LOCK: OFF — RENOVATION MODE
+        ========================================
+        The user has explicitly opted into a gutted-renovation render. You MAY modify walls, floors, ceilings, paint colors, flooring materials, windows, doors, and permanent fixtures as the assignment directs. Treat this as an architectural renovation mockup, not a staging edit.
+
+        HARD RULES THAT STILL APPLY:
+        1. DO NOT MIRROR, FLIP, OR ROTATE the image. Left stays left, right stays right.
+        2. DO NOT CHANGE THE CAMERA. Identical framing, crop, field of view, zoom, and angle. All four image borders must show the same physical space.
+        3. Keep the room's footprint and load-bearing geometry plausible — you are renovating the same room, not inventing a different one.
+        4. Realism requirements below (materials, shadows, grain matching) still apply to every rendered surface, both new and unchanged.`;
+
+    const parts: any[] = [
+      {
+        text: `You are a Master Architectural Photo Editor for Real Estate. Your job is a LOCAL EDIT on a real photograph — preservation is your highest priority. The assignment is at the bottom.
+        ${roleHeader}
+        ========================================
+${rulesBlock}
 
         ========================================
         REALISM REQUIREMENTS FOR NEW FURNITURE/DECOR
@@ -262,7 +282,7 @@ export const autoArrangeLayout = async (
 ): Promise<Record<string, StagedFurniture['orientation']>> => {
   try {
     const ai = getAI();
-    const clean = cleanBase64(imageBase64);
+    const clean = cleanBase64(await resizeForUpload(imageBase64));
     const itemNames = items.map(i => i.name).join(', ');
 
     const response: GenerateContentResponse = await ai.models.generateContent({
@@ -304,7 +324,7 @@ export const autoArrangeLayout = async (
 export const analyzeRoomColors = async (imageBase64: string): Promise<ColorData[]> => {
   try {
     const ai = getAI();
-    const clean = cleanBase64(imageBase64);
+    const clean = cleanBase64(await resizeForUpload(imageBase64));
 
     const response: GenerateContentResponse = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -457,7 +477,7 @@ export const sendMessageToChat = async (chat: Chat, message: string, currentImag
  */
 export const virtualTwilight = async (imageBase64: string, isPro: boolean = false, abortSignal?: AbortSignal): Promise<string> => {
   const ai = getAI();
-  const clean = cleanBase64(imageBase64);
+  const clean = cleanBase64(await resizeForUpload(imageBase64));
 
   try {
   const response = await ai.models.generateContent({
@@ -520,7 +540,7 @@ The result should look like the SAME photo taken at dusk — nothing added, noth
  */
 export const replaceSky = async (imageBase64: string, skyStyle: 'blue' | 'dramatic' | 'golden' | 'stormy' = 'blue', isPro: boolean = false, abortSignal?: AbortSignal): Promise<string> => {
   const ai = getAI();
-  const clean = cleanBase64(imageBase64);
+  const clean = cleanBase64(await resizeForUpload(imageBase64));
 
   const skyDescriptions: Record<typeof skyStyle, string> = {
     blue: 'a vibrant, deep blue sky with a few fluffy white clouds and brilliant golden sunlight',
@@ -574,7 +594,7 @@ ANTI-GHOST RULE:
  */
 export const instantDeclutter = async (imageBase64: string, selectedRoom: string, isPro: boolean = false, abortSignal?: AbortSignal): Promise<string> => {
   const ai = getAI();
-  const clean = cleanBase64(imageBase64);
+  const clean = cleanBase64(await resizeForUpload(imageBase64));
 
   try {
   const response = await ai.models.generateContent({
@@ -674,7 +694,7 @@ export const virtualRenovation = async (
   abortSignal?: AbortSignal
 ): Promise<string> => {
   const ai = getAI();
-  const clean = cleanBase64(imageBase64);
+  const clean = cleanBase64(await resizeForUpload(imageBase64));
 
   const changesList = [
     changes.cabinets && `Cabinets: ${changes.cabinets}`,
@@ -743,7 +763,7 @@ export const generateListingCopy = async (
   hashtags: string[];
 }> => {
   const ai = getAI();
-  const clean = cleanBase64(imageBase64);
+  const clean = cleanBase64(await resizeForUpload(imageBase64));
 
   const tone = options?.tone || 'casual';
   const details = options?.propertyDetails;
@@ -824,7 +844,7 @@ export const analyzeAndRecommendStyles = async (
   roomType: string
 ): Promise<StyleRecommendation[]> => {
   const ai = getAI();
-  const clean = cleanBase64(imageBase64);
+  const clean = cleanBase64(await resizeForUpload(imageBase64));
 
   const response: GenerateContentResponse = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
@@ -963,7 +983,7 @@ export const generateListingDescriptions = async (
   agentNotes?: string,
 ): Promise<ListingDescriptions> => {
   const ai = getAI();
-  const clean = cleanBase64(imageBase64);
+  const clean = cleanBase64(await resizeForUpload(imageBase64));
 
   const detailStr = [
     propertyDetails.address && `Address: ${propertyDetails.address}`,

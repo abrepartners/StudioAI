@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:visual": "PW_SUITE=visual playwright test",
+    "test:visual:update": "PW_SUITE=visual playwright test --update-snapshots"
   },
   "dependencies": {
     "@google/genai": "^1.32.0",
@@ -24,6 +26,7 @@
   },
   "devDependencies": {
     "@napi-rs/canvas": "^0.1.99",
+    "@playwright/test": "^1.59.1",
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
     "autoprefixer": "^10.5.0",

@@ -5,6 +5,7 @@ import {
 } from './services/geminiService';
 import { sharpenImage } from './utils/sharpen';
 import { compositeStackedEdit } from './utils/stackComposite';
+import { checkAlignment } from './utils/alignmentCheck';
 // Hot-path components — kept static (editor core, used immediately)
 import ImageUploader from './components/ImageUploader';
 import BatchUploader, { type BatchImage } from './components/BatchUploader';

@@ -1888,7 +1888,6 @@ Direction from user: ${prompt}`;
                   icon: <Wand2 size={22} />,
                   title: 'Virtual Staging',
                   desc: 'Stage any empty room with photorealistic furniture in 12+ styles. AI reads the room size and places appropriately scaled pieces — no king beds in small rooms, no sectionals in tight spaces.',
-                  accent: '#0A84FF',
                   before: '/showcase-staging-before.jpg',
                   after: '/showcase-staging-after.jpg',
                   previewLabel: 'Empty living room staged with sofa, accent chairs, console, and rug',
@@ -1897,14 +1896,14 @@ Direction from user: ${prompt}`;
                   icon: <Eraser size={22} />,
                   title: 'Smart Cleanup',
                   desc: 'Remove realtor signs, yard debris, personal items, toys, and clutter from any photo. Interior or exterior — the AI strips distractions and reveals clean surfaces without adding anything new.',
-                  accent: '#30D158',
                   before: '/showcase-cleanup-before.jpg',
                   after: '/showcase-cleanup-after.jpg',
                   previewLabel: 'Cluttered laundry room cleaned — shelves and counters cleared',
                 },
               ].map((f, i) => (
-                <div key={f.title} className={`feature-card-interactive p-7 rounded-2xl bg-white/[0.02] border border-white/[0.06] reveal reveal-delay-${i + 1}`}>
-                  <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-4" style={{ background: `${f.accent}12`, color: f.accent }}>{f.icon}</div>
+                <div key={f.title} className={`group feature-card-interactive p-7 rounded-2xl bg-white/[0.02] border border-white/[0.06] reveal reveal-delay-${i + 1}`}>
+                  {/* Monochrome icon container — matches CommunityGallery / showcase pattern. No inline hex. */}
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-4 bg-white/[0.04] border border-white/[0.06] text-zinc-400 group-hover:text-white transition-colors duration-200">{f.icon}</div>
                   <h3 className="text-base font-bold text-white mb-2">{f.title}</h3>
                   <p className="text-sm leading-relaxed text-zinc-500">{f.desc}</p>
                   <div className="card-preview">
@@ -1915,7 +1914,7 @@ Direction from user: ${prompt}`;
                       </div>
                       <div className="relative">
                         <img src={f.after} alt="After" className="w-full aspect-[16/10] object-cover rounded-md" />
-                        <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded text-2xs font-bold uppercase text-white" style={{ background: `${f.accent}cc` }}>After</div>
+                        <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-white/90 text-2xs font-bold uppercase text-black">After</div>
                       </div>
                     </div>
                     <p className="text-xs text-zinc-600 mt-1.5">{f.previewLabel}</p>
@@ -1927,13 +1926,14 @@ Direction from user: ${prompt}`;
             {/* Secondary Tools — interactive cards */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {[
-                { icon: <Sunset size={18} />, title: 'Day to Dusk', desc: 'Turn daytime exteriors into twilight shots with warm window glow — the #1 photographer trick', accent: '#FF9F0A', before: '/showcase-twilight-before.jpg', after: '/showcase-twilight-after.jpg' },
-                { icon: <Cloud size={18} />, title: 'Sky Replacement', desc: 'Swap grey overcast for blue, dramatic, or golden-hour skies in one click', accent: '#64D2FF', before: '/showcase-sky-before.jpg', after: '/showcase-sky-after.jpg' },
-                { icon: <LayoutGrid size={18} />, title: 'Batch Editing', desc: 'Upload an entire listing (25+ photos) and process them all in parallel', accent: '#FFD60A', before: null, after: null },
-                { icon: <Trash2 size={18} />, title: 'Selective Removal', desc: 'Paint over specific items to remove them — keep everything else exactly as-is', accent: '#FF375F', before: null, after: null },
+                { icon: <Sunset size={18} />, title: 'Day to Dusk', desc: 'Turn daytime exteriors into twilight shots with warm window glow — the #1 photographer trick', before: '/showcase-twilight-before.jpg', after: '/showcase-twilight-after.jpg' },
+                { icon: <Cloud size={18} />, title: 'Sky Replacement', desc: 'Swap grey overcast for blue, dramatic, or golden-hour skies in one click', before: '/showcase-sky-before.jpg', after: '/showcase-sky-after.jpg' },
+                { icon: <LayoutGrid size={18} />, title: 'Batch Editing', desc: 'Upload an entire listing (25+ photos) and process them all in parallel', before: null, after: null },
+                { icon: <Trash2 size={18} />, title: 'Selective Removal', desc: 'Paint over specific items to remove them — keep everything else exactly as-is', before: null, after: null },
               ].map((f, i) => (
-                <div key={f.title} className={`feature-card-interactive p-5 rounded-xl bg-white/[0.02] border border-white/[0.06] reveal reveal-delay-${i + 1}`}>
-                  <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-3" style={{ background: `${f.accent}10`, color: f.accent }}>{f.icon}</div>
+                <div key={f.title} className={`group feature-card-interactive p-5 rounded-xl bg-white/[0.02] border border-white/[0.06] reveal reveal-delay-${i + 1}`}>
+                  {/* Monochrome icon container — matches primary tools above. No inline hex. */}
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-3 bg-white/[0.04] border border-white/[0.06] text-zinc-400 group-hover:text-white transition-colors duration-200">{f.icon}</div>
                   <h3 className="text-sm font-bold text-white mb-1">{f.title}</h3>
                   <p className="text-sm leading-relaxed text-zinc-600">{f.desc}</p>
                   {f.before && f.after && (

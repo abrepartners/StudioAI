@@ -2025,7 +2025,8 @@ Direction from user: ${prompt}`;
                 ))}
               </div>
 
-              {/* Animated App Mockup */}
+              {/* Real product demo video — same asset the hero uses (already cached on first paint).
+                  Replaces the static animated mockup that was rotating mockup-step-* CSS frames. */}
               <div className="reveal reveal-delay-2">
                 <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/[0.06]">
                   {/* Fake app chrome */}
@@ -2040,21 +2041,18 @@ Direction from user: ${prompt}`;
                     </div>
                   </div>
 
-                  {/* Upload animation */}
+                  {/* Live product walkthrough */}
                   <div className="relative rounded-xl overflow-hidden bg-black/40 aspect-[16/10]">
-                    <img src="/showcase-twilight-before.jpg" alt="Original" className="absolute inset-0 w-full h-full object-cover mockup-step-upload" />
-                    <img src="/showcase-twilight-after.jpg" alt="Result" className="absolute inset-0 w-full h-full object-cover mockup-step-result" />
-
-                    {/* Processing bar overlay */}
-                    <div className="absolute bottom-0 left-0 right-0 p-3">
-                      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-black/80 backdrop-blur-md">
-                        <Zap size={12} className="text-[#FFD60A]" />
-                        <div className="flex-1 h-1 rounded-full bg-white/10 overflow-hidden">
-                          <div className="h-full rounded-full bg-[#0A84FF] mockup-step-bar" />
-                        </div>
-                        <span className="text-xs font-bold text-zinc-400">Day to Dusk</span>
-                      </div>
-                    </div>
+                    <video
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      poster="/showcase-twilight-after.jpg"
+                      className="absolute inset-0 w-full h-full object-cover"
+                    >
+                      <source src="/demo-video.mp4" type="video/mp4" />
+                    </video>
                   </div>
                 </div>
               </div>

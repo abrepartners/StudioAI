@@ -36,7 +36,11 @@ import { Badge, Button } from './ui';
 //      compositor gracefully bails via its >95% change-ratio threshold.
 //   3. On any failure, fall back to the sharpened Gemini output so the user
 //      still sees something reasonable.
-async function postProcessToolOutput(raw: string, prior: string | null): Promise<string> {
+async function postProcessToolOutput(
+    raw: string,
+    prior: string | null,
+    compositeOpts?: { threshold?: number; dilatePx?: number; featherPx?: number }
+): Promise<string> {
     const chainEnabled = typeof window !== 'undefined'
         ? new URLSearchParams(window.location.search).get('chain') !== '0'
         : true;
@@ -44,12 +48,20 @@ async function postProcessToolOutput(raw: string, prior: string | null): Promise
     const sharpened = await sharpenImage(raw, 0.4, 1, fmt);
     if (!prior) return sharpened;
     try {
-        return await compositeStackedEdit(prior, sharpened, { format: fmt });
+        return await compositeStackedEdit(prior, sharpened, { format: fmt, ...compositeOpts });
     } catch (err) {
         console.warn('[SpecialModesPanel] composite failed, using raw sharpened output:', err);
         return sharpened;
     }
 }
+
+// Renovation-tuned composite: far more permissive so large material swaps
+// (walls, backsplash, floors) survive the mask. Default 0.15 is calibrated for
+// cleanup where clutter removal creates high-contrast local diffs. Renovation
+// often creates LOW-contrast whole-plane diffs (blue-gray walls → warm gray),
+// which the cleanup threshold silently filters out. Scenarios R01 + R06 both
+// required dropping to 0.03 before the painted wall / new backsplash survived.
+const RENOVATION_COMPOSITE = { threshold: 0.03, dilatePx: 8, featherPx: 12 } as const;
 
 const TONE_OPTIONS: { key: ListingCopyTone; label: string; color: string }[] = [
     { key: 'luxury', label: 'Luxury', color: '#FFD60A' },
@@ -437,7 +449,7 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                     disabled={loading !== null || ((!currentImage && !canBatch) || (!cabinets && !countertops && !flooring && !walls))}
                     onClick={() => canBatch
                         ? runBatch('renovation', (img, signal) => virtualRenovation(img, { cabinets, countertops, flooring, walls }, signal))
-                        : run('renovation', async (signal) => { const result = await postProcessToolOutput(await virtualRenovation(currentImage!, { cabinets, countertops, flooring, walls }, signal), currentImage); onNewImage(result, 'renovation'); })
+                        : run('renovation', async (signal) => { const result = await postProcessToolOutput(await virtualRenovation(currentImage!, { cabinets, countertops, flooring, walls }, signal), currentImage, RENOVATION_COMPOSITE); onNewImage(result, 'renovation'); })
                     }
                     className={`w-full rounded-2xl px-4 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all ${loading === 'renovation' ? 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border)]' : 'bg-white/[0.03] text-white border border-white/10 hover:bg-white/[0.06] hover:border-white/20 flex items-center justify-center gap-2 [&_svg]:text-[var(--color-primary)]'}`}
                 >

@@ -113,7 +113,8 @@ export const generateRoomDesign = async (
   isPro: boolean = false,
   anchorImageBase64?: string | null,
   abortSignal?: AbortSignal,
-  structuralLock: boolean = true
+  structuralLock: boolean = true,
+  referenceImageBase64?: string | null
 ): Promise<string[]> => {
   try {
     const ai = getAI();
@@ -151,12 +152,27 @@ export const generateRoomDesign = async (
       }
     }
     const hasAnchorFinal = !!anchorImageBase64;
-    const roleHeader = hasAnchorFinal
-      ? `\n        IMAGE ROLES:
+    const hasReference = !!referenceImageBase64 && referenceImageBase64.length > 100;
+
+    // D3: role header depends on which images the caller attached. Gemini needs
+    // an explicit label for every inlineData part we send so the reference image
+    // is used as a style guide and not mistaken for the scene to edit.
+    let roleHeader = '';
+    if (hasReference && hasAnchorFinal) {
+      roleHeader = `\n        IMAGE ROLES: image 1 = room to stage (anchor / source of truth), image 2 = current working state, image 3 = reference element (use as style guide for the requested piece only, do NOT copy the reference scene).
+        - IMAGE 1 (ANCHOR): The original uploaded photo. Every pixel you do NOT intentionally modify must match IMAGE 1 exactly — walls, ceilings, floors, windows, doors, framing, lighting, color, grain.
+        - IMAGE 2 (CURRENT WORKING STATE): The user's accumulated staging so far. Keep already-added furniture and modifications from IMAGE 2 unless the assignment tells you to change them.
+        - IMAGE 3 (REFERENCE ELEMENT): A style guide for the specific piece the user named in the assignment. Match IMAGE 3's silhouette, color, material, and proportion for that piece only. Do NOT import IMAGE 3's walls, floor, lighting, background, or any surrounding furniture into IMAGE 1.\n`;
+    } else if (hasReference) {
+      roleHeader = `\n        IMAGE ROLES: image 1 = room to stage, image 2 = reference element (use as style guide for the requested piece only, do NOT copy the reference scene).
+        - IMAGE 1 (ROOM TO STAGE): The original photo of the room the user is editing. Preserve framing, walls, floors, windows, doors, lighting, and camera exactly.
+        - IMAGE 2 (REFERENCE ELEMENT): A style guide for the specific piece the user named. Match IMAGE 2's silhouette, color, material, and proportion for that piece only. Do NOT import IMAGE 2's walls, floor, lighting, background, or any surrounding furniture into IMAGE 1.\n`;
+    } else if (hasAnchorFinal) {
+      roleHeader = `\n        IMAGE ROLES:
         - IMAGE 1 (ANCHOR / SOURCE OF TRUTH): The original uploaded photo. Every pixel you do NOT intentionally modify must match IMAGE 1 exactly — walls, ceilings, floors, windows, doors, framing, lighting, color, grain.
         - IMAGE 2 (CURRENT WORKING STATE): The user's accumulated staging so far. Keep all already-added furniture, decor, and modifications from IMAGE 2 unless the assignment tells you to change them.
-        - Your job: apply the new assignment on top of IMAGE 2, while anchoring pixel-level fidelity to IMAGE 1 on every unchanged region. Do NOT regenerate untouched areas — preserve them from IMAGE 1.\n`
-      : '';
+        - Your job: apply the new assignment on top of IMAGE 2, while anchoring pixel-level fidelity to IMAGE 1 on every unchanged region. Do NOT regenerate untouched areas — preserve them from IMAGE 1.\n`;
+    }
 
     // D2: Structural Lock. When ON (default) we enforce the original
     // wall/floor/ceiling/window preservation rules. When OFF, the user has
@@ -237,6 +253,17 @@ ${rulesBlock}
     // IMAGE 2 = current working state (only when stacking on top of a prior result)
     if (hasAnchorFinal) {
       parts.push({ inlineData: { mimeType: 'image/jpeg', data: clean } });
+    }
+
+    // D3: reference element. Becomes IMAGE 3 when stacking (anchor present),
+    // or IMAGE 2 without an anchor. Order matches the roleHeader labels above.
+    if (hasReference) {
+      parts.push({
+        inlineData: {
+          mimeType: 'image/jpeg',
+          data: cleanBase64(await resizeForUpload(referenceImageBase64!))
+        }
+      });
     }
 
     if (maskImageBase64) {

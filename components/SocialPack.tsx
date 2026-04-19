@@ -16,6 +16,7 @@ import {
   ArrowRightLeft,
   CalendarDays,
   Lightbulb,
+  BookOpen,
   Image as ImageIcon,
 } from 'lucide-react';
 import { useBrandKit } from '../hooks/useBrandKit';
@@ -37,8 +38,8 @@ interface SocialPackProps {
   };
 }
 
-type TemplateId = 'just-listed' | 'before-after' | 'open-house' | 'tip-card';
-type FormatId = 'ig-post' | 'ig-story' | 'fb-post';
+type TemplateId = 'just-listed' | 'before-after' | 'open-house' | 'tip-card' | 'carousel-cover';
+type FormatId = 'ig-post' | 'ig-portrait' | 'ig-story';
 
 const TEMPLATES: Array<{
   id: TemplateId;
@@ -46,14 +47,17 @@ const TEMPLATES: Array<{
   icon: React.ElementType;
   description: string;
 }> = [
-  { id: 'just-listed', label: 'Just Listed', icon: Home, description: 'Hero photo + price + stats' },
-  { id: 'before-after', label: 'Before / After', icon: ArrowRightLeft, description: 'Staging transformation' },
-  { id: 'open-house', label: 'Open House', icon: CalendarDays, description: 'Event invite card' },
-  { id: 'tip-card', label: 'Market Tip', icon: Lightbulb, description: 'Stat or insight card' },
+  { id: 'just-listed', label: 'Just Listed', icon: Home, description: 'Editorial hero + typographic price' },
+  { id: 'before-after', label: 'Before / After', icon: ArrowRightLeft, description: 'Plate I / Plate II transformation' },
+  { id: 'open-house', label: 'Open House', icon: CalendarDays, description: 'Invitation-grade event card' },
+  { id: 'tip-card', label: 'Field Note', icon: Lightbulb, description: 'Pull-quote authority piece' },
+  { id: 'carousel-cover', label: 'Carousel Cover', icon: BookOpen, description: 'Hook slide / reel cover' },
 ];
 
 const FORMATS: Array<{ id: FormatId; label: string; dims: string }> = [
   { id: 'ig-post', label: 'IG Post', dims: '1080×1080' },
+  { id: 'ig-portrait', label: 'IG Carousel', dims: '1080×1350' },
+  { id: 'ig-story', label: 'IG Story / Reel', dims: '1080×1920' },
 ];
 
 function formatPrice(n?: number): string {
@@ -129,7 +133,7 @@ const SocialPack: React.FC<SocialPackProps> = ({ images, propertyDetails }) => {
         headshot: brandKit.headshot || undefined,
       };
 
-      if (template === 'just-listed' || template === 'open-house') {
+      if (template === 'just-listed' || template === 'open-house' || template === 'carousel-cover') {
         if (address) data.address = titleCase(address);
         if (city) data.city = titleCase(city);
         if (state) data.state = state.trim().toUpperCase();
@@ -152,7 +156,7 @@ const SocialPack: React.FC<SocialPackProps> = ({ images, propertyDetails }) => {
         if (beforeImage) data.beforeImage = await toDataURL(beforeImage.source);
         if (afterImage) data.afterImage = await toDataURL(afterImage.source);
       }
-      if (template === 'tip-card') {
+      if (template === 'tip-card' || template === 'carousel-cover') {
         if (headline) data.headline = headline;
         if (tagline) data.tagline = tagline;
       }
@@ -187,9 +191,10 @@ const SocialPack: React.FC<SocialPackProps> = ({ images, propertyDetails }) => {
     a.click();
   }, [renderedPng, template, format]);
 
-  const needsHero = template === 'just-listed' || template === 'open-house';
+  const needsHero = template === 'just-listed' || template === 'open-house' || template === 'carousel-cover';
   const needsBeforeAfter = template === 'before-after';
-  const needsListingFields = template !== 'tip-card';
+  const needsListingFields = template !== 'tip-card' && template !== 'carousel-cover';
+  const needsHookFields = template === 'tip-card' || template === 'carousel-cover';
 
   return (
     <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-5 space-y-4">
@@ -355,11 +360,11 @@ const SocialPack: React.FC<SocialPackProps> = ({ images, propertyDetails }) => {
         </div>
       )}
 
-      {/* Tip card fields */}
-      {template === 'tip-card' && (
+      {/* Tip card / carousel cover fields */}
+      {needsHookFields && (
         <div className="space-y-2">
-          <input type="text" placeholder="Headline (e.g., 'Rates just dropped')" value={headline} onChange={e => setHeadline(e.target.value)} className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#0A84FF] outline-none" />
-          <textarea placeholder="Supporting line or stat" value={tagline} onChange={e => setTagline(e.target.value)} rows={2} className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#0A84FF] outline-none resize-none" />
+          <input type="text" placeholder={template === 'carousel-cover' ? "Eyebrow (optional, e.g., '123 Main St.')" : "Headline label (e.g., 'FIELD NOTE')"} value={template === 'carousel-cover' ? address : headline} onChange={e => template === 'carousel-cover' ? setAddress(e.target.value) : setHeadline(e.target.value)} className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#0A84FF] outline-none" />
+          <textarea placeholder={template === 'carousel-cover' ? "Hook headline (the big serif line)" : "The quote body (the thing people save)"} value={tagline} onChange={e => setTagline(e.target.value)} rows={3} className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#0A84FF] outline-none resize-none" />
         </div>
       )}
 

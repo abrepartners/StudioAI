@@ -91,7 +91,77 @@ If nothing needs removing, return the image unchanged.`,
         packName: 'Mid-Century Modern',
         prompt: (roomType) => `Virtually stage this ${roomType} in Mid-Century Modern style. Add only furniture and decor — keep the architectural shell untouched. Style DNA: tapered wood legs, warm walnut tones, mustard or teal accent pillows only, organic curved shapes, clean geometry.`,
     },
+    // Renovation — mirrors production services/geminiService.ts::virtualRenovation.
+    // Uses a fixed test assignment (walls-only) as the default case; full
+    // adversarial coverage lives in real-world/run-renovation-scenarios.mjs.
+    renovation: {
+        folder: 'interiors',
+        prompt: () => buildRenovationPrompt({ walls: 'Benjamin Moore Simply White' }),
+    },
 };
+
+// Mirrors the dynamic preserve-list strategy in
+// services/geminiService.ts::virtualRenovation. Kept here so the harness
+// ships byte-faithful prompts.
+const RENO_SURFACES = [
+    { key: 'walls',         label: 'Walls',          description: 'wall paint color, wall texture, wall finish' },
+    { key: 'cabinets',      label: 'Cabinets',       description: 'cabinet doors, drawer fronts, cabinet boxes, hardware' },
+    { key: 'countertops',   label: 'Countertops',    description: 'counter surface material, color, edge profile' },
+    { key: 'backsplash',    label: 'Backsplash',     description: 'tile, pattern, grout between cabinets and countertop' },
+    { key: 'flooring',      label: 'Flooring',       description: 'floor material, plank/tile pattern, floor color' },
+    { key: 'fixtures',      label: 'Fixtures',       description: 'faucets, sinks, toilets, tub, shower, vanity hardware' },
+    { key: 'lightFixtures', label: 'Light Fixtures', description: 'pendants, chandeliers, ceiling fans, sconces, recessed trim' },
+];
+export function buildRenovationPrompt(changes) {
+    const apply = RENO_SURFACES.filter((s) => changes[s.key] && String(changes[s.key]).trim().length > 0);
+    const preserve = RENO_SURFACES.filter((s) => !changes[s.key] || String(changes[s.key]).trim().length === 0);
+    const applyBlock = apply.map((s) => `- ${s.label}: REPLACE with "${String(changes[s.key]).trim()}"`).join('\n');
+    const preserveBlock = preserve.map((s) => `- ${s.label} (${s.description}) — DO NOT TOUCH. Copy pixel-identical from input.`).join('\n')
+        || '- (none — all renovation surfaces are being changed)';
+    return `You are a Master Architectural Photo Editor producing a virtual renovation preview for a real estate listing. This is a SURGICAL edit — you modify ONLY the surfaces listed under CHANGE, and nothing else.
+
+===========================================
+SURFACES YOU MUST NOT TOUCH (explicit preserve list):
+===========================================
+${preserveBlock}
+
+For every item above, the output pixels MUST match the input pixels. If you replace, recolor, or restyle any of these you have failed the task.
+
+===========================================
+SURFACES YOU MUST CHANGE:
+===========================================
+${applyBlock}
+
+Rules for the CHANGE list:
+- Every listed surface in the output MUST visibly differ from the input.
+- Match the described finish exactly (color, material, pattern).
+- Do not half-apply. A wall change means the ENTIRE wall plane is the new color, not just a patch.
+- Do not stylize. This is a straight material swap, not a redesign.
+
+===========================================
+ABSOLUTE PRESERVATION LOCK (regardless of CHANGE list):
+===========================================
+- Framing, crop, zoom, camera angle, focal length — IDENTICAL to input. Camera is locked.
+- Room layout, architecture, walls' positions, ceiling height — unchanged.
+- Doors, windows, window treatments (blinds/curtains), trim, molding, baseboards — unchanged.
+- Vents, outlets, switches, thermostats — unchanged.
+- ALL furniture — couches, beds, tables, chairs, dressers, TVs, lamps, rugs — unchanged (same position, color, style).
+- ALL appliances — refrigerator, range, microwave, dishwasher, washer/dryer — unchanged.
+- ALL decor — art, plants, books, bedding, pillows — unchanged.
+- Any personal items / clutter in the input stay in the output. This tool does NOT declutter.
+- The mirror test: if you stack the input and the output, ONLY the surfaces in the CHANGE list should differ. Everything else must overlay pixel-for-pixel.
+
+===========================================
+QUALITY RULES FOR THE CHANGED SURFACES:
+===========================================
+- Material realism: wood grain direction, stone veining, grout lines, edge profiles.
+- Lighting continuity: new surfaces reflect the existing ambient light direction + color temperature. Glossy surfaces pick up the existing window reflections; matte surfaces absorb light naturally.
+- Seamless transitions where new materials meet preserved elements (trim, caulk, edge treatments).
+- Perspective: new elements follow the original vanishing points and lens distortion.
+- Shadows cast by preserved objects onto changed surfaces should remain plausible.
+
+Return the edited image. Do not return text, do not decline, do not explain.`;
+}
 
 if (!TOOLS[tool]) {
     console.error(`Unknown tool: ${tool}. Options: ${Object.keys(TOOLS).join(', ')}`);

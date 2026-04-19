@@ -1,0 +1,102 @@
+[
+  {
+    "id": "R01",
+    "title": "Walls-only color change (adversarial — easiest to over-reach)",
+    "fixture": "interiors/Lane_Photos_BM8A1572.jpg",
+    "roomType": "Kitchen/Living",
+    "changes": { "walls": "Sherwin-Williams Agreeable Gray" },
+    "expectChanged": ["wall paint (blue-gray wall becomes warm gray)"],
+    "expectPreserved": ["wood cabinets", "tile floor", "ceiling fan", "trim", "countertops", "ceiling", "door to patio", "bamboo window shade"]
+  },
+  {
+    "id": "R02",
+    "title": "Cabinets-only swap — everything else frozen",
+    "fixture": "interiors/Amber_photos_BM8A5086.jpg",
+    "roomType": "Kitchen",
+    "changes": { "cabinets": "navy blue shaker cabinets with brushed brass pulls" },
+    "expectChanged": ["cabinet doors + drawer fronts become navy", "hardware becomes brass"],
+    "expectPreserved": ["wall color", "tile floor", "countertops", "pendant light", "chandelier", "tile backsplash", "microwave", "range", "window"]
+  },
+  {
+    "id": "R03",
+    "title": "Flooring-only swap",
+    "fixture": "interiors/Amber_photos_BM8A5106.jpg",
+    "roomType": "Kitchen",
+    "changes": { "flooring": "wide plank natural white oak hardwood" },
+    "expectChanged": ["tile floor replaced with white oak planks"],
+    "expectPreserved": ["cream cabinets", "walls", "ceiling fan", "countertops", "window", "pendant light", "trim"]
+  },
+  {
+    "id": "R04",
+    "title": "Multi-surface (cabinets + countertops + flooring)",
+    "fixture": "interiors/Rj_hawk_-_1612_Sorrel__Benton__AR_72015_NUR66195.jpg",
+    "roomType": "Kitchen",
+    "changes": {
+      "cabinets": "white shaker cabinets with matte black pulls",
+      "countertops": "Calacatta Gold marble with waterfall edge",
+      "flooring": "wide plank dark walnut hardwood"
+    },
+    "expectChanged": ["cabinets white", "countertops marble", "floor dark walnut"],
+    "expectPreserved": ["backsplash (unchanged)", "stainless refrigerator", "pendant light", "walls", "range", "magnets on fridge"]
+  },
+  {
+    "id": "R05",
+    "title": "Full-gut (everything changes)",
+    "fixture": "interiors/Amber_photos_BM8A5101.jpg",
+    "roomType": "Kitchen",
+    "changes": {
+      "cabinets": "flat-panel sage green with brushed gold handles",
+      "countertops": "honed soapstone",
+      "flooring": "hexagonal terracotta tile",
+      "walls": "Farrow & Ball Pointing off-white",
+      "backsplash": "zellige tile in ivory"
+    },
+    "expectChanged": ["cabinets sage", "counter soapstone", "floor hex tile", "walls off-white", "backsplash zellige"],
+    "expectPreserved": ["stainless range + microwave", "dishwasher", "window", "chandelier", "ceiling", "framing"]
+  },
+  {
+    "id": "R06",
+    "title": "Backsplash-only (cabinets and counters MUST stay)",
+    "fixture": "interiors/Rj_hawk_-_1612_Sorrel__Benton__AR_72015_NUR66190.jpg",
+    "roomType": "Kitchen",
+    "changes": { "backsplash": "white marble herringbone mosaic" },
+    "expectChanged": ["backsplash tile becomes herringbone marble"],
+    "expectPreserved": ["gray cabinets", "granite island + counters", "stainless fridge with magnets", "pendant lights", "range", "flooring", "walls"]
+  },
+  {
+    "id": "R07",
+    "title": "Light fixtures only (pendants swap — cabinets/counters/appliances frozen)",
+    "fixture": "interiors/Rj_hawk_-_1612_Sorrel__Benton__AR_72015_NUR66195.jpg",
+    "roomType": "Kitchen",
+    "changes": { "lightFixtures": "large black orb pendant light with exposed bulbs" },
+    "expectChanged": ["pendant over island swapped to black orb fixture"],
+    "expectPreserved": ["gray cabinets", "granite island", "stainless appliances", "backsplash", "floor", "walls", "refrigerator magnets"]
+  },
+  {
+    "id": "R08",
+    "title": "Over-constrained walls-only on a bedroom (furniture-heavy scene)",
+    "fixture": "interiors/Brandon_B_NUR64458.jpg",
+    "roomType": "Bedroom",
+    "changes": { "walls": "Benjamin Moore Hale Navy" },
+    "expectChanged": ["walls become deep navy"],
+    "expectPreserved": ["wood bed", "dresser", "TV", "ceiling fan", "window + blinds", "pendant shelf", "wood floor", "bedding"]
+  },
+  {
+    "id": "R09",
+    "title": "Walls-only on a room with active existing furniture (must not restyle furniture)",
+    "fixture": "interiors/Jordan_Roehrenbeck_-_210_Buckland_Cir__Little_Rock__AR_72223_NUR65944.jpg",
+    "roomType": "Bedroom",
+    "changes": { "walls": "warm white eggshell" },
+    "expectChanged": ["walls become warm white"],
+    "expectPreserved": ["deer mounts", "white dresser", "framed art", "bunk bed frame", "aquarium", "blue bedding", "bunk bed curtain", "floor"]
+  },
+  {
+    "id": "R10",
+    "title": "Bathroom fixtures-only (faucets/sinks/toilet — cabinets must stay)",
+    "fixture": "interiors/Brandon_B_NUR64523.jpg",
+    "roomType": "Bathroom",
+    "changes": { "fixtures": "matte black faucets with rectangular vessel sinks and modern matte black toilet handle" },
+    "expectChanged": ["faucets become matte black", "sinks become vessel-style"],
+    "expectPreserved": ["white shaker vanity", "counter", "mirror", "walls", "wall decor", "plants on rack", "upper cabinet", "floor", "toilet bowl shape (position unchanged)"]
+  }
+]

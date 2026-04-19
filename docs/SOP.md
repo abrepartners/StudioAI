@@ -611,8 +611,9 @@ The `claude-api` skill (already installed) auto-enforces prompt caching — huge
 | Twilight | ≥80% | N/A (whole-frame, bail OK) | 4/5 — dusk + preserved arch |
 | Sky | ≥80% | N/A | 4/5 — sky replaced + arch preserved |
 | Pack | ≥80% | N/A (skipComposite) | 4/5 — style present + no mirror-flip |
+| Renovation | ≥80% | median <2.0 (tuned composite: threshold 0.03, dilate 8, feather 12) | ≥9/10 adversarial scenarios — listed surfaces changed AND unlisted surfaces preserved AND architecture intact |
 
-**All 5 tools passing as of 2026-04-18.** Full per-tool breakdowns in `tests/qa-harness/results/`.
+**All 6 tools passing as of 2026-04-19.** Full per-tool breakdowns in `tests/qa-harness/results/`. Renovation adversarial suite in `tests/qa-harness/real-world/run-renovation-scenarios.mjs` (10 scenarios covering walls-only, cabinets-only, flooring-only, multi-surface, full-gut, backsplash-only, light-fixtures-only, over-constrained, furniture-heavy, bathroom fixtures-only).
 
 **Runbook:**
 ```sh

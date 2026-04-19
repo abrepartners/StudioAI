@@ -63,6 +63,9 @@ export interface SavedStage {
   name: string;
   originalImage: string;
   generatedImage: string;
+  /** D8: 256-wide JPEG 0.85 thumbnail. Optional for backwards-compat with
+   *  pre-D8 saved stages, which backfill on first display. */
+  thumbnail?: string;
   timestamp: number;
 }
 

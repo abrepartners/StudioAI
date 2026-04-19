@@ -28,6 +28,7 @@ import { batchExportMLS, MLS_PRESETS } from '../utils/imageExport';
 import { sharpenImage } from '../utils/sharpen';
 import { compositeStackedEdit } from '../utils/stackComposite';
 import { checkAlignment } from '../utils/alignmentCheck';
+import { generateThumbnail } from '../utils/thumbnail';
 
 // Post-process a batch tool's raw Gemini output. Mirrors SpecialModesPanel's
 // postProcessToolOutput: sharpen (PNG when chain is on) + Phase C composite
@@ -223,17 +224,22 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
   useEffect(() => {
     imagesRef.current.forEach(img => {
       if (img.action === 'export') {
-        const stage: SavedStage = {
-          id: crypto.randomUUID(),
-          name: `Export ${img.roomType || 'Room'} ${new Date().toLocaleDateString()}`,
-          originalImage: img.base64,
-          generatedImage: img.base64,
-          timestamp: Date.now(),
-        };
-        onSaveStage(stage);
-        setResults(prev =>
-          prev.map(r => (r.id === img.id ? { ...r, generatedImage: img.base64, saved: true } : r))
-        );
+        void (async () => {
+          // D8: generate thumbnail alongside original + generated.
+          const thumbnail = await generateThumbnail(img.base64);
+          const stage: SavedStage = {
+            id: crypto.randomUUID(),
+            name: `Export ${img.roomType || 'Room'} ${new Date().toLocaleDateString()}`,
+            originalImage: img.base64,
+            generatedImage: img.base64,
+            thumbnail,
+            timestamp: Date.now(),
+          };
+          onSaveStage(stage);
+          setResults(prev =>
+            prev.map(r => (r.id === img.id ? { ...r, generatedImage: img.base64, saved: true } : r))
+          );
+        })();
       }
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -284,11 +290,14 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
             )
           );
 
+          // D8: generate thumbnail alongside generated image (non-blocking for UI).
+          const thumbnail = await generateThumbnail(generated);
           const stage: SavedStage = {
             id: crypto.randomUUID(),
             name: `Batch ${ACTION_LABELS[actionAtDispatch].label} ${img.roomType || 'Room'} ${new Date().toLocaleDateString()}`,
             originalImage: img.base64,
             generatedImage: generated,
+            thumbnail,
             timestamp: Date.now(),
           };
           onSaveStageRef.current(stage);
@@ -459,7 +468,7 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
             <h3 className="font-display text-sm font-semibold text-[var(--color-ink)]">
               {allDone ? 'Batch Complete' : 'Processing Batch'}
             </h3>
-            <p className="text-[10px] text-[var(--color-text)]/70">
+            <p className="text-xs text-[var(--color-text)]/70">
               {doneCount}/{totalCount} complete
               {errorCount > 0 && ` · ${errorCount} failed`}
               {processingCount > 0 && ` · ${processingCount} active`}
@@ -480,7 +489,7 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
               <button
                 type="button"
                 onClick={retryFailed}
-                className="rounded-lg px-2.5 py-1 text-[10px] font-semibold text-[var(--color-primary)] border border-[var(--color-primary)]/30 hover:bg-[var(--color-primary)]/10 transition inline-flex items-center gap-1"
+                className="rounded-lg px-2.5 py-1 text-xs font-semibold text-[var(--color-primary)] border border-[var(--color-primary)]/30 hover:bg-[var(--color-primary)]/10 transition inline-flex items-center gap-1"
               >
                 <RotateCcw size={10} /> Retry {errorCount}
               </button>
@@ -490,7 +499,7 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
                 type="button"
                 onClick={handleDownloadAll}
                 disabled={exporting || selectedIds.size === 0}
-                className="rounded-lg px-2.5 py-1 text-[10px] font-semibold bg-[var(--color-primary)] text-white hover:opacity-90 transition inline-flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-lg px-2.5 py-1 text-xs font-semibold bg-[var(--color-primary)] text-white hover:opacity-90 transition inline-flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                 title={selectedIds.size === 0 ? 'Select at least one result' : `Download ${selectedIds.size} as ZIP`}
               >
                 {exporting ? (
@@ -510,7 +519,7 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
                 <button
                   type="button"
                   onClick={() => onComplete(results)}
-                  className="rounded-lg px-2.5 py-1 text-[10px] font-semibold bg-white/[0.04] border border-white/10 text-white hover:bg-white/[0.08] transition inline-flex items-center gap-1"
+                  className="rounded-lg px-2.5 py-1 text-xs font-semibold bg-white/[0.04] border border-white/10 text-white hover:bg-white/[0.08] transition inline-flex items-center gap-1"
                 >
                   <CheckCircle2 size={10} /> Open in Editor
                 </button>
@@ -542,7 +551,7 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
         </div>
 
         {paused && (
-          <div className="flex items-center gap-2 text-[10px] text-[#FFD60A] font-semibold">
+          <div className="flex items-center gap-2 text-xs text-[#FFD60A] font-semibold">
             <Pause size={10} /> Paused — tap play to resume
           </div>
         )}
@@ -552,7 +561,7 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
             dropdowns on the grid tiles handle individual overrides. */}
         {(pendingCount > 0 || errorCount > 0) && (
           <div className="flex items-center gap-1.5 flex-wrap border-t border-white/5 pt-2.5">
-            <span className="text-[9px] uppercase tracking-wider text-[var(--color-text)]/50 font-semibold mr-1">
+            <span className="text-xs uppercase tracking-wider text-[var(--color-text)]/50 font-semibold mr-1">
               Apply to {pendingCount + errorCount} remaining:
             </span>
             {(['stage', 'cleanup', 'twilight', 'sky'] as BatchAction[]).map((action) => {
@@ -562,7 +571,7 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
                   key={action}
                   type="button"
                   onClick={() => applyActionToAllPending(action)}
-                  className="rounded-lg px-2 py-1 text-[10px] font-semibold inline-flex items-center gap-1 transition-all border border-[var(--color-border-strong)] bg-black/40 hover:bg-current/10"
+                  className="rounded-lg px-2 py-1 text-xs font-semibold inline-flex items-center gap-1 transition-all border border-[var(--color-border-strong)] bg-black/40 hover:bg-current/10"
                   style={{ color: info.color }}
                   title={`Set every pending row to ${info.label}`}
                 >
@@ -576,7 +585,7 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
 
       {/* Select-all row — appears when at least one result is done */}
       {allDone && doneResults.length > 0 && (
-        <div className="flex items-center justify-between px-1 text-[10px] text-[var(--color-text)]/70">
+        <div className="flex items-center justify-between px-1 text-xs text-[var(--color-text)]/70">
           <button
             type="button"
             onClick={toggleSelectAll}
@@ -589,7 +598,7 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
               {selectedIds.size} of {doneResults.length} selected
             </span>
           </button>
-          <span className="text-[9px] text-[var(--color-text)]/50">Click a result to preview · Esc closes</span>
+          <span className="text-xs text-[var(--color-text)]/50">Click a result to preview · Esc closes</span>
         </div>
       )}
 
@@ -640,12 +649,12 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
               {result.status === 'error' && (
                 <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-1 p-2">
                   <AlertCircle size={16} className="text-[#FF375F]" />
-                  <span className="text-[8px] text-[#FF375F] text-center truncate w-full">{result.error}</span>
+                  <span className="text-2xs text-[#FF375F] text-center truncate w-full">{result.error}</span>
                 </div>
               )}
               {result.status === 'pending' && (
                 <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                  <span className="text-[9px] text-white/60 font-semibold">Queued</span>
+                  <span className="text-xs text-white/60 font-semibold">Queued</span>
                 </div>
               )}
 
@@ -677,7 +686,7 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
                     changeRowAction(result.id, e.target.value as BatchAction);
                   }}
                   onClick={(e) => e.stopPropagation()}
-                  className="absolute top-1 left-1 text-[7px] font-bold px-1 py-0.5 rounded border-0 focus:outline-none focus:ring-1 focus:ring-white/40 cursor-pointer appearance-none"
+                  className="absolute top-1 left-1 text-2xs font-bold px-1 py-0.5 rounded border-0 focus:outline-none focus:ring-1 focus:ring-white/40 cursor-pointer appearance-none"
                   style={{ backgroundColor: actionInfo.color, color: '#000' }}
                   aria-label="Action for this image"
                 >
@@ -689,7 +698,7 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
                 </select>
               ) : (
                 <div
-                  className="absolute top-1 left-1 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[7px] font-bold"
+                  className="absolute top-1 left-1 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-2xs font-bold"
                   style={{ backgroundColor: actionInfo.color, color: '#000' }}
                 >
                   {actionInfo.icon} {actionInfo.label}
@@ -698,7 +707,7 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
 
               {/* Bottom badge */}
               <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-1.5 flex items-center justify-between">
-                <span className="text-[8px] font-semibold text-white truncate">{result.roomType}</span>
+                <span className="text-2xs font-semibold text-white truncate">{result.roomType}</span>
                 {result.status === 'done' && (
                   <div className="flex items-center gap-0.5">
                     {result.saved && <Heart size={10} className="fill-[var(--color-primary)] text-[var(--color-primary)]" />}
@@ -722,14 +731,14 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
             <div className="flex items-center gap-3 text-xs text-white">
               <span className="inline-flex items-center gap-1.5 font-semibold">
                 <span
-                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-bold"
+                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-2xs font-bold"
                   style={{ backgroundColor: ACTION_LABELS[lightboxResult.action].color, color: '#000' }}
                 >
                   {ACTION_LABELS[lightboxResult.action].icon} {ACTION_LABELS[lightboxResult.action].label}
                 </span>
                 {lightboxResult.roomType}
               </span>
-              <span className="text-[10px] text-white/50">
+              <span className="text-xs text-white/50">
                 {doneResults.findIndex(r => r.id === lightboxResult.id) + 1} of {doneResults.length}
               </span>
             </div>
@@ -740,7 +749,7 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
                   onLoadImage(lightboxResult.originalImage, lightboxResult.generatedImage!);
                   setLightboxId(null);
                 }}
-                className="rounded-lg px-3 py-1.5 text-[11px] font-semibold bg-[var(--color-primary)] text-white hover:opacity-90 transition"
+                className="rounded-lg px-3 py-1.5 text-sm font-semibold bg-[var(--color-primary)] text-white hover:opacity-90 transition"
               >
                 Open in Editor
               </button>
@@ -767,7 +776,7 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
                 loading="lazy"
                 decoding="async"
               />
-              <span className="absolute bottom-2 left-2 bg-black/80 text-[10px] font-bold text-white uppercase px-2 py-1 rounded">Before</span>
+              <span className="absolute bottom-2 left-2 bg-black/80 text-xs font-bold text-white uppercase px-2 py-1 rounded">Before</span>
             </div>
             <div className="relative w-full max-w-2xl">
               <img
@@ -777,11 +786,11 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
                 loading="lazy"
                 decoding="async"
               />
-              <span className="absolute bottom-2 left-2 bg-[var(--color-primary)]/90 text-[10px] font-bold text-white uppercase px-2 py-1 rounded">After</span>
+              <span className="absolute bottom-2 left-2 bg-[var(--color-primary)]/90 text-xs font-bold text-white uppercase px-2 py-1 rounded">After</span>
             </div>
           </div>
           {/* Bottom hint */}
-          <div className="px-4 py-2 text-center text-[10px] text-white/40 border-t border-white/10">
+          <div className="px-4 py-2 text-center text-xs text-white/40 border-t border-white/10">
             ← → to navigate · Esc to close
           </div>
         </div>

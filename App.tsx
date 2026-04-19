@@ -6,6 +6,7 @@ import {
 import { sharpenImage } from './utils/sharpen';
 import { compositeStackedEdit } from './utils/stackComposite';
 import { checkAlignment } from './utils/alignmentCheck';
+import { generateThumbnail } from './utils/thumbnail';
 // Hot-path components — kept static (editor core, used immediately)
 import ImageUploader from './components/ImageUploader';
 import BatchUploader, { type BatchImage } from './components/BatchUploader';
@@ -165,7 +166,7 @@ const HERO_WORDS = ['real estate.', 'interior design.', 'property flipping.', 'R
 const Tip: React.FC<{ label: string; children: React.ReactNode; position?: 'top' | 'bottom' }> = ({ label, children, position = 'bottom' }) => (
   <div className="relative group/tip">
     {children}
-    <div className={`pointer-events-none absolute left-1/2 -translate-x-1/2 z-50 px-2.5 py-1 rounded-lg bg-white text-black text-[10px] font-semibold whitespace-nowrap opacity-0 group-hover/tip:opacity-100 transition-all duration-200 shadow-lg ${
+    <div className={`pointer-events-none absolute left-1/2 -translate-x-1/2 z-50 px-2.5 py-1 rounded-lg bg-white text-black text-xs font-semibold whitespace-nowrap opacity-0 group-hover/tip:opacity-100 transition-all duration-200 shadow-lg ${
       position === 'bottom' ? 'top-full mt-2' : 'bottom-full mb-2'
     } hidden lg:block`}>
       {label}
@@ -232,7 +233,7 @@ const CommunityGallery: React.FC = () => {
     <section className="px-5 sm:px-8 lg:px-16 py-20 border-t border-white/[0.04]">
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-10">
-          <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[var(--color-primary)] mb-3">Community Gallery</p>
+          <p className="text-xs font-bold uppercase tracking-[0.25em] text-[var(--color-primary)] mb-3">Community Gallery</p>
           <h2 className="font-display text-2xl sm:text-3xl font-black text-white tracking-tight">Made by agents like you.</h2>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -246,11 +247,11 @@ const CommunityGallery: React.FC = () => {
                 />
               </div>
               <div className="px-3 py-2 flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: toolColors[item.tool_used] || '#0A84FF' }}>
+                <span className="text-xs font-bold uppercase tracking-wider" style={{ color: toolColors[item.tool_used] || '#0A84FF' }}>
                   {item.tool_used}
                 </span>
                 {item.user_name && (
-                  <span className="text-[9px] text-zinc-600">by {item.user_name.split(' ')[0]}</span>
+                  <span className="text-xs text-zinc-600">by {item.user_name.split(' ')[0]}</span>
                 )}
               </div>
             </div>
@@ -1315,16 +1316,20 @@ Direction from user: ${prompt}`;
   const handleSaveStage = async () => {
     if (!generatedImage || !originalImage) return;
     try {
+      // D8: thumbnail computed alongside the showcase compress so the history
+      // grid renders a 256-wide JPEG instead of the 600-wide showcase image.
       // Compress images before saving to localStorage (5MB limit)
       const [compOriginal, compGenerated] = await Promise.all([
         compressForShowcase(originalImage, 600),
         compressForShowcase(generatedImage, 600),
       ]);
+      const thumbnail = await generateThumbnail(compGenerated);
       const newStage: SavedStage = {
         id: crypto.randomUUID(),
         name: `Design ${new Date().toLocaleDateString()}`,
         originalImage: compOriginal,
         generatedImage: compGenerated,
+        thumbnail,
         timestamp: Date.now(),
       };
       setSavedStages((prev) => {
@@ -1708,7 +1713,7 @@ Direction from user: ${prompt}`;
               Studio<span className="text-[var(--color-primary)]">AI</span>
             </span>
           </div>
-          <div className="hidden sm:flex items-center gap-6 text-[13px] font-semibold text-zinc-400">
+          <div className="hidden sm:flex items-center gap-6 text-sm font-semibold text-zinc-400">
             <a href="#features" className="hover:text-white transition-colors">Features</a>
             <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
             <a href="#faq" className="hover:text-white transition-colors">FAQ</a>
@@ -1724,7 +1729,7 @@ Direction from user: ${prompt}`;
             <button
               type="button"
               onClick={triggerGoogleSignIn}
-              className="inline-flex items-center gap-2 px-3 sm:px-5 py-1.5 sm:py-2 rounded-full bg-white text-black text-[11px] sm:text-sm font-semibold hover:bg-zinc-200 transition-all whitespace-nowrap"
+              className="inline-flex items-center gap-2 px-3 sm:px-5 py-1.5 sm:py-2 rounded-full bg-white text-black text-sm sm:text-sm font-semibold hover:bg-zinc-200 transition-all whitespace-nowrap"
             >
               <span className="hidden sm:inline">Stage 3 rooms free</span>
               <span className="sm:hidden">Stage 3 free</span>
@@ -1744,7 +1749,7 @@ Direction from user: ${prompt}`;
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#FFD60A]/10 border border-[#FFD60A]/20 mb-6 animate-fade-in">
                 <div className="w-1.5 h-1.5 rounded-full bg-[#FFD60A] animate-pulse" />
-                <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#FFD60A]">Early Bird — $14/mo for first 20 users</span>
+                <span className="text-xs font-bold uppercase tracking-[0.15em] text-[#FFD60A]">Early Bird — $14/mo for first 20 users</span>
               </div>
 
               <HeroHeadline />
@@ -1758,7 +1763,7 @@ Direction from user: ${prompt}`;
                 <span className="text-sm text-zinc-500 line-through">$300/room</span>
                 <ArrowRight size={14} className="text-zinc-600" />
                 <span className="text-sm font-black text-[#30D158]">$1.38/room</span>
-                <span className="text-[10px] text-zinc-500">with StudioAI</span>
+                <span className="text-xs text-zinc-500">with StudioAI</span>
               </div>
 
               <div className="flex flex-col sm:flex-row items-start gap-3 mb-8 animate-fade-in" style={{ animationDelay: '0.3s' }}>
@@ -1775,7 +1780,7 @@ Direction from user: ${prompt}`;
                 {[{ value: '5 free', label: 'To start' }, { value: '~15s', label: 'Per render' }, { value: '12+', label: 'Styles' }].map((s) => (
                   <div key={s.label}>
                     <div className="text-lg font-black text-white">{s.value}</div>
-                    <div className="text-[9px] font-bold uppercase tracking-[0.15em] text-zinc-600">{s.label}</div>
+                    <div className="text-xs font-bold uppercase tracking-[0.15em] text-zinc-600">{s.label}</div>
                   </div>
                 ))}
               </div>
@@ -1795,7 +1800,7 @@ Direction from user: ${prompt}`;
                   <source src="/demo-video.mp4" type="video/mp4" />
                 </video>
               </div>
-              <p className="text-[10px] text-zinc-600 text-center mt-3">Watch: Upload a photo, describe what you want, get results in seconds</p>
+              <p className="text-xs text-zinc-600 text-center mt-3">Watch: Upload a photo, describe what you want, get results in seconds</p>
             </div>
           </div>
         </section>
@@ -1814,7 +1819,7 @@ Direction from user: ${prompt}`;
               ].map((who) => (
                 <div key={who.label} className="flex items-center gap-2 text-zinc-500">
                   <span className="text-zinc-600">{who.icon}</span>
-                  <span className="text-[11px] sm:text-xs font-semibold tracking-wide">{who.label}</span>
+                  <span className="text-sm sm:text-xs font-semibold tracking-wide">{who.label}</span>
                 </div>
               ))}
             </div>
@@ -1825,7 +1830,7 @@ Direction from user: ${prompt}`;
         <section id="features" className="px-5 sm:px-8 lg:px-16 py-24 scroll-mt-20">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-16 reveal">
-              <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[var(--color-primary)] mb-3">What StudioAI Does</p>
+              <p className="text-xs font-bold uppercase tracking-[0.25em] text-[var(--color-primary)] mb-3">What StudioAI Does</p>
               <h2 className="font-display text-3xl sm:text-4xl font-black text-white tracking-tight mb-3">
                 Every tool your photos need.
               </h2>
@@ -1857,19 +1862,19 @@ Direction from user: ${prompt}`;
                 <div key={f.title} className={`feature-card-interactive p-7 rounded-2xl bg-white/[0.02] border border-white/[0.06] reveal reveal-delay-${i + 1}`}>
                   <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-4" style={{ background: `${f.accent}12`, color: f.accent }}>{f.icon}</div>
                   <h3 className="text-base font-bold text-white mb-2">{f.title}</h3>
-                  <p className="text-[13px] leading-relaxed text-zinc-500">{f.desc}</p>
+                  <p className="text-sm leading-relaxed text-zinc-500">{f.desc}</p>
                   <div className="card-preview">
                     <div className="grid grid-cols-2 gap-2 rounded-lg overflow-hidden">
                       <div className="relative">
                         <img src={f.before} alt="Before" className="w-full aspect-[16/10] object-cover rounded-md" />
-                        <div className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-black/70 text-[7px] font-bold uppercase text-white">Before</div>
+                        <div className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-black/70 text-2xs font-bold uppercase text-white">Before</div>
                       </div>
                       <div className="relative">
                         <img src={f.after} alt="After" className="w-full aspect-[16/10] object-cover rounded-md" />
-                        <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded text-[7px] font-bold uppercase text-white" style={{ background: `${f.accent}cc` }}>After</div>
+                        <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded text-2xs font-bold uppercase text-white" style={{ background: `${f.accent}cc` }}>After</div>
                       </div>
                     </div>
-                    <p className="text-[10px] text-zinc-600 mt-1.5">{f.previewLabel}</p>
+                    <p className="text-xs text-zinc-600 mt-1.5">{f.previewLabel}</p>
                   </div>
                 </div>
               ))}
@@ -1885,8 +1890,8 @@ Direction from user: ${prompt}`;
               ].map((f, i) => (
                 <div key={f.title} className={`feature-card-interactive p-5 rounded-xl bg-white/[0.02] border border-white/[0.06] reveal reveal-delay-${i + 1}`}>
                   <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-3" style={{ background: `${f.accent}10`, color: f.accent }}>{f.icon}</div>
-                  <h3 className="text-[13px] font-bold text-white mb-1">{f.title}</h3>
-                  <p className="text-[11px] leading-relaxed text-zinc-600">{f.desc}</p>
+                  <h3 className="text-sm font-bold text-white mb-1">{f.title}</h3>
+                  <p className="text-sm leading-relaxed text-zinc-600">{f.desc}</p>
                   {f.before && f.after && (
                     <div className="card-preview">
                       <div className="grid grid-cols-2 gap-1 rounded overflow-hidden">
@@ -1905,7 +1910,7 @@ Direction from user: ${prompt}`;
         <section className="px-5 sm:px-8 lg:px-16 py-16 border-t border-white/[0.04]">
           <div className="max-w-5xl mx-auto">
             <div className="text-center mb-10 reveal">
-              <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-zinc-600 mb-3">Trusted by Agents</p>
+              <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-600 mb-3">Trusted by Agents</p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 reveal">
               {[
@@ -1934,10 +1939,10 @@ Direction from user: ${prompt}`;
                       <Star key={j} size={12} className="text-[#FFD60A] fill-[#FFD60A]" />
                     ))}
                   </div>
-                  <p className="text-[13px] text-zinc-300 leading-relaxed mb-4">"{t.quote}"</p>
+                  <p className="text-sm text-zinc-300 leading-relaxed mb-4">"{t.quote}"</p>
                   <div>
                     <p className="text-xs font-bold text-white">{t.name}</p>
-                    <p className="text-[10px] text-zinc-600">{t.role}</p>
+                    <p className="text-xs text-zinc-600">{t.role}</p>
                   </div>
                 </div>
               ))}
@@ -1967,10 +1972,10 @@ Direction from user: ${prompt}`;
                     </div>
                     <div>
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-[10px] font-bold text-zinc-600">{item.step}</span>
+                        <span className="text-xs font-bold text-zinc-600">{item.step}</span>
                         <h3 className="text-base font-bold text-white">{item.title}</h3>
                       </div>
-                      <p className="text-[13px] text-zinc-500 leading-relaxed">{item.desc}</p>
+                      <p className="text-sm text-zinc-500 leading-relaxed">{item.desc}</p>
                     </div>
                   </div>
                 ))}
@@ -1987,7 +1992,7 @@ Direction from user: ${prompt}`;
                       <div className="w-2.5 h-2.5 rounded-full bg-[#28C840]" />
                     </div>
                     <div className="flex-1 h-6 rounded-md bg-white/[0.04] flex items-center justify-center">
-                      <span className="text-[9px] text-zinc-600 font-medium">studioai.averyandbryant.com</span>
+                      <span className="text-xs text-zinc-600 font-medium">studioai.averyandbryant.com</span>
                     </div>
                   </div>
 
@@ -2003,7 +2008,7 @@ Direction from user: ${prompt}`;
                         <div className="flex-1 h-1 rounded-full bg-white/10 overflow-hidden">
                           <div className="h-full rounded-full bg-[#0A84FF] mockup-step-bar" />
                         </div>
-                        <span className="text-[9px] font-bold text-zinc-400">Day to Dusk</span>
+                        <span className="text-xs font-bold text-zinc-400">Day to Dusk</span>
                       </div>
                     </div>
                   </div>
@@ -2017,7 +2022,7 @@ Direction from user: ${prompt}`;
         <section className="px-5 sm:px-8 lg:px-16 py-20 border-t border-white/[0.04]">
           <div className="max-w-5xl mx-auto">
             <div className="text-center mb-12 reveal">
-              <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[var(--color-primary)] mb-3">Real Results</p>
+              <p className="text-xs font-bold uppercase tracking-[0.25em] text-[var(--color-primary)] mb-3">Real Results</p>
               <h2 className="font-display text-2xl sm:text-3xl font-black text-white tracking-tight">From actual listings. Not mockups.</h2>
             </div>
 
@@ -2030,24 +2035,24 @@ Direction from user: ${prompt}`;
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <span style={{ color: item.color }}>{item.icon}</span>
-                      <span className="text-[10px] font-bold uppercase tracking-[0.15em]" style={{ color: item.color }}>{item.label}</span>
+                      <span className="text-xs font-bold uppercase tracking-[0.15em]" style={{ color: item.color }}>{item.label}</span>
                     </div>
-                    <span className="text-[10px] text-zinc-600">Processed in ~15s</span>
+                    <span className="text-xs text-zinc-600">Processed in ~15s</span>
                   </div>
                   <div className="relative rounded-xl overflow-hidden border border-white/[0.06]">
                     <div className="grid grid-cols-1 sm:grid-cols-2">
                       <div className="relative">
                         <img src={item.before} alt="Before" className="w-full aspect-[16/10] object-cover" />
-                        <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-black/70 text-[8px] font-bold uppercase text-white">Before</div>
+                        <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-black/70 text-2xs font-bold uppercase text-white">Before</div>
                       </div>
                       <div className="relative">
                         <img src={item.after} alt="After" className="w-full aspect-[16/10] object-cover" />
-                        <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded text-[8px] font-bold uppercase text-white" style={{ background: `${item.color}cc` }}>After</div>
+                        <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded text-2xs font-bold uppercase text-white" style={{ background: `${item.color}cc` }}>After</div>
                       </div>
                     </div>
                     <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-white/15 hidden sm:block" />
                   </div>
-                  <p className="text-[11px] text-zinc-500 mt-2">{item.caption}</p>
+                  <p className="text-sm text-zinc-500 mt-2">{item.caption}</p>
                 </div>
               ))}
             </div>
@@ -2076,9 +2081,9 @@ Direction from user: ${prompt}`;
             {/* Early Bird teaser — honored forever, separate from main grid */}
             <div className="mb-16 reveal">
               <div className="relative p-8 rounded-2xl bg-[#FFD60A]/[0.03] border border-[#FFD60A]/20 max-w-2xl mx-auto flex flex-col sm:flex-row items-start sm:items-center gap-6">
-                <div className="absolute -top-3 left-6 px-3 py-0.5 rounded-full bg-[#FFD60A] text-[9px] font-bold uppercase tracking-widest text-black">First 20 Users</div>
+                <div className="absolute -top-3 left-6 px-3 py-0.5 rounded-full bg-[#FFD60A] text-xs font-bold uppercase tracking-widest text-black">First 20 Users</div>
                 <div className="flex-1">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#FFD60A] mb-2">Early Bird — honored forever</p>
+                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FFD60A] mb-2">Early Bird — honored forever</p>
                   <div className="flex items-baseline gap-1 mb-2">
                     <span className="text-3xl font-black text-white">$14</span>
                     <span className="text-sm text-zinc-500">/mo</span>
@@ -2100,7 +2105,7 @@ Direction from user: ${prompt}`;
             <div className="reveal">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[var(--color-primary)] mb-3">For Brokerages</p>
+                  <p className="text-xs font-bold uppercase tracking-[0.25em] text-[var(--color-primary)] mb-3">For Brokerages</p>
                   <h2 className="font-display text-2xl sm:text-3xl font-black text-white tracking-tight mb-4">
                     Give your entire team Pro access.
                   </h2>
@@ -2115,7 +2120,7 @@ Direction from user: ${prompt}`;
                     ].map((t) => (
                       <div key={t.name} className="flex items-center justify-between p-3 rounded-lg bg-white/[0.02] border border-white/[0.06] hover:border-white/[0.12] transition-all">
                         <span className="text-sm font-bold text-white">{t.name}</span>
-                        <span className="text-[11px] text-zinc-500">{t.detail}</span>
+                        <span className="text-sm text-zinc-500">{t.detail}</span>
                       </div>
                     ))}
                   </div>
@@ -2126,14 +2131,14 @@ Direction from user: ${prompt}`;
                       <div className="w-10 h-10 rounded-xl bg-[var(--color-primary)]/10 flex items-center justify-center text-[var(--color-primary)]"><LayoutGrid size={20} /></div>
                       <div>
                         <p className="text-sm font-bold text-white">Admin Dashboard</p>
-                        <p className="text-[10px] text-zinc-500">Add and remove agents in seconds</p>
+                        <p className="text-xs text-zinc-500">Add and remove agents in seconds</p>
                       </div>
                     </div>
                     <div className="space-y-2">
                       {['jane@kwrealty.com', 'mike@agency.com', 'sarah@homes.com'].map((email) => (
                         <div key={email} className="flex items-center justify-between px-3 py-2 rounded-lg bg-black/30 border border-white/[0.04]">
-                          <span className="text-[11px] text-zinc-400">{email}</span>
-                          <span className="text-[9px] font-bold text-[#30D158] uppercase">Pro</span>
+                          <span className="text-sm text-zinc-400">{email}</span>
+                          <span className="text-xs font-bold text-[#30D158] uppercase">Pro</span>
                         </div>
                       ))}
                     </div>
@@ -2180,7 +2185,7 @@ Direction from user: ${prompt}`;
                     {item.q}
                     <ChevronDown size={14} className="text-zinc-600 transition-transform group-open:rotate-180 shrink-0 ml-4" />
                   </summary>
-                  <div className="px-4 pb-4 text-[13px] text-zinc-400 leading-relaxed -mt-1">{item.a}</div>
+                  <div className="px-4 pb-4 text-sm text-zinc-400 leading-relaxed -mt-1">{item.a}</div>
                 </details>
               ))}
             </div>
@@ -2205,7 +2210,7 @@ Direction from user: ${prompt}`;
                 <svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
                 Start Free — No Credit Card
               </button>
-              <a href="#pricing" className="text-[11px] text-zinc-500 hover:text-zinc-300 transition-colors">See Pricing</a>
+              <a href="#pricing" className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors">See Pricing</a>
             </div>
           </div>
         </section>
@@ -2217,7 +2222,7 @@ Direction from user: ${prompt}`;
               <Camera size={14} className="text-zinc-600" />
               <span className="text-xs font-semibold text-zinc-600">StudioAI by Avery & Bryant</span>
             </div>
-            <div className="flex items-center gap-6 text-[11px] text-zinc-600 font-medium">
+            <div className="flex items-center gap-6 text-sm text-zinc-600 font-medium">
               <span>&copy; {new Date().getFullYear()} Avery & Bryant</span>
               <a href="https://averyandbryant.com" target="_blank" rel="noopener noreferrer" className="hover:text-zinc-400 transition-colors">averyandbryant.com</a>
             </div>
@@ -2282,13 +2287,13 @@ Direction from user: ${prompt}`;
                   className="flex items-center justify-between gap-4 rounded-xl border border-[var(--color-border)] bg-black/40 px-3 py-2"
                 >
                   <span className="text-sm text-[var(--color-text)]">{label}</span>
-                  <kbd className="rounded-md border border-[var(--color-border-strong)] bg-[var(--color-bg-deep)] px-2 py-0.5 text-[11px] font-mono text-[var(--color-primary)]">
+                  <kbd className="rounded-md border border-[var(--color-border-strong)] bg-[var(--color-bg-deep)] px-2 py-0.5 text-sm font-mono text-[var(--color-primary)]">
                     {keys}
                   </kbd>
                 </li>
               ))}
             </ul>
-            <p className="mt-4 text-[11px] text-[var(--color-text)]/50 text-center">
+            <p className="mt-4 text-sm text-[var(--color-text)]/50 text-center">
               Press Esc to close.
             </p>
           </div>
@@ -2329,12 +2334,12 @@ Direction from user: ${prompt}`;
               <div className="flex items-baseline gap-1 mb-1">
                 <span className="text-3xl font-black text-white">${referralPrice ? (referralPrice / 100).toFixed(0) : '49'}</span>
                 <span className="text-sm text-zinc-400">/month</span>
-                {!referralPrice && <span className="text-[11px] text-zinc-500 ml-2">or $39/mo billed annually</span>}
+                {!referralPrice && <span className="text-sm text-zinc-500 ml-2">or $39/mo billed annually</span>}
               </div>
               {referralPrice && referralCode && (
-                <p className="text-[10px] text-[#FFD60A] font-semibold">Referral code {referralCode} applied — locked forever</p>
+                <p className="text-xs text-[#FFD60A] font-semibold">Referral code {referralCode} applied — locked forever</p>
               )}
-              <p className="mt-2 text-[11px] text-zinc-400 leading-relaxed">
+              <p className="mt-2 text-sm text-zinc-400 leading-relaxed">
                 Less than $0.05 per staged photo at typical use. Stage 12 listings a month and you've paid for the year.
               </p>
             </div>
@@ -2389,11 +2394,11 @@ Direction from user: ${prompt}`;
             >
               <CreditCard size={16} /> {referralPrice ? `Start Pro — $${(referralPrice / 100).toFixed(0)}/mo` : 'Start Pro — $49/mo'}
             </button>
-            <p className="mt-3 text-center text-[10px] text-zinc-500">Cancel anytime. Early Bird + current Pro rates honored per grandfathering. Powered by Stripe.</p>
+            <p className="mt-3 text-center text-xs text-zinc-500">Cancel anytime. Early Bird + current Pro rates honored per grandfathering. Powered by Stripe.</p>
 
             {/* Credit Packs Alternative */}
             <div className="mt-6 pt-5 border-t border-white/[0.06]">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-600 text-center mb-3">Or buy credits — no subscription</p>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-600 text-center mb-3">Or buy credits — no subscription</p>
               <div className="space-y-2">
                 {[
                   { id: 'starter' as const, name: '10 Credits', price: '$15', per: '$1.50/image' },
@@ -2411,7 +2416,7 @@ Direction from user: ${prompt}`;
                   >
                     <div>
                       <span className="text-sm font-bold text-white">{pack.name}</span>
-                      <span className="text-[10px] text-zinc-500 ml-2">{pack.per}</span>
+                      <span className="text-xs text-zinc-500 ml-2">{pack.per}</span>
                     </div>
                     <span className="text-sm font-bold text-white">{pack.price}</span>
                   </button>
@@ -2492,7 +2497,7 @@ Direction from user: ${prompt}`;
                     <CreditCard size={16} className="text-[var(--color-primary)]" />
                     <h4 className="text-sm font-semibold text-[var(--color-ink)]">Billing</h4>
                   </div>
-                  <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-bold uppercase tracking-wider ${
                     subscription.plan === 'pro'
                       ? 'bg-[var(--color-primary)]/15 text-[var(--color-primary)] border border-[var(--color-primary)]/30'
                       : 'bg-zinc-800 text-zinc-400 border border-zinc-700'
@@ -2521,7 +2526,7 @@ Direction from user: ${prompt}`;
                     >
                       <CreditCard size={14} /> Manage Billing
                     </button>
-                    <p className="text-[9px] text-[var(--color-text)]/40 text-center">Update payment method, view invoices, or cancel</p>
+                    <p className="text-xs text-[var(--color-text)]/40 text-center">Update payment method, view invoices, or cancel</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -2575,7 +2580,7 @@ Direction from user: ${prompt}`;
               <button
                 type="button"
                 onClick={handleBackToBatch}
-                className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-semibold text-[var(--color-primary)] bg-[var(--color-primary)]/10 border border-[var(--color-primary)]/30 hover:bg-[var(--color-primary)]/20 transition"
+                className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-sm font-semibold text-[var(--color-primary)] bg-[var(--color-primary)]/10 border border-[var(--color-primary)]/30 hover:bg-[var(--color-primary)]/20 transition"
                 title="Return to batch results"
               >
                 ← Batch ({batchResults.filter(r => r.status === 'done').length})
@@ -2626,7 +2631,7 @@ Direction from user: ${prompt}`;
                     >
                       <ChevronLeft size={16} />
                     </button>
-                    <span className="text-[10px] font-bold text-[var(--color-text)]/70 tabular-nums min-w-[2rem] text-center">
+                    <span className="text-xs font-bold text-[var(--color-text)]/70 tabular-nums min-w-[2rem] text-center">
                       {sessionIndex + 1}/{sessionQueue.length}
                     </span>
                     <button
@@ -2705,7 +2710,7 @@ Direction from user: ${prompt}`;
                 <span className="hidden sm:inline">Upgrade</span>
               </button>
             ) : (
-              <span className="rounded-lg px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-widest inline-flex items-center gap-1.5 bg-[rgba(10,132,255,0.15)] text-[var(--color-primary)] border border-[rgba(10,132,255,0.3)]">
+              <span className="rounded-lg px-2.5 py-1.5 text-xs font-bold uppercase tracking-widest inline-flex items-center gap-1.5 bg-[rgba(10,132,255,0.15)] text-[var(--color-primary)] border border-[rgba(10,132,255,0.3)]">
                 <Crown size={12} />
                 Pro
               </span>
@@ -2813,7 +2818,7 @@ Direction from user: ${prompt}`;
                 <span className="hidden sm:inline">Upgrade</span>
               </button>
             ) : (
-              <span className="rounded-lg px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-widest inline-flex items-center gap-1.5 bg-[rgba(10,132,255,0.15)] text-[var(--color-primary)] border border-[rgba(10,132,255,0.3)]">
+              <span className="rounded-lg px-2.5 py-1.5 text-xs font-bold uppercase tracking-widest inline-flex items-center gap-1.5 bg-[rgba(10,132,255,0.15)] text-[var(--color-primary)] border border-[rgba(10,132,255,0.3)]">
                 <Crown size={12} />
                 Pro
               </span>
@@ -2850,7 +2855,7 @@ Direction from user: ${prompt}`;
                 </div>
                 <div>
                   <div className="text-xs font-semibold text-white leading-tight">AI Listing Kit</div>
-                  <div className="text-[10px] text-zinc-400">Stage · dusk hero · cleanup · MLS · social · copy — one download.</div>
+                  <div className="text-xs text-zinc-400">Stage · dusk hero · cleanup · MLS · social · copy — one download.</div>
                 </div>
               </div>
               <button
@@ -2889,7 +2894,7 @@ Direction from user: ${prompt}`;
         </main>
       ) : !originalImage ? (
         <main className="flex-1 flex items-center justify-center overflow-auto editor-canvas-bg relative z-10">
-          <div className="w-full max-w-lg mx-auto px-8 py-20 text-center animate-fade-in glass-overlay rounded-[2.5rem] border border-[var(--color-border-strong)] shadow-2xl relative overflow-hidden">
+          <div className="w-full max-w-lg mx-auto px-8 py-20 text-center animate-fade-in glass-overlay rounded-3xl border border-[var(--color-border-strong)] shadow-2xl relative overflow-hidden">
             <div className="absolute top-[-50px] left-1/2 -translate-x-1/2 w-[300px] h-[100px] bg-[var(--color-primary)] blur-[100px] opacity-20 pointer-events-none"></div>
             
             <div className="mx-auto mb-8 h-20 w-20 rounded-3xl flex items-center justify-center bg-black border border-[var(--color-primary)] shadow-xl">
@@ -3007,7 +3012,7 @@ Direction from user: ${prompt}`;
                   aria-current={active ? 'page' : undefined}
                 >
                   <div className="w-5 h-5 flex items-center justify-center">{React.cloneElement(item.icon as React.ReactElement, { size: 18 })}</div>
-                  <span className="text-[9px] font-bold uppercase tracking-wider">{item.label}</span>
+                  <span className="text-xs font-bold uppercase tracking-wider">{item.label}</span>
                 </button>
               );
             })}
@@ -3016,7 +3021,7 @@ Direction from user: ${prompt}`;
           <main className="order-1 lg:order-2 flex-1 min-h-0 overflow-y-auto overscroll-contain editor-canvas-bg p-1.5 sm:p-5 lg:p-6 pb-24 lg:pb-6 relative z-10">
             <div className="mx-auto w-full max-w-6xl space-y-4">
               <div className="canvas-frame p-0.5 sm:p-2 rounded-xl sm:rounded-2xl glass-overlay border border-[var(--color-border-strong)] shadow-2xl">
-                <div className="relative overflow-hidden rounded-[10px] sm:rounded-[14px] bg-black aspect-[4/3] border border-[var(--color-border-strong)]">
+                <div className="relative overflow-hidden rounded-lg sm:rounded-xl bg-black aspect-[4/3] border border-[var(--color-border-strong)]">
                   {/* EditingBadge rendered inline next to the room picker below (see left-2.5 top-2.5 flex row)
                       so the two don't stack or have overlapping dropdowns. */}
                   {isGenerating && (() => {
@@ -3050,7 +3055,7 @@ Direction from user: ${prompt}`;
                           <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-primary)]">
                             {toolCopy.headline}
                           </span>
-                          <span className="text-[10px] font-mono text-[var(--color-text)]/50 tabular-nums">
+                          <span className="text-xs font-mono text-[var(--color-text)]/50 tabular-nums">
                             {Math.floor(generationElapsed / 60)}:{String(generationElapsed % 60).padStart(2, '0')}
                           </span>
                         </div>
@@ -3092,7 +3097,7 @@ Direction from user: ${prompt}`;
                             alt="Original (peek)"
                             className="absolute inset-0 h-full w-full object-contain"
                           />
-                          <div className="absolute top-3 left-1/2 -translate-x-1/2 rounded-full bg-black/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-white">
+                          <div className="absolute top-3 left-1/2 -translate-x-1/2 rounded-full bg-black/70 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-white">
                             Before (hold Space)
                           </div>
                         </div>
@@ -3180,7 +3185,7 @@ Direction from user: ${prompt}`;
                   {/* Top-right pill reserved for Mask Mode only. "Generating" has the center
                       overlay; "Detecting Room" already shows in the left-side room picker pill. */}
                   {!isGenerating && !isAnalyzing && activePanel === 'cleanup' && (
-                  <div className="absolute right-3 top-3 z-20 flex items-center gap-2 rounded-full bg-black/80 border border-[rgba(10,132,255,0.3)] shadow-lg px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[#0A84FF] backdrop-blur-xl">
+                  <div className="absolute right-3 top-3 z-20 flex items-center gap-2 rounded-full bg-black/80 border border-[rgba(10,132,255,0.3)] shadow-lg px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-[#0A84FF] backdrop-blur-xl">
                     <span className="status-dot bg-[#0A84FF] shadow-md" />
                     Mask Mode
                   </div>
@@ -3243,7 +3248,7 @@ Direction from user: ${prompt}`;
                         >
                           <img src={state.generatedImage!} alt={`Render ${i + 1}`} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-end p-1.5">
-                            <span className="opacity-0 group-hover:opacity-100 text-white text-[10px] font-medium bg-black/60 rounded-md px-2 py-0.5 transition-all">
+                            <span className="opacity-0 group-hover:opacity-100 text-white text-xs font-medium bg-black/60 rounded-md px-2 py-0.5 transition-all">
                               #{i + 1}
                             </span>
                           </div>
@@ -3258,7 +3263,27 @@ Direction from user: ${prompt}`;
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       {savedStages.map((stage) => (
                         <div key={stage.id} className="group relative rounded-lg overflow-hidden border border-[var(--color-border)] aspect-[4/3] hover:ring-2 hover:ring-[var(--color-primary)] transition-all">
-                          <img src={stage.generatedImage} alt={stage.name} className="w-full h-full object-cover" loading="lazy" decoding="async" />
+                          {/* D8: prefer thumbnail; falls back to full-res for pre-D8 stages and backfills on first display. */}
+                          <img
+                            src={stage.thumbnail || stage.generatedImage}
+                            alt={stage.name}
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                            decoding="async"
+                            onLoad={() => {
+                              if (stage.thumbnail) return;
+                              void (async () => {
+                                try {
+                                  const thumb = await generateThumbnail(stage.generatedImage);
+                                  setSavedStages(prev => {
+                                    const next = prev.map(s => s.id === stage.id ? { ...s, thumbnail: thumb } : s);
+                                    try { localStorage.setItem('realestate_ai_stages', JSON.stringify(next)); } catch { /* quota — best effort */ }
+                                    return next;
+                                  });
+                                } catch { /* best effort */ }
+                              })();
+                            }}
+                          />
                           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex flex-col justify-end p-1.5 opacity-0 group-hover:opacity-100">
                             <button
                               onClick={() => { setGeneratedImage(stage.generatedImage); setOriginalImage(stage.originalImage); }}
@@ -3293,7 +3318,7 @@ Direction from user: ${prompt}`;
                                 // Silence unused warning
                                 void deletedStage;
                               }}
-                              className="bg-black/50 text-white rounded-md py-1 text-[10px] font-medium w-full hover:bg-red-500/80 transition-colors"
+                              className="bg-black/50 text-white rounded-md py-1 text-xs font-medium w-full hover:bg-red-500/80 transition-colors"
                             >
                               Remove
                             </button>
@@ -3308,7 +3333,7 @@ Direction from user: ${prompt}`;
 
           </main>
 
-          <aside className={`mobile-control-sheet order-3 lg:order-3 lg:w-[400px] lg:shrink-0 lg:my-6 lg:mr-6 lg:rounded-[2rem] glass-overlay border lg:border-[var(--color-border-strong)] bg-black/90 shadow-2xl relative z-20 ${sheetOpen ? 'open' : ''} ${activePanel === 'cleanup' ? 'cleanup-active' : ''}`}>
+          <aside className={`mobile-control-sheet order-3 lg:order-3 lg:w-[400px] lg:shrink-0 lg:my-6 lg:mr-6 lg:rounded-3xl glass-overlay border lg:border-[var(--color-border-strong)] bg-black/90 shadow-2xl relative z-20 ${sheetOpen ? 'open' : ''} ${activePanel === 'cleanup' ? 'cleanup-active' : ''}`}>
             <div className="hidden lg:block absolute top-[24px] left-[-20px] w-1 h-12 bg-[var(--color-primary-dark)] rounded-full opacity-50 blur-[2px]"></div>
             <button
               type="button"
@@ -3405,7 +3430,7 @@ Direction from user: ${prompt}`;
                           </div>
                           <div className="text-left">
                             <p className="text-sm font-semibold text-white">Selective Removal</p>
-                            <p className="text-[10px] text-zinc-500">Paint over items to remove them</p>
+                            <p className="text-xs text-zinc-500">Paint over items to remove them</p>
                           </div>
                         </button>
                       </div>

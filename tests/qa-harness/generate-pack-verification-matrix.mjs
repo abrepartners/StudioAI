@@ -39,11 +39,16 @@ const ai = new GoogleGenAI({ apiKey });
 
 // --- Canonical rooms (mirrored in public/pack-verification/rooms/)
 // Picked for: (a) neutral palettes, (b) empty or lightly furnished footprints,
-// (c) representative architecture so pack DNA is clearly readable.
+// (c) single-purpose geometry so pack DNA is clearly readable — open-concept
+// rooms confuse packs (they try to stage every zone).
+// Fix 1 (2026-04-18): Swapped open-concept LR → pure empty LR (Amber_photos
+// BM8A4996) and Kitchen slot → Primary Bedroom (BM8A5021). Kitchens are a
+// poor pack canvas because packs place furniture, not decor; see Fix 2 for
+// the decor-only prompt branch that handles Kitchen/Bathroom in production.
 const ROOMS = [
-    { slug: 'living-room', label: 'Living Room', file: 'living-room.jpg' },
-    { slug: 'bedroom',     label: 'Bedroom',     file: 'bedroom.jpg' },
-    { slug: 'kitchen',     label: 'Kitchen',     file: 'kitchen.jpg' },
+    { slug: 'living-room',     label: 'Living Room',     file: 'living-room.jpg' },
+    { slug: 'bedroom',         label: 'Bedroom',         file: 'bedroom.jpg' },
+    { slug: 'primary-bedroom', label: 'Primary Bedroom', file: 'primary-bedroom.jpg' },
 ];
 
 // --- PACK_DETAILS: mirrors components/StyleControls.tsx line 178 exactly.
@@ -60,9 +65,47 @@ const PACK_DETAILS = {
 
 const slugify = (name) => name.toLowerCase().replace(/\s+/g, '-');
 
+// --- Pack tier table (Fix 2): mirrors StyleControls.tsx packTierFor()
+// - 'furniture' → full furniture staging + HARD PRESERVATION RULES
+// - 'decor-only' → accessories only (Kitchen / Bathroom / Laundry)
+// - 'disabled' → gated in the UI, generator skips as a safety net
+const PACK_TIER = {
+    'Living Room':     'furniture',
+    'Bedroom':         'furniture',
+    'Primary Bedroom': 'furniture',
+    'Dining Room':     'furniture',
+    'Office':          'furniture',
+    'Nursery':         'furniture',
+    'Kitchen':         'decor-only',
+    'Bathroom':        'decor-only',
+    'Laundry Room':    'decor-only',
+    'Exterior':        'disabled',
+    'Patio':           'disabled',
+    'Garage':          'disabled',
+    'Basement':        'disabled',
+    'Closet':          'disabled',
+};
+
 // --- buildPrompt: mirrors StyleControls.tsx stageMode='packs' branch exactly.
 function buildPrompt(packName, roomLabel) {
     const details = PACK_DETAILS[packName];
+    const tier = PACK_TIER[roomLabel] || 'furniture';
+
+    if (tier === 'decor-only') {
+        return `Add ${packName}-style decor accents to this ${roomLabel}. The pack is expressed through accessories ONLY — not furniture. Style DNA: ${details}.
+
+HARD PRESERVATION RULES — these override any instinct to "improve" the room:
+- DO NOT replace, restyle, recolor, or modify any cabinets, vanities, built-ins, countertops, backsplashes, islands, or millwork — they stay pixel-identical.
+- DO NOT modify any appliances (refrigerator, range, dishwasher, washer, dryer, microwave, hood). Every appliance stays pixel-identical.
+- DO NOT modify plumbing fixtures (toilets, sinks, tubs, showers, faucets). Every fixture stays pixel-identical.
+- DO NOT modify windows, doors, door trim, baseboards, crown molding, flooring, wall color, or ceiling.
+- DO NOT change the camera framing, crop, angle, or field of view.
+- Add ONLY decor accents matching the pack DNA — for example: pendant-light styling, barstool cushions, dish towels, fruit bowls, potted herbs, window treatments, soap dispensers, towel sets, framed art, small plants.
+- Do NOT place sofas, beds, dining tables, chairs, rugs larger than a runner, or any other primary furniture.
+- Stage based on what the image actually shows, not what the room label suggests.`;
+    }
+
+    // 'furniture' tier — default (also safe fallback for unknown room types).
     return `Virtually stage this ${roomLabel} in ${packName} style. Add only furniture and decor. Style DNA: ${details}.
 
 HARD PRESERVATION RULES — these override any instinct to "improve" the room:

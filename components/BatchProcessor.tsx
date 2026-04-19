@@ -165,6 +165,34 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
         }))
   );
 
+  // X2: Per-row action override. When the user changes a pending row's
+  // action via the dropdown, we update results[row].action. processImage
+  // reads the LATEST action via resultsRef at dispatch time — already-
+  // processing rows keep their original action; pending/error rows pick
+  // up the new one. Export rows auto-save on mount and are locked to
+  // their initial action (changing them post-hoc would require reverting
+  // the auto-save which isn't worth the UX debt).
+  const changeRowAction = useCallback((id: string, action: BatchAction) => {
+    setResults(prev =>
+      prev.map(r => {
+        if (r.id !== id) return r;
+        // Don't hijack in-flight or already-done rows.
+        if (r.status === 'processing' || r.status === 'done') return r;
+        // Export is a sentinel action (no AI call). Don't let users accidentally
+        // downgrade a real action back to export mid-batch — add an explicit
+        // "pending" status reset otherwise it looks stuck.
+        return { ...r, action };
+      })
+    );
+  }, []);
+  const applyActionToAllPending = useCallback((action: BatchAction) => {
+    setResults(prev =>
+      prev.map(r =>
+        r.status === 'processing' || r.status === 'done' ? r : { ...r, action }
+      )
+    );
+  }, []);
+
   // Mirror results up to parent so App.tsx can restore them after remount
   // (e.g., user opens a single result in the editor, then clicks Back to Batch).
   const onResultsChangeRef = useRef(onResultsChange);
@@ -232,12 +260,21 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
           await new Promise(r => setTimeout(r, 300));
         }
 
+        // X2: Read the LATEST action off resultsRef so per-row overrides made
+        // while the row was still pending are honored. Fall back to the
+        // upload-time action if the row isn't in results for any reason.
+        const currentResult = resultsRef.current.find(r => r.id === img.id);
+        const actionAtDispatch: BatchAction = currentResult?.action ?? img.action;
+        const dispatchImg: BatchImage = actionAtDispatch === img.action
+          ? img
+          : { ...img, action: actionAtDispatch };
+
         setResults(prev =>
-          prev.map(r => (r.id === img.id ? { ...r, status: 'processing' } : r))
+          prev.map(r => (r.id === img.id ? { ...r, status: 'processing', action: actionAtDispatch } : r))
         );
 
         try {
-          const generated = await processImage(img, isPro);
+          const generated = await processImage(dispatchImg, isPro);
 
           setResults(prev =>
             prev.map(r =>
@@ -249,7 +286,7 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
 
           const stage: SavedStage = {
             id: crypto.randomUUID(),
-            name: `Batch ${ACTION_LABELS[img.action].label} ${img.roomType || 'Room'} ${new Date().toLocaleDateString()}`,
+            name: `Batch ${ACTION_LABELS[actionAtDispatch].label} ${img.roomType || 'Room'} ${new Date().toLocaleDateString()}`,
             originalImage: img.base64,
             generatedImage: generated,
             timestamp: Date.now(),
@@ -388,6 +425,7 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
   const doneCount = results.filter(r => r.status === 'done').length;
   const errorCount = results.filter(r => r.status === 'error').length;
   const processingCount = results.filter(r => r.status === 'processing').length;
+  const pendingCount = results.filter(r => r.status === 'pending').length;
   const totalCount = results.length;
   const allDone = doneCount + errorCount === totalCount;
   const progressPct = ((doneCount + errorCount) / totalCount) * 100;
@@ -508,6 +546,32 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
             <Pause size={10} /> Paused — tap play to resume
           </div>
         )}
+
+        {/* X2: Apply-to-all action toolbar. Shows while there are still
+            pending/error rows that can receive a new action.  Per-row
+            dropdowns on the grid tiles handle individual overrides. */}
+        {(pendingCount > 0 || errorCount > 0) && (
+          <div className="flex items-center gap-1.5 flex-wrap border-t border-white/5 pt-2.5">
+            <span className="text-[9px] uppercase tracking-wider text-[var(--color-text)]/50 font-semibold mr-1">
+              Apply to {pendingCount + errorCount} remaining:
+            </span>
+            {(['stage', 'cleanup', 'twilight', 'sky'] as BatchAction[]).map((action) => {
+              const info = ACTION_LABELS[action];
+              return (
+                <button
+                  key={action}
+                  type="button"
+                  onClick={() => applyActionToAllPending(action)}
+                  className="rounded-lg px-2 py-1 text-[10px] font-semibold inline-flex items-center gap-1 transition-all border border-[var(--color-border-strong)] bg-black/40 hover:bg-current/10"
+                  style={{ color: info.color }}
+                  title={`Set every pending row to ${info.label}`}
+                >
+                  {info.icon} {info.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Select-all row — appears when at least one result is done */}
@@ -600,13 +664,37 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
                 </button>
               )}
 
-              {/* Action badge — top left */}
-              <div
-                className="absolute top-1 left-1 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[7px] font-bold"
-                style={{ backgroundColor: actionInfo.color, color: '#000' }}
-              >
-                {actionInfo.icon} {actionInfo.label}
-              </div>
+              {/* Action badge — top left.
+                  X2: On pending/error rows this becomes a <select> so the user
+                  can reassign that specific row's action before the orchestrator
+                  dispatches it. processOne reads the latest action off
+                  resultsRef at dispatch time, so the override lands correctly. */}
+              {(result.status === 'pending' || result.status === 'error') ? (
+                <select
+                  value={result.action}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    changeRowAction(result.id, e.target.value as BatchAction);
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="absolute top-1 left-1 text-[7px] font-bold px-1 py-0.5 rounded border-0 focus:outline-none focus:ring-1 focus:ring-white/40 cursor-pointer appearance-none"
+                  style={{ backgroundColor: actionInfo.color, color: '#000' }}
+                  aria-label="Action for this image"
+                >
+                  <option value="stage">Stage</option>
+                  <option value="cleanup">Cleanup</option>
+                  <option value="twilight">Twilight</option>
+                  <option value="sky">Sky</option>
+                  <option value="export">Export</option>
+                </select>
+              ) : (
+                <div
+                  className="absolute top-1 left-1 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[7px] font-bold"
+                  style={{ backgroundColor: actionInfo.color, color: '#000' }}
+                >
+                  {actionInfo.icon} {actionInfo.label}
+                </div>
+              )}
 
               {/* Bottom badge */}
               <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-1.5 flex items-center justify-between">

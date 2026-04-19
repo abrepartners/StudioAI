@@ -55,7 +55,7 @@ Phase 3 from `docs/overhaul-2026-04/02-execution-backlog.md` = Differentiate (D1
 
 | # | Title | Status | Notes |
 |---|---|---|---|
-| X2 | Per-image batch action picker | todo | Aryeo-style — user raised this explicitly |
+| X2 | Per-image batch action picker | shipped | Per-row `<select>` dropdown on pending/error rows in BatchProcessor + "Apply to remaining" toolbar in progress header. processOne reads latest action via resultsRef. BatchUploader pre-sets Exterior→twilight / Interior→stage defaults. |
 | X3 | UI gating on narrow-room packs | shipped | Pack-mode warns + blocks generation when aspect > 2.2 or < 0.6 |
 | X4 | Post-gen alignment check for Cleanup | shipped | Edge-overlap check on 128x128 grayscale; flash-tier only, bails < 70% with user toast. Wired into App.tsx `handleGenerate` cleanup path + BatchProcessor cleanup case. |
 | X5 | F10/F12 polish sweeps | todo | 211 `text-[Npx]` + ~15 custom radii; gated on Playwright (X1) |

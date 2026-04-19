@@ -33,3 +33,7 @@ tests/qa-harness/fixtures/**/*.jpeg
 tests/qa-harness/fixtures/**/*.png
 tests/qa-harness/reports/
 tests/composite-sandbox/output/
+
+# Playwright per-run artifacts
+test-results/
+playwright-report/

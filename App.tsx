@@ -100,6 +100,7 @@ import {
   Share2,
   Trash2,
   MoreHorizontal,
+  AlertCircle,
 } from 'lucide-react';
 import { Analytics } from '@vercel/analytics/react';
 
@@ -282,6 +283,12 @@ const App: React.FC = () => {
   useEffect(() => {
     try { localStorage.setItem('studioai_structural_lock', String(structuralLock)); } catch { /* ignore */ }
   }, [structuralLock]);
+
+  // D3: Reference image (base64 data URL). Optional second image attached to
+  // text-mode generations so Gemini can use it as a style guide for the piece
+  // the user names in the prompt. Cleared on image swap so it doesn't carry
+  // over to a new room unexpectedly.
+  const [referenceImage, setReferenceImage] = useState<string | null>(null);
 
   const [showAccessPanel, setShowAccessPanel] = useState(false);
   const [showRoomPicker, setShowRoomPicker] = useState(false);
@@ -932,6 +939,11 @@ Direction from user: ${prompt}`;
         console.log('[StudioAI] Spatial-move intent detected — using preservation preamble.');
       }
 
+      // D3: reference image only rides text-mode generations. Packs keep their
+      // single-image flow so pack style-DNA isn't diluted by an ad-hoc reference,
+      // and cleanup uses a mask instead.
+      const useReference = !fromPack && activePanel !== 'cleanup' ? referenceImage : null;
+
       const rawResults = await withTimeout(
         generateRoomDesign(
           sourceImage,
@@ -942,7 +954,8 @@ Direction from user: ${prompt}`;
           subscription.plan === 'pro',
           anchorImage,
           abortController.signal,
-          structuralLock
+          structuralLock,
+          useReference
         ),
         120000,
         'Generation timed out — please try again'
@@ -953,6 +966,39 @@ Direction from user: ${prompt}`;
       // JPEG artifacts into texture smoothing.
       const sharpenFormat: 'png' | 'jpeg' = chainEnabled ? 'png' : 'jpeg';
       const sharpened = await Promise.all(rawResults.map(img => sharpenImage(img, 0.4, 1, sharpenFormat)));
+
+      // X4: Post-gen alignment check for Cleanup on flash-tier.
+      // Gemini flash occasionally reframes outputs despite FRAMING LOCK.
+      // When that happens, the downstream composite either ships the reframed
+      // geometry or produces a catastrophic diff. Bail with a user-facing
+      // toast if the edge-overlap between input and output drops below 70%.
+      // Pro tier (gemini-3-pro-image-preview) is more stable and not gated.
+      if (isCleanup && subscription.plan !== 'pro' && sharpened.length > 0) {
+        try {
+          const alignment = await checkAlignment(sourceImage, sharpened[0]);
+          console.log(
+            `[StudioAI] X4 alignment check — overlap=${(alignment.overlap * 100).toFixed(1)}% ` +
+            `inputEdges=${alignment.inputEdges} outputEdges=${alignment.outputEdges}`
+          );
+          if (!alignment.aligned) {
+            console.warn(
+              `[StudioAI] X4 BAIL — cleanup output reframed (overlap ${(alignment.overlap * 100).toFixed(1)}% < 70%).`
+            );
+            showToast(
+              <AlertCircle size={14} className="text-[#FF9F0A]" />,
+              "Cleanup couldn't safely process this image — try a different photo or upgrade to Pro for higher quality",
+              { durationMs: 6500 }
+            );
+            setIsGenerating(false);
+            stopGenerationTimer();
+            generatingSessionsRef.current.delete(generatingSessionId);
+            return;
+          }
+        } catch (err) {
+          // Non-fatal — continue to composite and let the downstream path handle it.
+          console.warn('[StudioAI] X4 alignment check failed (non-fatal):', err);
+        }
+      }
 
       // Phase C: mask + composite.
       // Prompts alone can't prevent Gemini from re-rendering unchanged regions
@@ -3256,6 +3302,9 @@ Direction from user: ${prompt}`;
                       // D2: Structural Lock (persisted in localStorage via App.tsx).
                       structuralLock={structuralLock}
                       onStructuralLockChange={setStructuralLock}
+                      // D3: Reference image for "use this sofa" style prompts.
+                      referenceImage={referenceImage}
+                      onReferenceImageChange={setReferenceImage}
                     />
                     <SpecialModesPanel
                       key={sessionQueue[sessionIndex]?.id || 'single'}

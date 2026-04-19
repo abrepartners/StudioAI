@@ -57,7 +57,7 @@ Phase 3 from `docs/overhaul-2026-04/02-execution-backlog.md` = Differentiate (D1
 |---|---|---|---|
 | X2 | Per-image batch action picker | todo | Aryeo-style — user raised this explicitly |
 | X3 | UI gating on narrow-room packs | shipped | Pack-mode warns + blocks generation when aspect > 2.2 or < 0.6 |
-| X4 | Post-gen alignment check for Cleanup | todo | Catches S09-class framing drift on flash tier |
+| X4 | Post-gen alignment check for Cleanup | shipped | Edge-overlap check on 128x128 grayscale; flash-tier only, bails < 70% with user toast. Wired into App.tsx `handleGenerate` cleanup path + BatchProcessor cleanup case. |
 | X5 | F10/F12 polish sweeps | todo | 211 `text-[Npx]` + ~15 custom radii; gated on Playwright (X1) |
 
 ---

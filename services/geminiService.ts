@@ -682,22 +682,33 @@ export const instantDeclutter = async (imageBase64: string, selectedRoom: string
           {
             text: `You are an expert real estate photo editor. Your ONLY job is to REMOVE clutter, junk, and distractions from this ${selectedRoom}. This is a REMOVAL-ONLY edit.
 
-ABSOLUTE RULE — DO NOT ADD ANYTHING:
+=== BEFORE YOU MOVE ANY PIXEL — MENTAL PRE-PASS ===
+Before generating a single pixel of output, perform this mental pass on the input:
+
+STEP 1 (PRESERVE LIST): Silently label every element of furniture, architecture, fixture, appliance, surface, rug, curtain, lamp, decor piece, and built-in as PRESERVE. These pixels are LOCKED. You may not alter their color, position, shape, texture, or sharpness.
+
+STEP 2 (REMOVE LIST): Now silently label each clutter item (matching the REMOVE categories below) as REMOVE. Nothing else.
+
+STEP 3 (EXECUTE): Now, and only now, erase every REMOVE item and in-paint its empty footprint with the texture of the immediately adjacent PRESERVE surface. Do nothing to PRESERVE pixels.
+
+If you cannot confidently label an object, default to PRESERVE. It is better to leave one clutter item than to remove a real piece of furniture.
+
+=== ABSOLUTE RULE — DO NOT ADD ANYTHING ===
 - Do NOT add ANY new objects, furniture, decor, plants, artwork, or items that are not already in the photo.
 - Do NOT replace removed items with new items. Where items are removed, reveal the clean floor, wall, ground, or surface behind them.
 - This is SUBTRACTION ONLY. The output must have FEWER objects than the input, never more.
 
-CRITICAL RULES:
+=== CRITICAL RULES ===
 - Do NOT change, replace, or restyle ANY existing furniture. Every piece of furniture that stays must remain EXACTLY as it appears.
 - Do NOT change wall colors, floor colors, or any surface colors.
 - Do NOT zoom in. Maintain the EXACT same framing, crop, and field of view. The camera is locked.
 
-COLOR & QUALITY PRESERVATION:
+=== COLOR & QUALITY PRESERVATION ===
 - Maintain the EXACT same color temperature, saturation, brightness, and contrast as the original.
 - Do NOT apply any color grading, tone mapping, or mood shift.
 - Do NOT soften, blur, or reduce sharpness. Output must be AS SHARP as the input.
 
-REMOVE ALL OF THESE:
+=== REMOVE ALL OF THESE ===
 - Realtor signs, for-sale signs, lockboxes, key boxes on doors
 - Toys, pet items, children's items, strollers, Little Tikes, play kitchens, ride-on vehicles
 - Vinyl wall decals, stickers, quote art, kid names on walls
@@ -711,33 +722,49 @@ REMOVE ALL OF THESE:
 - Moving boxes, packing materials
 - Cleaning supplies left out (brooms, mops, spray bottles)
 
-DO NOT REMOVE (these are context / scene content):
+=== DO NOT REMOVE (these are context / scene content) ===
 - Cars, trucks, bikes, boats, motorcycles, RVs — vehicles are NEVER clutter.
 - Power lines, utility poles, street lamps, solar panels — structural scenery stays.
 - Trees, bushes, landscaping — never remove plants that are rooted.
 - Built-in fixtures (cabinets, sinks, tubs, ceiling fans, lighting fixtures).
 - Architectural features — windows, doors, trim, moldings, columns.
 
-KEEP EVERYTHING ELSE EXACTLY AS-IS:
+=== KEEP EVERYTHING ELSE EXACTLY AS-IS ===
 - ALL furniture — same style, same color, same position
 - ALL bedding, pillows, throws, rugs — unchanged
 - ALL architecture, fixtures, fans, vents, outlets
 - ALL curtains, blinds, lamps
 - ALL appliances — refrigerator, range, dishwasher, washer/dryer stay pixel-identical
 
-FRAMING LOCK:
+=== FRAMING LOCK ===
 - The output image MUST have the EXACT same framing, crop, zoom level, and camera angle as the input. Do NOT reframe, zoom, pan, or rotate.
 - If you cannot remove the clutter without changing the framing, remove the clutter WITHOUT changing the framing — do not reframe to fix composition.
 
-REMOVAL QUALITY STANDARD:
+=== REMOVAL QUALITY STANDARD ===
 - Either erase a detected clutter item COMPLETELY (with seamless fill of the surface behind it), or leave it alone. Never ship partial erasure, half-faded smudges, or ghostly outlines.
 - Prefer complete erasure whenever feasible — being too conservative defeats the tool's purpose.
 - If a clutter item is reflected in a mirror, erase BOTH the item and its reflection together; never erase only one.
 
-RESTORATION:
-- Where items are removed, fill with the surrounding floor/wall/ground texture seamlessly.
-- Maintain consistent lighting.
-- If nothing needs removing, return the image unchanged.`
+=== SURFACE-ACCURATE IN-PAINTING (READ CAREFULLY) ===
+The empty footprint left by each removed item MUST be in-painted with the EXACT color, texture, grain, and pattern of the SURROUNDING VISIBLE SURFACE — not a generic gray patch, not a blurred smear, not a flat color fill.
+
+Examples of correct in-painting:
+- A vase on a walnut wood countertop → the pixels where the vase sat must now be walnut wood matching the grain direction and knot pattern of the wood immediately to its left and right.
+- A stuffed animal on a beige carpet → the pixels must now be beige carpet with matching pile texture and shadow gradient.
+- A garden hose on a green lawn → the pixels must now be grass with matching blade direction and color variance.
+- A sign on a concrete driveway → the pixels must now be concrete with matching aggregate texture and surface wear.
+
+If the surrounding surface has any pattern (tile grout lines, hardwood planks, carpet pile direction, stone veining, brick joints) the in-painted region MUST continue that pattern through the removed footprint with NO visible seam.
+
+Generic gray/beige "patch" fills are an automatic failure. Match the adjacent surface or leave the item in place.
+
+=== MANDATORY IMAGE OUTPUT ===
+You MUST return a new image, even if the scene requires minimal or zero removal. Do NOT return text explaining "nothing to remove" — re-emit the input image as an image response. Every call must produce an image part in the response. Text-only responses break the downstream pipeline.
+
+=== RESTORATION ===
+- Where items are removed, fill with the surrounding floor/wall/ground texture seamlessly per the surface-accurate rule above.
+- Maintain consistent lighting and shadow direction.
+- If nothing needs removing, return the input image unchanged AS AN IMAGE.`
           },
           { inlineData: { mimeType: 'image/jpeg', data: clean } },
         ],

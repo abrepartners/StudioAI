@@ -22,7 +22,9 @@ const IS_VISUAL = process.env.PW_SUITE === 'visual';
 export default defineConfig({
   testDir: IS_VISUAL ? './tests/visual' : './tests',
   // Visual baselines are colocated with the spec so they can be committed.
-  snapshotPathTemplate: '{testDir}/baseline/{testFilePath}/{arg}{ext}',
+  // {projectName} segregates desktop vs mobile baselines — without it both
+  // viewports collide on the same path and one always loses.
+  snapshotPathTemplate: '{testDir}/baseline/{projectName}/{testFilePath}/{arg}{ext}',
   timeout: 60_000,
   expect: {
     // 1% pixel-diff tolerance (per Cluster H brief)

@@ -1891,7 +1891,7 @@ Direction from user: ${prompt}`;
                   accent: '#0A84FF',
                   before: '/showcase-staging-before.jpg',
                   after: '/showcase-staging-after.jpg',
-                  previewLabel: 'Empty primary bedroom staged with bed, nightstands, and art',
+                  previewLabel: 'Empty living room staged with sofa, accent chairs, console, and rug',
                 },
                 {
                   icon: <Eraser size={22} />,
@@ -2075,7 +2075,7 @@ Direction from user: ${prompt}`;
                 { label: 'Day to Dusk', icon: <Sunset size={14} />, before: '/showcase-twilight-before.jpg', after: '/showcase-twilight-after.jpg', caption: 'Luxury estate drone shot lifted to golden-hour twilight — warm window glow, painted dusk sky' },
                 { label: 'Smart Cleanup', icon: <Eraser size={14} />, before: '/showcase-cleanup-before.jpg', after: '/showcase-cleanup-after.jpg', caption: 'Cluttered kid\u2019s bedroom depersonalized in one pass \u2014 trophies, dressers piled with stuff, themed bedding all gone, room left buyer-ready' },
                 { label: 'Sky Replacement', icon: <Cloud size={14} />, before: '/showcase-sky-before.jpg', after: '/showcase-sky-after.jpg', caption: 'Pale sky over a brick estate swapped to deep blue with crisp clouds \u2014 architecture, lawn, and shadows untouched' },
-                { label: 'Virtual Staging', icon: <Wand2 size={14} />, before: '/showcase-staging-before.jpg', after: '/showcase-staging-after.jpg', caption: 'Empty open-concept living/kitchen staged in transitional luxury \u2014 sized to the actual footprint, original cabinets and tile preserved' },
+                { label: 'Virtual Staging', icon: <Wand2 size={14} />, before: '/showcase-staging-before.jpg', after: '/showcase-staging-after.jpg', caption: 'Empty bay-window living room staged in transitional luxury \u2014 cream sofa, accent chairs, layered rug, walnut console; original walls, ceiling fan, polished concrete floor preserved' },
               ].map((item, i) => (
                 <div key={item.label} className={`group reveal reveal-delay-${i + 1}`}>
                   <div className="flex items-center justify-between mb-2">

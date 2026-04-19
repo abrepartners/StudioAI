@@ -32,7 +32,9 @@ import type { BatchResult } from './components/BatchProcessor';
 import { useBrandKit } from './hooks/useBrandKit';
 import { useModal } from './hooks/useModal';
 import useKeyboardShortcuts, { KEYBOARD_SHORTCUTS } from './hooks/useKeyboardShortcuts';
-// Removed for Phase 2: ColorAnalysis, ChatInterface, StyleAdvisor, QualityScore, ListingDashboard, BetaFeedbackForm, MLSExport (inline)
+// Removed for Phase 2: ColorAnalysis, ChatInterface, StyleAdvisor, ListingDashboard, BetaFeedbackForm, MLSExport (inline)
+// D1 (Cluster J) — user-facing 1-10 listing score badge on every result.
+import QualityScore from './components/QualityScore';
 import {
   ColorData,
   StagedFurniture,
@@ -3142,6 +3144,16 @@ Direction from user: ${prompt}`;
                     <span className="status-dot bg-[#0A84FF] shadow-md" />
                     Mask Mode
                   </div>
+                  )}
+
+                  {/* D1: Listing Score badge. Renders only when a staged result
+                      is on screen and we're not in mask mode (mask mode owns
+                      the top-right). Scoring fires async via the component's
+                      own useEffect — does not block the canvas from rendering. */}
+                  {!isGenerating && !isAnalyzing && activePanel !== 'cleanup' && generatedImage && (
+                    <div className="absolute right-2.5 top-2.5 z-20">
+                      <QualityScore generatedImage={generatedImage} roomType={selectedRoom} />
+                    </div>
                   )}
                 </div>
               </div>

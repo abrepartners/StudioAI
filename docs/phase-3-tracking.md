@@ -49,6 +49,16 @@ Phase 3 from `docs/overhaul-2026-04/02-execution-backlog.md` = Differentiate (D1
 
 ---
 
+## Cluster J — User-facing Listing Score (Phase 3 D1)
+**Lead:** `agent-j`
+**Scope:** D1 — surface a 1-10 quality score on every staged result with per-dimension callouts.
+
+| # | Title | Status | Notes |
+|---|---|---|---|
+| D1 | Listing Score | done | New `services/qualityScoreService.ts` (Gemini Flash, structured JSON schema, 4 dims × {score 1-10, callout}). Refactored `components/QualityScore.tsx` to a small color-coded badge (red <6, amber 6-8, green ≥8) mounted top-right of the canvas; hover/click expands to show per-dimension bars + callouts. Fires async after `handleGenerate` lands (non-blocking). Module-level cache keyed by FNV-1a hash of the image data URL — re-scoring the same pixels is a no-op. Flash model only (cost guard). |
+
+---
+
 ## Cluster I — Batch UX + adversarial hardening
 **Lead:** `agent-i`
 **Scope:** Orphan items from Phase 2 user feedback + real-world testing.

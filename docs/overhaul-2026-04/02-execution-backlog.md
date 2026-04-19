@@ -109,7 +109,7 @@
 
 | # | Title | Description | Files | Effort | Owner | Impact | Conf | Deps |
 |---|---|---|---|---|---|---|---|---|
-| D1 | Listing Score | User-facing 1–10 score on every result, with callouts ("MLS-ready: 8.2/10 — weaken watermark contrast"). Reuse SOP §8.4 SSIM pipeline. | `components/QualityScore.tsx` refactor, `api/score.ts` | XL | dev | 5 | 4 | — |
+| D1 | Listing Score | **Shipped (Cluster J).** User-facing 1–10 score on every result, with callouts ("MLS-ready: 8.2/10 — weaken watermark contrast"). Swapped SSIM pipeline for Gemini Flash + structured JSON schema (4 dimensions × {score, callout}). | `components/QualityScore.tsx` refactor, `services/qualityScoreService.ts` | XL | dev | 5 | 4 | — |
 | D2 | Structural Lock toggle | Visible toggle on Design Studio: "Preserve walls/floors/fixtures: ON." Already enforced server-side; expose it. | `components/StyleControls.tsx`, `services/geminiService.ts` | M | dev+designer | 4 | 5 | — |
 | D3 | Reference-image prompt | Drop a moodboard image alongside the text prompt: "use this image for the sofa." | `components/StyleControls.tsx`, `services/geminiService.ts`, Gemini multi-image request format | L | dev | 5 | 4 | — |
 | D4 | Listing Kit one-click | Saved recipe: stage → dusk hero → smart cleanup batch → MLS export zip → social pack → listing copy. Single button. | `components/ListingKitPipeline.tsx` (new), `hooks/useListing.ts` | XL | dev+product | 5 | 4 | R22 |

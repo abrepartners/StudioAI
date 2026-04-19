@@ -68,8 +68,8 @@ const DimensionRow: React.FC<{ label: string; data: ListingScoreDimension }> = (
   return (
     <div className="space-y-1">
       <div className="flex items-baseline justify-between gap-2">
-        <span className="text-[11px] font-medium text-[var(--color-ink)]">{label}</span>
-        <span className="text-[11px] font-mono font-semibold text-[var(--color-ink)] tabular-nums">
+        <span className="text-sm font-medium text-[var(--color-ink)]">{label}</span>
+        <span className="text-sm font-mono font-semibold text-[var(--color-ink)] tabular-nums">
           {data.score.toFixed(1)}<span className="text-[var(--color-text)]">/10</span>
         </span>
       </div>
@@ -79,7 +79,7 @@ const DimensionRow: React.FC<{ label: string; data: ListingScoreDimension }> = (
           style={{ width: `${widthPct}%` }}
         />
       </div>
-      <p className="text-[10px] leading-snug text-[var(--color-text)]">{data.callout}</p>
+      <p className="text-xs leading-snug text-[var(--color-text)]">{data.callout}</p>
     </div>
   );
 };
@@ -169,7 +169,7 @@ const QualityScore: React.FC<QualityScoreProps> = ({ generatedImage, roomType })
         aria-label="Scoring listing quality"
       >
         <Loader2 size={12} className="animate-spin text-[var(--color-primary)]" />
-        <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text)]">
+        <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-text)]">
           Scoring
         </span>
       </div>
@@ -194,7 +194,7 @@ const QualityScore: React.FC<QualityScoreProps> = ({ generatedImage, roomType })
         aria-label={`Listing quality score ${score.overall} out of 10. ${TIER_LABEL[overallTier]}.`}
       >
         <Sparkles size={12} />
-        <span className="text-[11px]">
+        <span className="text-sm">
           {score.overall.toFixed(1)}<span className="opacity-70">/10</span>
         </span>
       </button>
@@ -211,7 +211,7 @@ const QualityScore: React.FC<QualityScoreProps> = ({ generatedImage, roomType })
         >
           <div className="flex items-baseline justify-between">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text)]">
+              <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-text)]">
                 Listing Score
               </p>
               <p className="text-xs font-medium text-[var(--color-ink)] mt-0.5">
@@ -222,7 +222,7 @@ const QualityScore: React.FC<QualityScoreProps> = ({ generatedImage, roomType })
               <p className="text-2xl font-bold tabular-nums text-[var(--color-ink)] leading-none">
                 {score.overall.toFixed(1)}
               </p>
-              <p className="text-[10px] text-[var(--color-text)] mt-0.5">/ 10</p>
+              <p className="text-xs text-[var(--color-text)] mt-0.5">/ 10</p>
             </div>
           </div>
           <div className="space-y-2.5 pt-2 border-t border-white/5">

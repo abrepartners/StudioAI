@@ -72,10 +72,19 @@ Phase 3 from `docs/overhaul-2026-04/02-execution-backlog.md` = Differentiate (D1
 
 ---
 
+## Cluster K — Listing Kit one-click (Phase 3 D4)
+**Lead:** `agent-k`
+**Scope:** Single "Generate Listing Kit" button that runs the saved A&B recipe end-to-end (stage → dusk hero → cleanup → MLS → social → copy) and returns a downloadable zip.
+
+| # | Title | Status | Notes |
+|---|---|---|---|
+| D4 | Listing Kit one-click pipeline | shipped | `components/ListingKitPipeline.tsx` (new, lazy) + button + modal wired into App.tsx batch view (visible after batch upload). 6-step sequential orchestrator: staging + cleanup run a concurrency-3 worker pool, dusk + copy run single-call on the hero, social pack reuses `/api/render-template` with brand-kit auto-fill, copy via `generateListingCopy` (luxury default). AbortController cancel surfaces partial results. Output zip: `staged_photos/`, `cleanup_photos/`, `mls_exports/`, `social_pack/`, `listing_description.txt`. Chunk = 14.4 kB gz 5.13 kB. |
+
+---
+
 ## Deferred (later Phase 3)
 
 - D1 Listing Score (XL)
-- D4 Listing Kit one-click (XL)
 - D5 Public API (XL)
 - D6 GHL native integration
 - D8 Thumbnail pipeline

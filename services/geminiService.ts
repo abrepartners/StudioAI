@@ -612,20 +612,42 @@ export const replaceSky = async (imageBase64: string, skyStyle: 'blue' | 'dramat
         parts: [
           { text: `Replace ONLY the sky in this exterior real estate photo with ${skyDescriptions[skyStyle]}.
 
-PRESERVATION RULES:
-- PRESERVE all architecture, rooflines, chimneys, antennas, and structural elements with pixel-perfect edges.
-- PRESERVE all trees, landscaping, and foliage — maintain their exact silhouettes against the new sky.
-- PRESERVE the ground plane entirely: driveway, walkways, lawn, fencing, vehicles.
+=== PRESERVATION RULES ===
+- PRESERVE all architecture, rooflines, chimneys, antennas, dormers, gables, and structural elements with pixel-perfect edges.
+- PRESERVE all trees, landscaping, and foliage — maintain their exact silhouettes, exact branch positions, and exact leaf clusters against the new sky.
+- PRESERVE the ground plane entirely: driveway, walkways, lawn, fencing, vehicles, people, objects.
 
-BLENDING REQUIREMENTS:
-- The horizon line and roofline edges must be razor-sharp with no halos, fringing, or ghosting artifacts.
-- Tree branches and leaves must have natural, clean edges against the new sky — no color bleeding.
-- The new sky's lighting must affect the building subtly: a golden sky should cast warm tones on light-colored surfaces; a stormy sky should slightly cool the building's appearance.
-- Ensure cloud scale and perspective match the camera's focal length and angle.
+=== SHADOW-DIRECTION MATCHING (CRITICAL — read carefully) ===
+Before placing the new sun in the sky, LOOK at where the existing shadows on the ground and walls fall. Shadows are cast opposite the sun.
+- If the photo's shadows fall toward the LEFT of the frame, the sun must be placed on the RIGHT side of the new sky (and vice-versa).
+- If the photo's shadows fall TOWARD the camera, the sun must be placed BEHIND the subject (backlit).
+- If shadows are short and nearly under each object, the sun is HIGH — place the brightest sky region near zenith.
+- If shadows are long and stretched, the sun is LOW — place the brightest region near the horizon.
+- If shadows are soft/absent (overcast origin), do NOT add a harsh sun disc; keep the new sky diffusely bright.
+Mismatched sun-position is the #1 tell of a fake sky. Get this right.
 
-ANTI-GHOST RULE:
-- Do NOT draw, echo, duplicate, or silhouette the roofline, chimney, or house shape anywhere in the sky region.
-- If you see a faint outline of the house shape appearing in the sky, erase it completely — the sky above the roofline must contain ONLY sky and clouds, never a secondary roof outline.` },
+=== REFLECTION REPAINTING ===
+Windows, glossy front doors, car windshields, polished vehicle paint, and any other reflective surface in the input may currently reflect the OLD sky. These reflections must be repainted to match the NEW sky:
+- Preserve the REFLECTION GEOMETRY exactly (what angle, how large, what cutoff shape) — but replace the reflected sky tones with the new sky's colors.
+- A window that previously reflected dull gray should now reflect blue/gold (or whatever the new sky shows), at the same reduced brightness as the original reflection.
+- Do NOT erase reflections entirely — that looks flat. Do NOT invent new reflections — only repaint existing ones.
+
+=== TREE & FOLIAGE STILLNESS ===
+Overhead tree branches, leaves, and foliage that overlap the sky region must remain in their EXACT original positions. Do NOT move, re-arrange, thin out, bulk up, or re-pose any branch or leaf cluster while painting sky behind them. Treat every pixel of foliage as a frozen mask — paint around it, never through it or over it.
+
+=== BLENDING REQUIREMENTS ===
+- Horizon line, roofline edges, chimney silhouettes, and treetop edges must be razor-sharp — no halos, fringing, chromatic aberration, or ghosting.
+- Tree branches and leaves must have natural, clean edges against the new sky — no color bleeding, no blur-halo.
+- The new sky's lighting must affect the building subtly: a golden sky should cast warm tones on light-colored sun-facing surfaces; a stormy sky should slightly cool the building's appearance.
+- Cloud scale and perspective must match the camera's focal length and angle (wide-angle = larger apparent clouds; telephoto = compressed).
+
+=== ANTI-GHOST RULE — ZERO TOLERANCE ===
+- Do NOT draw, echo, duplicate, fade-in, or silhouette the roofline, gables, chimney, dormers, or ANY part of the house shape anywhere in the sky region.
+- This applies DOUBLE for multi-gable or complex rooflines where gable peaks echo upward — paint each gable cleanly; do NOT leave a faint copy of the roof edge 10-40 pixels above the real edge.
+- If you see ANY faint outline of the house shape appearing in the sky, erase it completely — the sky above the roofline must contain ONLY sky and clouds, never a secondary roof outline, never a softer copy of the ridge, never a gradient that mirrors the gable shape.
+- Scan the entire sky region before finalizing. Any trace of house-shape in the sky = failure.
+
+Return the image ONLY — no text, no explanation.` },
           { inlineData: { mimeType: 'image/jpeg', data: clean } },
         ],
       }

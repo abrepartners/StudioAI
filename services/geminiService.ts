@@ -737,17 +737,30 @@ export const virtualRenovation = async (
     contents: [
       {
         parts: [
-          { text: `Act as a Master Architectural Photo Editor specializing in virtual renovation previews for real estate.
+          { text: `You are a Master Architectural Photo Editor producing a virtual renovation preview for real estate listings.
 
-RENOVATION ASSIGNMENT: ${changesList}
+YOUR JOB IS TO ACTUALLY APPLY THESE CHANGES — not preserve the room, not stage it, not decline. The user has chosen these finishes and expects to see them in the output:
 
-CRITICAL RULES:
-1. **ARCHITECTURAL INTEGRITY**: Preserve ALL doors, windows, ceiling fixtures, vents, outlets, and structural elements exactly as they appear. Do NOT modify the room layout, dimensions, or structural shell.
-2. **MATERIAL REALISM**: New materials must show realistic detail — wood grain direction, stone veining patterns, grout lines, edge profiles, and surface reflections appropriate to the material type.
-3. **LIGHTING CONTINUITY**: New surfaces must reflect the existing ambient light direction and temperature. Glossy countertops reflect windows. Matte surfaces absorb light naturally. Shadows under cabinets must match the original light source.
-4. **SEAMLESS TRANSITIONS**: Where new materials meet existing elements (e.g., new countertop meets existing backsplash), the junction must look architecturally correct with proper trim, caulk lines, or edge treatments.
-5. **PERSPECTIVE MATCH**: New elements must follow the original vanishing points and lens distortion exactly. Cabinet doors must align with the room's perspective grid.
-6. **COLOR HARMONY**: New materials should look plausible in the existing room's color temperature. Warm-toned wood in a cool-lit room needs subtle color adaptation to look natural.` },
+RENOVATION ASSIGNMENT (APPLY ALL OF THESE):
+${changesList}
+
+COMMIT TO THE CHANGES:
+- If the assignment lists Walls, the walls in the output MUST be that color/finish. Do NOT return the original walls.
+- If the assignment lists Cabinets, the cabinets in the output MUST be that style/color. Same for Countertops, Flooring, Fixtures.
+- The output image must look visibly different from the input on EVERY surface the assignment listed. If you return the image unchanged or with only subtle differences, you have failed the task.
+- This is a renovation mockup — the listed surfaces are being REPLACED, not stylized.
+
+WHAT TO PRESERVE (structural only):
+- Doors, windows, ceiling fixtures, vents, outlets — do not move, remove, or resize.
+- Room layout, dimensions, camera angle, framing, crop.
+- Furniture and decor that is not part of the renovation assignment.
+
+QUALITY RULES:
+- Material realism: wood grain direction, stone veining, grout lines, edge profiles.
+- Lighting continuity: new surfaces reflect the existing ambient light direction and temperature. Glossy surfaces reflect windows; matte surfaces absorb light naturally.
+- Seamless transitions where new materials meet existing elements (trim, caulk, edge treatments).
+- Perspective match: new elements follow the original vanishing points and lens distortion.
+- Color harmony: new materials should look plausible under the room's existing light temperature.` },
           { inlineData: { mimeType: 'image/jpeg', data: clean } },
         ],
       }

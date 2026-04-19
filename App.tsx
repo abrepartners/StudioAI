@@ -663,13 +663,17 @@ const App: React.FC = () => {
     const snapshotImage = generatedImage;
     const snapshotMask = maskImage;
     const snapshotSessionId = sessionQueue[sessionIndex]?.id;
+    const snapshotHistory = sessionQueue[sessionIndex]?.editHistory || [];
     // Push current state into history first so undo returns to it
     pushToHistory();
     setGeneratedImage(null);
     setMaskImage(null);
+    // True reset: wipe edit history entirely so the next generation starts
+    // fresh (chainDepth=0, no inherited edits). Prior approach appended a
+    // 'reset' marker but the UI still read the stack as "accumulated."
     if (snapshotSessionId) {
       setSessionQueue(prev => prev.map(s =>
-        s.id === snapshotSessionId ? { ...s, editHistory: [...s.editHistory, 'reset'] } : s
+        s.id === snapshotSessionId ? { ...s, editHistory: [] } : s
       ));
     }
     showToast(
@@ -685,7 +689,7 @@ const App: React.FC = () => {
             if (snapshotSessionId) {
               setSessionQueue(prev => prev.map(s =>
                 s.id === snapshotSessionId
-                  ? { ...s, editHistory: s.editHistory.slice(0, -1) }
+                  ? { ...s, editHistory: snapshotHistory }
                   : s
               ));
             }

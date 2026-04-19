@@ -623,6 +623,27 @@ open tests/qa-harness/reports/<latest>/index.html
 
 Before changing prompts or composite parameters, run the affected tool's harness and confirm metrics don't regress.
 
+### 10.1 Pack verification matrix
+
+Admin-only visual audit at `/admin/pack-matrix` — every Style Pack × three canonical rooms (Living Room / Bedroom / Kitchen) in a 7×3 grid. Spot-check before shipping a new pack or adjusting pack DNA / preservation rules.
+
+**Generator:** `tests/qa-harness/generate-pack-verification-matrix.mjs`
+**Inputs:** `public/pack-verification/rooms/{living-room,bedroom,kitchen}.jpg` — canonical fixtures committed to the repo.
+**Outputs:** `public/pack-verification/renders/<room-slug>__<pack-slug>.jpg` (21 files, 1024w JPEG, q=0.85) + `public/pack-verification/manifest.json` (metadata consumed by the admin UI).
+**Prompt:** identical to production (`components/StyleControls.tsx` `buildPrompt` for `stageMode='packs'`) — the HARD PRESERVATION RULES block is mirrored verbatim. If the production prompt changes, update the script in the same PR.
+**Cost:** 21 Gemini image calls ≈ $0.84 per full regen.
+
+**Runbook (run locally):**
+```sh
+node tests/qa-harness/generate-pack-verification-matrix.mjs
+git add public/pack-verification/
+git commit -m "chore: refresh pack verification matrix"
+```
+
+Then open `/admin/pack-matrix` in the deployed app. Access is gated by the same `isAdmin()` check as the rest of admin surfaces (email ends with `@averyandbryant.com`). See `docs/pack-verification/README.md` for the full workflow, including when to regenerate and how to add a new pack.
+
+**Phase 2 (future work):** async `/api/regen-pack-matrix` endpoint + `pack_matrix_jobs` Supabase table so admins can trigger a refresh from the browser. Skipped for MVP because 21 × ~15s = ~5 min exceeds Vercel's 300s function cap on Pro and committed PNGs survive deploys.
+
 ---
 
 *End of Operating Manual.*

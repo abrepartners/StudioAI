@@ -1,0 +1,342 @@
+{
+  "generatedAt": "2026-04-19T20:13:57.371Z",
+  "model": "gemini-3.1-flash-image-preview",
+  "rooms": [
+    {
+      "slug": "living-room",
+      "label": "Living Room",
+      "file": "living-room.jpg",
+      "path": "rooms/living-room.jpg"
+    },
+    {
+      "slug": "bedroom",
+      "label": "Bedroom",
+      "file": "bedroom.jpg",
+      "path": "rooms/bedroom.jpg"
+    },
+    {
+      "slug": "kitchen",
+      "label": "Kitchen",
+      "file": "kitchen.jpg",
+      "path": "rooms/kitchen.jpg"
+    }
+  ],
+  "packs": [
+    {
+      "name": "Coastal Modern",
+      "slug": "coastal-modern",
+      "dna": "light wood tones, white and sand-colored upholstery, rattan or woven accents, linen textures, soft blue and seafoam accents only in decor items"
+    },
+    {
+      "name": "Urban Loft",
+      "slug": "urban-loft",
+      "dna": "dark leather seating, metal and reclaimed wood, concrete-toned accents, warm Edison-style lighting, muted earth tones in decor"
+    },
+    {
+      "name": "Farmhouse Chic",
+      "slug": "farmhouse-chic",
+      "dna": "distressed white wood, warm neutral fabrics, shiplap-compatible pieces, antique brass hardware accents, soft cream and sage decor"
+    },
+    {
+      "name": "Minimalist",
+      "slug": "minimalist",
+      "dna": "clean-lined low-profile furniture, neutral whites and warm grays, no clutter, one or two simple accent pieces maximum"
+    },
+    {
+      "name": "Mid-Century Modern",
+      "slug": "mid-century-modern",
+      "dna": "tapered wood legs, warm walnut tones, mustard or teal accent pillows only, organic curved shapes, clean geometry"
+    },
+    {
+      "name": "Scandinavian",
+      "slug": "scandinavian",
+      "dna": "pale birch wood, white and light gray upholstery, simple wool throws, minimal greenery, airy and uncluttered"
+    },
+    {
+      "name": "Bohemian",
+      "slug": "bohemian",
+      "dna": "layered textiles, warm terracotta and cream tones, woven rugs, macrame or rattan accents, natural materials"
+    }
+  ],
+  "cells": [
+    {
+      "roomSlug": "living-room",
+      "roomLabel": "Living Room",
+      "pack": "Coastal Modern",
+      "packSlug": "coastal-modern",
+      "status": "ok",
+      "file": "renders/living-room__coastal-modern.jpg",
+      "w": 1024,
+      "h": 683,
+      "kb": 7,
+      "ms": 14357,
+      "retries": 0
+    },
+    {
+      "roomSlug": "living-room",
+      "roomLabel": "Living Room",
+      "pack": "Urban Loft",
+      "packSlug": "urban-loft",
+      "status": "ok",
+      "file": "renders/living-room__urban-loft.jpg",
+      "w": 1024,
+      "h": 683,
+      "kb": 8,
+      "ms": 17717,
+      "retries": 0
+    },
+    {
+      "roomSlug": "living-room",
+      "roomLabel": "Living Room",
+      "pack": "Farmhouse Chic",
+      "packSlug": "farmhouse-chic",
+      "status": "ok",
+      "file": "renders/living-room__farmhouse-chic.jpg",
+      "w": 1024,
+      "h": 683,
+      "kb": 7,
+      "ms": 14075,
+      "retries": 0
+    },
+    {
+      "roomSlug": "living-room",
+      "roomLabel": "Living Room",
+      "pack": "Minimalist",
+      "packSlug": "minimalist",
+      "status": "ok",
+      "file": "renders/living-room__minimalist.jpg",
+      "w": 1024,
+      "h": 683,
+      "kb": 8,
+      "ms": 19246,
+      "retries": 0
+    },
+    {
+      "roomSlug": "living-room",
+      "roomLabel": "Living Room",
+      "pack": "Mid-Century Modern",
+      "packSlug": "mid-century-modern",
+      "status": "ok",
+      "file": "renders/living-room__mid-century-modern.jpg",
+      "w": 1024,
+      "h": 683,
+      "kb": 8,
+      "ms": 13618,
+      "retries": 0
+    },
+    {
+      "roomSlug": "living-room",
+      "roomLabel": "Living Room",
+      "pack": "Scandinavian",
+      "packSlug": "scandinavian",
+      "status": "ok",
+      "file": "renders/living-room__scandinavian.jpg",
+      "w": 1024,
+      "h": 683,
+      "kb": 7,
+      "ms": 19539,
+      "retries": 0
+    },
+    {
+      "roomSlug": "living-room",
+      "roomLabel": "Living Room",
+      "pack": "Bohemian",
+      "packSlug": "bohemian",
+      "status": "ok",
+      "file": "renders/living-room__bohemian.jpg",
+      "w": 1024,
+      "h": 683,
+      "kb": 8,
+      "ms": 14081,
+      "retries": 0
+    },
+    {
+      "roomSlug": "bedroom",
+      "roomLabel": "Bedroom",
+      "pack": "Coastal Modern",
+      "packSlug": "coastal-modern",
+      "status": "ok",
+      "file": "renders/bedroom__coastal-modern.jpg",
+      "w": 1024,
+      "h": 683,
+      "kb": 6,
+      "ms": 13799,
+      "retries": 0
+    },
+    {
+      "roomSlug": "bedroom",
+      "roomLabel": "Bedroom",
+      "pack": "Urban Loft",
+      "packSlug": "urban-loft",
+      "status": "ok",
+      "file": "renders/bedroom__urban-loft.jpg",
+      "w": 1024,
+      "h": 683,
+      "kb": 7,
+      "ms": 13555,
+      "retries": 0
+    },
+    {
+      "roomSlug": "bedroom",
+      "roomLabel": "Bedroom",
+      "pack": "Farmhouse Chic",
+      "packSlug": "farmhouse-chic",
+      "status": "ok",
+      "file": "renders/bedroom__farmhouse-chic.jpg",
+      "w": 1024,
+      "h": 683,
+      "kb": 7,
+      "ms": 23639,
+      "retries": 0
+    },
+    {
+      "roomSlug": "bedroom",
+      "roomLabel": "Bedroom",
+      "pack": "Minimalist",
+      "packSlug": "minimalist",
+      "status": "ok",
+      "file": "renders/bedroom__minimalist.jpg",
+      "w": 1024,
+      "h": 683,
+      "kb": 6,
+      "ms": 19940,
+      "retries": 0
+    },
+    {
+      "roomSlug": "bedroom",
+      "roomLabel": "Bedroom",
+      "pack": "Mid-Century Modern",
+      "packSlug": "mid-century-modern",
+      "status": "ok",
+      "file": "renders/bedroom__mid-century-modern.jpg",
+      "w": 1024,
+      "h": 683,
+      "kb": 7,
+      "ms": 19008,
+      "retries": 0
+    },
+    {
+      "roomSlug": "bedroom",
+      "roomLabel": "Bedroom",
+      "pack": "Scandinavian",
+      "packSlug": "scandinavian",
+      "status": "ok",
+      "file": "renders/bedroom__scandinavian.jpg",
+      "w": 1024,
+      "h": 683,
+      "kb": 6,
+      "ms": 26693,
+      "retries": 0
+    },
+    {
+      "roomSlug": "bedroom",
+      "roomLabel": "Bedroom",
+      "pack": "Bohemian",
+      "packSlug": "bohemian",
+      "status": "ok",
+      "file": "renders/bedroom__bohemian.jpg",
+      "w": 1024,
+      "h": 683,
+      "kb": 8,
+      "ms": 15761,
+      "retries": 0
+    },
+    {
+      "roomSlug": "kitchen",
+      "roomLabel": "Kitchen",
+      "pack": "Coastal Modern",
+      "packSlug": "coastal-modern",
+      "status": "ok",
+      "file": "renders/kitchen__coastal-modern.jpg",
+      "w": 1024,
+      "h": 684,
+      "kb": 7,
+      "ms": 16050,
+      "retries": 0
+    },
+    {
+      "roomSlug": "kitchen",
+      "roomLabel": "Kitchen",
+      "pack": "Urban Loft",
+      "packSlug": "urban-loft",
+      "status": "ok",
+      "file": "renders/kitchen__urban-loft.jpg",
+      "w": 1024,
+      "h": 684,
+      "kb": 7,
+      "ms": 23222,
+      "retries": 0
+    },
+    {
+      "roomSlug": "kitchen",
+      "roomLabel": "Kitchen",
+      "pack": "Farmhouse Chic",
+      "packSlug": "farmhouse-chic",
+      "status": "ok",
+      "file": "renders/kitchen__farmhouse-chic.jpg",
+      "w": 1024,
+      "h": 684,
+      "kb": 7,
+      "ms": 12273,
+      "retries": 0
+    },
+    {
+      "roomSlug": "kitchen",
+      "roomLabel": "Kitchen",
+      "pack": "Minimalist",
+      "packSlug": "minimalist",
+      "status": "ok",
+      "file": "renders/kitchen__minimalist.jpg",
+      "w": 1024,
+      "h": 684,
+      "kb": 7,
+      "ms": 18112,
+      "retries": 0
+    },
+    {
+      "roomSlug": "kitchen",
+      "roomLabel": "Kitchen",
+      "pack": "Mid-Century Modern",
+      "packSlug": "mid-century-modern",
+      "status": "ok",
+      "file": "renders/kitchen__mid-century-modern.jpg",
+      "w": 1024,
+      "h": 684,
+      "kb": 7,
+      "ms": 14728,
+      "retries": 0
+    },
+    {
+      "roomSlug": "kitchen",
+      "roomLabel": "Kitchen",
+      "pack": "Scandinavian",
+      "packSlug": "scandinavian",
+      "status": "ok",
+      "file": "renders/kitchen__scandinavian.jpg",
+      "w": 1024,
+      "h": 684,
+      "kb": 7,
+      "ms": 12244,
+      "retries": 0
+    },
+    {
+      "roomSlug": "kitchen",
+      "roomLabel": "Kitchen",
+      "pack": "Bohemian",
+      "packSlug": "bohemian",
+      "status": "ok",
+      "file": "renders/kitchen__bohemian.jpg",
+      "w": 1024,
+      "h": 684,
+      "kb": 7,
+      "ms": 24425,
+      "retries": 0
+    }
+  ],
+  "stats": {
+    "ok": 21,
+    "fail": 0,
+    "retries": 0,
+    "total": 21
+  }
+}

@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import BrandKit from '../../components/BrandKit';
 import ManageTeam from '../../components/ManageTeam';
+import UsageDashboard from '../../components/UsageDashboard';
 import ReferralDashboard from '../../components/ReferralDashboard';
 import { isAdmin, readGoogleUser, type GoogleUser } from './authStorage';
 
@@ -172,28 +173,28 @@ const AccessDenied: React.FC = () => (
 );
 
 const BillingTab: React.FC<{ user: GoogleUser }> = ({ user }) => {
-  // Placeholder — Cluster B owns the real billing page (R19). This tab
-  // just surfaces the portal CTA + upgrade hook so /settings/billing is
-  // reachable today.
   return (
     <section>
       <SectionHeading title="Billing" subtitle="Plan, usage, and credit packs." />
-      <div className="rounded-2xl border border-white/[0.08] bg-zinc-900/60 p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-xs uppercase tracking-[0.18em] text-zinc-500">Current plan</div>
-            <div className="text-lg font-semibold mt-0.5">Free</div>
+      <div className="space-y-4">
+        <div className="rounded-2xl border border-white/[0.08] bg-zinc-900/60 p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-xs uppercase tracking-[0.18em] text-zinc-500">Current plan</div>
+              <div className="text-lg font-semibold mt-0.5">Free</div>
+            </div>
+            <a
+              href="/pricing"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-black text-sm font-semibold hover:bg-zinc-200 transition"
+            >
+              See plans
+            </a>
           </div>
-          <a
-            href="/pricing"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-black text-sm font-semibold hover:bg-zinc-200 transition"
-          >
-            See plans
-          </a>
+          <div className="pt-4 border-t border-white/[0.06] text-xs text-zinc-500">
+            Signed in as {user.email}. Stripe customer portal opens from the editor's upgrade flow once you're on a paid plan.
+          </div>
         </div>
-        <div className="pt-4 border-t border-white/[0.06] text-xs text-zinc-500">
-          Signed in as {user.email}. Stripe customer portal opens from the editor's upgrade flow once you're on a paid plan.
-        </div>
+        <UsageDashboard email={user.email} />
       </div>
     </section>
   );

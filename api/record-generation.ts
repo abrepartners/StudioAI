@@ -83,6 +83,38 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
+    // Log to generation_logs for the usage dashboard. Non-fatal — Supabase is
+    // best-effort; Stripe counting below is the source of truth for billing.
+    try {
+      if (SUPABASE_URL && SUPABASE_SERVICE_KEY) {
+        const tool = (body.tool || 'stage').toLowerCase();
+        const model = (body.model || 'gemini-3.1-flash-image-preview').toLowerCase();
+        // Cost estimates in cents. Public Gemini rates (approx 2026-04):
+        //   gemini-3-flash-preview (text/vision): 0.2¢
+        //   gemini-3.1-flash-image-preview: 4¢
+        //   gemini-3-pro-image-preview: 10¢
+        let cost = 4;
+        if (model.includes('flash-preview') && !model.includes('image')) cost = 0; // text, effectively free
+        else if (model.includes('pro-image')) cost = 10;
+        const source = (body.source || 'app').toLowerCase();
+        await fetch(`${SUPABASE_URL}/rest/v1/generation_logs`, {
+          method: 'POST',
+          headers: {
+            'apikey': SUPABASE_SERVICE_KEY,
+            'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal',
+          },
+          body: JSON.stringify({
+            user_email: email.toLowerCase(),
+            tool, model, estimated_cost_cents: cost, source,
+          }),
+        });
+      }
+    } catch (logErr) {
+      console.warn('[record-generation] usage log failed (non-fatal):', logErr);
+    }
+
     const searchRes = await fetch(
       `https://api.stripe.com/v1/customers/search?query=email:'${encodeURIComponent(email)}'`,
       { headers: { Authorization: `Basic ${btoa(STRIPE_SECRET_KEY + ':')}` } }

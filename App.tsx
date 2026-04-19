@@ -210,14 +210,21 @@ const ScrollRevealInit: React.FC = () => {
   return null;
 };
 
-/** Community Gallery — loads approved showcases from the API */
+/**
+ * Community Gallery — Cluster N (Item 2)
+ *
+ * Horizontal-scrolling marquee of approved showcases (curated leads, then
+ * community submissions). Single row, infinite auto-scroll, pause-on-hover.
+ * Each card shows before+after side-by-side with a monochrome tool badge.
+ */
 const CommunityGallery: React.FC = () => {
   const [showcases, setShowcases] = useState<Array<{
     id: string; tool_used: string; before_image: string; after_image: string; room_type: string; user_name: string;
   }>>([]);
 
   useEffect(() => {
-    fetch('/api/showcase?limit=6')
+    // Pull more rows now that we have 8 curated baseline + community submissions.
+    fetch('/api/showcase?limit=16')
       .then(r => r.json())
       .then(data => { if (data.ok && data.showcases?.length) setShowcases(data.showcases); })
       .catch(() => {});
@@ -225,37 +232,73 @@ const CommunityGallery: React.FC = () => {
 
   if (showcases.length === 0) return null;
 
-  const toolColors: Record<string, string> = {
-    staging: '#0A84FF', cleanup: '#30D158', twilight: '#FF9F0A', sky: '#64D2FF',
+  // Monochrome tool glyphs — cool-gray default, white on hover. Matches the
+  // PricingPage Apple-premium aesthetic. No inline hex colors.
+  const toolGlyph = (tool: string) => {
+    const size = 12;
+    switch (tool) {
+      case 'staging':  return <Wand2 size={size} />;
+      case 'cleanup':  return <Eraser size={size} />;
+      case 'twilight': return <Sunset size={size} />;
+      case 'sky':      return <Cloud size={size} />;
+      default:         return <ImageIcon size={size} />;
+    }
+  };
+  const toolLabel = (tool: string) => {
+    const map: Record<string, string> = {
+      staging: 'Virtual Staging', cleanup: 'Smart Cleanup', twilight: 'Day to Dusk', sky: 'Sky Replace',
+    };
+    return map[tool] || tool;
   };
 
+  // Render the deck twice so the marquee keyframe (translate -50%) loops
+  // seamlessly without the user seeing a snap-back.
+  const deck = [...showcases, ...showcases];
+
   return (
-    <section className="px-5 sm:px-8 lg:px-16 py-20 border-t border-white/[0.04]">
-      <div className="max-w-5xl mx-auto">
-        <div className="text-center mb-10">
-          <p className="text-xs font-bold uppercase tracking-[0.25em] text-[var(--color-primary)] mb-3">Community Gallery</p>
-          <h2 className="font-display text-2xl sm:text-3xl font-black text-white tracking-tight">Made by agents like you.</h2>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {showcases.map((item) => (
-            <div key={item.id} className="rounded-xl overflow-hidden border border-white/[0.06] bg-white/[0.02]">
-              <div className="grid grid-cols-2">
-                <img src={item.before_image} alt="Before" className="w-full aspect-[4/3] object-cover" />
-                <img
-                  src={item.after_image.startsWith('data:') ? item.after_image : `data:image/jpeg;base64,${item.after_image}`}
-                  alt="After" className="w-full aspect-[4/3] object-cover"
-                />
+    <section className="py-20 border-t border-white/[0.04] overflow-hidden">
+      <div className="max-w-5xl mx-auto text-center mb-10 px-5 sm:px-8 lg:px-16">
+        <p className="text-xs font-bold uppercase tracking-[0.25em] text-[var(--color-primary)] mb-3">Community Gallery</p>
+        <h2 className="font-display text-2xl sm:text-3xl font-black text-white tracking-tight mb-2">Made by agents like you.</h2>
+        <p className="text-sm text-zinc-500">Real before / afters from the StudioAI showcase. Hover to pause.</p>
+      </div>
+
+      <div className="gallery-marquee relative w-full">
+        <div className="gallery-marquee-track">
+          {deck.map((item, idx) => {
+            const beforeSrc = item.before_image.startsWith('data:') || item.before_image.startsWith('http')
+              ? item.before_image
+              : `data:image/jpeg;base64,${item.before_image}`;
+            const afterSrc = item.after_image.startsWith('data:') || item.after_image.startsWith('http')
+              ? item.after_image
+              : `data:image/jpeg;base64,${item.after_image}`;
+            return (
+              <div
+                key={`${item.id}-${idx}`}
+                className="group shrink-0 w-[320px] sm:w-[360px] mx-2 rounded-xl overflow-hidden border border-white/[0.06] bg-white/[0.02] hover:border-white/[0.16] transition-colors duration-300"
+              >
+                <div className="grid grid-cols-2">
+                  <div className="relative">
+                    <img src={beforeSrc} alt="Before" loading="lazy" className="w-full aspect-[4/3] object-cover" />
+                    <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/70 text-2xs font-bold uppercase tracking-wider text-white">Before</div>
+                  </div>
+                  <div className="relative">
+                    <img src={afterSrc} alt="After" loading="lazy" className="w-full aspect-[4/3] object-cover" />
+                    <div className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded bg-white/90 text-2xs font-bold uppercase tracking-wider text-black">After</div>
+                  </div>
+                </div>
+                <div className="px-3 py-2.5 flex items-center justify-between">
+                  <span className="inline-flex items-center gap-1.5 text-zinc-400 group-hover:text-white transition-colors duration-200">
+                    {toolGlyph(item.tool_used)}
+                    <span className="text-2xs font-bold uppercase tracking-[0.15em]">{toolLabel(item.tool_used)}</span>
+                  </span>
+                  {item.room_type && (
+                    <span className="text-2xs text-zinc-600 uppercase tracking-wider">{item.room_type}</span>
+                  )}
+                </div>
               </div>
-              <div className="px-3 py-2 flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider" style={{ color: toolColors[item.tool_used] || '#0A84FF' }}>
-                  {item.tool_used}
-                </span>
-                {item.user_name && (
-                  <span className="text-xs text-zinc-600">by {item.user_name.split(' ')[0]}</span>
-                )}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>
@@ -1742,7 +1785,7 @@ Direction from user: ${prompt}`;
         <section className="relative min-h-[90vh] flex items-center px-5 sm:px-8 lg:px-16 pt-24 pb-16 overflow-hidden">
           <div className="absolute inset-0 z-0">
             <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/80 to-black z-10" />
-            <img src="/showcase-dusk-after.png" alt="" className="w-full h-full object-cover opacity-40" />
+            <img src="/showcase-twilight-after.jpg" alt="" className="w-full h-full object-cover opacity-40" />
           </div>
 
           <div className="relative z-20 max-w-6xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
@@ -1755,7 +1798,7 @@ Direction from user: ${prompt}`;
               <HeroHeadline />
 
               <p className="text-base sm:text-lg text-zinc-400 max-w-lg mb-6 leading-relaxed animate-fade-in" style={{ animationDelay: '0.2s' }}>
-                Upload a photo. Get it staged, de-cluttered, or twilight-converted before your seller meeting. Cancel physical staging.
+                Built for listing agents running 10-50 sides a year. Upload a photo, get it staged, de-cluttered, or twilight-converted before your seller meeting — cancel physical staging.
               </p>
 
               {/* Cost Comparison Hook — moved up from bottom CTA */}
@@ -1808,6 +1851,7 @@ Direction from user: ${prompt}`;
         {/* ─── Who It's For ─── */}
         <section className="px-5 sm:px-8 lg:px-16 py-10 border-t border-white/[0.04]">
           <div className="max-w-4xl mx-auto">
+            <p className="text-center text-xs font-bold uppercase tracking-[0.25em] text-zinc-600 mb-5">Built for serious listing producers</p>
             <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center justify-center gap-3 sm:gap-10">
               {[
                 { icon: <Camera size={14} />, label: 'Listing Agents' },
@@ -1854,8 +1898,8 @@ Direction from user: ${prompt}`;
                   title: 'Smart Cleanup',
                   desc: 'Remove realtor signs, yard debris, personal items, toys, and clutter from any photo. Interior or exterior — the AI strips distractions and reveals clean surfaces without adding anything new.',
                   accent: '#30D158',
-                  before: '/showcase-cleanup-before-new.jpg',
-                  after: '/showcase-cleanup-after-new.jpg',
+                  before: '/showcase-cleanup-before.jpg',
+                  after: '/showcase-cleanup-after.jpg',
                   previewLabel: 'Cluttered laundry room cleaned — shelves and counters cleared',
                 },
               ].map((f, i) => (
@@ -1883,7 +1927,7 @@ Direction from user: ${prompt}`;
             {/* Secondary Tools — interactive cards */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {[
-                { icon: <Sunset size={18} />, title: 'Day to Dusk', desc: 'Turn daytime exteriors into twilight shots with warm window glow — the #1 photographer trick', accent: '#FF9F0A', before: '/showcase-dusk-before.jpg', after: '/showcase-dusk-after.png' },
+                { icon: <Sunset size={18} />, title: 'Day to Dusk', desc: 'Turn daytime exteriors into twilight shots with warm window glow — the #1 photographer trick', accent: '#FF9F0A', before: '/showcase-twilight-before.jpg', after: '/showcase-twilight-after.jpg' },
                 { icon: <Cloud size={18} />, title: 'Sky Replacement', desc: 'Swap grey overcast for blue, dramatic, or golden-hour skies in one click', accent: '#64D2FF', before: null, after: null },
                 { icon: <LayoutGrid size={18} />, title: 'Batch Editing', desc: 'Upload an entire listing (25+ photos) and process them all in parallel', accent: '#FFD60A', before: null, after: null },
                 { icon: <Trash2 size={18} />, title: 'Selective Removal', desc: 'Paint over specific items to remove them — keep everything else exactly as-is', accent: '#FF375F', before: null, after: null },
@@ -1998,8 +2042,8 @@ Direction from user: ${prompt}`;
 
                   {/* Upload animation */}
                   <div className="relative rounded-xl overflow-hidden bg-black/40 aspect-[16/10]">
-                    <img src="/showcase-dusk-before.jpg" alt="Original" className="absolute inset-0 w-full h-full object-cover mockup-step-upload" />
-                    <img src="/showcase-dusk-after.png" alt="Result" className="absolute inset-0 w-full h-full object-cover mockup-step-result" />
+                    <img src="/showcase-twilight-before.jpg" alt="Original" className="absolute inset-0 w-full h-full object-cover mockup-step-upload" />
+                    <img src="/showcase-twilight-after.jpg" alt="Result" className="absolute inset-0 w-full h-full object-cover mockup-step-result" />
 
                     {/* Processing bar overlay */}
                     <div className="absolute bottom-0 left-0 right-0 p-3">
@@ -2028,18 +2072,22 @@ Direction from user: ${prompt}`;
 
             <div className="space-y-8">
               {[
-                { label: 'Day to Dusk', color: '#FF9F0A', icon: <Sunset size={14} />, before: '/showcase-dusk-before.jpg', after: '/showcase-dusk-after.png', caption: 'Exterior converted to twilight with warm interior glow and ambient sky' },
-                { label: 'Smart Cleanup', color: '#30D158', icon: <Eraser size={14} />, before: '/showcase-cleanup-before.jpg', after: '/showcase-cleanup-after.png', caption: 'Removed clutter and distractions while preserving original architecture' },
+                { label: 'Day to Dusk', icon: <Sunset size={14} />, before: '/showcase-twilight-before.jpg', after: '/showcase-twilight-after.jpg', caption: 'Modern home converted to twilight — warm window glow, blue-to-amber ambient sky' },
+                { label: 'Smart Cleanup', icon: <Eraser size={14} />, before: '/showcase-cleanup-before.jpg', after: '/showcase-cleanup-after.jpg', caption: 'Cluttered kitchen cleaned — countertops cleared, original cabinets and tile preserved' },
+                { label: 'Sky Replacement', icon: <Cloud size={14} />, before: '/showcase-sky-before.jpg', after: '/showcase-sky-after.jpg', caption: 'Overcast exterior swapped to deep blue with feather clouds — same lawn, same shadows' },
+                { label: 'Virtual Staging', icon: <Wand2 size={14} />, before: '/showcase-staging-before.jpg', after: '/showcase-staging-after.jpg', caption: 'Empty den staged with mid-century furniture sized to the room — buyer-ready in one render' },
               ].map((item, i) => (
-                <div key={item.label} className={`reveal reveal-delay-${i + 1}`}>
+                <div key={item.label} className={`group reveal reveal-delay-${i + 1}`}>
                   <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <span style={{ color: item.color }}>{item.icon}</span>
-                      <span className="text-xs font-bold uppercase tracking-[0.15em]" style={{ color: item.color }}>{item.label}</span>
+                    {/* Cluster N · Item 2: monochrome cool-gray glyph + label,
+                        white on hover. No inline hex per Magic MCP design pass. */}
+                    <div className="inline-flex items-center gap-2 text-zinc-400 group-hover:text-white transition-colors duration-200">
+                      {item.icon}
+                      <span className="text-xs font-bold uppercase tracking-[0.15em]">{item.label}</span>
                     </div>
                     <span className="text-xs text-zinc-600">Processed in ~15s</span>
                   </div>
-                  <div className="relative rounded-xl overflow-hidden border border-white/[0.06]">
+                  <div className="relative rounded-xl overflow-hidden border border-white/[0.06] group-hover:border-white/[0.16] transition-colors duration-200">
                     <div className="grid grid-cols-1 sm:grid-cols-2">
                       <div className="relative">
                         <img src={item.before} alt="Before" className="w-full aspect-[16/10] object-cover" />
@@ -2047,7 +2095,7 @@ Direction from user: ${prompt}`;
                       </div>
                       <div className="relative">
                         <img src={item.after} alt="After" className="w-full aspect-[16/10] object-cover" />
-                        <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded text-2xs font-bold uppercase text-white" style={{ background: `${item.color}cc` }}>After</div>
+                        <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded bg-white/90 text-2xs font-bold uppercase text-black">After</div>
                       </div>
                     </div>
                     <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-white/15 hidden sm:block" />

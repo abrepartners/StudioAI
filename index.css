@@ -676,6 +676,32 @@ a:focus-visible {
 .mockup-step-bar { animation: mockup-process 6s ease-in-out infinite; }
 .mockup-step-result { animation: mockup-result 6s ease-out infinite; }
 
+/* ─── Cluster N · Community Gallery marquee ──────────────────────
+ * Single-row, infinite leftward auto-scroll. The track contains the
+ * cards rendered TWICE; we translate -50% over the full duration so
+ * the second copy slides into view exactly where the first started,
+ * giving a seamless loop. Pause-on-hover via the `.gallery-marquee:hover`
+ * selector on the parent.
+ */
+@keyframes gallery-scroll {
+  0%   { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(-50%, 0, 0); }
+}
+.gallery-marquee {
+  /* Mask edges so cards fade in/out instead of clipping hard. */
+  -webkit-mask-image: linear-gradient(to right, transparent 0, black 8%, black 92%, transparent 100%);
+          mask-image: linear-gradient(to right, transparent 0, black 8%, black 92%, transparent 100%);
+}
+.gallery-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: gallery-scroll 60s linear infinite;
+  will-change: transform;
+}
+.gallery-marquee:hover .gallery-marquee-track {
+  animation-play-state: paused;
+}
+
 /* ─── Reduced Motion ───────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

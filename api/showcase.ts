@@ -31,10 +31,12 @@ export default async function handler(req: any, res: any) {
 
   try {
     if (req.method === 'GET') {
-      // Public: get approved showcases for the landing page
+      // Public: get approved showcases for the landing page.
+      // Cluster N (Item 3): `is_curated=true` entries sort first so the 8 seeded
+      // real-world pairs always lead. Community submissions fill the tail.
       const limit = parseInt(req.query?.limit || '10', 10);
       const results = await supaFetch(
-        `showcase?status=eq.approved&select=id,tool_used,before_image,after_image,room_type,user_name,created_at&order=created_at.desc&limit=${limit}`
+        `showcase?status=eq.approved&select=id,tool_used,before_image,after_image,room_type,user_name,is_curated,created_at&order=is_curated.desc,created_at.desc&limit=${limit}`
       );
       json(res, 200, { ok: true, showcases: results || [] });
       return;

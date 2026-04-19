@@ -93,6 +93,19 @@ Phase 3 from `docs/overhaul-2026-04/02-execution-backlog.md` = Differentiate (D1
 
 ---
 
+## Cluster N — Landing Polish
+**Lead:** `agent-n`
+**Scope:** 4 surgical fixes that make the landing actually deliver on the new "AI Listing Kit" positioning. Order: 1 → 4 → 3 → 2.
+
+| # | Title | Status | Notes |
+|---|---|---|---|
+| N1 | Real before/after showcase pairs | shipped | Replaced 2 placeholder showcase pairs with 4 real QA-harness outputs (Day-to-Dusk · Smart Cleanup · Sky Replace · Virtual Staging). Generator at `tests/qa-harness/generate-showcase-pairs.mjs` resizes 5K-wide composites to 1600w JPEG q0.85. New files: `public/showcase-{twilight,cleanup,sky,staging}-{before,after}.jpg` (105–267 KB each). App.tsx showcase block now renders all 4. Hero background + How-It-Works mockup also re-pointed to `showcase-twilight-after.jpg`. |
+| N2 | ICP copy sweep | shipped | Hero subhead now opens with "Built for listing agents running 10-50 sides a year." (App.tsx:1758). Added "Built for serious listing producers" eyebrow above the Who-It's-For chip row (App.tsx:1813). No "stunning/beautiful/seamless/amazing" residue found in App.tsx or `components/`. Cluster A R1-R11 work preserved (additive only). |
+| N3 | Curated Supabase showcases | shipped | Migration `showcase_add_is_curated` added `is_curated BOOLEAN DEFAULT FALSE` + partial index. Seeded 8 curated rows (3 staging · 2 cleanup · 2 twilight · 1 sky) via `tests/qa-harness/seed-curated-supabase.mjs` against project `pvaalbzrorkonzgkvvnv`. user_email=`curated@studioai.app`, user_name=`StudioAI`, status=`approved`, is_curated=`true`. Each row stores ~30-50 KB base64 thumbnails. `/api/showcase` GET now `order=is_curated.desc,created_at.desc` so curated leads. |
+| N4 | Marquee gallery + monochrome icons | shipped | Replaced 3-up grid with horizontal-scrolling marquee — single row, 60s linear loop, pause-on-hover, edge mask, deck rendered twice for seamless wrap. New `@keyframes gallery-scroll` + `.gallery-marquee*` classes in `index.css`. Each card 320–360 px wide, before+after 2-up + monochrome `lucide` glyph (Wand2/Eraser/Sunset/Cloud) in `text-zinc-400 group-hover:text-white`. Showcase tool labels in the Before/After section also de-colorized — no inline hex, single zinc-to-white hover transition. Magic MCP returned a shadcn-bound stub that didn't fit our stack; built with the codebase's existing Tailwind+lucide pattern, matching `PricingPage.tsx` aesthetic. Pulls 16 rows now (curated + community). `prefers-reduced-motion` already overrides via the existing global rule. |
+
+---
+
 ## Deferred (later Phase 3)
 
 - D1 Listing Score (XL)

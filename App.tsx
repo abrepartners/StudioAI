@@ -317,6 +317,9 @@ const App: React.FC = () => {
   const proToolsAutoExpandedRef = useRef(false);
   const [stageMode, setStageMode] = useState<StageMode>('text');
   const [isGenerating, setIsGenerating] = useState(false);
+  // Tracks which Pro AI tool is active so the global overlay can show
+  // tool-specific copy (twilight / sky / cleanup / renovation / listing).
+  const [activeProTool, setActiveProTool] = useState<string | null>(null);
 
   // D2: Structural Lock. ON by default preserves walls/floors/fixtures (current
   // production behavior). OFF opts into "gutted renovation" mode. Persists to
@@ -3071,28 +3074,72 @@ Direction from user: ${prompt}`;
                   {/* EditingBadge rendered inline next to the room picker below (see left-2.5 top-2.5 flex row)
                       so the two don't stack or have overlapping dropdowns. */}
                   {isGenerating && (() => {
-                    // R35: per-tool progress copy. The main overlay only fires
-                    // for staging / cleanup flows (Pro Tools has its own inline
-                    // loader inside SpecialModesPanel).  Copy depends on the
-                    // currently active panel.
-                    const toolCopy =
-                      activePanel === 'cleanup'
-                        ? {
-                            headline: 'Cleaning up your room',
-                            lines: [
-                              'Reading what to remove…',
-                              'Rebuilding the surface behind it…',
-                              'Matching your lighting',
-                            ],
-                          }
-                        : {
-                            headline: 'Staging your room',
-                            lines: [
-                              'Measuring the room…',
-                              'Placing furniture that fits…',
-                              'Matching your lighting',
-                            ],
-                          };
+                    // R35 + Pro-tool parity: per-tool progress copy now also
+                    // covers Pro AI Tools (twilight / sky / renovation /
+                    // declutter) bubbled up from SpecialModesPanel via
+                    // onLoadingChange. The overlay was previously only firing
+                    // for staging / cleanup paths.
+                    const proToolCopy: Record<string, { headline: string; lines: string[] }> = {
+                      twilight: {
+                        headline: 'Converting to twilight',
+                        lines: [
+                          'Reading the daylight…',
+                          'Warming the windows…',
+                          'Painting the dusk sky',
+                        ],
+                      },
+                      sky: {
+                        headline: 'Replacing the sky',
+                        lines: [
+                          'Cutting the horizon…',
+                          'Matching your lighting…',
+                          'Placing the new sky',
+                        ],
+                      },
+                      declutter: {
+                        headline: 'Removing clutter',
+                        lines: [
+                          'Spotting what to remove…',
+                          'Filling behind it seamlessly…',
+                          'Preserving everything else',
+                        ],
+                      },
+                      renovation: {
+                        headline: 'Previewing renovation',
+                        lines: [
+                          'Measuring the room…',
+                          'Swapping finishes…',
+                          'Keeping your architecture',
+                        ],
+                      },
+                      listing: {
+                        headline: 'Writing listing copy',
+                        lines: [
+                          'Reading the photo…',
+                          'Pulling selling features…',
+                          'Polishing the language',
+                        ],
+                      },
+                    };
+                    const toolCopy = (activeProTool && proToolCopy[activeProTool])
+                      ? proToolCopy[activeProTool]
+                      : activePanel === 'cleanup'
+                      ? {
+                          headline: 'Cleaning up your room',
+                          lines: [
+                            'Reading what to remove…',
+                            'Rebuilding the surface behind it…',
+                            'Matching your lighting',
+                          ],
+                        }
+                      : {
+                          headline: 'Staging your room',
+                          lines: [
+                            'Measuring the room…',
+                            'Placing furniture that fits…',
+                            'Matching your lighting',
+                          ],
+                        };
                     return (
                     <div role="status" aria-live="polite" aria-label="Generating design" className="absolute inset-0 z-10 bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center">
                       <div className="text-center space-y-4 w-full max-w-md px-6 pointer-events-none">
@@ -3498,6 +3545,10 @@ Direction from user: ${prompt}`;
                     onRequireKey={() => setShowUpgradeModal(true)}
                     savedStages={savedStages}
                     isPro={subscription.plan === 'pro'}
+                    onLoadingChange={(tool) => {
+                      setIsGenerating(tool !== null);
+                      setActiveProTool(tool);
+                    }}
                   />
                 )}
 

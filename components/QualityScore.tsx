@@ -205,7 +205,7 @@ const QualityScore: React.FC<QualityScoreProps> = ({ generatedImage, roomType })
           // users can move into it without it closing.
           onMouseEnter={() => setOpen(true)}
           onMouseLeave={() => setOpen(false)}
-          className="absolute left-0 top-full mt-2 w-72 z-30 rounded-xl border border-[var(--color-border-strong)] bg-[var(--color-surface-elevated)] shadow-xl p-3 space-y-3 animate-slide-down"
+          className="absolute right-0 top-full mt-2 w-72 z-30 rounded-xl border border-[var(--color-border-strong)] bg-[var(--color-surface-elevated)] shadow-xl p-3 space-y-3 animate-slide-down"
           role="dialog"
           aria-label="Listing score details"
         >

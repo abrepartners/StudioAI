@@ -277,8 +277,11 @@ HARD PRESERVATION RULES — these override any instinct to "improve" the room:
           <div
             className="absolute top-1.5 bottom-1.5 rounded-lg bg-[var(--color-primary)]/15 border border-[var(--color-primary)]/30 drop-shadow-md transition-all duration-300 ease-spring"
             style={{
-              width: 'calc(33.333% - 6px)',
-              left: `calc(${['text', 'packs', 'furniture'].indexOf(stageMode)} * 33.333% + 5px)`,
+              // Container has p-1.5 (6px) padding. The 3 flex-1 buttons share
+              // the content area (100% - 12px), so each button is
+              // (100% - 12px) / 3 wide, starting at 6px + idx * that width.
+              width: 'calc((100% - 12px) / 3)',
+              left: `calc(6px + ${['text', 'packs', 'furniture'].indexOf(stageMode)} * ((100% - 12px) / 3))`,
             }}
           />
           <button

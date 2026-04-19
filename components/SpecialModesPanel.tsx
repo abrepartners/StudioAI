@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     Sunset,
     Cloud,
@@ -71,6 +71,9 @@ interface SpecialModesPanelProps {
     onRequireKey: () => void;
     savedStages?: SavedStage[];
     isPro?: boolean;
+    /** Bubbles the active tool name up so App.tsx can render its full-screen
+        overlay matching the standard generate flow. null when idle. */
+    onLoadingChange?: (tool: SectionId | null) => void;
 }
 
 type SkyStyle = 'blue' | 'dramatic' | 'golden' | 'stormy';
@@ -114,8 +117,14 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
     onRequireKey,
     savedStages = [],
     isPro = false,
+    onLoadingChange,
 }) => {
     const [loading, setLoading] = useState<SectionId | null>(null);
+    // Bubble loading state up so App.tsx's global generation overlay covers
+    // Pro AI Tools too — previously tools showed only a button spinner.
+    const onLoadingChangeRef = useRef(onLoadingChange);
+    onLoadingChangeRef.current = onLoadingChange;
+    useEffect(() => { onLoadingChangeRef.current?.(loading); }, [loading]);
     const [openSection, setOpenSection] = useState<SectionId | null>(null);
     const [error, setError] = useState<string>('');
     // R11: retry handle for the last failed tool run. Cleared on success and

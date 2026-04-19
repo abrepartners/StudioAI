@@ -70,7 +70,27 @@
       "h": 683,
       "kb": 7,
       "ms": 14357,
-      "retries": 0
+      "retries": 0,
+      "score": {
+        "overall": 6,
+        "architecture": {
+          "score": 6,
+          "callout": "Ceiling fan blades are warped; dishwasher area lacks depth and realistic textures."
+        },
+        "lighting": {
+          "score": 5,
+          "callout": "Strong green color cast on the rug; shadows under furniture are too faint and generic."
+        },
+        "perspective": {
+          "score": 7,
+          "callout": "Furniture alignment is mostly correct, though the couch appears slightly elevated."
+        },
+        "staging": {
+          "score": 6,
+          "callout": "Furniture scale is good, but the TV is mounted too high and the foreground bin is messy."
+        }
+      },
+      "quality_warning": false
     },
     {
       "roomSlug": "living-room",
@@ -83,7 +103,27 @@
       "h": 683,
       "kb": 8,
       "ms": 17717,
-      "retries": 0
+      "retries": 0,
+      "score": {
+        "overall": 5,
+        "architecture": {
+          "score": 5,
+          "callout": "Fix distorted kitchen backsplash and artifacts around the ceiling fan."
+        },
+        "lighting": {
+          "score": 4,
+          "callout": "Add directional light from sliding door and improve furniture contact shadows."
+        },
+        "perspective": {
+          "score": 6,
+          "callout": "Correct the skew on the shelving unit and align coffee table better with the rug."
+        },
+        "staging": {
+          "score": 5,
+          "callout": "Simplify shelf decor to remove AI blobs and reduce coffee table scale."
+        }
+      },
+      "quality_warning": true
     },
     {
       "roomSlug": "living-room",
@@ -96,7 +136,27 @@
       "h": 683,
       "kb": 7,
       "ms": 14075,
-      "retries": 0
+      "retries": 0,
+      "score": {
+        "overall": 4.8,
+        "architecture": {
+          "score": 4,
+          "callout": "Ceiling fan is a hallucinated mess; green artifacts appear on kitchen counters."
+        },
+        "lighting": {
+          "score": 5,
+          "callout": "Shadows under furniture are unnaturally dark and don't match ambient light sources."
+        },
+        "perspective": {
+          "score": 6,
+          "callout": "Rug orientation clashes with floor tile grout lines; coffee table looks skewed."
+        },
+        "staging": {
+          "score": 4,
+          "callout": "Coffee table is disproportionately large; rug is too small for the seating area."
+        }
+      },
+      "quality_warning": true
     },
     {
       "roomSlug": "living-room",
@@ -109,7 +169,27 @@
       "h": 683,
       "kb": 8,
       "ms": 19246,
-      "retries": 0
+      "retries": 0,
+      "score": {
+        "overall": 5.3,
+        "architecture": {
+          "score": 5,
+          "callout": "Kitchen cabinetry is severely warped and lacks structural integrity."
+        },
+        "lighting": {
+          "score": 5,
+          "callout": "Harsh floor glare contrasts with flat, unrealistic shadows under the furniture."
+        },
+        "perspective": {
+          "score": 7,
+          "callout": "Coffee table and rug align with floor lines but feel slightly ungrounded."
+        },
+        "staging": {
+          "score": 4,
+          "callout": "Furniture is too sparse and basic; kitchen clutter ruins the staged aesthetic."
+        }
+      },
+      "quality_warning": true
     },
     {
       "roomSlug": "living-room",
@@ -122,7 +202,27 @@
       "h": 683,
       "kb": 8,
       "ms": 13618,
-      "retries": 0
+      "retries": 0,
+      "score": {
+        "overall": 5,
+        "architecture": {
+          "score": 6,
+          "callout": "Basic structure preserved but ceiling fan and vent integration is messy."
+        },
+        "lighting": {
+          "score": 4,
+          "callout": "No realistic shadows under the dining set; lighting is overly flat."
+        },
+        "perspective": {
+          "score": 5,
+          "callout": "Rug angle conflicts with floor tiles; right-side chair perspective is skewed."
+        },
+        "staging": {
+          "score": 5,
+          "callout": "Furniture style is cohesive but sofa scale is too small for the room depth."
+        }
+      },
+      "quality_warning": true
     },
     {
       "roomSlug": "living-room",
@@ -135,7 +235,27 @@
       "h": 683,
       "kb": 7,
       "ms": 19539,
-      "retries": 0
+      "retries": 0,
+      "score": {
+        "overall": 3.5,
+        "architecture": {
+          "score": 4,
+          "callout": "Ceiling fan is distorted and heavy compression hides wall/ceiling transitions."
+        },
+        "lighting": {
+          "score": 3,
+          "callout": "Flat lighting with no realistic shadows or light bounce from the exterior source."
+        },
+        "perspective": {
+          "score": 5,
+          "callout": "Furniture follows basic vanishing points but lacks grounding on the tiled floor."
+        },
+        "staging": {
+          "score": 2,
+          "callout": "Extremely low resolution and poor asset integration make this unusable for MLS."
+        }
+      },
+      "quality_warning": true
     },
     {
       "roomSlug": "living-room",
@@ -148,7 +268,27 @@
       "h": 683,
       "kb": 8,
       "ms": 14081,
-      "retries": 0
+      "retries": 0,
+      "score": {
+        "overall": 6,
+        "architecture": {
+          "score": 6,
+          "callout": "Ceiling fan blades are warped; kitchen cabinet edges are blurry and lack definition."
+        },
+        "lighting": {
+          "score": 5,
+          "callout": "Missing contact shadows under the sofa and coffee table create a floating effect."
+        },
+        "perspective": {
+          "score": 6,
+          "callout": "The rug and coffee table do not align correctly with the floor tile grid lines."
+        },
+        "staging": {
+          "score": 7,
+          "callout": "Furniture style is cohesive, but the foreground table is scaled too large."
+        }
+      },
+      "quality_warning": false
     },
     {
       "roomSlug": "bedroom",
@@ -161,7 +301,27 @@
       "h": 683,
       "kb": 6,
       "ms": 13799,
-      "retries": 0
+      "retries": 0,
+      "score": {
+        "overall": 7.5,
+        "architecture": {
+          "score": 9,
+          "callout": "Walls and ceiling lines are sharp and structurally sound."
+        },
+        "lighting": {
+          "score": 5,
+          "callout": "Overexposed highlights and weak contact shadows create a flat, artificial look."
+        },
+        "perspective": {
+          "score": 9,
+          "callout": "Excellent alignment of the bed and bench with the room's geometry."
+        },
+        "staging": {
+          "score": 7,
+          "callout": "Furniture is well-scaled, but the overall aesthetic feels clinical and lacks texture."
+        }
+      },
+      "quality_warning": false
     },
     {
       "roomSlug": "bedroom",
@@ -174,7 +334,27 @@
       "h": 683,
       "kb": 7,
       "ms": 13555,
-      "retries": 0
+      "retries": 0,
+      "score": {
+        "overall": 5,
+        "architecture": {
+          "score": 5,
+          "callout": "Left doorway is warped and wall textures show significant AI artifacts."
+        },
+        "lighting": {
+          "score": 4,
+          "callout": "Harsh, unrealistic shadows and neon-orange lamp glow lack natural falloff."
+        },
+        "perspective": {
+          "score": 6,
+          "callout": "Bench at foot of bed is skewed; console table doesn't sit flush with the wall."
+        },
+        "staging": {
+          "score": 5,
+          "callout": "Heavy, dark furniture choices overwhelm the small room and feel poorly scaled."
+        }
+      },
+      "quality_warning": true
     },
     {
       "roomSlug": "bedroom",
@@ -187,7 +367,27 @@
       "h": 683,
       "kb": 7,
       "ms": 23639,
-      "retries": 0
+      "retries": 0,
+      "score": {
+        "overall": 6.8,
+        "architecture": {
+          "score": 9,
+          "callout": "Structural lines, walls, and door frames are perfectly preserved and straight."
+        },
+        "lighting": {
+          "score": 5,
+          "callout": "Lighting is washed out and flat; lamps lack realistic glow and shadow depth."
+        },
+        "perspective": {
+          "score": 7,
+          "callout": "Bed feels slightly disconnected from the floor; rug perspective is a bit skewed."
+        },
+        "staging": {
+          "score": 6,
+          "callout": "Rug texture is messy and distracting; low resolution obscures staging details."
+        }
+      },
+      "quality_warning": false
     },
     {
       "roomSlug": "bedroom",
@@ -200,7 +400,27 @@
       "h": 683,
       "kb": 6,
       "ms": 19940,
-      "retries": 0
+      "retries": 0,
+      "score": {
+        "overall": 7.8,
+        "architecture": {
+          "score": 9,
+          "callout": "Room structure is perfectly preserved with no warping or hallucinations."
+        },
+        "lighting": {
+          "score": 6,
+          "callout": "Artificial lamp glow lacks natural fall-off; shadows are inconsistent with ambient light."
+        },
+        "perspective": {
+          "score": 9,
+          "callout": "Bed and nightstands are accurately placed within the room's 3D space."
+        },
+        "staging": {
+          "score": 7,
+          "callout": "Bedding looks overly stiff and synthetic; rug placement feels slightly undersized."
+        }
+      },
+      "quality_warning": false
     },
     {
       "roomSlug": "bedroom",
@@ -213,7 +433,27 @@
       "h": 683,
       "kb": 7,
       "ms": 19008,
-      "retries": 0
+      "retries": 0,
+      "score": {
+        "overall": 6,
+        "architecture": {
+          "score": 6,
+          "callout": "Ceiling fan is a distorted hallucination; floor lacks realistic material definition."
+        },
+        "lighting": {
+          "score": 5,
+          "callout": "Lighting is overly flat; shadows under the bed don't match the bedside lamp sources."
+        },
+        "perspective": {
+          "score": 7,
+          "callout": "Bed and nightstands align well, but the accent chair feels disconnected from the floor."
+        },
+        "staging": {
+          "score": 6,
+          "callout": "MCM style is cohesive, but heavy pixelation and scaling issues reduce the premium feel."
+        }
+      },
+      "quality_warning": false
     },
     {
       "roomSlug": "bedroom",
@@ -226,7 +466,27 @@
       "h": 683,
       "kb": 6,
       "ms": 26693,
-      "retries": 0
+      "retries": 0,
+      "score": {
+        "overall": 3.5,
+        "architecture": {
+          "score": 3,
+          "callout": "Fix the severe artifacts on the left door and the distorted window blinds."
+        },
+        "lighting": {
+          "score": 4,
+          "callout": "Lighting is flat and overexposed; needs depth and realistic shadow casting."
+        },
+        "perspective": {
+          "score": 5,
+          "callout": "Bench and bed lack proper contact shadows, making them appear to float."
+        },
+        "staging": {
+          "score": 2,
+          "callout": "Resolution is too low for professional use; textures and decor lack any detail."
+        }
+      },
+      "quality_warning": true
     },
     {
       "roomSlug": "bedroom",
@@ -239,7 +499,27 @@
       "h": 683,
       "kb": 8,
       "ms": 15761,
-      "retries": 0
+      "retries": 0,
+      "score": {
+        "overall": 4.3,
+        "architecture": {
+          "score": 4,
+          "callout": "Ceiling and wall behind bed show heavy AI artifacts and structural hallucinations."
+        },
+        "lighting": {
+          "score": 4,
+          "callout": "Lighting is extremely flat with no realistic shadow casting from lamps or furniture."
+        },
+        "perspective": {
+          "score": 5,
+          "callout": "The green chest and pet steps appear tilted and don't sit naturally on the floor."
+        },
+        "staging": {
+          "score": 4,
+          "callout": "Cluttered layout with poorly scaled wall art and jarring color choices for furniture."
+        }
+      },
+      "quality_warning": true
     },
     {
       "roomSlug": "kitchen",
@@ -252,7 +532,27 @@
       "h": 684,
       "kb": 7,
       "ms": 16050,
-      "retries": 0
+      "retries": 0,
+      "score": {
+        "overall": 3.5,
+        "architecture": {
+          "score": 4,
+          "callout": "Severe masking errors and color bleeding on cabinets; structural lines are distorted."
+        },
+        "lighting": {
+          "score": 3,
+          "callout": "Flat, artificial lighting with no contact shadows or realistic light interaction."
+        },
+        "perspective": {
+          "score": 5,
+          "callout": "Island and stools appear to float due to lack of perspective-aligned shadows."
+        },
+        "staging": {
+          "score": 2,
+          "callout": "Aggressive green color application looks like a digital glitch rather than staging."
+        }
+      },
+      "quality_warning": true
     },
     {
       "roomSlug": "kitchen",
@@ -265,7 +565,27 @@
       "h": 684,
       "kb": 7,
       "ms": 23222,
-      "retries": 0
+      "retries": 0,
+      "score": {
+        "overall": 3.3,
+        "architecture": {
+          "score": 4,
+          "callout": "Masking for green cabinets is sloppy, bleeding onto the floor and white trim."
+        },
+        "lighting": {
+          "score": 3,
+          "callout": "Stools lack realistic contact shadows and don't react to the room's light sources."
+        },
+        "perspective": {
+          "score": 4,
+          "callout": "Stools are angled incorrectly relative to the island and floor grid."
+        },
+        "staging": {
+          "score": 2,
+          "callout": "Low-quality assets and poor image resolution render this unusable for marketing."
+        }
+      },
+      "quality_warning": true
     },
     {
       "roomSlug": "kitchen",
@@ -278,7 +598,27 @@
       "h": 684,
       "kb": 7,
       "ms": 12273,
-      "retries": 0
+      "retries": 0,
+      "score": {
+        "overall": 3.3,
+        "architecture": {
+          "score": 4,
+          "callout": "Green cabinet masking is imprecise and bleeds onto the white trim and appliances."
+        },
+        "lighting": {
+          "score": 3,
+          "callout": "Lack of contact shadows makes the island and countertop items look floating."
+        },
+        "perspective": {
+          "score": 4,
+          "callout": "The island's base does not align with the perspective of the floor tile grid."
+        },
+        "staging": {
+          "score": 2,
+          "callout": "Unusable resolution and flat color fills lack any realistic material texture."
+        }
+      },
+      "quality_warning": true
     },
     {
       "roomSlug": "kitchen",
@@ -291,7 +631,27 @@
       "h": 684,
       "kb": 7,
       "ms": 18112,
-      "retries": 0
+      "retries": 0,
+      "score": {
+        "overall": 3.5,
+        "architecture": {
+          "score": 4,
+          "callout": "Severe pixelation and compression artifacts obscure all fine architectural details."
+        },
+        "lighting": {
+          "score": 3,
+          "callout": "Lighting is extremely flat with no realistic contact shadows or light falloff."
+        },
+        "perspective": {
+          "score": 5,
+          "callout": "Basic vanishing points are correct but edges are jagged and poorly defined."
+        },
+        "staging": {
+          "score": 2,
+          "callout": "The green cabinet overlay is a flat color block lacking realistic texture and finish."
+        }
+      },
+      "quality_warning": true
     },
     {
       "roomSlug": "kitchen",
@@ -304,7 +664,27 @@
       "h": 684,
       "kb": 7,
       "ms": 14728,
-      "retries": 0
+      "retries": 0,
+      "score": {
+        "overall": 2.8,
+        "architecture": {
+          "score": 3,
+          "callout": "Correct warped cabinet lines and fix the unnatural green color masking on base units."
+        },
+        "lighting": {
+          "score": 2,
+          "callout": "Introduce realistic shadows and fix overexposed areas to create depth and realism."
+        },
+        "perspective": {
+          "score": 4,
+          "callout": "Ground the floating side table and floor lamp to match the floor's vanishing point."
+        },
+        "staging": {
+          "score": 2,
+          "callout": "Remove the floor lamp and side table; they are illogical for a kitchen workspace."
+        }
+      },
+      "quality_warning": true
     },
     {
       "roomSlug": "kitchen",
@@ -317,7 +697,27 @@
       "h": 684,
       "kb": 7,
       "ms": 12244,
-      "retries": 0
+      "retries": 0,
+      "score": {
+        "overall": 4,
+        "architecture": {
+          "score": 5,
+          "callout": "Cabinet recoloring is flat and masks textures; pixelation obscures fine details."
+        },
+        "lighting": {
+          "score": 3,
+          "callout": "Complete lack of contact shadows makes the island and stool appear to float."
+        },
+        "perspective": {
+          "score": 6,
+          "callout": "Stool angle is slightly inconsistent with the island's vanishing points."
+        },
+        "staging": {
+          "score": 2,
+          "callout": "Jarring color palette and low-res assets are unsuitable for professional listings."
+        }
+      },
+      "quality_warning": true
     },
     {
       "roomSlug": "kitchen",
@@ -330,7 +730,27 @@
       "h": 684,
       "kb": 7,
       "ms": 24425,
-      "retries": 0
+      "retries": 0,
+      "score": {
+        "overall": 4.8,
+        "architecture": {
+          "score": 5,
+          "callout": "Fix messy cabinet edges and improve resolution to define wall boundaries."
+        },
+        "lighting": {
+          "score": 4,
+          "callout": "Balance window exposure and add directional shadows for realistic depth."
+        },
+        "perspective": {
+          "score": 6,
+          "callout": "Adjust rug alignment and ground the bar stools more firmly to the floor."
+        },
+        "staging": {
+          "score": 4,
+          "callout": "Reduce counter clutter and choose a more neutral, modern color palette."
+        }
+      },
+      "quality_warning": true
     }
   ],
   "stats": {
@@ -338,5 +758,7 @@
     "fail": 0,
     "retries": 0,
     "total": 21
-  }
+  },
+  "scored_at": "2026-04-19T20:20:51.730Z",
+  "score_warnings": 15
 }

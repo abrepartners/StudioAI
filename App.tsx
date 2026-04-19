@@ -2072,10 +2072,10 @@ Direction from user: ${prompt}`;
 
             <div className="space-y-8">
               {[
-                { label: 'Day to Dusk', icon: <Sunset size={14} />, before: '/showcase-twilight-before.jpg', after: '/showcase-twilight-after.jpg', caption: 'Modern home converted to twilight — warm window glow, blue-to-amber ambient sky' },
-                { label: 'Smart Cleanup', icon: <Eraser size={14} />, before: '/showcase-cleanup-before.jpg', after: '/showcase-cleanup-after.jpg', caption: 'Cluttered kitchen cleaned — countertops cleared, original cabinets and tile preserved' },
-                { label: 'Sky Replacement', icon: <Cloud size={14} />, before: '/showcase-sky-before.jpg', after: '/showcase-sky-after.jpg', caption: 'Overcast exterior swapped to deep blue with feather clouds — same lawn, same shadows' },
-                { label: 'Virtual Staging', icon: <Wand2 size={14} />, before: '/showcase-staging-before.jpg', after: '/showcase-staging-after.jpg', caption: 'Empty den staged with mid-century furniture sized to the room — buyer-ready in one render' },
+                { label: 'Day to Dusk', icon: <Sunset size={14} />, before: '/showcase-twilight-before.jpg', after: '/showcase-twilight-after.jpg', caption: 'Luxury estate drone shot lifted to golden-hour twilight — warm window glow, painted dusk sky' },
+                { label: 'Smart Cleanup', icon: <Eraser size={14} />, before: '/showcase-cleanup-before.jpg', after: '/showcase-cleanup-after.jpg', caption: 'Cluttered kid\u2019s bedroom depersonalized in one pass \u2014 trophies, dressers piled with stuff, themed bedding all gone, room left buyer-ready' },
+                { label: 'Sky Replacement', icon: <Cloud size={14} />, before: '/showcase-sky-before.jpg', after: '/showcase-sky-after.jpg', caption: 'Pale sky over a brick estate swapped to deep blue with crisp clouds \u2014 architecture, lawn, and shadows untouched' },
+                { label: 'Virtual Staging', icon: <Wand2 size={14} />, before: '/showcase-staging-before.jpg', after: '/showcase-staging-after.jpg', caption: 'Empty open-concept living/kitchen staged in transitional luxury \u2014 sized to the actual footprint, original cabinets and tile preserved' },
               ].map((item, i) => (
                 <div key={item.label} className={`group reveal reveal-delay-${i + 1}`}>
                   <div className="flex items-center justify-between mb-2">

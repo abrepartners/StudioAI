@@ -64,6 +64,46 @@ interface RenovationControlsProps {
 const NARROW_ASPECT_MAX = 2.2;
 const NARROW_ASPECT_MIN = 0.6;
 
+/**
+ * Pack Matrix Fix 2 (2026-04-18): Room-type-aware pack prompts.
+ *
+ * Packs were built around the assumption that every room has a "furniture
+ * zone" the pack can fill. That assumption only holds for the `FURNITURE`
+ * tier. For `DECOR_ONLY` rooms (Kitchen / Bathroom / Laundry) the pack is
+ * expressed entirely through accessories — cabinets/appliances/fixtures
+ * must stay pixel-identical. For `PACK_DISABLED` rooms (Exterior / Patio /
+ * Garage / Basement / Closet) packs don't make sense at all and we gate
+ * them in the UI similar to the narrow-room geometry guard (X3).
+ */
+const FURNITURE_PACK_ROOMS: ReadonlyArray<FurnitureRoomType> = [
+  'Living Room',
+  'Bedroom',
+  'Primary Bedroom',
+  'Dining Room',
+  'Office',
+  'Nursery',
+];
+const DECOR_ONLY_PACK_ROOMS: ReadonlyArray<FurnitureRoomType> = [
+  'Kitchen',
+  'Bathroom',
+  'Laundry Room',
+];
+const PACK_DISABLED_ROOMS: ReadonlyArray<FurnitureRoomType> = [
+  'Exterior',
+  'Patio',
+  'Garage',
+  'Basement',
+  'Closet',
+];
+type PackTier = 'furniture' | 'decor-only' | 'disabled';
+const packTierFor = (room: FurnitureRoomType): PackTier => {
+  if (DECOR_ONLY_PACK_ROOMS.includes(room)) return 'decor-only';
+  if (PACK_DISABLED_ROOMS.includes(room)) return 'disabled';
+  // Default to full furniture pack for anything listed in FURNITURE_PACK_ROOMS
+  // or unknown types (safer: err toward the tested default).
+  return 'furniture';
+};
+
 const RenovationControls: React.FC<RenovationControlsProps> = ({
   activeMode,
   hasGenerated,
@@ -170,9 +210,14 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
   const trimmedPrompt = customPrompt.trim();
   // X3: Block pack generation on narrow geometry — packs reframe these rooms.
   const packsBlockedByGeometry = stageMode === 'packs' && isNarrowGeometry;
+  // Fix 2: Block pack generation for rooms where packs don't apply at all
+  // (Exterior / Patio / Garage / Basement / Closet).
+  const currentPackTier = packTierFor(selectedRoom);
+  const packsBlockedByRoomType = stageMode === 'packs' && currentPackTier === 'disabled';
   const canGenerate =
     !feedbackRequired &&
     !packsBlockedByGeometry &&
+    !packsBlockedByRoomType &&
     (stageMode === 'text' ? trimmedPrompt.length > 0 : stageMode === 'packs' ? Boolean(selectedPreset) : false);
 
   const PACK_DETAILS: Record<string, string> = {
@@ -204,8 +249,29 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
 
     if (stageMode === 'packs') {
       if (!selectedPreset) return;
+      // Fix 2: room-type-aware pack prompt. Packs are gated in the UI for
+      // PACK_DISABLED_ROOMS; this branch handles the remaining two tiers.
+      if (currentPackTier === 'disabled') return;
       const details = PACK_DETAILS[selectedPreset] || '';
-      prompt = `Virtually stage this ${selectedRoom} in ${selectedPreset} style. Add only furniture and decor. Style DNA: ${details}.
+
+      if (currentPackTier === 'decor-only') {
+        // Kitchen / Bathroom / Laundry Room: pack is expressed through
+        // accessories only. No furniture placement, no cabinet restyling.
+        prompt = `Add ${selectedPreset}-style decor accents to this ${selectedRoom}. The pack is expressed through accessories ONLY — not furniture. Style DNA: ${details}.
+
+HARD PRESERVATION RULES — these override any instinct to "improve" the room:
+- DO NOT replace, restyle, recolor, or modify any cabinets, vanities, built-ins, countertops, backsplashes, islands, or millwork — they stay pixel-identical.
+- DO NOT modify any appliances (refrigerator, range, dishwasher, washer, dryer, microwave, hood). Every appliance stays pixel-identical.
+- DO NOT modify plumbing fixtures (toilets, sinks, tubs, showers, faucets). Every fixture stays pixel-identical.
+- DO NOT modify windows, doors, door trim, baseboards, crown molding, flooring, wall color, or ceiling.
+- DO NOT change the camera framing, crop, angle, or field of view.
+- Add ONLY decor accents matching the pack DNA — for example: pendant-light styling, barstool cushions, dish towels, fruit bowls, potted herbs, window treatments, soap dispensers, towel sets, framed art, small plants.
+- Do NOT place sofas, beds, dining tables, chairs, rugs larger than a runner, or any other primary furniture.
+- Stage based on what the image actually shows, not what the room label suggests.`;
+      } else {
+        // Furniture tier: Living Room / Bedroom / Primary Bedroom / Dining
+        // Room / Office / Nursery. Full furniture staging.
+        prompt = `Virtually stage this ${selectedRoom} in ${selectedPreset} style. Add only furniture and decor. Style DNA: ${details}.
 
 HARD PRESERVATION RULES — these override any instinct to "improve" the room:
 - DO NOT modify, replace, or restyle any cabinets, vanities, built-ins, or millwork. Existing cabinet color, wood tone, and door style stay identical.
@@ -215,6 +281,7 @@ HARD PRESERVATION RULES — these override any instinct to "improve" the room:
 - DO NOT change the camera framing, crop, angle, or field of view. Room dimensions stay the same.
 - If the room is narrow, awkward, or small, stage within its actual footprint — do NOT extend walls or rearrange architecture to accommodate new furniture.
 - Stage based on what the image actually shows, not what the room label suggests.`;
+      }
     }
 
     if (hasMask) {
@@ -476,6 +543,34 @@ HARD PRESERVATION RULES — these override any instinct to "improve" the room:
             className="mb-4"
           />
           <p className="mb-4 text-sm text-[var(--color-text)]/80">Choose one pack to generate a complete staging direction.</p>
+          {/* Fix 2: Room-type guard. Packs are interior-furniture-focused —
+              exterior/patio/garage/basement/closet don't have a pack equivalent.
+              Mirrors the narrow-room guard pattern so the UX is consistent. */}
+          {currentPackTier === 'disabled' && (
+            <div className="mb-4 rounded-xl border border-[#FF9F0A]/40 bg-[#FF9F0A]/5 px-3 py-2.5 text-sm leading-relaxed text-[#FFC15C] flex items-start gap-2">
+              <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+              <span>
+                Packs are for interior rooms — <strong>{selectedRoom}</strong> isn't
+                supported for packs. Use <strong>Text</strong> mode with a custom
+                direction, or the Pro AI Tools for exterior / outdoor scenes.
+              </span>
+            </div>
+          )}
+          {/* Fix 2: Decor-only hint for Kitchen / Bathroom / Laundry Room —
+              pack fires, but only through accessories. Tells the user what
+              to expect so they don't file a "why didn't my cabinets change"
+              bug. */}
+          {currentPackTier === 'decor-only' && (
+            <div className="mb-4 rounded-xl border border-[#0A84FF]/40 bg-[#0A84FF]/5 px-3 py-2.5 text-sm leading-relaxed text-[#7FB8FF] flex items-start gap-2">
+              <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+              <span>
+                In a <strong>{selectedRoom}</strong>, packs are applied through
+                <em> decor accents only</em> (pendant styling, towels, window
+                treatments, fruit bowls). Cabinets, appliances, and fixtures stay
+                pixel-identical.
+              </span>
+            </div>
+          )}
           {/* X3: Narrow-room guard. Prevents pack-mode from being fired on
               frames Gemini can't stage without reframing walls. */}
           {isNarrowGeometry && aspectRatio !== null && (

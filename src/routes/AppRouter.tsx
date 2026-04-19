@@ -25,6 +25,7 @@ import MarketingRoute from './MarketingRoute';
 import TryRoute from './TryRoute';
 import ListingsRoute from './ListingsRoute';
 import SettingsRoute from './SettingsRoute';
+import AdminPackMatrixRoute from './AdminPackMatrixRoute';
 
 const RouteFallback: React.FC = () => (
   <div className="min-h-screen grid place-items-center bg-black text-zinc-400 text-sm">
@@ -56,6 +57,9 @@ const AppRouter: React.FC = () => {
           {/* R21 — settings page with 6 sub-tabs */}
           <Route path="/settings" element={<Navigate to="/settings/brand" replace />} />
           <Route path="/settings/:tab" element={<SettingsRoute />} />
+
+          {/* Admin: Pack verification matrix (7×3 grid, admin-only) */}
+          <Route path="/admin/pack-matrix" element={<AdminPackMatrixRoute />} />
 
           {/* Fallback: unknown path → editor */}
           <Route path="*" element={<Navigate to="/" replace />} />

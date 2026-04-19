@@ -10,6 +10,22 @@ interface MaskCanvasProps {
 const MASK_COLOR = 'rgba(0, 200, 255, 0.55)';
 const CLOSE_THRESHOLD = 50; // pixels — if stroke end is within this distance of start, auto-fill
 
+// D14 — memory fix.
+// Previous implementation pushed a full `ImageData` raster per stroke onto
+// `historyRef`. For a 2048x2048 canvas each snapshot is ~16 MB; a 50-stroke
+// session could pin 800 MB+. We now store vector stroke descriptors and
+// replay-on-undo by clearing + redrawing from index 0..historyIndex.
+//
+// Memory per stroke: ~24 B/point × avg-points-per-stroke (typically 50-300).
+// Even a 1000-stroke session caps at a few MB — three orders of magnitude less
+// than the raster approach.
+interface MaskStroke {
+  points: Array<{ x: number; y: number }>;
+  brushSize: number;
+  /** Whether the stroke auto-closed into a filled region (loop detection). */
+  closed: boolean;
+}
+
 const MaskCanvas: React.FC<MaskCanvasProps> = ({ imageSrc, onMaskChange, isActive }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
@@ -20,7 +36,8 @@ const MaskCanvas: React.FC<MaskCanvasProps> = ({ imageSrc, onMaskChange, isActiv
   // render a DOM circle that previews the current brush size.  Only shown on
   // non-touch mouseover.
   const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null);
-  const historyRef = useRef<ImageData[]>([]);
+  // D14: stroke-list history instead of raster snapshots. Index -1 = blank.
+  const historyRef = useRef<MaskStroke[]>([]);
   const historyIndexRef = useRef(-1);
   const [, forceUpdate] = useState(0); // trigger re-render for undo/redo button states
   const canvasInitializedRef = useRef(false);
@@ -32,17 +49,50 @@ const MaskCanvas: React.FC<MaskCanvasProps> = ({ imageSrc, onMaskChange, isActiv
     []
   );
 
-  const pushToHistory = useCallback(() => {
+  // D14: re-render the canvas from the stroke list up to historyIndexRef.
+  // Called on undo/redo; strokes 0..historyIndex are replayed onto a cleared
+  // canvas. Small strokes replay in under a millisecond; worst-case (1000
+  // strokes × 300 points) is still sub-50ms on modern hardware.
+  const renderFromHistory = useCallback(() => {
     const canvas = canvasRef.current;
     const ctx = getContext();
     if (!canvas || !ctx) return;
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    // Trim future history if we're not at the end
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = MASK_COLOR;
+    ctx.fillStyle = MASK_COLOR;
+    for (let i = 0; i <= historyIndexRef.current; i++) {
+      const stroke = historyRef.current[i];
+      if (!stroke || stroke.points.length === 0) continue;
+      ctx.lineWidth = stroke.brushSize;
+      ctx.beginPath();
+      ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+      for (let j = 1; j < stroke.points.length; j++) {
+        ctx.lineTo(stroke.points[j].x, stroke.points[j].y);
+      }
+      ctx.stroke();
+      if (stroke.closed) {
+        ctx.beginPath();
+        ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+        for (let j = 1; j < stroke.points.length; j++) {
+          ctx.lineTo(stroke.points[j].x, stroke.points[j].y);
+        }
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+    // Restore the live brush stroke settings for in-progress drawing.
+    ctx.lineWidth = brushSize;
+  }, [getContext, brushSize]);
+
+  const pushStroke = useCallback((stroke: MaskStroke) => {
+    // Trim future history if we're not at the end (undo then new stroke branches).
     historyRef.current = historyRef.current.slice(0, historyIndexRef.current + 1);
-    historyRef.current.push(imageData);
+    historyRef.current.push(stroke);
     historyIndexRef.current = historyRef.current.length - 1;
     forceUpdate(n => n + 1);
-  }, [getContext]);
+  }, []);
 
   // Initialize canvas ONCE when image loads — never re-run on brush/history changes
   useEffect(() => {
@@ -66,9 +116,8 @@ const MaskCanvas: React.FC<MaskCanvasProps> = ({ imageSrc, onMaskChange, isActiv
           ctx.strokeStyle = MASK_COLOR;
           ctx.fillStyle = MASK_COLOR;
           ctx.lineWidth = brushSize;
-          // Save initial blank state
-          pushToHistory();
         }
+        forceUpdate(n => n + 1);
       }
     };
 
@@ -105,26 +154,21 @@ const MaskCanvas: React.FC<MaskCanvasProps> = ({ imageSrc, onMaskChange, isActiv
   }, [getContext, onMaskChange]);
 
   const undo = useCallback(() => {
-    if (historyIndexRef.current <= 0) return;
+    // Blank state is historyIndex === -1 (no strokes rendered).
+    if (historyIndexRef.current < 0) return;
     historyIndexRef.current -= 1;
-    const ctx = getContext();
-    if (ctx) {
-      ctx.putImageData(historyRef.current[historyIndexRef.current], 0, 0);
-      forceUpdate(n => n + 1);
-      exportMask();
-    }
-  }, [getContext, exportMask]);
+    renderFromHistory();
+    forceUpdate(n => n + 1);
+    exportMask();
+  }, [renderFromHistory, exportMask]);
 
   const redo = useCallback(() => {
     if (historyIndexRef.current >= historyRef.current.length - 1) return;
     historyIndexRef.current += 1;
-    const ctx = getContext();
-    if (ctx) {
-      ctx.putImageData(historyRef.current[historyIndexRef.current], 0, 0);
-      forceUpdate(n => n + 1);
-      exportMask();
-    }
-  }, [getContext, exportMask]);
+    renderFromHistory();
+    forceUpdate(n => n + 1);
+    exportMask();
+  }, [renderFromHistory, exportMask]);
 
   const getCoordinates = (e: React.MouseEvent | React.TouchEvent) => {
     const canvas = canvasRef.current;
@@ -189,6 +233,7 @@ const MaskCanvas: React.FC<MaskCanvasProps> = ({ imageSrc, onMaskChange, isActiv
       // Check if the stroke loops back near the start point — auto-fill if so
       const start = startPointRef.current;
       const path = currentPathRef.current;
+      let closed = false;
       if (start && path.length > 10) {
         const end = path[path.length - 1];
         const dist = Math.sqrt((end.x - start.x) ** 2 + (end.y - start.y) ** 2);
@@ -202,12 +247,17 @@ const MaskCanvas: React.FC<MaskCanvasProps> = ({ imageSrc, onMaskChange, isActiv
           }
           ctx.closePath();
           ctx.fill();
+          closed = true;
         }
+      }
+
+      // D14: push vector stroke descriptor instead of a raster snapshot.
+      if (path.length > 0) {
+        pushStroke({ points: path.slice(), brushSize, closed });
       }
 
       startPointRef.current = null;
       currentPathRef.current = [];
-      pushToHistory();
       exportMask();
     }
   };
@@ -217,7 +267,10 @@ const MaskCanvas: React.FC<MaskCanvasProps> = ({ imageSrc, onMaskChange, isActiv
     const ctx = getContext();
     if (canvas && ctx) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      pushToHistory();
+      // D14: reset history — blank state is index -1.
+      historyRef.current = [];
+      historyIndexRef.current = -1;
+      forceUpdate(n => n + 1);
       onMaskChange(null);
     }
   };
@@ -303,7 +356,7 @@ const MaskCanvas: React.FC<MaskCanvasProps> = ({ imageSrc, onMaskChange, isActiv
           <button
             type="button"
             onClick={undo}
-            disabled={historyIndexRef.current <= 0}
+            disabled={historyIndexRef.current < 0}
             className="rounded-full p-2 min-h-[44px] min-w-[44px] inline-flex items-center justify-center transition-all hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-35"
             aria-label="Undo mask stroke"
           >

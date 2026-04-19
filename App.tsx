@@ -1928,7 +1928,7 @@ Direction from user: ${prompt}`;
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {[
                 { icon: <Sunset size={18} />, title: 'Day to Dusk', desc: 'Turn daytime exteriors into twilight shots with warm window glow — the #1 photographer trick', accent: '#FF9F0A', before: '/showcase-twilight-before.jpg', after: '/showcase-twilight-after.jpg' },
-                { icon: <Cloud size={18} />, title: 'Sky Replacement', desc: 'Swap grey overcast for blue, dramatic, or golden-hour skies in one click', accent: '#64D2FF', before: null, after: null },
+                { icon: <Cloud size={18} />, title: 'Sky Replacement', desc: 'Swap grey overcast for blue, dramatic, or golden-hour skies in one click', accent: '#64D2FF', before: '/showcase-sky-before.jpg', after: '/showcase-sky-after.jpg' },
                 { icon: <LayoutGrid size={18} />, title: 'Batch Editing', desc: 'Upload an entire listing (25+ photos) and process them all in parallel', accent: '#FFD60A', before: null, after: null },
                 { icon: <Trash2 size={18} />, title: 'Selective Removal', desc: 'Paint over specific items to remove them — keep everything else exactly as-is', accent: '#FF375F', before: null, after: null },
               ].map((f, i) => (

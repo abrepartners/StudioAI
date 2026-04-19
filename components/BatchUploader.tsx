@@ -275,7 +275,7 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
           <h3 className="font-display text-sm font-semibold text-[var(--color-ink)]">
             Batch Queue
           </h3>
-          <p className="text-[10px] text-[var(--color-text)]/70">
+          <p className="text-xs text-[var(--color-text)]/70">
             {selectedCount} of {batchImages.length} selected
             {detectingCount > 0 && ` · Detecting ${detectingCount} rooms...`}
           </p>
@@ -284,15 +284,15 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
           <button
             type="button"
             onClick={selectAll}
-            className="text-[10px] font-semibold text-[var(--color-primary)] hover:underline"
+            className="text-xs font-semibold text-[var(--color-primary)] hover:underline"
           >
             Select All
           </button>
-          <span className="text-[var(--color-text)]/30 text-[10px]">|</span>
+          <span className="text-[var(--color-text)]/30 text-xs">|</span>
           <button
             type="button"
             onClick={clearAll}
-            className="text-[10px] font-semibold text-[#FF375F] hover:underline"
+            className="text-xs font-semibold text-[#FF375F] hover:underline"
           >
             Clear
           </button>
@@ -312,7 +312,7 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
       {/* Action toolbar — tap to assign to selected images instantly */}
       {selectedCount > 0 && (
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[9px] uppercase tracking-wider text-[var(--color-text)]/50 font-semibold mr-1">
+          <span className="text-xs uppercase tracking-wider text-[var(--color-text)]/50 font-semibold mr-1">
             Set {selectedCount} to:
           </span>
           {(Object.keys(ACTION_CONFIG) as BatchAction[]).map((action) => {
@@ -326,7 +326,7 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
                 key={action}
                 type="button"
                 onClick={() => applyActionToSelected(action)}
-                className={`rounded-lg px-2.5 py-1.5 text-[10px] font-semibold inline-flex items-center gap-1 transition-all border ${
+                className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold inline-flex items-center gap-1 transition-all border ${
                   allSelectedHaveThis
                     ? 'border-current bg-current/15 ring-1 ring-current/30'
                     : 'border-[var(--color-border-strong)] bg-black/40 hover:border-current hover:bg-current/5'
@@ -367,7 +367,7 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
               <div className="absolute top-1 right-1 flex items-center gap-0.5">
                 {!img.detecting && (
                   <span
-                    className="rounded px-1.5 py-0.5 text-[8px] font-bold"
+                    className="rounded px-1.5 py-0.5 text-2xs font-bold"
                     style={{ backgroundColor: actionCfg.color, color: '#000' }}
                   >
                     {actionCfg.short}
@@ -385,11 +385,11 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
               {/* Room type badge — bottom */}
               <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-1.5">
                 {img.detecting ? (
-                  <span className="inline-flex items-center gap-1 text-[9px] text-[var(--color-primary)]">
+                  <span className="inline-flex items-center gap-1 text-xs text-[var(--color-primary)]">
                     <Loader2 size={10} className="animate-spin" /> Detecting...
                   </span>
                 ) : (
-                  <span className="text-[9px] font-semibold text-white truncate block">
+                  <span className="text-xs font-semibold text-white truncate block">
                     {img.roomType}
                   </span>
                 )}
@@ -414,7 +414,7 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
             return (
               <span
                 key={action}
-                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold"
+                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold"
                 style={{ backgroundColor: `${cfg.color}20`, color: cfg.color }}
               >
                 {cfg.icon} {count} {cfg.label}

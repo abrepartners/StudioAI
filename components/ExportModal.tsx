@@ -511,7 +511,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-semibold text-white">Add Disclaimer</p>
-              <p className="text-[10px] text-zinc-500">Watermark or badge on exported image</p>
+              <p className="text-xs text-zinc-500">Watermark or badge on exported image</p>
             </div>
             <button
               type="button"
@@ -585,14 +585,14 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
 
               {/* Position */}
               <div>
-                <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-2">Position</p>
+                <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Position</p>
                 <div className="flex gap-2">
                   {([['bottom-left', 'Left'], ['bottom-center', 'Center'], ['bottom-right', 'Right']] as const).map(([pos, label]) => (
                     <button
                       key={pos}
                       type="button"
                       onClick={() => update({ position: pos })}
-                      className={`flex-1 rounded-lg px-2 py-1.5 text-[10px] font-semibold transition-all border ${
+                      className={`flex-1 rounded-lg px-2 py-1.5 text-xs font-semibold transition-all border ${
                         settings.position === pos
                           ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]'
                           : 'border-[var(--color-border)] text-zinc-500 hover:text-white'
@@ -607,8 +607,8 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
               {/* Opacity */}
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Opacity</p>
-                  <span className="text-[10px] text-zinc-500">{Math.round(settings.opacity * 100)}%</span>
+                  <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Opacity</p>
+                  <span className="text-xs text-zinc-500">{Math.round(settings.opacity * 100)}%</span>
                 </div>
                 <input
                   type="range"
@@ -634,7 +634,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-white">Create Reveal Video</p>
-                  <p className="text-[10px] text-zinc-500">Before/after wipe for Instagram & TikTok</p>
+                  <p className="text-xs text-zinc-500">Before/after wipe for Instagram & TikTok</p>
                 </div>
               </div>
 
@@ -643,7 +643,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
                 <button
                   type="button"
                   onClick={() => setVideoAspect('original')}
-                  className={`flex-1 rounded-lg px-3 py-2 text-[11px] font-semibold transition-all border ${
+                  className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-all border ${
                     videoAspect === 'original'
                       ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]'
                       : 'border-[var(--color-border-strong)] text-zinc-400 hover:text-white'
@@ -654,7 +654,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
                 <button
                   type="button"
                   onClick={() => setVideoAspect('1:1')}
-                  className={`flex-1 rounded-lg px-3 py-2 text-[11px] font-semibold transition-all border ${
+                  className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-all border ${
                     videoAspect === '1:1'
                       ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]'
                       : 'border-[var(--color-border-strong)] text-zinc-400 hover:text-white'
@@ -665,7 +665,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
                 <button
                   type="button"
                   onClick={() => setVideoAspect('4:5')}
-                  className={`flex-1 rounded-lg px-3 py-2 text-[11px] font-semibold transition-all border ${
+                  className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-all border ${
                     videoAspect === '4:5'
                       ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]'
                       : 'border-[var(--color-border-strong)] text-zinc-400 hover:text-white'
@@ -676,7 +676,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
                 <button
                   type="button"
                   onClick={() => setVideoAspect('9:16')}
-                  className={`flex-1 rounded-lg px-3 py-2 text-[11px] font-semibold transition-all border ${
+                  className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-all border ${
                     videoAspect === '9:16'
                       ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]'
                       : 'border-[var(--color-border-strong)] text-zinc-400 hover:text-white'
@@ -740,7 +740,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
               </div>
               <div className="flex-1 text-left">
                 <p className="text-xs font-semibold text-white">Share to community gallery</p>
-                <p className="text-[10px] text-zinc-500">Help other agents see what's possible</p>
+                <p className="text-xs text-zinc-500">Help other agents see what's possible</p>
               </div>
               <Heart size={14} className={shareToGallery ? 'text-[var(--color-primary)]' : 'text-zinc-600'} />
             </button>

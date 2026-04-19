@@ -30,7 +30,7 @@ const Badge: React.FC<BadgeProps> = ({
   return (
     <span
       className={[
-        'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider border',
+        'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold uppercase tracking-wider border',
         TONE_CLASSES[tone],
         className,
       ].join(' ')}

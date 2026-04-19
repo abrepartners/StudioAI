@@ -94,7 +94,7 @@ const CompareSlider: React.FC<CompareSliderProps> = ({ originalImage, generatedI
         </div>
       </div>
 
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-4 rounded-full bg-black/70 backdrop-blur-md px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-white">
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-4 rounded-full bg-black/70 backdrop-blur-md px-4 py-1.5 text-sm font-semibold uppercase tracking-[0.12em] text-white">
         <span className="text-zinc-400">Before</span>
         <span className="text-zinc-600">|</span>
         <span>Drag to compare</span>

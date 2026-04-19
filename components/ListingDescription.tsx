@@ -191,7 +191,7 @@ const ListingDescription: React.FC<ListingDescriptionProps> = ({
                 { key: 'price', label: 'Price', type: 'number' },
               ].map(({ key, label, type }) => (
                 <div key={key}>
-                  <label className="text-[10px] text-zinc-500 uppercase tracking-wider">{label}</label>
+                  <label className="text-xs text-zinc-500 uppercase tracking-wider">{label}</label>
                   <input
                     type={type}
                     value={details[key as keyof PropertyDetails] as number}
@@ -205,7 +205,7 @@ const ListingDescription: React.FC<ListingDescriptionProps> = ({
             {/* Year built + Property type */}
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-[10px] text-zinc-500 uppercase tracking-wider">Year Built</label>
+                <label className="text-xs text-zinc-500 uppercase tracking-wider">Year Built</label>
                 <input
                   type="number"
                   value={details.yearBuilt}
@@ -214,7 +214,7 @@ const ListingDescription: React.FC<ListingDescriptionProps> = ({
                 />
               </div>
               <div>
-                <label className="text-[10px] text-zinc-500 uppercase tracking-wider">Type</label>
+                <label className="text-xs text-zinc-500 uppercase tracking-wider">Type</label>
                 <select
                   value={details.propertyType}
                   onChange={(e) => setDetails((d) => ({ ...d, propertyType: e.target.value as PropertyDetails['propertyType'] }))}
@@ -229,7 +229,7 @@ const ListingDescription: React.FC<ListingDescriptionProps> = ({
 
             {/* Agent Notes */}
             <div>
-              <label className="text-[10px] text-zinc-500 uppercase tracking-wider">Agent Notes (optional)</label>
+              <label className="text-xs text-zinc-500 uppercase tracking-wider">Agent Notes (optional)</label>
               <textarea
                 value={agentNotes}
                 onChange={(e) => setAgentNotes(e.target.value)}
@@ -309,7 +309,7 @@ const ListingDescription: React.FC<ListingDescriptionProps> = ({
               const over = charCount > limit;
               return (
                 <div key={name} className="flex items-center gap-2">
-                  <span className="text-[10px] text-zinc-500 w-20 text-right">{name}</span>
+                  <span className="text-xs text-zinc-500 w-20 text-right">{name}</span>
                   <div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all duration-300"
@@ -319,7 +319,7 @@ const ListingDescription: React.FC<ListingDescriptionProps> = ({
                       }}
                     />
                   </div>
-                  <span className={`text-[10px] w-16 ${over ? 'text-[#FF375F] font-medium' : 'text-zinc-500'}`}>
+                  <span className={`text-xs w-16 ${over ? 'text-[#FF375F] font-medium' : 'text-zinc-500'}`}>
                     {charCount.toLocaleString()}/{limit.toLocaleString()}
                   </span>
                 </div>

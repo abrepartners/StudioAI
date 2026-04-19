@@ -171,7 +171,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="text-center mb-10 reveal">
-          <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[var(--color-primary)] mb-3">Pricing</p>
+          <p className="text-xs font-bold uppercase tracking-[0.25em] text-[var(--color-primary)] mb-3">Pricing</p>
           <h2 className="font-display text-3xl sm:text-5xl font-black text-white tracking-tight mb-4">
             One price. Every tool. No per-photo math.
           </h2>
@@ -205,7 +205,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
             <span className={`text-sm font-semibold transition-colors ${annual ? 'text-white' : 'text-zinc-500'}`}>
               Annual
             </span>
-            <span className="rounded-full px-2 py-0.5 bg-[#30D158]/15 border border-[#30D158]/30 text-[10px] font-bold text-[#30D158]">
+            <span className="rounded-full px-2 py-0.5 bg-[#30D158]/15 border border-[#30D158]/30 text-xs font-bold text-[#30D158]">
               Save 20% · 2 months free
             </span>
           </div>
@@ -213,7 +213,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
 
         {/* Social proof strip */}
         <div className="mb-10 reveal">
-          <p className="text-center text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-600 mb-4">
+          <p className="text-center text-xs font-bold uppercase tracking-[0.2em] text-zinc-600 mb-4">
             Trusted by agents, photographers, and media shops
           </p>
           <div className="flex items-center justify-center gap-2">
@@ -251,7 +251,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                 }`}
               >
                 {isPro && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-[var(--color-primary)] text-[9px] font-bold uppercase tracking-widest text-white whitespace-nowrap">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-[var(--color-primary)] text-xs font-bold uppercase tracking-widest text-white whitespace-nowrap">
                     Most Popular
                   </div>
                 )}
@@ -262,8 +262,8 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                     {PLAN_ICON[key]}
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">{plan.name}</p>
-                    <p className="text-[11px] text-zinc-400 leading-tight">{plan.tagline}</p>
+                    <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">{plan.name}</p>
+                    <p className="text-sm text-zinc-400 leading-tight">{plan.tagline}</p>
                   </div>
                 </div>
 
@@ -272,11 +272,11 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                   <span className="text-4xl font-black text-white">${priceLabel}</span>
                   {!isFree && <span className="text-sm text-zinc-500">{suffix}</span>}
                 </div>
-                <p className="text-[10px] text-zinc-500 mb-1 min-h-[14px]">
+                <p className="text-xs text-zinc-500 mb-1 min-h-[14px]">
                   {secondaryPrice}
                 </p>
                 {plan.perPhoto && (
-                  <p className="text-[11px] font-semibold text-[var(--color-primary)] mb-5 min-h-[16px]">
+                  <p className="text-sm font-semibold text-[var(--color-primary)] mb-5 min-h-[16px]">
                     {plan.perPhoto}
                   </p>
                 )}
@@ -301,7 +301,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
                   {annual ? plan.ctaYear : plan.ctaMonth}
                 </button>
                 {!isFree && (
-                  <p className="mt-2 text-[9px] text-center text-zinc-600">
+                  <p className="mt-2 text-xs text-center text-zinc-600">
                     Cancel anytime · 3-month pause available
                   </p>
                 )}
@@ -313,7 +313,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
         {/* Credit packs — post-grid, for occasional users */}
         <div className="reveal">
           <div className="text-center mb-6">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-600 mb-2">Pay-As-You-Go Credits</p>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-600 mb-2">Pay-As-You-Go Credits</p>
             <p className="text-sm text-zinc-400">No subscription. Buy credits, use anytime.</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto">
@@ -328,7 +328,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
               >
                 <p className="text-xs font-bold text-white mb-1">{pack.name}</p>
                 <p className="text-lg font-black text-white">{pack.price}</p>
-                <p className="text-[10px] text-zinc-500">{pack.per}</p>
+                <p className="text-xs text-zinc-500">{pack.per}</p>
               </div>
             ))}
           </div>
@@ -336,7 +336,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
 
         {/* Grandfathering footnote */}
         <div className="mt-12 max-w-2xl mx-auto text-center reveal">
-          <p className="text-[11px] text-zinc-500 leading-relaxed">
+          <p className="text-sm text-zinc-500 leading-relaxed">
             <span className="font-semibold text-zinc-400">Already a subscriber?</span>
             {' '}Early Bird users stay at $14/mo forever. Current Pro users keep $29/mo for 12 months, then move to $49/mo with 30-day notice. No surprise rate hikes — it's all in the account.
           </p>

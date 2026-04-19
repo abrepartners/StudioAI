@@ -63,7 +63,7 @@ const TryRoute: React.FC = () => {
 
       <main className="flex-1 grid place-items-center px-6 py-16">
         <div className="w-full max-w-xl">
-          <p className="text-[11px] uppercase tracking-[0.24em] text-zinc-500 mb-3">Instant demo</p>
+          <p className="text-sm uppercase tracking-[0.24em] text-zinc-500 mb-3">Instant demo</p>
           <h1 className="font-display text-3xl sm:text-4xl tracking-tight mb-3">
             Stage one room. No sign-up.
           </h1>

@@ -36,7 +36,7 @@ const AssetBadge: React.FC<{ done: boolean; label: string; icon: React.ElementTy
   icon: Icon,
 }) => (
   <div
-    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${
+    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-medium transition-all ${
       done
         ? 'bg-[#30D158]/15 text-[#30D158] border border-[#30D158]/20'
         : 'bg-zinc-800 text-zinc-500 border border-zinc-700'
@@ -85,12 +85,12 @@ const ListingCard: React.FC<{
           </div>
         )}
         {/* Photo count */}
-        <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-sm rounded-lg px-2 py-1 text-[10px] text-white flex items-center gap-1">
+        <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-sm rounded-lg px-2 py-1 text-xs text-white flex items-center gap-1">
           <ImageIcon className="w-3 h-3" />
           {listing.photos.length} photos
         </div>
         {/* Asset progress */}
-        <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm rounded-lg px-2 py-1 text-[10px] text-white">
+        <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm rounded-lg px-2 py-1 text-xs text-white">
           {assetCount}/5 assets
         </div>
         {/* Delete */}
@@ -129,7 +129,7 @@ const ListingCard: React.FC<{
         </div>
 
         {/* Timestamp */}
-        <div className="flex items-center gap-1 text-[10px] text-zinc-600">
+        <div className="flex items-center gap-1 text-xs text-zinc-600">
           <Clock className="w-3 h-3" />
           Updated {new Date(listing.updatedAt).toLocaleDateString()}
         </div>
@@ -158,7 +158,7 @@ const StatsBar: React.FC<{ listings: Listing[] }> = ({ listings }) => {
       ].map(({ value, label, color }) => (
         <div key={label} className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 text-center">
           <div className="text-2xl font-bold" style={{ color }}>{value}</div>
-          <div className="text-[11px] text-zinc-500 mt-1">{label}</div>
+          <div className="text-sm text-zinc-500 mt-1">{label}</div>
         </div>
       ))}
     </div>
@@ -241,7 +241,7 @@ const ListingDashboard: React.FC = () => {
               { label: 'Price', value: newPrice, set: setNewPrice },
             ].map(({ label, value, set }) => (
               <div key={label}>
-                <label className="text-[10px] text-zinc-500 uppercase">{label}</label>
+                <label className="text-xs text-zinc-500 uppercase">{label}</label>
                 <input
                   type="number"
                   value={value}

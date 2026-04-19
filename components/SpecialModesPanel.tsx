@@ -259,7 +259,7 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                 <div className="flex items-center justify-between px-1">
                     <div>
                         <p className="text-xs font-semibold text-[var(--color-text)]/80">Batch Mode</p>
-                        <p className="text-[10px] text-[var(--color-text)]/50">Apply edits to all {savedStages.length} saved images</p>
+                        <p className="text-xs text-[var(--color-text)]/50">Apply edits to all {savedStages.length} saved images</p>
                     </div>
                     <button
                         type="button"
@@ -310,7 +310,7 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                         <button
                             type="button"
                             onClick={() => { const fn = retryFn; setRetryFn(null); fn?.(); }}
-                            className="shrink-0 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider bg-rose-900 text-white hover:opacity-90 active:scale-95 transition-all"
+                            className="shrink-0 rounded-full px-3 py-1 text-sm font-bold uppercase tracking-wider bg-rose-900 text-white hover:opacity-90 active:scale-95 transition-all"
                         >
                             Retry
                         </button>
@@ -413,7 +413,7 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                         { label: 'Wall Color', value: walls, set: setWalls, placeholder: 'e.g. Benjamin Moore Simply White' },
                     ].map(({ label, value, set, placeholder }) => (
                         <div key={label}>
-                            <label className="text-[10px] font-mono uppercase tracking-[0.14em] text-[var(--color-primary)]/80">{label}</label>
+                            <label className="text-xs font-mono uppercase tracking-[0.14em] text-[var(--color-primary)]/80">{label}</label>
                             <input
                                 value={value}
                                 onChange={(e) => set(e.target.value)}
@@ -527,7 +527,7 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                         ].map(({ key, label, content }) => (
                             <div key={key} className="subtle-card rounded-2xl p-3">
                                 <div className="flex items-center justify-between mb-1.5">
-                                    <p className="text-[10px] uppercase tracking-[0.12em] text-[var(--color-text)]/70 font-semibold">{label}</p>
+                                    <p className="text-xs uppercase tracking-[0.12em] text-[var(--color-text)]/70 font-semibold">{label}</p>
                                     <button type="button" onClick={() => copyText(content, key)} className="text-[var(--color-primary)] hover:opacity-70 transition-opacity">
                                         {copied === key ? <CheckCircle2 size={14} /> : <Copy size={14} />}
                                     </button>
@@ -542,11 +542,11 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                                             const over = charCount > limit;
                                             return (
                                                 <div key={name} className="flex items-center gap-2">
-                                                    <span className="text-[9px] text-[var(--color-text)]/50 w-16 text-right">{name}</span>
+                                                    <span className="text-xs text-[var(--color-text)]/50 w-16 text-right">{name}</span>
                                                     <div className="flex-1 h-1 bg-black/40 rounded-full overflow-hidden">
                                                         <div className="h-full rounded-full transition-all duration-300" style={{ width: `${pct}%`, backgroundColor: over ? '#FF375F' : color }} />
                                                     </div>
-                                                    <span className={`text-[9px] w-14 ${over ? 'text-[#FF375F] font-medium' : 'text-[var(--color-text)]/50'}`}>
+                                                    <span className={`text-xs w-14 ${over ? 'text-[#FF375F] font-medium' : 'text-[var(--color-text)]/50'}`}>
                                                         {charCount.toLocaleString()}/{limit.toLocaleString()}
                                                     </span>
                                                 </div>
@@ -559,7 +559,7 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                         {listingCopy.hashtags.length > 0 && (
                             <div className="subtle-card rounded-2xl p-3">
                                 <div className="flex items-center justify-between mb-1.5">
-                                    <p className="text-[10px] uppercase tracking-[0.12em] text-[var(--color-text)]/70 font-semibold">Hashtags</p>
+                                    <p className="text-xs uppercase tracking-[0.12em] text-[var(--color-text)]/70 font-semibold">Hashtags</p>
                                     <button type="button" onClick={() => copyText(listingCopy.hashtags.map(h => `#${h}`).join(' '), 'hashtags')} className="text-[var(--color-primary)] hover:opacity-70">
                                         {copied === 'hashtags' ? <CheckCircle2 size={14} /> : <Copy size={14} />}
                                     </button>

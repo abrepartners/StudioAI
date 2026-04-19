@@ -238,7 +238,7 @@ const MLSExport: React.FC<MLSExportProps> = ({ images, mode = 'batch' }) => {
                   </div>
                 )}
                 <div className="absolute bottom-0 left-0 right-0 bg-black/60 px-1 py-0.5">
-                  <span className="text-[10px] text-white truncate block">{img.label}</span>
+                  <span className="text-xs text-white truncate block">{img.label}</span>
                 </div>
               </button>
             ))}

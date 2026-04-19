@@ -202,7 +202,7 @@ const SocialPack: React.FC<SocialPackProps> = ({ images, propertyDetails }) => {
           Branded social templates powered by your brand kit
         </p>
         {!brandKit.agentName && (
-          <p className="text-[11px] text-amber-400/80 mt-1.5">
+          <p className="text-sm text-amber-400/80 mt-1.5">
             Tip: set your brand kit in Settings for auto-filled agent info
           </p>
         )}
@@ -228,7 +228,7 @@ const SocialPack: React.FC<SocialPackProps> = ({ images, propertyDetails }) => {
                 <Icon className={`w-4 h-4 mt-0.5 flex-shrink-0 ${selected ? 'text-[#0A84FF]' : ''}`} />
                 <div className="min-w-0">
                   <div className="text-sm font-medium">{t.label}</div>
-                  <div className="text-[10px] opacity-70">{t.description}</div>
+                  <div className="text-xs opacity-70">{t.description}</div>
                 </div>
               </button>
             );
@@ -251,7 +251,7 @@ const SocialPack: React.FC<SocialPackProps> = ({ images, propertyDetails }) => {
                 }`}
               >
                 <div>{f.label}</div>
-                <div className="text-[10px] opacity-60 mt-0.5">{f.dims}</div>
+                <div className="text-xs opacity-60 mt-0.5">{f.dims}</div>
               </button>
             );
           })}

@@ -284,21 +284,21 @@ HARD PRESERVATION RULES — these override any instinct to "improve" the room:
           <button
             type="button"
             onClick={() => setStageMode('text')}
-            className={`relative z-10 flex-1 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider transition-colors ${stageMode === 'text' ? 'text-[var(--color-primary)]' : 'text-[var(--color-text)]/60 hover:text-white'}`}
+            className={`relative z-10 flex-1 py-2 text-xs sm:text-xs font-bold uppercase tracking-wider transition-colors ${stageMode === 'text' ? 'text-[var(--color-primary)]' : 'text-[var(--color-text)]/60 hover:text-white'}`}
           >
             Text
           </button>
           <button
             type="button"
             onClick={() => setStageMode('packs')}
-            className={`relative z-10 flex-1 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider transition-colors ${stageMode === 'packs' ? 'text-[var(--color-primary)]' : 'text-[var(--color-text)]/60 hover:text-white'}`}
+            className={`relative z-10 flex-1 py-2 text-xs sm:text-xs font-bold uppercase tracking-wider transition-colors ${stageMode === 'packs' ? 'text-[var(--color-primary)]' : 'text-[var(--color-text)]/60 hover:text-white'}`}
           >
             Packs
           </button>
           <button
             type="button"
             disabled
-            className="relative z-10 flex-1 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-[var(--color-text)]/30 cursor-not-allowed flex items-center justify-center gap-1"
+            className="relative z-10 flex-1 py-2 text-xs sm:text-xs font-bold uppercase tracking-wider text-[var(--color-text)]/30 cursor-not-allowed flex items-center justify-center gap-1"
           >
             Furnish <Badge tone="warn" className="hidden sm:inline-flex ml-1">SOON</Badge>
           </button>
@@ -381,7 +381,7 @@ HARD PRESERVATION RULES — these override any instinct to "improve" the room:
           {onReferenceImageChange && (
             <div className="mt-4 border-t border-[var(--color-border)] pt-4">
               <div className="flex items-center justify-between gap-2 mb-2">
-                <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-bold text-[var(--color-text)]/60">
+                <div className="flex items-center gap-1.5 text-xs uppercase tracking-wider font-bold text-[var(--color-text)]/60">
                   <ImageIcon size={12} />
                   Reference element
                   <span className="normal-case tracking-normal font-normal text-[var(--color-text)]/50">(optional)</span>
@@ -390,7 +390,7 @@ HARD PRESERVATION RULES — these override any instinct to "improve" the room:
                   <button
                     type="button"
                     onClick={() => onReferenceImageChange(null)}
-                    className="text-[10px] uppercase tracking-wider text-[var(--color-text)]/50 hover:text-[#FF375F] transition-colors flex items-center gap-1"
+                    className="text-xs uppercase tracking-wider text-[var(--color-text)]/50 hover:text-[#FF375F] transition-colors flex items-center gap-1"
                     aria-label="Clear reference image"
                   >
                     <X size={11} />
@@ -424,7 +424,7 @@ HARD PRESERVATION RULES — these override any instinct to "improve" the room:
                     <button
                       type="button"
                       onClick={() => referenceInputRef.current?.click()}
-                      className="mt-1.5 text-[10px] uppercase tracking-wider font-semibold text-[var(--color-primary)] hover:underline"
+                      className="mt-1.5 text-xs uppercase tracking-wider font-semibold text-[var(--color-primary)] hover:underline"
                     >
                       Replace
                     </button>
@@ -476,7 +476,7 @@ HARD PRESERVATION RULES — these override any instinct to "improve" the room:
           {/* X3: Narrow-room guard. Prevents pack-mode from being fired on
               frames Gemini can't stage without reframing walls. */}
           {isNarrowGeometry && aspectRatio !== null && (
-            <div className="mb-4 rounded-xl border border-[#FF9F0A]/40 bg-[#FF9F0A]/5 px-3 py-2.5 text-[11px] leading-relaxed text-[#FFC15C] flex items-start gap-2">
+            <div className="mb-4 rounded-xl border border-[#FF9F0A]/40 bg-[#FF9F0A]/5 px-3 py-2.5 text-sm leading-relaxed text-[#FFC15C] flex items-start gap-2">
               <AlertTriangle size={14} className="mt-0.5 shrink-0" />
               <span>
                 This pack may not fit this room shape ({aspectRatio.toFixed(2)}:1 aspect).
@@ -539,11 +539,11 @@ HARD PRESERVATION RULES — these override any instinct to "improve" the room:
                     </span>
                     <span className="min-w-0">
                       <span className="block text-sm font-bold text-white drop-shadow">{preset.id}</span>
-                      <span className={`block text-[10px] uppercase tracking-wider truncate drop-shadow ${active ? 'text-[var(--color-primary)]' : 'text-white/75'}`}>{preset.description}</span>
+                      <span className={`block text-xs uppercase tracking-wider truncate drop-shadow ${active ? 'text-[var(--color-primary)]' : 'text-white/75'}`}>{preset.description}</span>
                     </span>
                   </div>
                   {active && (
-                    <span className="absolute top-2 right-2 text-[9px] uppercase tracking-wider text-white font-semibold bg-[var(--color-primary)]/90 px-2 py-1 rounded-md shadow pointer-events-none">
+                    <span className="absolute top-2 right-2 text-xs uppercase tracking-wider text-white font-semibold bg-[var(--color-primary)]/90 px-2 py-1 rounded-md shadow pointer-events-none">
                       Click again to generate
                     </span>
                   )}

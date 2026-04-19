@@ -298,7 +298,7 @@ const BetaFeedbackForm: React.FC<BetaFeedbackFormProps> = ({
                 alt="Current generated result preview"
                 className="max-h-36 w-full rounded-lg object-cover"
               />
-              <p className="mt-1 text-[11px] text-[var(--color-text)]/70">
+              <p className="mt-1 text-sm text-[var(--color-text)]/70">
                 A compressed screenshot preview will be attached to this report.
               </p>
             </div>
@@ -323,7 +323,7 @@ const BetaFeedbackForm: React.FC<BetaFeedbackFormProps> = ({
     return (
       <div className="premium-surface rounded-2xl p-5">
         <div className="mb-3">
-          <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--color-text)]/70">Feedback Checkpoint</p>
+          <p className="text-sm uppercase tracking-[0.16em] text-[var(--color-text)]/70">Feedback Checkpoint</p>
           <h3 className="font-display text-xl mt-1">Rate This Result</h3>
         </div>
         {quickFeedbackBlock}
@@ -349,7 +349,7 @@ const BetaFeedbackForm: React.FC<BetaFeedbackFormProps> = ({
   return (
     <div className="premium-surface rounded-2xl p-5">
       <div className="mb-3">
-        <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--color-text)]/70">Beta Feedback</p>
+        <p className="text-sm uppercase tracking-[0.16em] text-[var(--color-text)]/70">Beta Feedback</p>
         <h3 className="font-display text-xl mt-1">Tell us what feels off</h3>
         <p className="text-sm text-[var(--color-text)]/78 mt-1">
           This helps prioritize the next iteration. Use this for confusing flows, missing controls, or visual issues.

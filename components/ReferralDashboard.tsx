@@ -139,7 +139,7 @@ const ReferralDashboard: React.FC<ReferralDashboardProps> = ({ userEmail, userId
               <p className="text-xs text-zinc-300">
                 Lock in <span className="font-bold text-white">$14/mo</span> forever (regular $29). Get a referral code to share the same rate with up to 5 friends.
               </p>
-              <p className="text-[10px] text-[#FFD60A] font-semibold mt-1.5">
+              <p className="text-xs text-[#FFD60A] font-semibold mt-1.5">
                 {spotsLeft} of 20 spots remaining
               </p>
               <div className="h-1.5 bg-black/40 rounded-full overflow-hidden mt-1.5">
@@ -183,7 +183,7 @@ const ReferralDashboard: React.FC<ReferralDashboardProps> = ({ userEmail, userId
           <h4 className="text-sm font-semibold text-[var(--color-ink)]">Your Referral Code</h4>
         </div>
         {code.is_early_bird && (
-          <span className="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-[#FFD60A]/15 text-[#FFD60A] border border-[#FFD60A]/30">
+          <span className="rounded-full px-2 py-0.5 text-xs font-bold uppercase tracking-wider bg-[#FFD60A]/15 text-[#FFD60A] border border-[#FFD60A]/30">
             Early Bird
           </span>
         )}
@@ -204,7 +204,7 @@ const ReferralDashboard: React.FC<ReferralDashboardProps> = ({ userEmail, userId
         </button>
       </div>
 
-      <p className="text-[10px] text-[var(--color-text)]/50">
+      <p className="text-xs text-[var(--color-text)]/50">
         Friends who use your code get Pro at ${(code.discount_price / 100).toFixed(0)}/mo. {usesLeft} use{usesLeft !== 1 ? 's' : ''} remaining.
       </p>
 
@@ -217,17 +217,17 @@ const ReferralDashboard: React.FC<ReferralDashboardProps> = ({ userEmail, userId
             style={{ width: `${(code.times_used / code.max_uses) * 100}%` }}
           />
         </div>
-        <span className="text-[10px] text-[var(--color-text)]/50 tabular-nums">{code.times_used}/{code.max_uses}</span>
+        <span className="text-xs text-[var(--color-text)]/50 tabular-nums">{code.times_used}/{code.max_uses}</span>
       </div>
 
       {/* Referral list */}
       {referrals.length > 0 && (
         <div className="space-y-1">
-          <p className="text-[9px] uppercase tracking-wider text-[var(--color-text)]/40 font-semibold">Referrals</p>
+          <p className="text-xs uppercase tracking-wider text-[var(--color-text)]/40 font-semibold">Referrals</p>
           {referrals.map((ref) => (
             <div key={ref.id} className="flex items-center justify-between rounded-lg bg-black/30 border border-[var(--color-border)] px-3 py-1.5">
-              <span className="text-[10px] text-[var(--color-text)]/70 truncate">{ref.referred_email}</span>
-              <span className={`text-[9px] font-semibold ${ref.referred_subscribed ? 'text-[#30D158]' : 'text-zinc-500'}`}>
+              <span className="text-xs text-[var(--color-text)]/70 truncate">{ref.referred_email}</span>
+              <span className={`text-xs font-semibold ${ref.referred_subscribed ? 'text-[#30D158]' : 'text-zinc-500'}`}>
                 {ref.referred_subscribed ? 'Subscribed' : 'Signed up'}
               </span>
             </div>

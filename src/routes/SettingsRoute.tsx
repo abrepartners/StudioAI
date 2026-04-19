@@ -214,7 +214,7 @@ const IntegrationsTab: React.FC = () => (
             <div className="text-sm font-semibold text-white">{row.name}</div>
             <div className="text-xs text-zinc-500 mt-0.5">{row.desc}</div>
           </div>
-          <span className="text-[10px] uppercase tracking-[0.16em] text-zinc-500">{row.status}</span>
+          <span className="text-xs uppercase tracking-[0.16em] text-zinc-500">{row.status}</span>
         </div>
       ))}
     </div>

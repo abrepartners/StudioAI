@@ -305,7 +305,7 @@ const PrintCollateral: React.FC<PrintCollateralProps> = ({ listingData }) => {
             >
               <Icon className={`w-5 h-5 mb-2 ${selectedTemplate === t.type ? 'text-[#0A84FF]' : 'text-zinc-500'}`} />
               <div className="text-xs font-medium text-white">{t.label}</div>
-              <div className="text-[10px] text-zinc-500 mt-0.5">{t.size} · {t.pages}pg</div>
+              <div className="text-xs text-zinc-500 mt-0.5">{t.size} · {t.pages}pg</div>
             </button>
           );
         })}

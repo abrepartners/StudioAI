@@ -19,7 +19,7 @@ const Pill = React.forwardRef<HTMLButtonElement, PillProps>(function Pill(
   ref
 ) {
   const base =
-    'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide border transition-all whitespace-nowrap shrink-0';
+    'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-wide border transition-all whitespace-nowrap shrink-0';
   const state = active
     ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]'
     : 'border-[var(--color-border-strong)] bg-black/40 text-[var(--color-text)]/70 hover:bg-[var(--color-primary)]/10 hover:border-[var(--color-primary)]/50 hover:text-[var(--color-primary)]';

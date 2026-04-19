@@ -245,7 +245,7 @@ const ManageTeam: React.FC<ManageTeamProps> = ({ adminEmail }) => {
           <Building2 size={16} className="text-[var(--color-primary)]" />
           <div>
             <h4 className="text-sm font-semibold text-[var(--color-ink)]">{brokerage.name}</h4>
-            <p className="text-[10px] text-[var(--color-text)]/50">Choose a plan for your team</p>
+            <p className="text-xs text-[var(--color-text)]/50">Choose a plan for your team</p>
           </div>
         </div>
 
@@ -265,16 +265,16 @@ const ManageTeam: React.FC<ManageTeamProps> = ({ adminEmail }) => {
               <div className="flex items-center justify-between">
                 <div>
                   <span className="text-sm font-bold text-[var(--color-ink)]">{tier.name}</span>
-                  <span className="ml-2 text-[10px] text-[var(--color-text)]/50">Up to {tier.maxSeats} agents</span>
+                  <span className="ml-2 text-xs text-[var(--color-text)]/50">Up to {tier.maxSeats} agents</span>
                 </div>
                 <div className="text-right">
                   <span className="text-sm font-bold text-white">${tier.price}</span>
-                  <span className="text-[10px] text-[var(--color-text)]/50">/mo</span>
+                  <span className="text-xs text-[var(--color-text)]/50">/mo</span>
                 </div>
               </div>
               <div className="flex items-center gap-3 mt-1">
-                <span className="text-[10px] text-[var(--color-text)]/50">{tier.perAgent}/agent</span>
-                <span className="text-[10px] font-semibold text-[#30D158]">Save {tier.save}</span>
+                <span className="text-xs text-[var(--color-text)]/50">{tier.perAgent}/agent</span>
+                <span className="text-xs font-semibold text-[#30D158]">Save {tier.save}</span>
               </div>
               {selectedTier === tier.id && (
                 <div className="absolute top-2 right-2">
@@ -285,7 +285,7 @@ const ManageTeam: React.FC<ManageTeamProps> = ({ adminEmail }) => {
           ))}
         </div>
 
-        <div className="text-[10px] text-[var(--color-text)]/40 text-center">
+        <div className="text-xs text-[var(--color-text)]/40 text-center">
           Individual Pro is $29/agent/mo. Brokerage plans save your team money.
         </div>
 
@@ -308,7 +308,7 @@ const ManageTeam: React.FC<ManageTeamProps> = ({ adminEmail }) => {
           )}
         </button>
 
-        <p className="text-[9px] text-[var(--color-text)]/30 text-center">
+        <p className="text-xs text-[var(--color-text)]/30 text-center">
           Powered by Stripe. Cancel anytime. Coupon codes accepted at checkout.
         </p>
       </div>
@@ -323,10 +323,10 @@ const ManageTeam: React.FC<ManageTeamProps> = ({ adminEmail }) => {
           <Building2 size={16} className="text-[var(--color-primary)]" />
           <div>
             <h4 className="text-sm font-semibold text-[var(--color-ink)]">{brokerage.name}</h4>
-            <p className="text-[10px] text-[var(--color-text)]/50">{seatsUsed}/{seatsMax} seats used</p>
+            <p className="text-xs text-[var(--color-text)]/50">{seatsUsed}/{seatsMax} seats used</p>
           </div>
         </div>
-        <span className="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-[var(--color-primary)]/15 text-[var(--color-primary)] border border-[var(--color-primary)]/30">
+        <span className="rounded-full px-2 py-0.5 text-xs font-bold uppercase tracking-wider bg-[var(--color-primary)]/15 text-[var(--color-primary)] border border-[var(--color-primary)]/30">
           Admin
         </span>
       </div>
@@ -370,7 +370,7 @@ const ManageTeam: React.FC<ManageTeamProps> = ({ adminEmail }) => {
         </div>
       )}
       {seatsUsed >= seatsMax && (
-        <p className="text-[10px] text-[#FF375F] text-center">
+        <p className="text-xs text-[#FF375F] text-center">
           All seats filled. Upgrade your plan to add more agents.
         </p>
       )}
@@ -388,7 +388,7 @@ const ManageTeam: React.FC<ManageTeamProps> = ({ adminEmail }) => {
               className="flex items-center justify-between rounded-lg bg-black/30 border border-[var(--color-border)] px-3 py-2"
             >
               <div className="min-w-0">
-                <p className="text-[10px] text-[var(--color-text)]/70 truncate">{agent.email}</p>
+                <p className="text-xs text-[var(--color-text)]/70 truncate">{agent.email}</p>
               </div>
               <Tooltip label="Remove agent">
                 <button

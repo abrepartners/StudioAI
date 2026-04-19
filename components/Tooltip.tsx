@@ -187,7 +187,7 @@ const Tooltip: React.FC<TooltipProps> = ({
           id={id}
           className={[
             'fixed z-[10000] pointer-events-none select-none',
-            'rounded-lg px-2.5 py-1.5 text-[11px] font-medium leading-snug',
+            'rounded-lg px-2.5 py-1.5 text-sm font-medium leading-snug',
             'bg-[var(--color-bg-deep,#0b0b0c)] text-white border border-[var(--color-border-strong,rgba(255,255,255,0.12))] shadow-lg',
             'max-w-[240px]',
             className,

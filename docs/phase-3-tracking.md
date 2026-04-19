@@ -68,7 +68,7 @@ Phase 3 from `docs/overhaul-2026-04/02-execution-backlog.md` = Differentiate (D1
 | X2 | Per-image batch action picker | shipped | Per-row `<select>` dropdown on pending/error rows in BatchProcessor + "Apply to remaining" toolbar in progress header. processOne reads latest action via resultsRef. BatchUploader pre-sets Exterior→twilight / Interior→stage defaults. |
 | X3 | UI gating on narrow-room packs | shipped | Pack-mode warns + blocks generation when aspect > 2.2 or < 0.6 |
 | X4 | Post-gen alignment check for Cleanup | shipped | Edge-overlap check on 128x128 grayscale; flash-tier only, bails < 70% with user toast. Wired into App.tsx `handleGenerate` cleanup path + BatchProcessor cleanup case. |
-| X5 | F10/F12 polish sweeps | todo | 211 `text-[Npx]` + ~15 custom radii; gated on Playwright (X1) |
+| X5 | F10/F12 polish sweeps | shipped | F10: 247 `text-[Npx]` → tokens (7/8→2xs, 9/10→xs, 11/13→sm) across 27 files. F12: 5 `rounded-[…]` → tokens in App.tsx. All 10 X1 baselines updated post-sweep — diffs were the intended type-scale collapse, no regressions. |
 
 ---
 
@@ -82,16 +82,26 @@ Phase 3 from `docs/overhaul-2026-04/02-execution-backlog.md` = Differentiate (D1
 
 ---
 
+## Cluster M — Polish (D8 + D14)
+**Lead:** `cluster-m-lead`
+**Scope:** thumbnail pipeline + MaskCanvas memory fix. (X5 lives under Cluster I above.)
+
+| # | Title | Status | Notes |
+|---|---|---|---|
+| D8  | Thumbnail pipeline | shipped | New `utils/thumbnail.ts` (256-wide JPEG 0.85). Wired into `handleSaveStage` (App.tsx) + both BatchProcessor save sites (export auto-save + processOne). `SavedStage.thumbnail?` optional for back-compat. History grid prefers thumbnail; backfills full-res-only stages on first display + writes back to localStorage. |
+| D14 | MaskCanvas history memory fix | shipped | Fix path A (vector strokes). `MaskStroke = { points, brushSize, closed }` replaces `ImageData[]`. `renderFromHistory()` replays 0..index on undo/redo from a cleared canvas. Memory drops ~3 orders of magnitude (16 MB/snapshot → ~24 B/point). Blank state is now `historyIndex === -1`. |
+
+---
+
 ## Deferred (later Phase 3)
 
 - D1 Listing Score (XL)
 - D5 Public API (XL)
 - D6 GHL native integration
-- D8 Thumbnail pipeline
 - D10 Community Gallery
 - D11 Reveal video productization
 - D12 SEO blog
-- D14-D26 (per backlog)
+- D15-D26 (per backlog)
 
 ---
 

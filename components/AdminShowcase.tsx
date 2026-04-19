@@ -94,7 +94,7 @@ const AdminShowcase: React.FC<AdminShowcaseProps> = ({ adminEmail }) => {
           <ImageIcon size={16} className="text-[var(--color-primary)]" />
           <h4 className="text-sm font-semibold text-[var(--color-ink)]">Showcase Admin</h4>
           {pending.length > 0 && (
-            <span className="rounded-full bg-[#FF375F] text-white text-[9px] font-bold px-1.5 py-0.5 min-w-[18px] text-center">
+            <span className="rounded-full bg-[#FF375F] text-white text-xs font-bold px-1.5 py-0.5 min-w-[18px] text-center">
               {pending.length}
             </span>
           )}
@@ -115,7 +115,7 @@ const AdminShowcase: React.FC<AdminShowcaseProps> = ({ adminEmail }) => {
             </div>
           ) : (
             <>
-              <p className="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold">
+              <p className="text-xs text-zinc-500 uppercase tracking-wider font-semibold">
                 {pending.length} pending review
               </p>
               {pending.map(item => (
@@ -131,7 +131,7 @@ const AdminShowcase: React.FC<AdminShowcaseProps> = ({ adminEmail }) => {
                         alt="Before"
                         className="w-full aspect-[4/3] object-cover"
                       />
-                      <span className="absolute bottom-1 left-1 rounded bg-black/70 px-1.5 py-0.5 text-[8px] font-bold text-zinc-300 uppercase tracking-wider">
+                      <span className="absolute bottom-1 left-1 rounded bg-black/70 px-1.5 py-0.5 text-2xs font-bold text-zinc-300 uppercase tracking-wider">
                         Before
                       </span>
                     </div>
@@ -141,7 +141,7 @@ const AdminShowcase: React.FC<AdminShowcaseProps> = ({ adminEmail }) => {
                         alt="After"
                         className="w-full aspect-[4/3] object-cover"
                       />
-                      <span className="absolute bottom-1 left-1 rounded bg-black/70 px-1.5 py-0.5 text-[8px] font-bold text-zinc-300 uppercase tracking-wider">
+                      <span className="absolute bottom-1 left-1 rounded bg-black/70 px-1.5 py-0.5 text-2xs font-bold text-zinc-300 uppercase tracking-wider">
                         After
                       </span>
                     </div>
@@ -152,7 +152,7 @@ const AdminShowcase: React.FC<AdminShowcaseProps> = ({ adminEmail }) => {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 min-w-0">
                         <span
-                          className="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider border"
+                          className="rounded-full px-2 py-0.5 text-xs font-bold uppercase tracking-wider border"
                           style={{
                             color: toolColors[item.tool_used] || '#0A84FF',
                             borderColor: `${toolColors[item.tool_used] || '#0A84FF'}40`,
@@ -162,10 +162,10 @@ const AdminShowcase: React.FC<AdminShowcaseProps> = ({ adminEmail }) => {
                           {item.tool_used}
                         </span>
                         {item.room_type && (
-                          <span className="text-[10px] text-zinc-500 truncate">{item.room_type}</span>
+                          <span className="text-xs text-zinc-500 truncate">{item.room_type}</span>
                         )}
                       </div>
-                      <span className="text-[9px] text-zinc-600 whitespace-nowrap">{formatDate(item.created_at)}</span>
+                      <span className="text-xs text-zinc-600 whitespace-nowrap">{formatDate(item.created_at)}</span>
                     </div>
 
                     <div className="flex items-center justify-between">
@@ -208,7 +208,7 @@ const AdminShowcase: React.FC<AdminShowcaseProps> = ({ adminEmail }) => {
                 type="button"
                 onClick={fetchPending}
                 disabled={loading}
-                className="w-full rounded-xl px-3 py-2 text-[10px] font-semibold text-zinc-500 hover:text-zinc-300 bg-white/[0.02] border border-[var(--color-border)] hover:bg-white/[0.05] transition"
+                className="w-full rounded-xl px-3 py-2 text-xs font-semibold text-zinc-500 hover:text-zinc-300 bg-white/[0.02] border border-[var(--color-border)] hover:bg-white/[0.05] transition"
               >
                 {loading ? 'Loading...' : 'Refresh'}
               </button>

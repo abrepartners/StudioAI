@@ -241,7 +241,7 @@ const FurnitureRemover: React.FC<FurnitureRemoverProps> = ({
             {descriptions.map((desc, i) => (
               <span
                 key={i}
-                className="inline-flex items-center gap-1 rounded-full bg-[#FF375F]/15 border border-[#FF375F]/30 px-2.5 py-1 text-[10px] font-semibold text-[#FF375F]"
+                className="inline-flex items-center gap-1 rounded-full bg-[#FF375F]/15 border border-[#FF375F]/30 px-2.5 py-1 text-xs font-semibold text-[#FF375F]"
               >
                 {desc}
                 <button type="button" onClick={() => removeDescription(i)} className="hover:text-white">

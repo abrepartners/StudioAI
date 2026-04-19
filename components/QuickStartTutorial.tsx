@@ -142,7 +142,7 @@ const QuickStartTutorial: React.FC<QuickStartTutorialProps> = ({ forceShow, firs
           <div className="p-8">
             {/* Step indicator */}
             <div className="flex items-center justify-between mb-6">
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+              <span className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">
                 Step {step + 1} of {STEPS.length}
               </span>
               <button
@@ -208,7 +208,7 @@ const QuickStartTutorial: React.FC<QuickStartTutorialProps> = ({ forceShow, firs
               <button
                 type="button"
                 onClick={handleClose}
-                className="text-[10px] text-zinc-600 hover:text-zinc-400 transition"
+                className="text-xs text-zinc-600 hover:text-zinc-400 transition"
               >
                 Skip tutorial
               </button>

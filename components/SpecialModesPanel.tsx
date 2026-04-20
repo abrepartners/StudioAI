@@ -26,6 +26,8 @@ import { sharpenImage } from '../utils/sharpen';
 import { compositeStackedEdit } from '../utils/stackComposite';
 import PanelHeader from './PanelHeader';
 import { Badge, Button } from './ui';
+import { buildCleanupSignal, type CleanupQualitySignal } from '../src/types/cleanupQuality';
+import { trackCleanupRisk } from '../src/lib/analytics';
 
 // Post-process a Pro AI Tool's raw Gemini output:
 //   1. Sharpen (PNG when chain is on — no JPEG spiral on further stacking)
@@ -148,6 +150,7 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
     // Batch mode
     const [batchMode, setBatchMode] = useState(false);
     const [batchProgress, setBatchProgress] = useState<{ current: number; total: number; results: string[] } | null>(null);
+    const [declutterSignal, setDeclutterSignal] = useState<CleanupQualitySignal | null>(null);
 
     // Sky replacement
     const [skyStyle, setSkyStyle] = useState<SkyStyle>('blue');
@@ -415,12 +418,58 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                     disabled={loading !== null || (!currentImage && !canBatch)}
                     onClick={() => canBatch
                         ? runBatch('declutter', (img, signal) => instantDeclutter(img, selectedRoom, isPro, signal))
-                        : run('declutter', async (signal) => { const result = await postProcessToolOutput(await instantDeclutter(currentImage!, selectedRoom, isPro, signal), currentImage); onNewImage(result, 'cleanup'); })
+                        : run('declutter', async (signal) => {
+                            setDeclutterSignal(buildCleanupSignal({
+                                risk: 'review',
+                                source: 'single',
+                                reason: 'Cleanup is running quality checks.',
+                                compositeMode: 'not_applicable',
+                                nextActions: ['Review boundaries after generation'],
+                            }));
+                            try {
+                                const result = await postProcessToolOutput(await instantDeclutter(currentImage!, selectedRoom, isPro, signal), currentImage);
+                                onNewImage(result, 'cleanup');
+                                const safe = buildCleanupSignal({
+                                    risk: 'safe',
+                                    source: 'single',
+                                    reason: 'Cleanup completed in Pro Tools.',
+                                    compositeMode: 'applied',
+                                    nextActions: ['Export when ready'],
+                                });
+                                setDeclutterSignal(safe);
+                                trackCleanupRisk(safe.risk, { source: 'pro-tools' });
+                            } catch (err) {
+                                const high = buildCleanupSignal({
+                                    risk: 'high',
+                                    source: 'single',
+                                    reason: 'Cleanup failed in Pro Tools.',
+                                    compositeMode: 'not_applicable',
+                                    nextActions: ['Retry cleanup', 'Use smaller edit scope'],
+                                });
+                                setDeclutterSignal(high);
+                                trackCleanupRisk(high.risk, { source: 'pro-tools' });
+                                throw err;
+                            }
+                        })
                     }
                     className={`w-full rounded-2xl px-4 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all ${loading === 'declutter' ? 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border)]' : 'bg-white/[0.03] text-white border border-white/10 hover:bg-white/[0.06] hover:border-white/20 flex items-center justify-center gap-2 [&_svg]:text-[var(--color-primary)]'}`}
                 >
                     {loading === 'declutter' ? <><Loader2 size={16} className="animate-spin text-[var(--color-primary)]" /> {canBatch ? 'Processing batch...' : 'Cleaning up...'}</> : <><Trash2 size={16} /> {canBatch ? `Apply to All (${batchImages.length})` : 'Remove Clutter'}</>}
                 </button>
+                {declutterSignal && (
+                    <div className={`mt-3 rounded-xl border px-3 py-2 ${
+                        declutterSignal.risk === 'safe'
+                            ? 'border-[#30D158]/35 bg-[#30D158]/10'
+                            : declutterSignal.risk === 'high'
+                                ? 'border-[#FF375F]/35 bg-[#FF375F]/10'
+                                : 'border-[#FF9F0A]/35 bg-[#FF9F0A]/10'
+                    }`}>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-white">
+                            Cleanup confidence: {declutterSignal.risk}
+                        </p>
+                        <p className="text-xs text-zinc-300 mt-1">{declutterSignal.reason}</p>
+                    </div>
+                )}
             </Section>
 
             {/* Virtual Renovation -> Matter Reconstitution */}

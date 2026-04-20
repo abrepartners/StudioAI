@@ -1,4 +1,10 @@
 import { json, setCors, handleOptions, rejectMethod, parseBody } from './utils.js';
+import {
+  DISPLAY_COPY,
+  FREE_TIER_POLICY,
+  MONETIZATION_POLICY_VERSION,
+  hasUnlimitedGeneration,
+} from '../shared/monetization';
 
 export const config = { runtime: 'nodejs' };
 
@@ -6,7 +12,7 @@ const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
 
-const FREE_LIFETIME_CAP = 5;
+const FREE_LIFETIME_CAP = FREE_TIER_POLICY.lifetimeCap;
 
 function getCurrentDay(): string {
   const now = new Date();
@@ -145,6 +151,11 @@ export default async function handler(req: any, res: any) {
         generationsUsed: 1,
         period: getCurrentDay(),
         lifetimeFreeGensUsed: lifetime,
+        policyVersion: MONETIZATION_POLICY_VERSION,
+        display: {
+          policyVersion: MONETIZATION_POLICY_VERSION,
+          freeTierSummary: DISPLAY_COPY.freeTierShort,
+        },
       });
       return;
     }
@@ -159,8 +170,13 @@ export default async function handler(req: any, res: any) {
     const plan = sub?.metadata?.studioai_plan || sub?.items?.data?.[0]?.price?.metadata?.studioai_plan || (sub ? 'pro' : null);
 
     // Pro / Team: unlimited — just acknowledge.
-    if (plan === 'pro' || plan === 'team') {
-      json(res, 200, { ok: true, generationsUsed: -1, period: getCurrentDay() });
+    if (hasUnlimitedGeneration(plan)) {
+      json(res, 200, {
+        ok: true,
+        generationsUsed: -1,
+        period: getCurrentDay(),
+        policyVersion: MONETIZATION_POLICY_VERSION,
+      });
       return;
     }
 
@@ -195,6 +211,11 @@ export default async function handler(req: any, res: any) {
         generationsUsed: lifetime,
         period: getCurrentDay(),
         lifetimeFreeGensUsed: lifetime,
+        policyVersion: MONETIZATION_POLICY_VERSION,
+        display: {
+          policyVersion: MONETIZATION_POLICY_VERSION,
+          freeTierSummary: DISPLAY_COPY.freeTierShort,
+        },
       });
       return;
     }
@@ -220,6 +241,11 @@ export default async function handler(req: any, res: any) {
       generationsUsed: newCount,
       period: currentDay,
       lifetimeFreeGensUsed: lifetime,
+      policyVersion: MONETIZATION_POLICY_VERSION,
+      display: {
+        policyVersion: MONETIZATION_POLICY_VERSION,
+        freeTierSummary: DISPLAY_COPY.freeTierShort,
+      },
     });
   } catch (err: any) {
     console.error('Record generation error:', err);

@@ -14,7 +14,7 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { AlertCircle, Image as ImageIcon, RefreshCw } from 'lucide-react';
 import { isAdmin, readGoogleUser } from './authStorage';
 
@@ -111,11 +111,11 @@ const AdminPackMatrixRoute: React.FC = () => {
     <div className="min-h-screen bg-black text-zinc-100">
       <header className="px-6 py-4 border-b border-white/[0.06] flex items-center justify-between">
         <div className="flex items-center gap-6">
-          <a href="/" className="font-display text-lg tracking-tight">StudioAI</a>
+          <Link to="/" className="font-display text-lg tracking-tight">StudioAI</Link>
           <nav className="flex items-center gap-4 text-xs text-zinc-400">
-            <a href="/" className="hover:text-white transition">Studio</a>
-            <a href="/listings" className="hover:text-white transition">Listings</a>
-            <a href="/settings/brand" className="hover:text-white transition">Settings</a>
+            <Link to="/" className="hover:text-white transition">Studio</Link>
+            <Link to="/listings" className="hover:text-white transition">Listings</Link>
+            <Link to="/settings/brand" className="hover:text-white transition">Settings</Link>
             <span className="text-white font-semibold">Pack Matrix</span>
           </nav>
         </div>

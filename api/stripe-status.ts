@@ -1,4 +1,11 @@
 import { json, setCors, handleOptions, rejectMethod } from './utils.js';
+import {
+  DISPLAY_COPY,
+  FREE_TIER_POLICY,
+  MONETIZATION_POLICY_VERSION,
+  STARTER_MONTHLY_LIMIT,
+  hasUnlimitedGeneration,
+} from '../shared/monetization';
 
 export const config = { runtime: 'nodejs' };
 
@@ -6,9 +13,8 @@ const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
 
-const FREE_LIFETIME_CAP = 5;
-const FREE_DAILY_LIMIT_AFTER_LIFETIME = 1;
-const STARTER_MONTHLY_LIMIT = 40;
+const FREE_LIFETIME_CAP = FREE_TIER_POLICY.lifetimeCap;
+const FREE_DAILY_LIMIT_AFTER_LIFETIME = FREE_TIER_POLICY.dailyAfterLifetime;
 
 /** Check if email belongs to a brokerage agent with an active subscription */
 const checkBrokerageAccess = async (email: string): Promise<boolean> => {
@@ -75,6 +81,11 @@ export default async function handler(req: any, res: any) {
         generationsUsed: 0,
         lifetimeFreeGensUsed: 0,
         lifetimeFreeGensCap: FREE_LIFETIME_CAP,
+        policyVersion: MONETIZATION_POLICY_VERSION,
+        display: {
+          policyVersion: MONETIZATION_POLICY_VERSION,
+          freeTierSummary: DISPLAY_COPY.freeTierShort,
+        },
       });
       return;
     }
@@ -112,6 +123,11 @@ export default async function handler(req: any, res: any) {
         credits,
         lifetimeFreeGensUsed,
         lifetimeFreeGensCap: FREE_LIFETIME_CAP,
+        policyVersion: MONETIZATION_POLICY_VERSION,
+        display: {
+          policyVersion: MONETIZATION_POLICY_VERSION,
+          freeTierSummary: DISPLAY_COPY.freeTierShort,
+        },
       });
       return;
     }
@@ -145,7 +161,7 @@ export default async function handler(req: any, res: any) {
       // Metered monthly cap. Reset when month changes.
       generationsLimit = STARTER_MONTHLY_LIMIT;
       generationsUsed = storedPeriod === currentMonth ? rawUsed : 0;
-    } else if (isSubscribed && (subPlan === 'pro' || subPlan === 'team')) {
+    } else if (isSubscribed && hasUnlimitedGeneration(subPlan)) {
       generationsLimit = -1;
       generationsUsed = 0;
     } else {
@@ -178,6 +194,11 @@ export default async function handler(req: any, res: any) {
       interval,
       seats,
       pausedUntil,
+      policyVersion: MONETIZATION_POLICY_VERSION,
+      display: {
+        policyVersion: MONETIZATION_POLICY_VERSION,
+        freeTierSummary: DISPLAY_COPY.freeTierShort,
+      },
     });
   } catch (err: any) {
     console.error('Subscription status error:', err);

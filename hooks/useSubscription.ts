@@ -1,6 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-
-export type PlanId = 'free' | 'starter' | 'pro' | 'team' | 'credits';
+import {
+  FREE_TIER_POLICY,
+  MONETIZATION_POLICY_VERSION,
+  STARTER_MONTHLY_LIMIT,
+  hasUnlimitedGeneration,
+  normalizePlan,
+  type PlanId,
+} from '../shared/monetization';
 
 export interface SubscriptionState {
   loading: boolean;
@@ -26,16 +32,17 @@ export interface SubscriptionState {
   interval?: 'month' | 'year';
   /** Seats on Team plan. */
   seats?: number;
+  /** Optional normalized display metadata from API responses. */
+  display?: {
+    policyVersion: string;
+    freeTierSummary: string;
+  };
 }
 
 const ADMIN_DOMAINS = ['averyandbryant.com'];
 
-// Fork #3 free tier: 5 lifetime generations, then 1/day after.
-const FREE_LIFETIME_CAP = 5;
-const FREE_DAILY_LIMIT_AFTER_LIFETIME = 1;
-
-// R13 Starter metered monthly cap.
-const STARTER_MONTHLY_LIMIT = 40;
+const FREE_LIFETIME_CAP = FREE_TIER_POLICY.lifetimeCap;
+const FREE_DAILY_LIMIT_AFTER_LIFETIME = FREE_TIER_POLICY.dailyAfterLifetime;
 
 const isAdminEmail = (email: string) =>
   ADMIN_DOMAINS.some(domain => email.toLowerCase().endsWith(`@${domain}`));
@@ -59,6 +66,10 @@ export function useSubscription(userEmail: string | null) {
         generationsUsed: 0, generationsLimit: -1, canGenerate: true, credits: 0,
         lifetimeFreeGensUsed: 0, lifetimeFreeGensCap: FREE_LIFETIME_CAP,
         generationsResetAt: 0,
+        display: {
+          policyVersion: MONETIZATION_POLICY_VERSION,
+          freeTierSummary: `${FREE_LIFETIME_CAP} free, then ${FREE_DAILY_LIMIT_AFTER_LIFETIME}/day`,
+        },
       });
       return;
     }
@@ -67,7 +78,7 @@ export function useSubscription(userEmail: string | null) {
       const res = await fetch(`/api/stripe-status?email=${encodeURIComponent(userEmail)}`);
       const data = await res.json();
       if (data.ok) {
-        const plan: PlanId = data.plan || 'free';
+        const plan = normalizePlan(data.plan);
         const credits = data.credits ?? 0;
         const lifetimeFreeGensUsed = data.lifetimeFreeGensUsed ?? data.generationsUsed ?? 0;
         const lifetimeFreeGensCap  = data.lifetimeFreeGensCap  ?? FREE_LIFETIME_CAP;
@@ -76,7 +87,7 @@ export function useSubscription(userEmail: string | null) {
         let generationsLimit: number;
         let generationsUsed: number;
 
-        if (plan === 'pro' || plan === 'team') {
+        if (hasUnlimitedGeneration(plan)) {
           generationsLimit = -1; // unlimited
           generationsUsed  = 0;
         } else if (plan === 'starter') {
@@ -99,7 +110,7 @@ export function useSubscription(userEmail: string | null) {
         }
 
         const canGenerate =
-          plan === 'pro' || plan === 'team' ||
+          hasUnlimitedGeneration(plan) ||
           generationsLimit === -1 ||
           generationsUsed < generationsLimit ||
           credits > 0;
@@ -121,6 +132,7 @@ export function useSubscription(userEmail: string | null) {
           currentPeriodEnd: data.currentPeriodEnd,
           interval: data.interval,
           seats: data.seats,
+          display: data.display,
         });
       } else { setState(prev => ({ ...prev, loading: false })); }
     } catch { setState(prev => ({ ...prev, loading: false })); }
@@ -156,7 +168,7 @@ export function useSubscription(userEmail: string | null) {
         ...prev,
         generationsUsed: newCount,
         lifetimeFreeGensUsed: newLifetimeUsed,
-        canGenerate: prev.plan === 'pro' || prev.plan === 'team' ||
+        canGenerate: hasUnlimitedGeneration(prev.plan) ||
           prev.generationsLimit === -1 || newCount < prev.generationsLimit,
       };
     });
@@ -174,7 +186,7 @@ export function useSubscription(userEmail: string | null) {
           ...prev,
           generationsUsed: data.generationsUsed,
           lifetimeFreeGensUsed: data.lifetimeFreeGensUsed ?? prev.lifetimeFreeGensUsed,
-          canGenerate: prev.plan === 'pro' || prev.plan === 'team' ||
+          canGenerate: hasUnlimitedGeneration(prev.plan) ||
             prev.generationsLimit === -1 || data.generationsUsed < prev.generationsLimit,
         }));
       }

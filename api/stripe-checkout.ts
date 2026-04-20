@@ -1,4 +1,8 @@
 import { json, setCors, handleOptions, rejectMethod, parseBody } from './utils.js';
+import {
+  PLAN_PRICING_USD,
+  STARTER_MONTHLY_LIMIT,
+} from '../shared/monetization';
 
 export const config = { runtime: 'nodejs' };
 
@@ -28,26 +32,26 @@ const PLAN_CATALOG: Record<PlanId, {
 }> = {
   starter: {
     name: 'StudioAI Starter',
-    description: '40 AI generations/month. Staging + Cleanup + MLS Export + Listing Copy.',
-    month: 1900,   // $19/mo
-    year:  18000,  // $180/yr (= $15/mo equivalent — spec §4)
-    seats: 1,
+    description: `${STARTER_MONTHLY_LIMIT} AI generations/month. Staging + Cleanup + MLS Export + Listing Copy.`,
+    month: PLAN_PRICING_USD.starter.month * 100,
+    year:  PLAN_PRICING_USD.starter.year * 12 * 100,
+    seats: PLAN_PRICING_USD.starter.seats,
     metaKey: 'studioai_plan_starter',
   },
   pro: {
     name: 'StudioAI Pro',
     description: 'Unlimited AI staging, cleanup, and marketing tools for real estate agents',
-    month: 4900,   // $49/mo (R12: was $29)
-    year:  46800,  // $468/yr ($39/mo equivalent)
-    seats: 1,
+    month: PLAN_PRICING_USD.pro.month * 100,
+    year:  PLAN_PRICING_USD.pro.year * 12 * 100,
+    seats: PLAN_PRICING_USD.pro.seats,
     metaKey: 'studioai_plan_pro',
   },
   team: {
     name: 'StudioAI Team',
     description: 'Unlimited + 3 seats, shared Brand Kits, admin dashboard, priority support.',
-    month: 9900,   // $99/mo
-    year:  94800,  // $948/yr ($79/mo equivalent)
-    seats: 3,
+    month: PLAN_PRICING_USD.team.month * 100,
+    year:  PLAN_PRICING_USD.team.year * 12 * 100,
+    seats: PLAN_PRICING_USD.team.seats,
     metaKey: 'studioai_plan_team',
   },
 };

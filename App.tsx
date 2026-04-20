@@ -107,6 +107,15 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { Analytics } from '@vercel/analytics/react';
+import {
+  DISPLAY_COPY,
+  PLAN_PRICING_USD,
+  hasProAiTools,
+  hasProImageQuality,
+} from './shared/monetization';
+import { getFeatureFlag } from './src/config/featureFlags';
+import { trackCleanupRisk, trackEvent } from './src/lib/analytics';
+import { buildCleanupSignal, type CleanupQualitySignal } from './src/types/cleanupQuality';
 
 // ─── Google OAuth Types ──────────────────────────────────────────────────────
 interface GoogleUser {
@@ -406,8 +415,19 @@ const App: React.FC = () => {
   const [isRemovingFurniture, setIsRemovingFurniture] = useState(false);
   const [generationElapsed, setGenerationElapsed] = useState(0);
   const generationTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [cleanupQualitySignal, setCleanupQualitySignal] = useState<CleanupQualitySignal | null>(null);
+  const [mobileNavMoreOpen, setMobileNavMoreOpen] = useState(false);
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [referralPrice, setReferralPrice] = useState<number | null>(null);
+
+  const trustPricingConsistencyEnabled = useMemo(
+    () => getFeatureFlag('trust_pricing_consistency', { seed: googleUser?.email }),
+    [googleUser?.email]
+  );
+  const cleanupConfidenceEnabled = useMemo(
+    () => getFeatureFlag('cleanup_confidence_ui', { seed: googleUser?.email }),
+    [googleUser?.email]
+  );
 
   // Detect referral code from URL
   useEffect(() => {
@@ -454,6 +474,10 @@ const App: React.FC = () => {
       window.removeEventListener('keydown', onKey);
     };
   }, [showOverflowMenu]);
+
+  useEffect(() => {
+    setMobileNavMoreOpen(false);
+  }, [activePanel]);
 
   // ─── Google OAuth: restore session & initialize GIS ─────────────────────
   const handleGoogleCredential = useCallback((response: any) => {
@@ -554,6 +578,16 @@ const App: React.FC = () => {
     const duration = options?.durationMs ?? 2500;
     setToastMessage({ icon, label, action: options?.action });
     toastTimerRef.current = setTimeout(() => setToastMessage(null), duration);
+  }, []);
+
+  const publishCleanupSignal = useCallback((signal: CleanupQualitySignal) => {
+    setCleanupQualitySignal(signal);
+    trackCleanupRisk(signal.risk, {
+      source: signal.source,
+      reason: signal.reason,
+      compositeMode: signal.compositeMode,
+      alignmentOverlap: signal.alignmentOverlap,
+    });
   }, []);
 
   // F7: dismiss the current toast immediately. Used by Undo toast action.
@@ -873,13 +907,26 @@ const App: React.FC = () => {
       // understands what hit them (free cap) and what the two next moves are.
       showToast(
         <Crown size={14} className="text-[#FFD60A]" />,
-        "You've staged 3 rooms today. That's the free cap.",
+        `You've hit the free limit (${DISPLAY_COPY.freeTierShort}).`,
         {
           durationMs: 6000,
           action: { label: 'Upgrade', onClick: () => setShowUpgradeModal(true) },
         },
       );
       return;
+    }
+
+    if (cleanupConfidenceEnabled && activePanel === 'cleanup') {
+      publishCleanupSignal(buildCleanupSignal({
+        risk: 'review',
+        source: 'single',
+        reason: 'Cleanup started. Quality checks will run after generation.',
+        compositeMode: 'not_applicable',
+        nextActions: [
+          'Use tighter masks for small clutter',
+          'Keep structural lock on for minimal scene drift',
+        ],
+      }));
     }
 
 
@@ -1009,7 +1056,7 @@ Direction from user: ${prompt}`;
           activePanel === 'cleanup' ? maskImage : null,
           false,
           1,
-          subscription.plan === 'pro',
+          hasProImageQuality(subscription.plan),
           anchorImage,
           abortController.signal,
           structuralLock,
@@ -1031,7 +1078,7 @@ Direction from user: ${prompt}`;
       // geometry or produces a catastrophic diff. Bail with a user-facing
       // toast if the edge-overlap between input and output drops below 70%.
       // Pro tier (gemini-3-pro-image-preview) is more stable and not gated.
-      if (isCleanup && subscription.plan !== 'pro' && sharpened.length > 0) {
+      if (isCleanup && !hasProImageQuality(subscription.plan) && sharpened.length > 0) {
         try {
           const alignment = await checkAlignment(sourceImage, sharpened[0]);
           console.log(
@@ -1042,6 +1089,20 @@ Direction from user: ${prompt}`;
             console.warn(
               `[StudioAI] X4 BAIL — cleanup output reframed (overlap ${(alignment.overlap * 100).toFixed(1)}% < 70%).`
             );
+            if (cleanupConfidenceEnabled) {
+              publishCleanupSignal(buildCleanupSignal({
+                risk: 'high',
+                source: 'single',
+                reason: "Cleanup couldn't preserve framing safely.",
+                alignmentOverlap: alignment.overlap,
+                compositeMode: 'not_applicable',
+                nextActions: [
+                  'Try a tighter mask around the clutter',
+                  'Retry with a different source angle',
+                  'Use Pro quality mode for more stable framing',
+                ],
+              }));
+            }
             showToast(
               <AlertCircle size={14} className="text-[#FF9F0A]" />,
               "Cleanup couldn't safely process this image — try a different photo or upgrade to Pro for higher quality",
@@ -1079,17 +1140,54 @@ Direction from user: ${prompt}`;
       const shouldComposite = !fromPack && !isRestageWithRemoval && sourceImage;
       if (isRestageWithRemoval) {
         console.log('[StudioAI] Restage-with-removal intent — skipping composite to avoid ghosting.');
+        if (cleanupConfidenceEnabled && isCleanup) {
+          publishCleanupSignal(buildCleanupSignal({
+            risk: 'review',
+            source: 'single',
+            reason: 'Cleanup prompt included remove+restage intent, so compositing was skipped.',
+            compositeMode: 'skipped_restage_prompt',
+            nextActions: [
+              'Review edges before exporting',
+              'Use targeted cleanup prompts for smaller edits',
+            ],
+          }));
+        }
       }
+      let compositeHadError = false;
       const resultImages = shouldComposite
         ? await Promise.all(
             sharpened.map(img =>
               compositeStackedEdit(sourceImage, img, { format: sharpenFormat }).catch(err => {
                 console.warn('[StudioAI] composite failed, falling back to raw output:', err);
+                compositeHadError = true;
                 return img;
               })
             )
           )
         : sharpened;
+
+      if (cleanupConfidenceEnabled && isCleanup && !isRestageWithRemoval) {
+        if (compositeHadError) {
+          publishCleanupSignal(buildCleanupSignal({
+            risk: 'review',
+            source: 'single',
+            reason: 'Composite fallback used raw output on this run.',
+            compositeMode: 'fallback_raw_after_error',
+            nextActions: [
+              'Inspect edges and reflective surfaces',
+              'Retry with a tighter mask if artifacts remain',
+            ],
+          }));
+        } else {
+          publishCleanupSignal(buildCleanupSignal({
+            risk: 'safe',
+            source: 'single',
+            reason: 'Cleanup completed with framing and composite checks.',
+            compositeMode: shouldComposite ? 'applied' : 'not_applicable',
+            nextActions: ['Export when ready'],
+          }));
+        }
+      }
 
       // Check if user is still on the same session image (using ref, not stale closure)
       const stillOnSameImage = currentSessionIdRef.current === generatingSessionId;
@@ -1151,7 +1249,7 @@ Direction from user: ${prompt}`;
       // users.  Fires exactly once per session, and only if we're currently on
       // the Design Studio panel (so we don't yank people out of Cleanup/etc).
       if (
-        subscription.plan === 'pro' &&
+        hasProAiTools(subscription.plan) &&
         !proToolsAutoExpandedRef.current &&
         activePanel === 'tools'
       ) {
@@ -1169,7 +1267,12 @@ Direction from user: ${prompt}`;
       // Retry re-runs handleGenerate with the exact prompt + opts that failed.
       const retryAction = {
         label: 'Retry',
-        onClick: () => { void handleGenerate(prompt, opts); },
+        onClick: () => {
+          if (activePanel === 'cleanup') {
+            trackEvent('cleanup_retried', { source: 'single' });
+          }
+          void handleGenerate(prompt, opts);
+        },
       };
       if (error.message === 'ABORTED' || error.name === 'AbortError' || abortController.signal.aborted) {
         // F9: user-initiated cancel. Show a muted confirmation, don't log an error.
@@ -1197,6 +1300,19 @@ Direction from user: ${prompt}`;
           "Staging didn't finish. Usually a connection hiccup — retry should do it.",
           { durationMs: 6000, action: retryAction },
         );
+      }
+      if (cleanupConfidenceEnabled && activePanel === 'cleanup') {
+        publishCleanupSignal(buildCleanupSignal({
+          risk: 'high',
+          source: 'single',
+          reason: 'Cleanup generation failed before quality checks could complete.',
+          compositeMode: 'not_applicable',
+          nextActions: [
+            'Retry cleanup',
+            'Try a tighter mask',
+            'Switch to Pro quality if reframing persists',
+          ],
+        }));
       }
       setIsGenerating(false);
       stopGenerationTimer();
@@ -1226,7 +1342,7 @@ Direction from user: ${prompt}`;
       const removalPrompt = `Selective Furniture Removal: ${descText} Replace the removed items with the original empty room surface (floor, wall, carpet) that was behind them. Keep ALL other furniture and decor that is NOT masked exactly as they are — do not move, resize, or alter any unmasked items. Preserve all architecture, wall colors, floor colors, lighting, and camera framing exactly.`;
 
       const rawResults = await withTimeout(
-        generateRoomDesign(generatedImage, removalPrompt, maskDataUrl, false, 1, subscription.plan === 'pro'),
+        generateRoomDesign(generatedImage, removalPrompt, maskDataUrl, false, 1, hasProImageQuality(subscription.plan)),
         120000,
         'Furniture removal timed out — please try again'
       );
@@ -1238,6 +1354,15 @@ Direction from user: ${prompt}`;
         setGeneratedImage(resultImages[0]);
         setShowFurnitureRemover(false);
         showToast(<Check size={14} className="text-[#30D158]" />, 'Furniture removed');
+        if (cleanupConfidenceEnabled) {
+          publishCleanupSignal(buildCleanupSignal({
+            risk: 'safe',
+            source: 'furniture',
+            reason: 'Selective removal completed successfully.',
+            compositeMode: 'not_applicable',
+            nextActions: ['Inspect object boundaries before exporting'],
+          }));
+        }
 
         // Track edit
         const currentId = sessionQueue[sessionIndex]?.id;
@@ -1252,7 +1377,10 @@ Direction from user: ${prompt}`;
       // R11: probable-cause + next-step error copy with inline Retry.
       const retryAction = {
         label: 'Retry',
-        onClick: () => { void handleFurnitureRemoval(maskDataUrl, itemDescriptions); },
+        onClick: () => {
+          trackEvent('cleanup_retried', { source: 'furniture' });
+          void handleFurnitureRemoval(maskDataUrl, itemDescriptions);
+        },
       };
       if (error.message?.includes('timed out')) {
         showToast(
@@ -1266,6 +1394,15 @@ Direction from user: ${prompt}`;
           "Removal didn't finish. Usually a connection issue — retry should do it.",
           { durationMs: 6000, action: retryAction },
         );
+      }
+      if (cleanupConfidenceEnabled) {
+        publishCleanupSignal(buildCleanupSignal({
+          risk: 'high',
+          source: 'furniture',
+          reason: 'Selective removal failed.',
+          compositeMode: 'not_applicable',
+          nextActions: ['Retry with a smaller mask', 'Avoid crossing edges between objects and walls'],
+        }));
       }
     } finally {
       setIsRemovingFurniture(false);
@@ -1732,6 +1869,10 @@ Direction from user: ${prompt}`;
       { id: 'history', label: 'History', icon: <HistoryIcon size={20} />, available: true },
     ];
 
+  const availableNavItems = navItems.filter((item) => item.available);
+  const mobilePrimaryNav = availableNavItems.slice(0, 5);
+  const mobileOverflowNav = availableNavItems.slice(5);
+
 
   // ─── Auth gate: require Google sign-in ───────────────────────────────────
   if (isAuthLoading) {
@@ -1781,8 +1922,8 @@ Direction from user: ${prompt}`;
               onClick={triggerGoogleSignIn}
               className="inline-flex items-center gap-2 px-3 sm:px-5 py-1.5 sm:py-2 rounded-full bg-white text-black text-sm sm:text-sm font-semibold hover:bg-zinc-200 transition-all whitespace-nowrap"
             >
-              <span className="hidden sm:inline">Stage 3 rooms free</span>
-              <span className="sm:hidden">Stage 3 free</span>
+              <span className="hidden sm:inline">Start Free</span>
+              <span className="sm:hidden">Try Free</span>
             </button>
           </div>
           <div ref={googleButtonRef} className="hidden" />
@@ -1819,7 +1960,7 @@ Direction from user: ${prompt}`;
               <div className="flex flex-col sm:flex-row items-start gap-3 mb-8 animate-fade-in" style={{ animationDelay: '0.3s' }}>
                 <button type="button" onClick={triggerGoogleSignIn} className="inline-flex items-center gap-2.5 px-7 py-3.5 rounded-xl bg-white text-black text-sm font-bold hover:bg-zinc-200 transition-all">
                   <svg width="16" height="16" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-                  Stage 3 rooms free
+                  Start Free
                 </button>
                 <a href="#pricing" className="inline-flex items-center px-7 py-3.5 rounded-xl text-sm font-semibold text-zinc-400 border border-white/[0.08] hover:border-white/[0.16] hover:text-white transition-all">
                   See Pricing
@@ -1827,7 +1968,7 @@ Direction from user: ${prompt}`;
               </div>
 
               <div className="flex gap-8 animate-fade-in" style={{ animationDelay: '0.4s' }}>
-                {[{ value: '5 free', label: 'To start' }, { value: '~15s', label: 'Per render' }, { value: '12+', label: 'Styles' }].map((s) => (
+                {[{ value: trustPricingConsistencyEnabled ? DISPLAY_COPY.freeTierShort : '5 free', label: trustPricingConsistencyEnabled ? 'Free tier' : 'To start' }, { value: '~15s', label: 'Per render' }, { value: '12+', label: 'Styles' }].map((s) => (
                   <div key={s.label}>
                     <div className="text-lg font-black text-white">{s.value}</div>
                     <div className="text-xs font-bold uppercase tracking-[0.15em] text-zinc-600">{s.label}</div>
@@ -2123,6 +2264,7 @@ Direction from user: ${prompt}`;
             // Unauthed path never reaches here (PricingPage calls onRequireSignIn
             // first). Authed: start Stripe checkout for the selected plan/interval.
             if (!googleUser?.sub) { triggerGoogleSignIn(); return; }
+            trackEvent('checkout_started', { plan, interval, source: 'landing_pricing' });
             subscription.startCheckout(googleUser.sub, { plan, interval });
           }}
         />
@@ -2167,9 +2309,11 @@ Direction from user: ${prompt}`;
                   </p>
                   <div className="space-y-3">
                     {[
-                      { name: 'Team', detail: '5 agents · $119/mo · $24/agent' },
-                      { name: 'Brokerage', detail: '15 agents · $299/mo · $20/agent' },
-                      { name: 'Enterprise', detail: '40 agents · $699/mo · $17/agent' },
+                      {
+                        name: 'Team',
+                        detail: `${PLAN_PRICING_USD.team.seats} seats included · $${PLAN_PRICING_USD.team.month}/mo or $${PLAN_PRICING_USD.team.year}/mo annually`,
+                      },
+                      { name: 'Add seats', detail: 'Need more than Team? Contact support for brokerage expansion.' },
                     ].map((t) => (
                       <div key={t.name} className="flex items-center justify-between p-3 rounded-lg bg-white/[0.02] border border-white/[0.06] hover:border-white/[0.12] transition-all">
                         <span className="text-sm font-bold text-white">{t.name}</span>
@@ -2222,7 +2366,7 @@ Direction from user: ${prompt}`;
                 },
                 {
                   q: 'Can I try before I pay?',
-                  a: 'Yes — every account gets 5 free generations to start, then 1 per day after that. No credit card required. Just sign in with Google and start uploading photos.',
+                  a: trustPricingConsistencyEnabled ? DISPLAY_COPY.freeTierFaq : 'Yes — every account gets 5 free generations to start, then 1 per day after that. No credit card required. Just sign in with Google and start uploading photos.',
                 },
                 {
                   q: 'How does brokerage pricing work?',
@@ -2252,7 +2396,9 @@ Direction from user: ${prompt}`;
               One staging service costs more than a year of StudioAI.
             </h2>
             <p className="text-base text-zinc-400 mb-10 max-w-xl mx-auto">
-              $29/mo covers every listing. Cancel the month you stop listing.
+              {trustPricingConsistencyEnabled
+                ? `Pro is $${PLAN_PRICING_USD.pro.month}/mo or $${PLAN_PRICING_USD.pro.year}/mo annually. Cancel anytime.`
+                : '$29/mo covers every listing. Cancel the month you stop listing.'}
             </p>
             <div className="inline-flex flex-col items-center gap-3">
               <button
@@ -2551,14 +2697,16 @@ Direction from user: ${prompt}`;
                     <h4 className="text-sm font-semibold text-[var(--color-ink)]">Billing</h4>
                   </div>
                   <span className={`rounded-full px-2 py-0.5 text-xs font-bold uppercase tracking-wider ${
-                    subscription.plan === 'pro'
+                    hasProAiTools(subscription.plan)
                       ? 'bg-[var(--color-primary)]/15 text-[var(--color-primary)] border border-[var(--color-primary)]/30'
                       : 'bg-zinc-800 text-zinc-400 border border-zinc-700'
                   }`}>
-                    {subscription.plan === 'pro' ? 'Pro' : 'Free'}
+                    {hasProAiTools(subscription.plan)
+                      ? (subscription.plan === 'team' ? 'Team' : 'Pro')
+                      : 'Free'}
                   </span>
                 </div>
-                {subscription.plan === 'pro' ? (
+                {hasProAiTools(subscription.plan) ? (
                   <div className="space-y-2">
                     <p className="text-xs text-[var(--color-text)]/70">
                       Unlimited generations. {subscription.currentPeriodEnd
@@ -2929,7 +3077,7 @@ Direction from user: ${prompt}`;
               onSaveStage={handleBatchSaveStage}
               onCancel={handleBatchCancel}
               onLoadImage={handleBatchLoadImage}
-              isPro={subscription.plan === 'pro'}
+              isPro={hasProImageQuality(subscription.plan)}
             />
           </div>
 
@@ -2940,7 +3088,7 @@ Direction from user: ${prompt}`;
                 images={batchImages}
                 isOpen={listingKitOpen}
                 onClose={() => setListingKitOpen(false)}
-                isPro={subscription.plan === 'pro'}
+                isPro={hasProImageQuality(subscription.plan)}
               />
             </Suspense>
           )}
@@ -3023,21 +3171,19 @@ Direction from user: ${prompt}`;
             <div className="w-full flex justify-center mb-2 mt-2">
               <div className="w-8 h-1 bg-[var(--color-primary-dark)] rounded-full opacity-50"></div>
             </div>
-            {navItems.map((item) => {
+            {availableNavItems.map((item) => {
               const active = activePanel === item.id;
               return (
                 <button
                   key={item.id}
                   type="button"
-                  disabled={!item.available}
                   onClick={() => {
-                    if (!item.available) return;
                     setActivePanel(item.id);
                     showToast(item.icon, item.label);
                   }}
-                  title={item.available ? item.label : `${item.label} (Coming Soon)`}
-                    aria-label={item.label}
-                  className={`nav-item ${active && item.available ? 'active' : ''} ${!item.available ? 'opacity-40 cursor-not-allowed' : ''} group/item relative overflow-hidden`}
+                  title={item.label}
+                  aria-label={item.label}
+                  className={`nav-item ${active ? 'active' : ''} group/item relative overflow-hidden`}
                 >
                   <div className="shrink-0 flex items-center justify-center w-6 h-6 relative z-10 transition-transform duration-300 group-hover/item:scale-110">{item.icon}</div>
                   <span className="text-xs font-bold uppercase tracking-widest whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-300 absolute left-12 z-0 translate-x-[-10px] group-hover:translate-x-0">{item.label}</span>
@@ -3048,7 +3194,7 @@ Direction from user: ${prompt}`;
 
           {/* Mobile bottom tab bar */}
           <nav className="fixed bottom-0 inset-x-0 z-50 lg:hidden flex items-center justify-around bg-black/90 backdrop-blur-xl border-t border-[var(--color-border)] px-1 py-1.5 safe-bottom">
-            {navItems.filter(item => item.available).slice(0, 5).map((item) => {
+            {mobilePrimaryNav.map((item) => {
               const active = activePanel === item.id;
               return (
                 <button
@@ -3069,6 +3215,42 @@ Direction from user: ${prompt}`;
                 </button>
               );
             })}
+            {mobileOverflowNav.length > 0 && (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setMobileNavMoreOpen((prev) => !prev)}
+                  className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all ${
+                    mobileOverflowNav.some((item) => item.id === activePanel) ? 'text-[var(--color-primary)]' : 'text-[var(--color-text)]'
+                  }`}
+                  aria-label="More tabs"
+                  aria-expanded={mobileNavMoreOpen}
+                >
+                  <div className="w-5 h-5 flex items-center justify-center"><MoreHorizontal size={18} /></div>
+                  <span className="text-xs font-bold uppercase tracking-wider">More</span>
+                </button>
+                {mobileNavMoreOpen && (
+                  <div className="absolute bottom-full right-0 mb-2 w-44 rounded-xl border border-white/[0.08] bg-[#070707] shadow-2xl p-1.5">
+                    {mobileOverflowNav.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => {
+                          setActivePanel(item.id);
+                          setMobileNavMoreOpen(false);
+                          showToast(item.icon, item.label);
+                        }}
+                        className={`w-full px-3 py-2 rounded-lg text-xs text-left font-semibold transition ${
+                          activePanel === item.id ? 'bg-[var(--color-primary)]/15 text-[var(--color-primary)]' : 'text-zinc-300 hover:bg-white/[0.06] hover:text-white'
+                        }`}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </nav>
 
           <main className="order-1 lg:order-2 flex-1 min-h-0 overflow-y-auto overscroll-contain editor-canvas-bg p-1.5 sm:p-5 lg:p-6 pb-24 lg:pb-6 relative z-10">
@@ -3506,14 +3688,43 @@ Direction from user: ${prompt}`;
                 )}
 
                 {activePanel === 'cleanup' && (
-                  <RenovationControls
-                    activeMode="cleanup"
-                    hasGenerated={!!generatedImage}
-                    onGenerate={(p) => handleGenerate(p)}
-                    isGenerating={isGenerating}
-                    hasMask={!!maskImage}
-                    selectedRoom={selectedRoom}
-                  />
+                  <>
+                    {cleanupConfidenceEnabled && (
+                      <div className="rounded-xl border border-[#0A84FF]/30 bg-[#0A84FF]/10 px-3 py-2.5">
+                        <p className="text-xs font-semibold text-[#89C6FF] uppercase tracking-wider">Cleanup Guidance</p>
+                        <p className="text-xs text-zinc-300 mt-1">
+                          Use tighter masks around clutter and keep structural lock on to reduce reframing/ghosting risk.
+                        </p>
+                      </div>
+                    )}
+                    {cleanupConfidenceEnabled && cleanupQualitySignal && (
+                      <div className={`rounded-xl border px-3 py-2.5 ${
+                        cleanupQualitySignal.risk === 'safe'
+                          ? 'border-[#30D158]/30 bg-[#30D158]/10'
+                          : cleanupQualitySignal.risk === 'high'
+                            ? 'border-[#FF375F]/30 bg-[#FF375F]/10'
+                            : 'border-[#FF9F0A]/30 bg-[#FF9F0A]/10'
+                      }`}>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-white">
+                          Cleanup Confidence: {cleanupQualitySignal.risk === 'safe' ? 'Safe' : cleanupQualitySignal.risk === 'high' ? 'High Risk' : 'Review'}
+                        </p>
+                        <p className="text-xs text-zinc-300 mt-1">{cleanupQualitySignal.reason}</p>
+                        {cleanupQualitySignal.nextActions.length > 0 && (
+                          <div className="mt-2 text-2xs text-zinc-200">
+                            Next: {cleanupQualitySignal.nextActions[0]}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <RenovationControls
+                      activeMode="cleanup"
+                      hasGenerated={!!generatedImage}
+                      onGenerate={(p) => handleGenerate(p)}
+                      isGenerating={isGenerating}
+                      hasMask={!!maskImage}
+                      selectedRoom={selectedRoom}
+                    />
+                  </>
                 )}
 
                 {/* R23: Pro Tools — standalone panel (was an accordion inside Design Studio). */}
@@ -3548,7 +3759,7 @@ Direction from user: ${prompt}`;
                     })()}
                     onRequireKey={() => setShowUpgradeModal(true)}
                     savedStages={savedStages}
-                    isPro={subscription.plan === 'pro'}
+                    isPro={hasProImageQuality(subscription.plan)}
                     onLoadingChange={(tool) => {
                       setIsGenerating(tool !== null);
                       setActiveProTool(tool);

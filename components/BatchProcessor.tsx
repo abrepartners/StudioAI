@@ -29,6 +29,8 @@ import { sharpenImage } from '../utils/sharpen';
 import { compositeStackedEdit } from '../utils/stackComposite';
 import { checkAlignment } from '../utils/alignmentCheck';
 import { generateThumbnail } from '../utils/thumbnail';
+import { buildCleanupSignal, type CleanupQualitySignal } from '../src/types/cleanupQuality';
+import { trackCleanupRisk, trackEvent } from '../src/lib/analytics';
 
 // Post-process a batch tool's raw Gemini output. Mirrors SpecialModesPanel's
 // postProcessToolOutput: sharpen (PNG when chain is on) + Phase C composite
@@ -67,6 +69,7 @@ export interface BatchResult {
   status: 'pending' | 'processing' | 'done' | 'error';
   error?: string;
   saved: boolean;
+  cleanupQuality?: CleanupQualitySignal;
 }
 
 interface BatchProcessorProps {
@@ -281,11 +284,23 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
 
         try {
           const generated = await processImage(dispatchImg, isPro);
+          const cleanupQuality = actionAtDispatch === 'cleanup'
+            ? buildCleanupSignal({
+                risk: 'safe',
+                source: 'batch',
+                reason: 'Batch cleanup passed quality guards.',
+                compositeMode: 'applied',
+                nextActions: ['Spot-check edges on final selection'],
+              })
+            : undefined;
+          if (cleanupQuality) {
+            trackCleanupRisk(cleanupQuality.risk, { source: 'batch', imageId: img.id });
+          }
 
           setResults(prev =>
             prev.map(r =>
               r.id === img.id
-                ? { ...r, generatedImage: generated, status: 'done' }
+                ? { ...r, generatedImage: generated, status: 'done', cleanupQuality }
                 : r
             )
           );
@@ -306,10 +321,24 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
             prev.map(r => (r.id === img.id ? { ...r, saved: true } : r))
           );
         } catch (e: any) {
+          const cleanupQuality = actionAtDispatch === 'cleanup'
+            ? buildCleanupSignal({
+                risk: 'high',
+                source: 'batch',
+                reason: e?.code === 'ALIGNMENT_BAIL'
+                  ? "Batch cleanup couldn't preserve framing."
+                  : 'Batch cleanup failed.',
+                compositeMode: 'not_applicable',
+                nextActions: ['Retry this image', 'Try a tighter crop/mask', 'Use Pro quality if drift persists'],
+              })
+            : undefined;
+          if (cleanupQuality) {
+            trackCleanupRisk(cleanupQuality.risk, { source: 'batch', imageId: img.id });
+          }
           setResults(prev =>
             prev.map(r =>
               r.id === img.id
-                ? { ...r, status: 'error', error: e?.message || 'Failed' }
+                ? { ...r, status: 'error', error: e?.message || 'Failed', cleanupQuality }
                 : r
             )
           );
@@ -342,6 +371,10 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
 
   const retryFailed = useCallback(() => {
     const failedIds = results.filter(r => r.status === 'error').map(r => r.id);
+    const hasCleanupRetry = results.some((r) => r.status === 'error' && r.action === 'cleanup');
+    if (hasCleanupRetry) {
+      trackEvent('cleanup_retried', { source: 'batch', count: failedIds.length });
+    }
     setResults(prev =>
       prev.map(r => (failedIds.includes(r.id) ? { ...r, status: 'pending', error: undefined } : r))
     );
@@ -715,6 +748,17 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
                   </div>
                 )}
               </div>
+              {result.cleanupQuality && result.action === 'cleanup' && (
+                <div className={`absolute bottom-6 left-1.5 px-1.5 py-0.5 rounded text-2xs font-bold uppercase tracking-wider ${
+                  result.cleanupQuality.risk === 'safe'
+                    ? 'bg-[#30D158]/80 text-black'
+                    : result.cleanupQuality.risk === 'high'
+                      ? 'bg-[#FF375F]/85 text-white'
+                      : 'bg-[#FF9F0A]/85 text-black'
+                }`}>
+                  {result.cleanupQuality.risk === 'safe' ? 'Safe' : result.cleanupQuality.risk === 'high' ? 'High Risk' : 'Review'}
+                </div>
+              )}
             </div>
           );
         })}

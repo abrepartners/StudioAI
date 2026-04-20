@@ -24,6 +24,7 @@ import {
 import { FurnitureRoomType, SavedStage } from '../types';
 import { sharpenImage } from '../utils/sharpen';
 import { compositeStackedEdit } from '../utils/stackComposite';
+import { CLEANUP_COMPOSITE_OPTIONS, shouldSkipCompositeForTool } from '../utils/compositeProfiles';
 import PanelHeader from './PanelHeader';
 import { Badge, Button } from './ui';
 import { buildCleanupSignal, type CleanupQualitySignal } from '../src/types/cleanupQuality';
@@ -34,13 +35,14 @@ import { trackCleanupRisk } from '../src/lib/analytics';
 //   2. If we have a prior image, composite so regions Gemini didn't meaningfully
 //      change come BYTE-IDENTICAL from the prior buffer. This is the Phase C
 //      compositor applied to Pro AI Tools — helps a LOT for Cleanup /
-//      Renovation (local edits), and for whole-frame Twilight / Sky the
-//      compositor gracefully bails via its >95% change-ratio threshold.
+//      Renovation (local edits). Twilight/Sky skip compositing because broad
+//      lighting edits can produce blend/overlay artifacts.
 //   3. On any failure, fall back to the sharpened Gemini output so the user
 //      still sees something reasonable.
 async function postProcessToolOutput(
     raw: string,
     prior: string | null,
+    mode: 'twilight' | 'sky' | 'cleanup' | 'renovation' | 'stage' = 'stage',
     compositeOpts?: { threshold?: number; dilatePx?: number; featherPx?: number }
 ): Promise<string> {
     const chainEnabled = typeof window !== 'undefined'
@@ -48,9 +50,12 @@ async function postProcessToolOutput(
         : true;
     const fmt: 'png' | 'jpeg' = chainEnabled ? 'png' : 'jpeg';
     const sharpened = await sharpenImage(raw, 0.4, 1, fmt);
-    if (!prior) return sharpened;
+    if (!prior || shouldSkipCompositeForTool(mode)) return sharpened;
+    const mergedCompositeOpts = mode === 'cleanup'
+        ? { ...CLEANUP_COMPOSITE_OPTIONS, ...compositeOpts }
+        : compositeOpts;
     try {
-        return await compositeStackedEdit(prior, sharpened, { format: fmt, ...compositeOpts });
+        return await compositeStackedEdit(prior, sharpened, { format: fmt, ...mergedCompositeOpts });
     } catch (err) {
         console.warn('[SpecialModesPanel] composite failed, using raw sharpened output:', err);
         return sharpened;
@@ -249,7 +254,13 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                     `Image ${i + 1} timed out — please try again`
                 );
                 // For batch, the "prior" is the input image (pre-tool state).
-                const result = await postProcessToolOutput(raw, batchImages[i]);
+                const mode: 'twilight' | 'sky' | 'cleanup' | 'renovation' | 'stage' =
+                    id === 'declutter'
+                        ? 'cleanup'
+                        : (id === 'twilight' || id === 'sky' || id === 'renovation')
+                            ? id
+                            : 'stage';
+                const result = await postProcessToolOutput(raw, batchImages[i], mode);
                 results.push(result);
             }
             setBatchProgress({ current: batchImages.length, total: batchImages.length, results });
@@ -368,7 +379,7 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                     disabled={loading !== null || (!currentImage && !canBatch)}
                     onClick={() => canBatch
                         ? runBatch('twilight', (img, signal) => virtualTwilight(img, isPro, signal))
-                        : run('twilight', async (signal) => { const result = await postProcessToolOutput(await virtualTwilight(currentImage!, isPro, signal), currentImage); onNewImage(result, 'twilight'); })
+                        : run('twilight', async (signal) => { const result = await postProcessToolOutput(await virtualTwilight(currentImage!, isPro, signal), currentImage, 'twilight'); onNewImage(result, 'twilight'); })
                     }
                     className={`w-full rounded-2xl px-4 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all ${loading === 'twilight' ? 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border)]' : 'bg-white/[0.03] text-white border border-white/10 hover:bg-white/[0.06] hover:border-white/20 flex items-center justify-center gap-2 [&_svg]:text-[var(--color-primary)]'}`}
                 >
@@ -400,7 +411,7 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                     disabled={loading !== null || (!currentImage && !canBatch)}
                     onClick={() => canBatch
                         ? runBatch('sky', (img, signal) => replaceSky(img, skyStyle, isPro, signal))
-                        : run('sky', async (signal) => { const result = await postProcessToolOutput(await replaceSky(currentImage!, skyStyle, isPro, signal), currentImage); onNewImage(result, 'sky'); })
+                        : run('sky', async (signal) => { const result = await postProcessToolOutput(await replaceSky(currentImage!, skyStyle, isPro, signal), currentImage, 'sky'); onNewImage(result, 'sky'); })
                     }
                     className={`mt-2 w-full rounded-2xl px-4 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all ${loading === 'sky' ? 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border)]' : 'bg-white/[0.03] text-white border border-white/10 hover:bg-white/[0.06] hover:border-white/20 flex items-center justify-center gap-2 [&_svg]:text-[var(--color-primary)]'}`}
                 >
@@ -427,7 +438,7 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                                 nextActions: ['Review boundaries after generation'],
                             }));
                             try {
-                                const result = await postProcessToolOutput(await instantDeclutter(currentImage!, selectedRoom, isPro, signal), currentImage);
+                                const result = await postProcessToolOutput(await instantDeclutter(currentImage!, selectedRoom, isPro, signal), currentImage, 'cleanup');
                                 onNewImage(result, 'cleanup');
                                 const safe = buildCleanupSignal({
                                     risk: 'safe',
@@ -498,7 +509,7 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                     disabled={loading !== null || ((!currentImage && !canBatch) || (!cabinets && !countertops && !flooring && !walls))}
                     onClick={() => canBatch
                         ? runBatch('renovation', (img, signal) => virtualRenovation(img, { cabinets, countertops, flooring, walls }, signal))
-                        : run('renovation', async (signal) => { const result = await postProcessToolOutput(await virtualRenovation(currentImage!, { cabinets, countertops, flooring, walls }, signal), currentImage, RENOVATION_COMPOSITE); onNewImage(result, 'renovation'); })
+                        : run('renovation', async (signal) => { const result = await postProcessToolOutput(await virtualRenovation(currentImage!, { cabinets, countertops, flooring, walls }, signal), currentImage, 'renovation', RENOVATION_COMPOSITE); onNewImage(result, 'renovation'); })
                     }
                     className={`w-full rounded-2xl px-4 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all ${loading === 'renovation' ? 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border)]' : 'bg-white/[0.03] text-white border border-white/10 hover:bg-white/[0.06] hover:border-white/20 flex items-center justify-center gap-2 [&_svg]:text-[var(--color-primary)]'}`}
                 >

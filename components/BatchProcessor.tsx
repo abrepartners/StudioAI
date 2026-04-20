@@ -29,6 +29,7 @@ import { sharpenImage } from '../utils/sharpen';
 import { compositeStackedEdit } from '../utils/stackComposite';
 import { checkAlignment } from '../utils/alignmentCheck';
 import { generateThumbnail } from '../utils/thumbnail';
+import { CLEANUP_COMPOSITE_OPTIONS, shouldSkipCompositeForTool } from '../utils/compositeProfiles';
 import { buildCleanupSignal, type CleanupQualitySignal } from '../src/types/cleanupQuality';
 import { trackCleanupRisk, trackEvent } from '../src/lib/analytics';
 
@@ -36,16 +37,22 @@ import { trackCleanupRisk, trackEvent } from '../src/lib/analytics';
 // postProcessToolOutput: sharpen (PNG when chain is on) + Phase C composite
 // against the input so unchanged regions come byte-identical from the source,
 // not from Gemini's re-synthesis. Without this, batch outputs look soft/washed
-// compared to single-image runs. Composite gracefully bails on whole-frame
-// edits (Twilight/Sky) via the >95% change-ratio threshold.
-async function postProcessBatchOutput(raw: string, prior: string): Promise<string> {
+// compared to single-image runs. Twilight/Sky skip compositing to avoid
+// blend overlays on broad relighting edits.
+async function postProcessBatchOutput(raw: string, prior: string, action: BatchAction): Promise<string> {
   const chainEnabled = typeof window !== 'undefined'
     ? new URLSearchParams(window.location.search).get('chain') !== '0'
     : true;
   const fmt: 'png' | 'jpeg' = chainEnabled ? 'png' : 'jpeg';
   const sharpened = await sharpenImage(raw, 0.4, 1, fmt);
+  if (action === 'export') return sharpened;
+  const toolForComposite = action === 'stage' ? 'staging' : action;
+  if (shouldSkipCompositeForTool(toolForComposite)) {
+    return sharpened;
+  }
+  const compositeOptions = action === 'cleanup' ? CLEANUP_COMPOSITE_OPTIONS : undefined;
   try {
-    return await compositeStackedEdit(prior, sharpened, { format: fmt });
+    return await compositeStackedEdit(prior, sharpened, { format: fmt, ...compositeOptions });
   } catch (err) {
     console.warn('[BatchProcessor] composite failed, using sharpened raw:', err);
     return sharpened;
@@ -94,7 +101,7 @@ const processImage = async (img: BatchImage, isPro: boolean = false): Promise<st
     case 'stage': {
       const prompt = `Virtually stage this ${roomType}. Add appropriate, style-neutral modern furniture and decor. Preserve all existing wall colors, floor colors, ceiling, architecture, layout, windows, doors, and built-in fixtures EXACTLY as they are. Do NOT change or color-grade existing surfaces. Keep the exact same framing and crop.`;
       const results = await generateRoomDesign(img.base64, prompt, null, false, 1, isPro);
-      return await postProcessBatchOutput(results[0], img.base64);
+      return await postProcessBatchOutput(results[0], img.base64, 'stage');
     }
     case 'cleanup': {
       const raw = await instantDeclutter(img.base64, roomType, isPro);
@@ -124,15 +131,15 @@ const processImage = async (img: BatchImage, isPro: boolean = false): Promise<st
           console.warn('[BatchProcessor] X4 alignment check failed (non-fatal):', e);
         }
       }
-      return await postProcessBatchOutput(raw, img.base64);
+      return await postProcessBatchOutput(raw, img.base64, 'cleanup');
     }
     case 'twilight': {
       const raw = await virtualTwilight(img.base64, isPro);
-      return await postProcessBatchOutput(raw, img.base64);
+      return await postProcessBatchOutput(raw, img.base64, 'twilight');
     }
     case 'sky': {
       const raw = await replaceSky(img.base64, 'blue', isPro);
-      return await postProcessBatchOutput(raw, img.base64);
+      return await postProcessBatchOutput(raw, img.base64, 'sky');
     }
     case 'export': {
       // No AI processing — just pass through the original

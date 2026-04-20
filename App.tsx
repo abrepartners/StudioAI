@@ -7,6 +7,7 @@ import { sharpenImage } from './utils/sharpen';
 import { compositeStackedEdit } from './utils/stackComposite';
 import { checkAlignment } from './utils/alignmentCheck';
 import { generateThumbnail } from './utils/thumbnail';
+import { CLEANUP_COMPOSITE_OPTIONS } from './utils/compositeProfiles';
 // Hot-path components — kept static (editor core, used immediately)
 import ImageUploader from './components/ImageUploader';
 import BatchUploader, { type BatchImage } from './components/BatchUploader';
@@ -1154,10 +1155,11 @@ Direction from user: ${prompt}`;
         }
       }
       let compositeHadError = false;
+      const compositeOptions = isCleanup ? CLEANUP_COMPOSITE_OPTIONS : undefined;
       const resultImages = shouldComposite
         ? await Promise.all(
             sharpened.map(img =>
-              compositeStackedEdit(sourceImage, img, { format: sharpenFormat }).catch(err => {
+              compositeStackedEdit(sourceImage, img, { format: sharpenFormat, ...compositeOptions }).catch(err => {
                 console.warn('[StudioAI] composite failed, falling back to raw output:', err);
                 compositeHadError = true;
                 return img;

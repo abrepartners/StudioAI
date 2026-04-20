@@ -15,7 +15,7 @@
  */
 
 import React, { useEffect, useMemo } from 'react';
-import { NavLink, useNavigate, useParams } from 'react-router-dom';
+import { Link, NavLink, useNavigate, useParams } from 'react-router-dom';
 import {
   Palette,
   Users,
@@ -31,6 +31,8 @@ import ManageTeam from '../../components/ManageTeam';
 import UsageDashboard from '../../components/UsageDashboard';
 import ReferralDashboard from '../../components/ReferralDashboard';
 import { isAdmin, readGoogleUser, type GoogleUser } from './authStorage';
+import { useSubscription } from '../../hooks/useSubscription';
+import { getPlanDisplayName, hasUnlimitedGeneration } from '../../shared/monetization';
 
 type SettingsTab =
   | 'brand'
@@ -56,6 +58,7 @@ const SettingsRoute: React.FC = () => {
   const navigate = useNavigate();
   const { tab } = useParams<{ tab: string }>();
   const user = useMemo(() => readGoogleUser(), []);
+  const subscription = useSubscription(user?.email || null);
 
   useEffect(() => {
     if (!user) {
@@ -76,11 +79,11 @@ const SettingsRoute: React.FC = () => {
     <div className="min-h-screen bg-black text-zinc-100">
       <header className="px-6 py-4 border-b border-white/[0.06] flex items-center justify-between">
         <div className="flex items-center gap-6">
-          <a href="/" className="font-display text-lg tracking-tight">StudioAI</a>
+          <Link to="/" className="font-display text-lg tracking-tight">StudioAI</Link>
           <nav className="flex items-center gap-4 text-xs text-zinc-400">
-            <a href="/" className="hover:text-white transition">Studio</a>
-            <a href="/listings" className="hover:text-white transition">Listings</a>
-            <a href="/settings/brand" className="text-white font-semibold">Settings</a>
+            <Link to="/" className="hover:text-white transition">Studio</Link>
+            <Link to="/listings" className="hover:text-white transition">Listings</Link>
+            <Link to="/settings/brand" className="text-white font-semibold">Settings</Link>
           </nav>
         </div>
         <div className="flex items-center gap-3">
@@ -133,7 +136,7 @@ const SettingsRoute: React.FC = () => {
           {activeTab === 'team' && !admin && <AccessDenied />}
 
           {activeTab === 'billing' && (
-            <BillingTab user={user} />
+            <BillingTab user={user} subscription={subscription} />
           )}
 
           {activeTab === 'referral' && (
@@ -172,7 +175,14 @@ const AccessDenied: React.FC = () => (
   </div>
 );
 
-const BillingTab: React.FC<{ user: GoogleUser }> = ({ user }) => {
+const BillingTab: React.FC<{
+  user: GoogleUser;
+  subscription: ReturnType<typeof useSubscription>;
+}> = ({ user, subscription }) => {
+  const paid = subscription.subscribed && subscription.plan !== 'free' && subscription.plan !== 'credits';
+  const intervalLabel = subscription.interval ? (subscription.interval === 'year' ? 'Annual' : 'Monthly') : '—';
+  const planName = getPlanDisplayName(subscription.plan);
+
   return (
     <section>
       <SectionHeading title="Billing" subtitle="Plan, usage, and credit packs." />
@@ -181,17 +191,33 @@ const BillingTab: React.FC<{ user: GoogleUser }> = ({ user }) => {
           <div className="flex items-center justify-between">
             <div>
               <div className="text-xs uppercase tracking-[0.18em] text-zinc-500">Current plan</div>
-              <div className="text-lg font-semibold mt-0.5">Free</div>
+              <div className="text-lg font-semibold mt-0.5">{subscription.loading ? 'Loading…' : planName}</div>
+              {!subscription.loading && (
+                <div className="text-xs text-zinc-400 mt-1">
+                  Interval: {intervalLabel}
+                  {subscription.seats ? ` · Seats: ${subscription.seats}` : ''}
+                  {hasUnlimitedGeneration(subscription.plan) ? ' · Unlimited generations' : ''}
+                </div>
+              )}
             </div>
-            <a
-              href="/pricing"
+            <button
+              type="button"
+              onClick={() => {
+                if (paid) {
+                  subscription.openPortal();
+                } else {
+                  window.location.assign('/pricing');
+                }
+              }}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-black text-sm font-semibold hover:bg-zinc-200 transition"
             >
-              See plans
-            </a>
+              {paid ? 'Manage billing' : 'See plans'}
+            </button>
           </div>
           <div className="pt-4 border-t border-white/[0.06] text-xs text-zinc-500">
-            Signed in as {user.email}. Stripe customer portal opens from the editor's upgrade flow once you're on a paid plan.
+            Signed in as {user.email}. {paid
+              ? 'Use billing portal for invoices, payment methods, and cancellation.'
+              : 'Upgrade from Pricing when ready.'}
           </div>
         </div>
         <UsageDashboard email={user.email} />

@@ -55,6 +55,8 @@ import {
 } from '../utils/imageExport';
 import type { BatchImage } from './BatchUploader';
 import { useBrandKit } from '../hooks/useBrandKit';
+import { buildCleanupSignal, type CleanupQualitySignal } from '../src/types/cleanupQuality';
+import { trackCleanupRisk } from '../src/lib/analytics';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -176,6 +178,7 @@ const ListingKitPipeline: React.FC<ListingKitPipelineProps> = ({
   const [zipBlob, setZipBlob] = useState<Blob | null>(null);
   const [zipName, setZipName] = useState<string>('listing_kit.zip');
   const [fatalError, setFatalError] = useState<string | null>(null);
+  const [cleanupQuality, setCleanupQuality] = useState<CleanupQualitySignal | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   // Reset hero default whenever the source image set changes.
@@ -218,6 +221,7 @@ const ListingKitPipeline: React.FC<ListingKitPipelineProps> = ({
     setRunning(true);
     setFatalError(null);
     setZipBlob(null);
+    setCleanupQuality(null);
     setState(initialPipelineState());
 
     const controller = new AbortController();
@@ -302,6 +306,31 @@ const ListingKitPipeline: React.FC<ListingKitPipelineProps> = ({
         stepDetail: cleanupFails > 0 ? `${images.length - cleanupFails}/${images.length} succeeded` : `${images.length}/${images.length} photos`,
         errorMsg: cleanupFails > 0 ? `${cleanupFails} failed (used staged as fallback)` : undefined,
       });
+      const cleanupSignal = cleanupFails === images.length
+        ? buildCleanupSignal({
+            risk: 'high',
+            source: 'listing-kit',
+            reason: 'Cleanup failed across all listing-kit images.',
+            compositeMode: 'not_applicable',
+            nextActions: ['Retry kit with fewer images', 'Run cleanup manually on key hero photos'],
+          })
+        : cleanupFails > 0
+          ? buildCleanupSignal({
+              risk: 'review',
+              source: 'listing-kit',
+              reason: `${cleanupFails} cleanup pass(es) fell back to staged outputs.`,
+              compositeMode: 'fallback_raw_after_error',
+              nextActions: ['Review cleanup folder before sharing', 'Retry failed photos individually'],
+            })
+          : buildCleanupSignal({
+              risk: 'safe',
+              source: 'listing-kit',
+              reason: 'Cleanup completed for all images.',
+              compositeMode: 'applied',
+              nextActions: ['Continue to export'],
+            });
+      setCleanupQuality(cleanupSignal);
+      trackCleanupRisk(cleanupSignal.risk, { source: 'listing-kit', images: images.length, fails: cleanupFails });
       if (signal.aborted) throw new Error('ABORTED');
 
       // ─── Step 4 — MLS zip (HD Landscape) ────────────────────────────────
@@ -630,6 +659,20 @@ const ListingKitPipeline: React.FC<ListingKitPipelineProps> = ({
             <div className="flex items-start gap-2 rounded-lg border border-[#FF375F]/40 bg-[#FF375F]/5 px-3 py-2.5">
               <AlertCircle size={14} className="text-[#FF375F] mt-0.5 shrink-0" />
               <div className="text-sm text-[#FF8294]">{fatalError}</div>
+            </div>
+          )}
+          {cleanupQuality && (
+            <div className={`rounded-lg border px-3 py-2.5 ${
+              cleanupQuality.risk === 'safe'
+                ? 'border-[#30D158]/35 bg-[#30D158]/10'
+                : cleanupQuality.risk === 'high'
+                  ? 'border-[#FF375F]/40 bg-[#FF375F]/10'
+                  : 'border-[#FF9F0A]/35 bg-[#FF9F0A]/10'
+            }`}>
+              <p className="text-xs font-semibold uppercase tracking-wider text-white">
+                Cleanup confidence: {cleanupQuality.risk}
+              </p>
+              <p className="mt-1 text-xs text-zinc-300">{cleanupQuality.reason}</p>
             </div>
           )}
         </div>

@@ -20,6 +20,12 @@
 
 import React, { useState } from 'react';
 import { Check, Crown, Star, Users, Sparkles } from 'lucide-react';
+import {
+  DISPLAY_COPY,
+  PLAN_PRICING_USD,
+  STARTER_MONTHLY_LIMIT,
+} from '../shared/monetization';
+import { trackEvent } from '../src/lib/analytics';
 
 export type PricingPlan = 'starter' | 'pro' | 'team';
 export type PricingInterval = 'month' | 'year';
@@ -47,8 +53,8 @@ const CATALOG = {
     ctaMonth: 'Start Free',
     ctaYear: 'Start Free',
     features: [
-      '5 lifetime generations',
-      'Then 1 generation / day',
+      `${DISPLAY_COPY.freeTierShort}`,
+      'No credit card required',
       'Staging + Cleanup',
       '"Virtually Staged" watermark',
     ],
@@ -57,14 +63,14 @@ const CATALOG = {
   starter: {
     name: 'Starter',
     tagline: 'One listing, done right.',
-    month: 19,
-    year: 15,
+    month: PLAN_PRICING_USD.starter.month,
+    year: PLAN_PRICING_USD.starter.year,
     perPhoto: '$0.48 per staged photo',
     seats: 1,
     ctaMonth: 'Start Starter',
     ctaYear: 'Start Starter — save $48/yr',
     features: [
-      '40 generations / month',
+      `${STARTER_MONTHLY_LIMIT} generations / month`,
       'Staging + Cleanup + MLS Export',
       'Listing Copy (1 Pro AI Tool)',
       'Text watermark only',
@@ -74,8 +80,8 @@ const CATALOG = {
   pro: {
     name: 'Pro',
     tagline: 'Unlimited listings. Every tool.',
-    month: 49,
-    year: 39,
+    month: PLAN_PRICING_USD.pro.month,
+    year: PLAN_PRICING_USD.pro.year,
     perPhoto: 'Less than $0.05/photo at typical use',
     seats: 1,
     ctaMonth: 'Start Pro',
@@ -93,8 +99,8 @@ const CATALOG = {
   team: {
     name: 'Team',
     tagline: 'For media shops + small brokerages.',
-    month: 99,
-    year: 79,
+    month: PLAN_PRICING_USD.team.month,
+    year: PLAN_PRICING_USD.team.year,
     perPhoto: 'Shared across 3 seats',
     seats: 3,
     ctaMonth: 'Start Team',
@@ -163,8 +169,13 @@ export const PricingPage: React.FC<PricingPageProps> = ({
       return;
     }
     if (!email) { onRequireSignIn(); return; }
+    trackEvent('checkout_started', { plan, interval });
     onStartCheckout?.(plan as PricingPlan, interval);
   };
+
+  React.useEffect(() => {
+    trackEvent('pricing_viewed', { location: id });
+  }, [id]);
 
   return (
     <section id={id} className="px-5 sm:px-8 lg:px-12 py-24 sm:py-32 scroll-mt-20">

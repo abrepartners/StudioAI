@@ -436,6 +436,10 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                 <p className="text-sm text-[var(--color-text)]/80 mb-3">
                     Remove personal items, clutter, and distractions so buyers see the room, not the seller's stuff.
                 </p>
+                <p className="text-xs text-[var(--color-text)]/55 px-1 mt-1">
+                    Works on your original photo. If you've already staged, Smart Cleanup will
+                    replace your current result — run it first, then stage on top.
+                </p>
                 <button
                     type="button"
                     disabled={loading !== null || (!currentImage && !canBatch)}

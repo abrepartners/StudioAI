@@ -766,21 +766,33 @@ If you find yourself generating content that enhances the room with features you
 - Do NOT apply any color grading, tone mapping, or mood shift.
 - Do NOT soften, blur, or reduce sharpness. Output must be AS SHARP as the input.
 
-=== REMOVE ALL OF THESE ===
-- Realtor signs, for-sale signs, lockboxes, key boxes on doors
-- Toys, pet items, children's items, strollers, Little Tikes, play kitchens, ride-on vehicles
-- PETS AND ANIMALS — dogs, cats, birds, fish tanks, small mammals. The animal itself must be removed AND so must its bed/crate/bowl/leash. Listings must be species-neutral.
-- Vinyl wall decals, stickers, quote art, kid names on walls
-- Visible laundry, shoes, bags, backpacks on the floor
-- Trash, debris, junk, broken items, construction materials
-- Countertop clutter: mail, keys, loose bottles, random cups, toiletries, fruit baskets, cookie jars
-- Visible cords and cables on the floor
-- Refrigerator magnets, sticky notes, taped papers
-- PERSONAL PHOTOGRAPHS OF PEOPLE — framed portraits, family photos, wedding photos, baby photos, school photos. Remove regardless of where they are: on walls, dressers, desks, nightstands, shelves, bookcases, mantles, pianos, countertops, refrigerators. Remove both the photo AND the frame. Neutral landscape/abstract art in frames stays.
-- Children's drawings, handprints, art projects taped or framed anywhere
-- Yard clutter: hoses, tools, buckets, tarps, random outdoor items
-- Moving boxes, packing materials
-- Cleaning supplies left out (brooms, mops, spray bottles)
+=== REMOVE — SIX UMBRELLAS ===
+
+Collapse every clutter item you see into ONE of these six categories. If it fits here, remove it.
+
+**1. CLOTHING & FOOTWEAR** — any visible clothes or shoes.
+   Includes: T-shirts, pants, jeans, sweaters, jackets, dresses, hanging laundry, piled laundry, folded clothes out of drawers, sneakers, boots, sandals, slippers, socks, hats on furniture.
+   Both on floors AND on furniture/surfaces.
+
+**2. PERSONAL PHOTOGRAPHS OF PEOPLE** — framed portraits anywhere in the scene.
+   Includes: family photos, wedding photos, baby/school photos, selfies, portraits.
+   On any surface: walls, dressers, desks, nightstands, shelves, bookcases, mantles, pianos, countertops, refrigerators.
+   Remove BOTH the photo AND the frame. Neutral landscape/abstract art stays.
+
+**3. TRASH & CLUTTER** — small personal items that shouldn't be in a listing.
+   Includes: trash, debris, junk, broken items, mail, keys, loose bottles, cups, toiletries, fruit baskets, cookie jars, cords/cables on floors, fridge magnets, sticky notes, taped papers, stickers, wall decals, kid names on walls, children's drawings.
+   Plus: toys, strollers, play kitchens, ride-on vehicles, pet items (beds, bowls, leashes), moving boxes, cleaning supplies (brooms, mops, spray bottles), tools left out.
+   Plus: PETS THEMSELVES — dogs, cats, birds, fish tanks. Listings must be species-neutral.
+
+**4. REAL-ESTATE SIGNS & HARDWARE** — anything on/near doors that says "for sale."
+   Includes: realtor signs, for-sale signs, lockboxes, key boxes, agent flyers, open-house arrows, yard signs.
+
+**5. OUTDOOR DIRT & STAINS** — on hard surfaces only.
+   Includes: dirt, leaves, debris, mud streaks, oil spots, stains, discoloration on patios, driveways, concrete, pavers, porch floors, stoops.
+   Does NOT include: natural weathering of wood, intentional concrete patterns, pavement cracks that are part of the surface (those stay).
+
+**6. YARD & OUTDOOR CLUTTER** — removable outdoor items.
+   Includes: garden hoses, tools, buckets, tarps, trash cans in view, random outdoor items, pool floats on deck.
 
 === DO NOT REMOVE (these are context / scene content) ===
 - Cars, trucks, bikes, boats, motorcycles, RVs — vehicles are NEVER clutter.

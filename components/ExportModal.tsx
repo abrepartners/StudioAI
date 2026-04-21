@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Download, X, Type, Image as ImageIcon, Check, Share2, Heart, Video, Loader2 } from 'lucide-react';
 import { compositePreserve } from '../utils/compositePreserve';
+import { shouldPreserveOriginalPixelsOnExport } from '../utils/exportImagePolicy';
 import type { BrandKit } from '../hooks/useBrandKit';
 import { useModal } from '../hooks/useModal';
 
@@ -87,7 +88,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
     try {
       // Composite: preserve original sharpness in unchanged areas
       let finalImage = imageBase64;
-      if (originalImage) {
+      if (originalImage && shouldPreserveOriginalPixelsOnExport(editHistory)) {
         finalImage = await compositePreserve(originalImage, imageBase64);
       }
 

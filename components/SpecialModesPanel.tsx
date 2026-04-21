@@ -27,6 +27,7 @@ import { compositeStackedEdit } from '../utils/stackComposite';
 import { CLEANUP_COMPOSITE_OPTIONS, shouldSkipCompositeForTool } from '../utils/compositeProfiles';
 import { shouldPromptNonStackable } from '../utils/nonStackableTools';
 import { checkAlignment } from '../utils/alignmentCheck';
+import { detectClutterMasks } from '../services/samService';
 import NonStackableConfirm from './NonStackableConfirm';
 import PanelHeader from './PanelHeader';
 import { Badge, Button } from './ui';
@@ -467,12 +468,30 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                                 setDeclutterSignal(buildCleanupSignal({
                                     risk: 'review',
                                     source: 'single',
-                                    reason: 'Cleanup is running quality checks.',
+                                    reason: 'Detecting objects with precision segmentation…',
                                     compositeMode: 'not_applicable',
-                                    nextActions: ['Review boundaries after generation'],
+                                    nextActions: ['Wait for SAM 2 detection to complete'],
                                 }));
+                                // SAM 2 precision mask (pre-gen). If detection succeeds, pass the
+                                // combined object mask to Gemini so it knows exactly what to remove.
+                                // If SAM fails or returns nothing, gracefully fall through to the
+                                // legacy prompt-only cleanup.
+                                const sam = await detectClutterMasks(input).catch(() => null);
+                                if (sam) {
+                                    setDeclutterSignal(buildCleanupSignal({
+                                        risk: 'review',
+                                        source: 'single',
+                                        reason: `Found ${sam.maskCount} objects (${(sam.latencyMs / 1000).toFixed(1)}s). Running cleanup with precision mask.`,
+                                        compositeMode: 'not_applicable',
+                                        nextActions: ['Review boundaries after generation'],
+                                    }));
+                                }
                                 try {
-                                    const result = await postProcessToolOutput(await instantDeclutter(input, selectedRoom, isPro, signal), input, 'cleanup');
+                                    const result = await postProcessToolOutput(
+                                        await instantDeclutter(input, selectedRoom, isPro, signal, sam?.combinedMaskBase64 || null),
+                                        input,
+                                        'cleanup',
+                                    );
                                     onNewImage(result, 'cleanup');
                                     const auditToken = ++declutterAuditRef.current;
                                     setDeclutterSignal(buildCleanupSignal({

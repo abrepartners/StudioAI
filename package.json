@@ -22,7 +22,8 @@
     "pixelmatch": "^7.1.0",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
-    "react-router-dom": "^7.14.1"
+    "react-router-dom": "^7.14.1",
+    "replicate": "^1.4.0"
   },
   "devDependencies": {
     "@napi-rs/canvas": "^0.1.99",

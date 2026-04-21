@@ -537,9 +537,12 @@ export const virtualTwilight = async (
 `
     : '';
 
+  const modelName = isPro ? 'gemini-3-pro-image-preview' : 'gemini-3.1-flash-image-preview';
+  console.log(`[Twilight] model=${modelName} isPro=${isPro} hasAnchor=${hasAnchor}`);
+
   try {
   const response = await ai.models.generateContent({
-    model: isPro ? 'gemini-3-pro-image-preview' : 'gemini-3.1-flash-image-preview',
+    model: modelName,
     contents: [
       {
         parts: [
@@ -617,6 +620,11 @@ Count the objects in the original. The output must have the EXACT same number of
   throw new Error('No twilight image generated');
   } catch (error: any) {
     if (error?.name === 'AbortError' || abortSignal?.aborted) throw new Error('ABORTED');
+    // Surface Pro-overloaded as an actionable message instead of a generic failure.
+    const msg = String(error?.message || '').toLowerCase();
+    if (error?.status === 503 || msg.includes('unavailable') || msg.includes('high demand')) {
+      throw new Error(`${modelName === 'gemini-3-pro-image-preview' ? 'Pro image' : 'Image'} model is overloaded right now — try again in a minute.`);
+    }
     throw error;
   }
 };

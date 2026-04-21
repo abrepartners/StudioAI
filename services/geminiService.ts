@@ -513,9 +513,29 @@ export const sendMessageToChat = async (chat: Chat, message: string, currentImag
  * golden-hour / blue-hour dusk shot by changing only the sky and ambient lighting.
  * Preserves all architecture, landscaping, and objects exactly — adds nothing new.
  */
-export const virtualTwilight = async (imageBase64: string, isPro: boolean = false, abortSignal?: AbortSignal): Promise<string> => {
+export const virtualTwilight = async (
+  imageBase64: string,
+  isPro: boolean = false,
+  abortSignal?: AbortSignal,
+  anchorImageBase64?: string | null,
+): Promise<string> => {
   const ai = getAI();
   const clean = cleanBase64(await resizeForUpload(imageBase64));
+  const hasAnchor =
+    !!anchorImageBase64 &&
+    anchorImageBase64.length > 100 &&
+    anchorImageBase64 !== imageBase64;
+  const cleanAnchor = hasAnchor
+    ? cleanBase64(await resizeForUpload(anchorImageBase64!))
+    : null;
+
+  const anchorHeader = hasAnchor
+    ? `=== IMAGE ROLES ===
+- IMAGE 1 (ANCHOR / FRAMING LOCK): The original photo. Every pixel you do NOT intentionally relight must match IMAGE 1's framing, geometry, and composition exactly. Camera angle, crop, field of view, horizon line, and subject position come from IMAGE 1. Do NOT reframe, zoom, pan, or shift composition.
+- IMAGE 2 (WORKING STATE): Same scene. Apply the twilight lighting transformation below to IMAGE 2 — output must have IMAGE 1's framing with IMAGE 2's content relit.
+
+`
+    : '';
 
   try {
   const response = await ai.models.generateContent({
@@ -524,7 +544,7 @@ export const virtualTwilight = async (imageBase64: string, isPro: boolean = fals
       {
         parts: [
           {
-            text: `Convert this daytime exterior real estate photo into a MAGAZINE-QUALITY twilight / blue-hour listing shot. Target reference: Architectural Digest cover, Sotheby's luxury listing, professional twilight real estate photography. The sky is EASY — the hard part is making the HOUSE itself feel lit from within and from above by a dusk sky. Do not return a flat, washed, or under-lit result.
+            text: anchorHeader + `Convert this daytime exterior real estate photo into a MAGAZINE-QUALITY twilight / blue-hour listing shot. Target reference: Architectural Digest cover, Sotheby's luxury listing, professional twilight real estate photography. The sky is EASY — the hard part is making the HOUSE itself feel lit from within and from above by a dusk sky. Do not return a flat, washed, or under-lit result.
 
 THIS IS A LIGHTING-ONLY EDIT. You are changing sky + the light that sky casts on the existing structure. No new objects.
 
@@ -577,6 +597,9 @@ Ask yourself: (a) Does every visible window glow warm? (b) Do the roof edges rim
 
 Count the objects in the original. The output must have the EXACT same number of objects. If you added anything, you failed. Return the image ONLY — no text, no explanation.`
           },
+          ...(hasAnchor && cleanAnchor
+            ? [{ inlineData: { mimeType: 'image/jpeg' as const, data: cleanAnchor } }]
+            : []),
           { inlineData: { mimeType: 'image/jpeg', data: clean } },
         ],
       }

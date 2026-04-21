@@ -26,6 +26,7 @@ import { sharpenImage } from '../utils/sharpen';
 import { compositeStackedEdit } from '../utils/stackComposite';
 import { CLEANUP_COMPOSITE_OPTIONS, shouldSkipCompositeForTool } from '../utils/compositeProfiles';
 import { shouldPromptNonStackable } from '../utils/nonStackableTools';
+import { checkAlignment } from '../utils/alignmentCheck';
 import NonStackableConfirm from './NonStackableConfirm';
 import PanelHeader from './PanelHeader';
 import { Badge, Button } from './ui';
@@ -390,8 +391,25 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                     type="button"
                     disabled={loading !== null || (!currentImage && !canBatch)}
                     onClick={() => canBatch
-                        ? runBatch('twilight', (img, signal) => virtualTwilight(img, isPro, signal))
-                        : run('twilight', async (signal) => { const result = await postProcessToolOutput(await virtualTwilight(currentImage!, isPro, signal), currentImage, 'twilight'); onNewImage(result, 'twilight'); })
+                        ? runBatch('twilight', (img, signal) => virtualTwilight(img, isPro, signal, img))
+                        : run('twilight', async (signal) => {
+                            // Anchor on original so Gemini has a framing-lock reference.
+                            const raw = await virtualTwilight(currentImage!, isPro, signal, originalImage);
+                            // X4 alignment guard — bail if Gemini reframed.
+                            try {
+                              const align = await checkAlignment(currentImage!, raw, 0.70);
+                              console.log(`[Twilight] alignment overlap=${(align.overlap * 100).toFixed(0)}%`);
+                              if (!align.aligned) {
+                                console.warn(`[Twilight] BAIL — reframed (overlap ${(align.overlap * 100).toFixed(0)}% < 70%)`);
+                                setError("Twilight couldn't keep your framing locked — try again, or run on a different photo.");
+                                return;
+                              }
+                            } catch (e) {
+                              console.warn('[Twilight] alignment check failed (non-fatal):', e);
+                            }
+                            const result = await postProcessToolOutput(raw, currentImage, 'twilight');
+                            onNewImage(result, 'twilight');
+                          })
                     }
                     className={`w-full rounded-2xl px-4 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all ${loading === 'twilight' ? 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border)]' : 'bg-white/[0.03] text-white border border-white/10 hover:bg-white/[0.06] hover:border-white/20 flex items-center justify-center gap-2 [&_svg]:text-[var(--color-primary)]'}`}
                 >

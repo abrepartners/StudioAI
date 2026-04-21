@@ -109,9 +109,14 @@ export async function compositeStackedEdit(
 
   const totalPixels = diffW * diffH;
   const changeRatio = changedPixels / totalPixels;
+  // Log on every run so a hot-threshold regression like the 0.04→91%-mask bug
+  // from April 21 shows up in the console without needing a manual audit.
+  console.log(
+    `[stackComposite] pre-dilate change=${(changeRatio * 100).toFixed(2)}% at ${diffW}x${diffH} (threshold=${threshold})`
+  );
   if (changeRatio < 0.001 || changeRatio > 0.95) {
     console.log(
-      `[stackComposite] change ratio ${(changeRatio * 100).toFixed(2)}% at ${diffW}x${diffH} — using raw model output.`
+      `[stackComposite] BAILED — change ratio ${(changeRatio * 100).toFixed(2)}% outside (0.1%, 95%) — shipping raw upscaled model output.`
     );
     return upscaleToDataUrl(newImg, priorW, priorH, format);
   }

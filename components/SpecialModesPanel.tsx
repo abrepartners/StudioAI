@@ -395,13 +395,18 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                         : run('twilight', async (signal) => {
                             // Anchor on original so Gemini has a framing-lock reference.
                             const raw = await virtualTwilight(currentImage!, isPro, signal, originalImage);
-                            // X4 alignment guard — bail if Gemini reframed.
+                            // X4 alignment guard — bail if Gemini DRAMATICALLY reframed.
+                            // Threshold is 0.40 for twilight (vs. 0.70 for cleanup) because
+                            // the day→dusk transformation naturally adds/removes edges via
+                            // rim-lighting, window-glow, and shadow-deepening. A 60% overlap
+                            // on identically-framed shots is normal for this tool. We only
+                            // reject outright reframes (<40% overlap).
                             try {
-                              const align = await checkAlignment(currentImage!, raw, 0.70);
+                              const align = await checkAlignment(currentImage!, raw, 0.40);
                               console.log(`[Twilight] alignment overlap=${(align.overlap * 100).toFixed(0)}%`);
                               if (!align.aligned) {
-                                console.warn(`[Twilight] BAIL — reframed (overlap ${(align.overlap * 100).toFixed(0)}% < 70%)`);
-                                setError("Twilight couldn't keep your framing locked — try again, or run on a different photo.");
+                                console.warn(`[Twilight] BAIL — reframed (overlap ${(align.overlap * 100).toFixed(0)}% < 40%)`);
+                                setError("Twilight reframed the photo — try again, or run on a different photo.");
                                 return;
                               }
                             } catch (e) {

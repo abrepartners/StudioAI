@@ -4,9 +4,9 @@ import type { StackCompositeOptions } from './stackComposite';
 // mask and a tighter feather boundary to avoid "ghost" residues from the
 // source image bleeding back in.
 export const CLEANUP_COMPOSITE_OPTIONS: StackCompositeOptions = {
-  threshold: 0.08,
-  dilatePx: 6,
-  featherPx: 8,
+  threshold: 0.04,
+  dilatePx: 12,
+  featherPx: 10,
 };
 
 // Lighting-only tools (twilight / sky) repaint broad regions. Blending those

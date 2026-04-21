@@ -323,11 +323,11 @@ const ListingKitPipeline: React.FC<ListingKitPipelineProps> = ({
               nextActions: ['Review cleanup folder before sharing', 'Retry failed photos individually'],
             })
           : buildCleanupSignal({
-              risk: 'safe',
+              risk: 'review',
               source: 'listing-kit',
-              reason: 'Cleanup completed for all images.',
+              reason: 'Cleanup completed for all images; review key rooms before sharing.',
               compositeMode: 'applied',
-              nextActions: ['Continue to export'],
+              nextActions: ['Review cleanup folder before sharing', 'Continue to export'],
             });
       setCleanupQuality(cleanupSignal);
       trackCleanupRisk(cleanupSignal.risk, { source: 'listing-kit', images: images.length, fails: cleanupFails });

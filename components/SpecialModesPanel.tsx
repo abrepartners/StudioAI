@@ -27,8 +27,13 @@ import { compositeStackedEdit } from '../utils/stackComposite';
 import { CLEANUP_COMPOSITE_OPTIONS, shouldSkipCompositeForTool } from '../utils/compositeProfiles';
 import PanelHeader from './PanelHeader';
 import { Badge, Button } from './ui';
-import { buildCleanupSignal, type CleanupQualitySignal } from '../src/types/cleanupQuality';
+import {
+    buildCleanupSignal,
+    cleanupRiskFromQualityScore,
+    type CleanupQualitySignal,
+} from '../src/types/cleanupQuality';
 import { trackCleanupRisk } from '../src/lib/analytics';
+import { scoreListingImage } from '../services/qualityScoreService';
 
 // Post-process a Pro AI Tool's raw Gemini output:
 //   1. Sharpen (PNG when chain is on — no JPEG spiral on further stacking)
@@ -156,6 +161,7 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
     const [batchMode, setBatchMode] = useState(false);
     const [batchProgress, setBatchProgress] = useState<{ current: number; total: number; results: string[] } | null>(null);
     const [declutterSignal, setDeclutterSignal] = useState<CleanupQualitySignal | null>(null);
+    const declutterAuditRef = useRef(0);
 
     // Sky replacement
     const [skyStyle, setSkyStyle] = useState<SkyStyle>('blue');
@@ -440,15 +446,56 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                             try {
                                 const result = await postProcessToolOutput(await instantDeclutter(currentImage!, selectedRoom, isPro, signal), currentImage, 'cleanup');
                                 onNewImage(result, 'cleanup');
-                                const safe = buildCleanupSignal({
-                                    risk: 'safe',
+                                const auditToken = ++declutterAuditRef.current;
+                                setDeclutterSignal(buildCleanupSignal({
+                                    risk: 'review',
                                     source: 'single',
-                                    reason: 'Cleanup completed in Pro Tools.',
+                                    reason: 'Cleanup completed. Running quality audit.',
                                     compositeMode: 'applied',
-                                    nextActions: ['Export when ready'],
-                                });
-                                setDeclutterSignal(safe);
-                                trackCleanupRisk(safe.risk, { source: 'pro-tools' });
+                                    nextActions: ['Review boundaries while quality audit runs'],
+                                }));
+                                try {
+                                    const score = await withTimeout(
+                                        scoreListingImage(result, selectedRoom),
+                                        18000,
+                                        'Cleanup quality scoring timed out'
+                                    );
+                                    if (auditToken !== declutterAuditRef.current) return;
+                                    const resolvedRisk = cleanupRiskFromQualityScore(score.overall) ?? 'review';
+                                    const resolvedSignal = buildCleanupSignal({
+                                        risk: resolvedRisk,
+                                        source: 'single',
+                                        qualityScore: score.overall,
+                                        reason:
+                                            resolvedRisk === 'safe'
+                                                ? `Cleanup passed checks (quality ${score.overall.toFixed(1)}/10).`
+                                                : resolvedRisk === 'high'
+                                                    ? `Cleanup shows high artifact risk (quality ${score.overall.toFixed(1)}/10).`
+                                                    : `Cleanup needs review before export (quality ${score.overall.toFixed(1)}/10).`,
+                                        compositeMode: 'applied',
+                                        nextActions:
+                                            resolvedRisk === 'safe'
+                                                ? ['Export when ready']
+                                                : ['Inspect edges before export', 'Retry tighter cleanup scope'],
+                                    });
+                                    setDeclutterSignal(resolvedSignal);
+                                    trackCleanupRisk(resolvedSignal.risk, {
+                                        source: 'pro-tools',
+                                        qualityScore: score.overall,
+                                    });
+                                } catch (scoreErr) {
+                                    console.warn('[SpecialModesPanel] Cleanup quality scoring skipped:', scoreErr);
+                                    if (auditToken !== declutterAuditRef.current) return;
+                                    const review = buildCleanupSignal({
+                                        risk: 'review',
+                                        source: 'single',
+                                        reason: 'Cleanup completed but quality scoring was unavailable.',
+                                        compositeMode: 'applied',
+                                        nextActions: ['Inspect edges before export', 'Retry if ghosting persists'],
+                                    });
+                                    setDeclutterSignal(review);
+                                    trackCleanupRisk(review.risk, { source: 'pro-tools' });
+                                }
                             } catch (err) {
                                 const high = buildCleanupSignal({
                                     risk: 'high',
@@ -479,6 +526,11 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                             Cleanup confidence: {declutterSignal.risk}
                         </p>
                         <p className="text-xs text-zinc-300 mt-1">{declutterSignal.reason}</p>
+                        {typeof declutterSignal.qualityScore === 'number' && (
+                            <p className="text-2xs text-zinc-400 mt-1">
+                                Quality score: {declutterSignal.qualityScore.toFixed(1)}/10
+                            </p>
+                        )}
                     </div>
                 )}
             </Section>

@@ -293,9 +293,9 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({
           const generated = await processImage(dispatchImg, isPro);
           const cleanupQuality = actionAtDispatch === 'cleanup'
             ? buildCleanupSignal({
-                risk: 'safe',
+                risk: 'review',
                 source: 'batch',
-                reason: 'Batch cleanup passed quality guards.',
+                reason: 'Batch cleanup finished; review edges before export.',
                 compositeMode: 'applied',
                 nextActions: ['Spot-check edges on final selection'],
               })

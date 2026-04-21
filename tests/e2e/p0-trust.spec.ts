@@ -128,6 +128,9 @@ test.describe('P0 trust and differentiation', () => {
     });
 
     await page.goto('/?ff_cleanup_confidence_ui=1');
+    await page.evaluate(() => localStorage.setItem('studioai_tutorial_seen', 'true'));
+    await page.locator('input[type="file"]').first().setInputFiles(sampleImage);
+    await expect(page.getByRole('button', { name: 'Cleanup' })).toBeVisible();
     await page.getByRole('button', { name: 'Cleanup' }).click();
     await expect(page.getByText('Cleanup Guidance')).toBeVisible();
   });

@@ -116,7 +116,13 @@ import {
 } from './shared/monetization';
 import { getFeatureFlag } from './src/config/featureFlags';
 import { trackCleanupRisk, trackEvent } from './src/lib/analytics';
-import { buildCleanupSignal, type CleanupQualitySignal } from './src/types/cleanupQuality';
+import {
+  buildCleanupSignal,
+  cleanupRiskFromQualityScore,
+  mergeCleanupRisk,
+  type CleanupQualitySignal,
+} from './src/types/cleanupQuality';
+import { scoreListingImage } from './services/qualityScoreService';
 
 // ─── Google OAuth Types ──────────────────────────────────────────────────────
 interface GoogleUser {
@@ -417,6 +423,7 @@ const App: React.FC = () => {
   const [generationElapsed, setGenerationElapsed] = useState(0);
   const generationTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [cleanupQualitySignal, setCleanupQualitySignal] = useState<CleanupQualitySignal | null>(null);
+  const cleanupAuditSequenceRef = useRef(0);
   const [mobileNavMoreOpen, setMobileNavMoreOpen] = useState(false);
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [referralPrice, setReferralPrice] = useState<number | null>(null);
@@ -588,6 +595,7 @@ const App: React.FC = () => {
       reason: signal.reason,
       compositeMode: signal.compositeMode,
       alignmentOverlap: signal.alignmentOverlap,
+      qualityScore: signal.qualityScore,
     });
   }, []);
 
@@ -933,6 +941,9 @@ const App: React.FC = () => {
 
     // Capture which session this generation belongs to
     const generatingSessionId = sessionQueue[sessionIndex]?.id || '__single__';
+    const cleanupAuditSequence = activePanel === 'cleanup'
+      ? ++cleanupAuditSequenceRef.current
+      : 0;
 
     // F16 — Mobile: auto-close sheet on Generate.
     // On <lg viewports the mobile-control-sheet otherwise covers ~45vh of the
@@ -1169,26 +1180,72 @@ Direction from user: ${prompt}`;
         : sharpened;
 
       if (cleanupConfidenceEnabled && isCleanup && !isRestageWithRemoval) {
-        if (compositeHadError) {
-          publishCleanupSignal(buildCleanupSignal({
-            risk: 'review',
-            source: 'single',
-            reason: 'Composite fallback used raw output on this run.',
-            compositeMode: 'fallback_raw_after_error',
-            nextActions: [
-              'Inspect edges and reflective surfaces',
-              'Retry with a tighter mask if artifacts remain',
-            ],
-          }));
-        } else {
-          publishCleanupSignal(buildCleanupSignal({
-            risk: 'safe',
-            source: 'single',
-            reason: 'Cleanup completed with framing and composite checks.',
-            compositeMode: shouldComposite ? 'applied' : 'not_applicable',
-            nextActions: ['Export when ready'],
-          }));
-        }
+        const baselineRisk = compositeHadError ? 'review' : 'safe';
+        publishCleanupSignal(buildCleanupSignal({
+          risk: 'review',
+          source: 'single',
+          reason: compositeHadError
+            ? 'Cleanup completed with raw fallback. Running quality audit.'
+            : 'Cleanup completed. Running quality audit.',
+          compositeMode: compositeHadError
+            ? 'fallback_raw_after_error'
+            : (shouldComposite ? 'applied' : 'not_applicable'),
+          nextActions: ['Review boundaries while quality audit completes'],
+        }));
+
+        const scoredImage = resultImages[0];
+        const scoredRoom = selectedRoom;
+        const auditToken = cleanupAuditSequence;
+        void (async () => {
+          try {
+            const score = await withTimeout(
+              scoreListingImage(scoredImage, scoredRoom),
+              18000,
+              'Cleanup quality scoring timed out'
+            );
+            if (auditToken !== cleanupAuditSequenceRef.current) return;
+
+            const resolvedRisk = mergeCleanupRisk(
+              baselineRisk,
+              cleanupRiskFromQualityScore(score.overall)
+            );
+            const qualityLabel = `${score.overall.toFixed(1)}/10`;
+            publishCleanupSignal(buildCleanupSignal({
+              risk: resolvedRisk,
+              source: 'single',
+              qualityScore: score.overall,
+              reason:
+                resolvedRisk === 'safe'
+                  ? `Cleanup passed checks (quality ${qualityLabel}).`
+                  : resolvedRisk === 'high'
+                    ? `Cleanup shows high artifact risk (quality ${qualityLabel}).`
+                    : `Cleanup needs review before export (quality ${qualityLabel}).`,
+              compositeMode: compositeHadError
+                ? 'fallback_raw_after_error'
+                : (shouldComposite ? 'applied' : 'not_applicable'),
+              nextActions:
+                resolvedRisk === 'safe'
+                  ? ['Export when ready']
+                  : resolvedRisk === 'high'
+                    ? ['Retry tighter cleanup scope', 'Use Pro quality mode', 'Accept raw output if needed']
+                    : ['Inspect edges before export', 'Retry tighter cleanup scope'],
+            }));
+          } catch (err) {
+            console.warn('[StudioAI] Cleanup quality scoring skipped:', err);
+            if (auditToken !== cleanupAuditSequenceRef.current) return;
+            publishCleanupSignal(buildCleanupSignal({
+              risk: mergeCleanupRisk(baselineRisk, 'review'),
+              source: 'single',
+              reason: compositeHadError
+                ? 'Cleanup used raw fallback. Review before exporting.'
+                : 'Cleanup finished but automated quality scoring was unavailable.',
+              compositeMode: compositeHadError
+                ? 'fallback_raw_after_error'
+                : (shouldComposite ? 'applied' : 'not_applicable'),
+              nextActions: ['Inspect edges before export', 'Retry if ghosting persists'],
+            }));
+          }
+        })();
       }
 
       // Check if user is still on the same session image (using ref, not stale closure)
@@ -1352,18 +1409,56 @@ Direction from user: ${prompt}`;
       const chainOptOut = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('chain') === '0';
       const resultImages = await Promise.all(rawResults.map(img => sharpenImage(img, 0.4, 1, chainOptOut ? 'jpeg' : 'png')));
       if (resultImages[0]) {
+        const auditToken = ++cleanupAuditSequenceRef.current;
         pushToHistory();
         setGeneratedImage(resultImages[0]);
         setShowFurnitureRemover(false);
         showToast(<Check size={14} className="text-[#30D158]" />, 'Furniture removed');
         if (cleanupConfidenceEnabled) {
           publishCleanupSignal(buildCleanupSignal({
-            risk: 'safe',
+            risk: 'review',
             source: 'furniture',
-            reason: 'Selective removal completed successfully.',
+            reason: 'Selective removal completed. Running quality audit.',
             compositeMode: 'not_applicable',
-            nextActions: ['Inspect object boundaries before exporting'],
+            nextActions: ['Inspect object boundaries while quality audit runs'],
           }));
+          void (async () => {
+            try {
+              const score = await withTimeout(
+                scoreListingImage(resultImages[0], selectedRoom),
+                18000,
+                'Furniture cleanup quality scoring timed out'
+              );
+              if (auditToken !== cleanupAuditSequenceRef.current) return;
+              const resolvedRisk = cleanupRiskFromQualityScore(score.overall) ?? 'review';
+              publishCleanupSignal(buildCleanupSignal({
+                risk: resolvedRisk,
+                source: 'furniture',
+                qualityScore: score.overall,
+                reason:
+                  resolvedRisk === 'safe'
+                    ? `Selective removal passed checks (quality ${score.overall.toFixed(1)}/10).`
+                    : resolvedRisk === 'high'
+                      ? `Selective removal shows high artifact risk (quality ${score.overall.toFixed(1)}/10).`
+                      : `Selective removal needs review (quality ${score.overall.toFixed(1)}/10).`,
+                compositeMode: 'not_applicable',
+                nextActions:
+                  resolvedRisk === 'safe'
+                    ? ['Export when ready']
+                    : ['Inspect object boundaries before export', 'Retry with a smaller mask'],
+              }));
+            } catch (err) {
+              console.warn('[StudioAI] Furniture cleanup quality scoring skipped:', err);
+              if (auditToken !== cleanupAuditSequenceRef.current) return;
+              publishCleanupSignal(buildCleanupSignal({
+                risk: 'review',
+                source: 'furniture',
+                reason: 'Selective removal completed but quality scoring was unavailable.',
+                compositeMode: 'not_applicable',
+                nextActions: ['Inspect object boundaries before export', 'Retry if halo artifacts remain'],
+              }));
+            }
+          })();
         }
 
         // Track edit
@@ -3711,6 +3806,11 @@ Direction from user: ${prompt}`;
                           Cleanup Confidence: {cleanupQualitySignal.risk === 'safe' ? 'Safe' : cleanupQualitySignal.risk === 'high' ? 'High Risk' : 'Review'}
                         </p>
                         <p className="text-xs text-zinc-300 mt-1">{cleanupQualitySignal.reason}</p>
+                        {typeof cleanupQualitySignal.qualityScore === 'number' && (
+                          <p className="text-2xs text-zinc-400 mt-1">
+                            Quality score: {cleanupQualitySignal.qualityScore.toFixed(1)}/10
+                          </p>
+                        )}
                         {cleanupQualitySignal.nextActions.length > 0 && (
                           <div className="mt-2 text-2xs text-zinc-200">
                             Next: {cleanupQualitySignal.nextActions[0]}

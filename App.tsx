@@ -8,6 +8,7 @@ import { compositeStackedEdit } from './utils/stackComposite';
 import { checkAlignment } from './utils/alignmentCheck';
 import { generateThumbnail } from './utils/thumbnail';
 import { CLEANUP_COMPOSITE_OPTIONS } from './utils/compositeProfiles';
+import { shouldSkipCompositeForRevision } from './utils/revisionCompositePolicy';
 // Hot-path components — kept static (editor core, used immediately)
 import ImageUploader from './components/ImageUploader';
 import BatchUploader, { type BatchImage } from './components/BatchUploader';
@@ -1149,7 +1150,12 @@ Direction from user: ${prompt}`;
       // with add-verbs; trust Gemini's raw output upscaled instead.
       const removeAddKeywords = /\b(remove|clear|take out|get rid of|strip|empty|replace|swap).{0,40}\b(add|stage|place|put|new|furnish|include)\b|\b(restage|re-?stage|redecorate|refurnish)\b/i;
       const isRestageWithRemoval = removeAddKeywords.test(prompt);
-      const shouldComposite = !fromPack && !isRestageWithRemoval && sourceImage;
+      const skipCompositeForRevision = shouldSkipCompositeForRevision({
+        fromPack,
+        isRestageWithRemoval,
+        isSpatialMove,
+      });
+      const shouldComposite = !skipCompositeForRevision && sourceImage;
       if (isRestageWithRemoval) {
         console.log('[StudioAI] Restage-with-removal intent — skipping composite to avoid ghosting.');
         if (cleanupConfidenceEnabled && isCleanup) {
@@ -1164,6 +1170,8 @@ Direction from user: ${prompt}`;
             ],
           }));
         }
+      } else if (isSpatialMove) {
+        console.log('[StudioAI] Spatial-move revision — skipping composite to avoid preserving stale furniture pixels.');
       }
       let compositeHadError = false;
       const compositeOptions = isCleanup ? CLEANUP_COMPOSITE_OPTIONS : undefined;

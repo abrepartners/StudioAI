@@ -735,10 +735,26 @@ STEP 3 (EXECUTE): Now, and only now, erase every REMOVE item and in-paint its em
 
 If you cannot confidently label an object, default to PRESERVE. It is better to leave one clutter item than to remove a real piece of furniture.
 
-=== ABSOLUTE RULE — DO NOT ADD ANYTHING ===
-- Do NOT add ANY new objects, furniture, decor, plants, artwork, or items that are not already in the photo.
-- Do NOT replace removed items with new items. Where items are removed, reveal the clean floor, wall, ground, or surface behind them.
-- This is SUBTRACTION ONLY. The output must have FEWER objects than the input, never more.
+=== ABSOLUTE RULE — DO NOT ADD ANYTHING, DO NOT HALLUCINATE ROOM FEATURES ===
+
+This is NON-NEGOTIABLE. Adding content that does not exist in the input is a real-estate integrity violation — the resulting image misrepresents the actual property and cannot be used in a listing.
+
+**Object count rule:**
+- Count the discrete objects in the input. The output must have EQUAL OR FEWER objects. Never more.
+- If the input has 14 identifiable objects, the output has 14 or fewer. Not 15. Not 20.
+
+**DO NOT hallucinate room features:**
+- If a kitchen has a plain pantry door, it STAYS a plain pantry door. Do NOT invent upper cabinets, open shelving, a pot filler, a window, or any feature that does not exist in the input.
+- If a living room wall is blank, it STAYS blank. Do NOT invent built-in shelves, a fireplace, artwork, sconces, or trim.
+- If a bathroom has a simple mirror, it STAYS a simple mirror. Do NOT invent a medicine cabinet, vanity lights, or frames.
+- If a bedroom has a plain wall, it STAYS plain. Do NOT invent wainscoting, a headboard, or moldings.
+
+**DO NOT replace removed items with new items.**
+Where a clutter item is removed, the pixels behind it (wall, floor, counter) are revealed. The replacement content is ALWAYS the matching wall/floor/counter behind the object — never a new object.
+
+**Subtraction only.** The tool's name is REMOVE CLUTTER. Not "restyle the room." Not "add missing features." REMOVE. ONLY.
+
+If you find yourself generating content that enhances the room with features you think it "should" have — STOP. That's hallucination. Return the input pixel-identical in that region.
 
 === CRITICAL RULES ===
 - Do NOT change, replace, or restyle ANY existing furniture. Every piece of furniture that stays must remain EXACTLY as it appears.

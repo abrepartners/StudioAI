@@ -3,6 +3,7 @@ import { GoogleGenAI, Type, Chat, GenerateContentResponse } from "@google/genai"
 import { ColorData, StagedFurniture, FurnitureRoomType, PropertyDetails, ListingDescriptions } from "../types";
 import { cleanBase64, extractImageFromResponse, extractAllImagesFromResponse } from "./geminiHelpers";
 import { resizeForUpload } from "../utils/resizeForUpload";
+import { getImageGenerationModelCandidates, isGeminiImageModelBusyError } from "./geminiImageModelPolicy";
 
 // API key storage key
 const API_KEY_STORAGE = 'studioai_gemini_key';
@@ -118,7 +119,6 @@ export const generateRoomDesign = async (
 ): Promise<string[]> => {
   try {
     const ai = getAI();
-    const modelName = isPro ? 'gemini-3-pro-image-preview' : 'gemini-3.1-flash-image-preview';
     const clean = cleanBase64(await resizeForUpload(imageBase64));
 
     const isRemovalTask = prompt.toLowerCase().includes('remove') ||
@@ -286,15 +286,26 @@ ${rulesBlock}
     };
     if (abortSignal) config.abortSignal = abortSignal;
 
-    const response: GenerateContentResponse = await ai.models.generateContent({
-      model: modelName,
-      contents: { parts },
-      config
-    });
+    let lastError: unknown = null;
+    for (const modelName of getImageGenerationModelCandidates(isPro)) {
+      try {
+        const response: GenerateContentResponse = await ai.models.generateContent({
+          model: modelName,
+          contents: { parts },
+          config
+        });
 
-    const images = extractAllImagesFromResponse(response);
-    if (images.length > 0) return images;
-    throw new Error("No image generated.");
+        const images = extractAllImagesFromResponse(response);
+        if (images.length > 0) return images;
+        throw new Error("No image generated.");
+      } catch (error: any) {
+        lastError = error;
+        const canFallback = modelName !== 'gemini-3.1-flash-image-preview' && isGeminiImageModelBusyError(error);
+        if (!canFallback) throw error;
+        console.warn(`[generateRoomDesign] ${modelName} unavailable, retrying on flash image model.`);
+      }
+    }
+    throw lastError instanceof Error ? lastError : new Error("No image generated.");
   } catch (error: any) {
     if (error?.name === 'AbortError' || abortSignal?.aborted) throw new Error('ABORTED');
     if (error.message?.includes("Requested entity was not found")) throw new Error("API_KEY_REQUIRED");
@@ -1218,4 +1229,3 @@ Return ONLY a JSON object with these 3 fields: luxury, casual, investment. Each 
     ? JSON.parse(response.text)
     : { luxury: '', casual: '', investment: '' };
 };
-

@@ -394,24 +394,13 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                         ? runBatch('twilight', (img, signal) => virtualTwilight(img, isPro, signal, img))
                         : run('twilight', async (signal) => {
                             // Anchor on original so Gemini has a framing-lock reference.
+                            // No alignment check — the edge-based guard was wrongly flagging
+                            // valid dusk outputs because the lighting transformation itself
+                            // changes what "edges" exist (tree leaves collapse into dark
+                            // silhouettes, window glows add new edges, shadows deepen).
+                            // Anchor + prompt is the framing control; user's eye is the
+                            // final judge.
                             const raw = await virtualTwilight(currentImage!, isPro, signal, originalImage);
-                            // X4 alignment guard — bail if Gemini DRAMATICALLY reframed.
-                            // Threshold is 0.40 for twilight (vs. 0.70 for cleanup) because
-                            // the day→dusk transformation naturally adds/removes edges via
-                            // rim-lighting, window-glow, and shadow-deepening. A 60% overlap
-                            // on identically-framed shots is normal for this tool. We only
-                            // reject outright reframes (<40% overlap).
-                            try {
-                              const align = await checkAlignment(currentImage!, raw, 0.40);
-                              console.log(`[Twilight] alignment overlap=${(align.overlap * 100).toFixed(0)}%`);
-                              if (!align.aligned) {
-                                console.warn(`[Twilight] BAIL — reframed (overlap ${(align.overlap * 100).toFixed(0)}% < 40%)`);
-                                setError("Twilight reframed the photo — try again, or run on a different photo.");
-                                return;
-                              }
-                            } catch (e) {
-                              console.warn('[Twilight] alignment check failed (non-fatal):', e);
-                            }
                             const result = await postProcessToolOutput(raw, currentImage, 'twilight');
                             onNewImage(result, 'twilight');
                           })

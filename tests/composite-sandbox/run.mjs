@@ -67,7 +67,7 @@ KEEP EVERYTHING ELSE EXACTLY AS-IS.
 RESTORATION: Where items are removed, fill with the surrounding texture seamlessly.
 If nothing needs removing, return the image unchanged.`;
 
-const THRESHOLDS_TO_TEST = [0.10, 0.15, 0.25, 0.35, 0.50];
+const THRESHOLDS_TO_TEST = [0.04, 0.08, 0.12, 0.15, 0.25];
 
 // --- Setup output folder ---
 const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);

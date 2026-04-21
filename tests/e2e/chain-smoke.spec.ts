@@ -48,7 +48,7 @@ test.describe('StudioAI chain=1 smoke', () => {
   test('2. /api/render-template returns a PNG (deploy healthy)', async ({ request }) => {
     const res = await request.post(`${BASE_URL}/api/render-template`, {
       data: {
-        template: 'tip-card',
+        template: 'just-listed',
         format: 'ig-post',
         data: {
           category: 'SMOKE TEST',
@@ -96,7 +96,7 @@ test.describe('StudioAI chain=1 smoke', () => {
   test('4. tip-card template renders at 1080x1080', async ({ request }) => {
     const res = await request.post(`${BASE_URL}/api/render-template`, {
       data: {
-        template: 'tip-card',
+        template: 'just-listed',
         format: 'ig-post',
         data: {
           category: 'CHAIN',

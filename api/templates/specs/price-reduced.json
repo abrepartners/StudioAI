@@ -1,0 +1,86 @@
+{
+  "id": "price-reduced",
+  "label": "Price Reduced",
+  "style": "broker-bureau",
+  "requiredFields": ["address", "price", "heroImage"],
+  "optionalFields": ["oldPrice", "beds", "baths", "sqft", "city", "state", "zip", "brokerageName", "agentName", "logo", "headshot"],
+
+  "ratios": {
+    "square": {
+      "width": 1080,
+      "height": 1080,
+      "photoSlot": { "x": 0, "y": 100, "w": 1080, "h": 602, "fit": "cover", "gradient": "bottom-fade" },
+      "textLayers": [
+        { "slot": "masthead-label",  "x": 48,   "y": 40,   "w": 800, "align": "left",   "size": 11, "variant": "micro-label" },
+        { "slot": "masthead-issue",  "x": 1032, "y": 40,   "w": 200, "align": "right",  "size": 22, "variant": "issue-inline" },
+        { "slot": "hero",            "x": 48,   "y": 740,  "w": 600, "align": "left",   "size": 68, "variant": "serif", "color": "paper" },
+        { "slot": "address",         "x": 48,   "y": 836,  "w": 620, "align": "left",   "size": 30, "variant": "serif", "color": "paper" },
+        { "slot": "location",        "x": 48,   "y": 876,  "w": 620, "align": "left",   "size": 13, "variant": "caps-meta" },
+        { "slot": "old-price",       "x": 1032, "y": 760,  "w": 400, "align": "right",  "size": 32, "variant": "serif-strike", "color": "mid" },
+        { "slot": "price-label",     "x": 1032, "y": 800,  "w": 240, "align": "right",  "size": 10, "variant": "caps-accent" },
+        { "slot": "price",           "x": 1032, "y": 822,  "w": 400, "align": "right",  "size": 58, "variant": "serif", "color": "accent" },
+        { "slot": "stats",           "x": 48,   "y": 964,  "w": 984, "align": "left",   "size": 22, "variant": "spec-row", "topRule": true },
+        { "slot": "agent-colophon",  "x": 48,   "y": 1020, "w": 984, "align": "left",   "size": 14, "variant": "colophon", "topRule": true }
+      ]
+    },
+
+    "portrait": {
+      "width": 1080,
+      "height": 1350,
+      "photoSlot": { "x": 0, "y": 110, "w": 1080, "h": 840, "fit": "cover", "gradient": "bottom-fade" },
+      "textLayers": [
+        { "slot": "masthead-label",  "x": 56,   "y": 44,   "w": 800, "align": "left",   "size": 12, "variant": "micro-label" },
+        { "slot": "masthead-issue",  "x": 1024, "y": 44,   "w": 200, "align": "right",  "size": 24, "variant": "issue-inline" },
+        { "slot": "hero",            "x": 56,   "y": 990,  "w": 640, "align": "left",   "size": 82, "variant": "serif", "color": "paper" },
+        { "slot": "address",         "x": 56,   "y": 1100, "w": 640, "align": "left",   "size": 38, "variant": "serif", "color": "paper" },
+        { "slot": "location",        "x": 56,   "y": 1150, "w": 640, "align": "left",   "size": 14, "variant": "caps-meta" },
+        { "slot": "old-price",       "x": 1024, "y": 1004, "w": 440, "align": "right",  "size": 38, "variant": "serif-strike", "color": "mid" },
+        { "slot": "price-label",     "x": 1024, "y": 1054, "w": 260, "align": "right",  "size": 11, "variant": "caps-accent" },
+        { "slot": "price",           "x": 1024, "y": 1078, "w": 440, "align": "right",  "size": 72, "variant": "serif", "color": "accent" },
+        { "slot": "stats",           "x": 56,   "y": 1204, "w": 968, "align": "left",   "size": 26, "variant": "spec-row", "topRule": true },
+        { "slot": "agent-colophon",  "x": 56,   "y": 1282, "w": 968, "align": "left",   "size": 14, "variant": "colophon", "topRule": true }
+      ]
+    },
+
+    "story": {
+      "width": 1080,
+      "height": 1920,
+      "photoSlot": { "x": 0, "y": 270, "w": 1080, "h": 1040, "fit": "cover", "gradient": "none" },
+      "textLayers": [
+        { "slot": "masthead-label",  "x": 540,  "y": 110, "w": 900, "align": "center", "size": 14, "variant": "micro-label" },
+        { "slot": "masthead-issue",  "x": 540,  "y": 180, "w": 600, "align": "center", "size": 32, "variant": "issue-centered" },
+        { "slot": "hero",            "x": 540,  "y": 1370, "w": 980, "align": "center", "size": 82, "variant": "serif", "color": "paper" },
+        { "slot": "address",         "x": 540,  "y": 1478, "w": 980, "align": "center", "size": 32, "variant": "serif", "color": "paper" },
+        { "slot": "location",        "x": 540,  "y": 1522, "w": 980, "align": "center", "size": 13, "variant": "caps-meta" },
+        { "slot": "old-price",       "x": 540,  "y": 1574, "w": 980, "align": "center", "size": 30, "variant": "serif-strike", "color": "mid" },
+        { "slot": "price",           "x": 540,  "y": 1614, "w": 980, "align": "center", "size": 68, "variant": "serif", "color": "accent" },
+        { "slot": "stats",           "x": 540,  "y": 1710, "w": 900, "align": "center", "size": 14, "variant": "stats-inline" },
+        { "slot": "contact-row",     "x": 540,  "y": 1768, "w": 900, "align": "center", "size": 13, "variant": "contact-inline", "topRule": true },
+        { "slot": "brandmark",       "x": 540,  "y": 1830, "w": 900, "align": "center", "size": 12, "variant": "brandmark-text" }
+      ]
+    }
+  },
+
+  "slotBindings": {
+    "masthead-label": { "value": "PRICE REDUCED — NO. {{issueNumber}}", "color": "accent" },
+    "masthead-issue": { "value": "{{issueNumber}}", "label": "ISSUE" },
+    "hero":           { "value": "Price Reduced" },
+    "address":        { "value": "{{address}}", "hideIfMissing": ["address"] },
+    "location":       { "value": "{{city}} · {{state}} · {{zip}}", "hideIfMissing": ["city", "state", "zip"], "joinNonEmpty": " · " },
+    "old-price":      { "value": "{{oldPrice}}", "hideIfMissing": ["oldPrice"] },
+    "price-label":    { "value": "New Price", "hideIfMissing": ["price"] },
+    "price":          { "value": "{{price}}", "hideIfMissing": ["price"] },
+    "stats":          { "value": "{{beds}} BR · {{baths}} BA · {{sqft}} SF", "hideIfMissing": ["beds", "baths", "sqft"], "iconized": true },
+    "agent-colophon": { "value": "colophon", "hideIfMissing": ["agentName", "brokerageName", "phone", "email", "website", "logo", "headshot"] },
+    "contact-row":    { "value": "{{phone}} · {{email}} · {{website}}", "hideIfMissing": ["phone", "email", "website"], "joinNonEmpty": " · " },
+    "brandmark":      { "value": "Listed by {{agentName}} · {{brokerageName}}", "hideIfMissing": ["agentName", "brokerageName"], "joinNonEmpty": " · " }
+  },
+
+  "chrome": {
+    "background": "ink",
+    "grid": { "enabled": true, "color": "accent", "opacity": 0.04 },
+    "accentRibbon": { "enabled": true, "height": 4, "position": "top" },
+    "mastheadRule": { "enabled": true, "after": "masthead-label" },
+    "registrationMarks": { "enabled": true, "color": "accent", "size": 32, "inset": 20, "stroke": 1.5 }
+  }
+}

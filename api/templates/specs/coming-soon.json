@@ -1,0 +1,77 @@
+{
+  "id": "coming-soon",
+  "label": "Coming Soon",
+  "style": "broker-bureau",
+  "requiredFields": ["heroImage"],
+  "optionalFields": ["address", "city", "state", "zip", "expectedDate", "beds", "baths", "sqft", "agentName", "brokerageName", "phone", "email", "website", "logo", "headshot"],
+
+  "ratios": {
+    "square": {
+      "width": 1080,
+      "height": 1080,
+      "photoSlot": { "x": 0, "y": 0, "w": 1080, "h": 1080, "fit": "cover", "gradient": "full-darken", "opacity": 0.45, "blur": 14 },
+      "textLayers": [
+        { "slot": "masthead-label", "x": 540, "y": 72,   "w": 900, "align": "center", "size": 12, "variant": "micro-label" },
+        { "slot": "hero",           "x": 540, "y": 336,  "w": 980, "align": "center", "size": 112, "variant": "serif", "color": "paper" },
+        { "slot": "expected-label", "x": 540, "y": 524,  "w": 600, "align": "center", "size": 10, "variant": "caps-accent" },
+        { "slot": "expected-date",  "x": 540, "y": 548,  "w": 800, "align": "center", "size": 36, "variant": "serif", "color": "paper" },
+        { "slot": "address",        "x": 540, "y": 648,  "w": 900, "align": "center", "size": 22, "variant": "serif-italic", "color": "mid" },
+        { "slot": "location",       "x": 540, "y": 692,  "w": 900, "align": "center", "size": 12, "variant": "caps-meta" },
+        { "slot": "stats",          "x": 540, "y": 758,  "w": 900, "align": "center", "size": 12, "variant": "stats-inline" },
+        { "slot": "agent-colophon", "x": 48,  "y": 996,  "w": 984, "align": "left",   "size": 13, "variant": "colophon", "topRule": true }
+      ]
+    },
+
+    "portrait": {
+      "width": 1080,
+      "height": 1350,
+      "photoSlot": { "x": 0, "y": 0, "w": 1080, "h": 1350, "fit": "cover", "gradient": "full-darken", "opacity": 0.45, "blur": 14 },
+      "textLayers": [
+        { "slot": "masthead-label", "x": 540, "y": 96,   "w": 900, "align": "center", "size": 13, "variant": "micro-label" },
+        { "slot": "hero",           "x": 540, "y": 420,  "w": 980, "align": "center", "size": 132, "variant": "serif", "color": "paper" },
+        { "slot": "expected-label", "x": 540, "y": 648,  "w": 600, "align": "center", "size": 11, "variant": "caps-accent" },
+        { "slot": "expected-date",  "x": 540, "y": 676,  "w": 800, "align": "center", "size": 40, "variant": "serif", "color": "paper" },
+        { "slot": "address",        "x": 540, "y": 800,  "w": 900, "align": "center", "size": 24, "variant": "serif-italic", "color": "mid" },
+        { "slot": "location",       "x": 540, "y": 852,  "w": 900, "align": "center", "size": 13, "variant": "caps-meta" },
+        { "slot": "stats",          "x": 540, "y": 920,  "w": 900, "align": "center", "size": 13, "variant": "stats-inline" },
+        { "slot": "agent-colophon", "x": 56,  "y": 1244, "w": 968, "align": "left",   "size": 14, "variant": "colophon", "topRule": true }
+      ]
+    },
+
+    "story": {
+      "width": 1080,
+      "height": 1920,
+      "photoSlot": { "x": 0, "y": 270, "w": 1080, "h": 1040, "fit": "cover", "gradient": "full-darken", "opacity": 0.45, "blur": 14 },
+      "textLayers": [
+        { "slot": "masthead-label", "x": 540, "y": 110, "w": 900, "align": "center", "size": 14, "variant": "micro-label" },
+        { "slot": "hero",           "x": 540, "y": 700, "w": 980, "align": "center", "size": 132, "variant": "serif", "color": "paper" },
+        { "slot": "expected-label", "x": 540, "y": 920, "w": 600, "align": "center", "size": 12, "variant": "caps-accent" },
+        { "slot": "expected-date",  "x": 540, "y": 950, "w": 800, "align": "center", "size": 40, "variant": "serif", "color": "paper" },
+        { "slot": "address",        "x": 540, "y": 1370, "w": 980, "align": "center", "size": 28, "variant": "serif-italic", "color": "mid" },
+        { "slot": "location",       "x": 540, "y": 1420, "w": 980, "align": "center", "size": 13, "variant": "caps-meta" },
+        { "slot": "contact-row",    "x": 540, "y": 1770, "w": 900, "align": "center", "size": 13, "variant": "contact-inline", "topRule": true },
+        { "slot": "brandmark",      "x": 540, "y": 1832, "w": 900, "align": "center", "size": 12, "variant": "brandmark-text" }
+      ]
+    }
+  },
+
+  "slotBindings": {
+    "masthead-label": { "value": "COMING SOON · NEW LISTING", "color": "accent" },
+    "hero":           { "value": "Coming Soon" },
+    "expected-label": { "value": "Expected on market", "hideIfMissing": ["expectedDate"] },
+    "expected-date":  { "value": "{{expectedDate}}", "hideIfMissing": ["expectedDate"] },
+    "address":        { "value": "{{address}}", "hideIfMissing": ["address"] },
+    "location":       { "value": "{{city}} · {{state}} · {{zip}}", "hideIfMissing": ["city", "state", "zip"], "joinNonEmpty": " · " },
+    "stats":          { "value": "{{beds}} Bed · {{baths}} Bath · {{sqft}} Sq Ft", "hideIfMissing": ["beds", "baths", "sqft"], "joinNonEmpty": " · " },
+    "agent-colophon": { "value": "colophon", "hideIfMissing": ["agentName", "brokerageName", "phone", "email", "website", "logo", "headshot"] },
+    "contact-row":    { "value": "{{phone}} · {{email}} · {{website}}", "hideIfMissing": ["phone", "email", "website"], "joinNonEmpty": " · " },
+    "brandmark":      { "value": "Listed by {{agentName}} · {{brokerageName}}", "hideIfMissing": ["agentName", "brokerageName"], "joinNonEmpty": " · " }
+  },
+
+  "chrome": {
+    "background": "ink",
+    "grid": { "enabled": true, "color": "accent", "opacity": 0.06 },
+    "accentRibbon": { "enabled": true, "height": 4, "position": "top" },
+    "registrationMarks": { "enabled": true, "color": "accent", "size": 36, "inset": 22, "stroke": 1.5 }
+  }
+}

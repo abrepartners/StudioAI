@@ -1,0 +1,80 @@
+{
+  "id": "open-house",
+  "label": "Open House",
+  "style": "broker-bureau",
+  "requiredFields": ["address", "date", "heroImage"],
+  "optionalFields": ["time", "price", "beds", "baths", "sqft", "city", "state", "zip", "agentName", "brokerageName", "phone", "email", "website", "logo", "headshot"],
+
+  "ratios": {
+    "square": {
+      "width": 1080,
+      "height": 1080,
+      "photoSlot": { "x": 0, "y": 0, "w": 1080, "h": 1080, "fit": "cover", "gradient": "radial-dim", "opacity": 0.38 },
+      "textLayers": [
+        { "slot": "masthead-label", "x": 540, "y": 72,   "w": 900, "align": "center", "size": 12, "variant": "micro-label" },
+        { "slot": "hero",           "x": 540, "y": 210,  "w": 980, "align": "center", "size": 104, "variant": "serif", "color": "paper" },
+        { "slot": "invite-kicker",  "x": 540, "y": 360,  "w": 800, "align": "center", "size": 22, "variant": "serif-italic", "color": "mid" },
+        { "slot": "address",        "x": 540, "y": 440,  "w": 900, "align": "center", "size": 34, "variant": "serif", "color": "paper" },
+        { "slot": "location",       "x": 540, "y": 488,  "w": 900, "align": "center", "size": 13, "variant": "caps-meta" },
+        { "slot": "date-card",      "x": 540, "y": 552,  "w": 560, "align": "center", "size": 28, "variant": "date-card" },
+        { "slot": "stats",          "x": 540, "y": 820,  "w": 900, "align": "center", "size": 13, "variant": "stats-inline" },
+        { "slot": "rsvp-line",      "x": 540, "y": 894,  "w": 900, "align": "center", "size": 13, "variant": "caps-meta" },
+        { "slot": "agent-colophon", "x": 48,  "y": 976,  "w": 984, "align": "left",   "size": 13, "variant": "colophon", "topRule": true }
+      ]
+    },
+
+    "portrait": {
+      "width": 1080,
+      "height": 1350,
+      "photoSlot": { "x": 0, "y": 0, "w": 1080, "h": 1350, "fit": "cover", "gradient": "radial-dim", "opacity": 0.38 },
+      "textLayers": [
+        { "slot": "masthead-label", "x": 540, "y": 96,   "w": 900, "align": "center", "size": 13, "variant": "micro-label" },
+        { "slot": "hero",           "x": 540, "y": 256,  "w": 980, "align": "center", "size": 124, "variant": "serif", "color": "paper" },
+        { "slot": "invite-kicker",  "x": 540, "y": 430,  "w": 800, "align": "center", "size": 24, "variant": "serif-italic", "color": "mid" },
+        { "slot": "address",        "x": 540, "y": 524,  "w": 900, "align": "center", "size": 38, "variant": "serif", "color": "paper" },
+        { "slot": "location",       "x": 540, "y": 578,  "w": 900, "align": "center", "size": 14, "variant": "caps-meta" },
+        { "slot": "date-card",      "x": 540, "y": 654,  "w": 620, "align": "center", "size": 32, "variant": "date-card" },
+        { "slot": "stats",          "x": 540, "y": 960,  "w": 900, "align": "center", "size": 14, "variant": "stats-inline" },
+        { "slot": "rsvp-line",      "x": 540, "y": 1040, "w": 900, "align": "center", "size": 13, "variant": "caps-meta" },
+        { "slot": "agent-colophon", "x": 56,  "y": 1244, "w": 968, "align": "left",   "size": 14, "variant": "colophon", "topRule": true }
+      ]
+    },
+
+    "story": {
+      "width": 1080,
+      "height": 1920,
+      "photoSlot": { "x": 0, "y": 270, "w": 1080, "h": 1040, "fit": "cover", "gradient": "none" },
+      "textLayers": [
+        { "slot": "masthead-label", "x": 540, "y": 110, "w": 900, "align": "center", "size": 14, "variant": "micro-label" },
+        { "slot": "hero",           "x": 540, "y": 170, "w": 980, "align": "center", "size": 72, "variant": "serif", "color": "paper" },
+        { "slot": "address",        "x": 540, "y": 1370, "w": 980, "align": "center", "size": 32, "variant": "serif", "color": "paper" },
+        { "slot": "location",       "x": 540, "y": 1414, "w": 980, "align": "center", "size": 13, "variant": "caps-meta" },
+        { "slot": "date-card",      "x": 540, "y": 1474, "w": 620, "align": "center", "size": 28, "variant": "date-card" },
+        { "slot": "rsvp-line",      "x": 540, "y": 1704, "w": 900, "align": "center", "size": 13, "variant": "caps-meta" },
+        { "slot": "contact-row",    "x": 540, "y": 1770, "w": 900, "align": "center", "size": 13, "variant": "contact-inline", "topRule": true },
+        { "slot": "brandmark",      "x": 540, "y": 1832, "w": 900, "align": "center", "size": 12, "variant": "brandmark-text" }
+      ]
+    }
+  },
+
+  "slotBindings": {
+    "masthead-label": { "value": "YOU'RE INVITED · OPEN HOUSE", "color": "accent" },
+    "hero":           { "value": "Open House" },
+    "invite-kicker":  { "value": "You are warmly invited to tour" },
+    "address":        { "value": "{{address}}", "hideIfMissing": ["address"] },
+    "location":       { "value": "{{city}} · {{state}} · {{zip}}", "hideIfMissing": ["city", "state", "zip"], "joinNonEmpty": " · " },
+    "date-card":      { "value": "{{date}}|{{time}}", "hideIfMissing": ["date", "time"] },
+    "stats":          { "value": "{{price}} · {{beds}} Bed · {{baths}} Bath · {{sqft}} Sq Ft", "hideIfMissing": ["price", "beds", "baths", "sqft"], "joinNonEmpty": " · " },
+    "rsvp-line":      { "value": "RSVP · {{phone}}", "hideIfMissing": ["phone"] },
+    "agent-colophon": { "value": "colophon", "hideIfMissing": ["agentName", "brokerageName", "phone", "email", "website", "logo", "headshot"] },
+    "contact-row":    { "value": "{{phone}} · {{email}} · {{website}}", "hideIfMissing": ["phone", "email", "website"], "joinNonEmpty": " · " },
+    "brandmark":      { "value": "Listed by {{agentName}} · {{brokerageName}}", "hideIfMissing": ["agentName", "brokerageName"], "joinNonEmpty": " · " }
+  },
+
+  "chrome": {
+    "background": "ink",
+    "grid": { "enabled": true, "color": "accent", "opacity": 0.05 },
+    "accentRibbon": { "enabled": true, "height": 4, "position": "top" },
+    "registrationMarks": { "enabled": true, "color": "accent", "size": 36, "inset": 22, "stroke": 1.5 }
+  }
+}

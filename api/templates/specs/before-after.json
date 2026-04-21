@@ -1,0 +1,91 @@
+{
+  "id": "before-after",
+  "label": "Before / After",
+  "style": "broker-bureau",
+  "requiredFields": ["beforeImage", "afterImage"],
+  "optionalFields": ["address", "city", "state", "zip", "tagline", "transformationType", "agentName", "brokerageName", "phone", "email", "website", "logo", "headshot"],
+
+  "ratios": {
+    "square": {
+      "width": 1080,
+      "height": 1080,
+      "splitPhotoSlot": {
+        "axis": "horizontal",
+        "before": { "x": 48, "y": 180, "w": 488, "h": 640, "fit": "cover", "gradient": "bottom-fade", "filter": "grayscale(0.35)" },
+        "after":  { "x": 544, "y": 180, "w": 488, "h": 640, "fit": "cover", "gradient": "bottom-fade" }
+      },
+      "textLayers": [
+        { "slot": "masthead-label",  "x": 540,  "y": 64,   "w": 900, "align": "center", "size": 12, "variant": "micro-label" },
+        { "slot": "hero",            "x": 540,  "y": 116,  "w": 980, "align": "center", "size": 48, "variant": "serif", "color": "paper" },
+        { "slot": "plate-before",    "x": 72,   "y": 208,  "w": 440, "align": "left",   "size": 30, "variant": "plate-label", "color": "paper" },
+        { "slot": "plate-after",     "x": 568,  "y": 208,  "w": 440, "align": "left",   "size": 30, "variant": "plate-label-accent" },
+        { "slot": "tagline",         "x": 540,  "y": 860,  "w": 900, "align": "center", "size": 20, "variant": "serif-italic", "color": "mid" },
+        { "slot": "address",         "x": 540,  "y": 902,  "w": 900, "align": "center", "size": 22, "variant": "serif", "color": "paper" },
+        { "slot": "location",        "x": 540,  "y": 936,  "w": 900, "align": "center", "size": 12, "variant": "caps-meta" },
+        { "slot": "agent-colophon",  "x": 48,   "y": 996,  "w": 984, "align": "left",   "size": 13, "variant": "colophon", "topRule": true }
+      ]
+    },
+
+    "portrait": {
+      "width": 1080,
+      "height": 1350,
+      "splitPhotoSlot": {
+        "axis": "horizontal",
+        "before": { "x": 48, "y": 200, "w": 488, "h": 860, "fit": "cover", "gradient": "bottom-fade", "filter": "grayscale(0.35)" },
+        "after":  { "x": 544, "y": 200, "w": 488, "h": 860, "fit": "cover", "gradient": "bottom-fade" }
+      },
+      "textLayers": [
+        { "slot": "masthead-label",  "x": 540,  "y": 76,   "w": 900, "align": "center", "size": 13, "variant": "micro-label" },
+        { "slot": "hero",            "x": 540,  "y": 130,  "w": 980, "align": "center", "size": 54, "variant": "serif", "color": "paper" },
+        { "slot": "plate-before",    "x": 72,   "y": 228,  "w": 440, "align": "left",   "size": 32, "variant": "plate-label", "color": "paper" },
+        { "slot": "plate-after",     "x": 568,  "y": 228,  "w": 440, "align": "left",   "size": 32, "variant": "plate-label-accent" },
+        { "slot": "tagline",         "x": 540,  "y": 1098, "w": 900, "align": "center", "size": 22, "variant": "serif-italic", "color": "mid" },
+        { "slot": "address",         "x": 540,  "y": 1148, "w": 900, "align": "center", "size": 24, "variant": "serif", "color": "paper" },
+        { "slot": "location",        "x": 540,  "y": 1188, "w": 900, "align": "center", "size": 13, "variant": "caps-meta" },
+        { "slot": "agent-colophon",  "x": 56,   "y": 1282, "w": 968, "align": "left",   "size": 14, "variant": "colophon", "topRule": true }
+      ]
+    },
+
+    "story": {
+      "width": 1080,
+      "height": 1920,
+      "splitPhotoSlot": {
+        "axis": "vertical",
+        "before": { "x": 0, "y": 270, "w": 1080, "h": 520, "fit": "cover", "gradient": "bottom-fade", "filter": "grayscale(0.35)" },
+        "after":  { "x": 0, "y": 790, "w": 1080, "h": 520, "fit": "cover", "gradient": "bottom-fade" }
+      },
+      "textLayers": [
+        { "slot": "masthead-label",  "x": 540,  "y": 110, "w": 900, "align": "center", "size": 14, "variant": "micro-label" },
+        { "slot": "hero",            "x": 540,  "y": 170, "w": 980, "align": "center", "size": 64, "variant": "serif", "color": "paper" },
+        { "slot": "plate-before",    "x": 64,   "y": 300, "w": 400, "align": "left",   "size": 28, "variant": "plate-label", "color": "paper" },
+        { "slot": "plate-after",     "x": 64,   "y": 820, "w": 400, "align": "left",   "size": 28, "variant": "plate-label-accent" },
+        { "slot": "tagline",         "x": 540,  "y": 1394, "w": 900, "align": "center", "size": 22, "variant": "serif-italic", "color": "mid" },
+        { "slot": "address",         "x": 540,  "y": 1460, "w": 900, "align": "center", "size": 28, "variant": "serif", "color": "paper" },
+        { "slot": "location",        "x": 540,  "y": 1504, "w": 900, "align": "center", "size": 13, "variant": "caps-meta" },
+        { "slot": "contact-row",     "x": 540,  "y": 1770, "w": 900, "align": "center", "size": 13, "variant": "contact-inline", "topRule": true },
+        { "slot": "brandmark",       "x": 540,  "y": 1832, "w": 900, "align": "center", "size": 12, "variant": "brandmark-text" }
+      ]
+    }
+  },
+
+  "slotBindings": {
+    "masthead-label": { "value": "TRANSFORMATION · FIELD NOTES", "color": "accent" },
+    "hero":           { "value": "Before & After" },
+    "plate-before":   { "value": "Before" },
+    "plate-after":    { "value": "After" },
+    "tagline":        { "value": "{{tagline}}", "hideIfMissing": ["tagline"] },
+    "address":        { "value": "{{address}}", "hideIfMissing": ["address"] },
+    "location":       { "value": "{{city}} · {{state}} · {{zip}}", "hideIfMissing": ["city", "state", "zip"], "joinNonEmpty": " · " },
+    "agent-colophon": { "value": "colophon", "hideIfMissing": ["agentName", "brokerageName", "phone", "email", "website", "logo", "headshot"] },
+    "contact-row":    { "value": "{{phone}} · {{email}} · {{website}}", "hideIfMissing": ["phone", "email", "website"], "joinNonEmpty": " · " },
+    "brandmark":      { "value": "Listed by {{agentName}} · {{brokerageName}}", "hideIfMissing": ["agentName", "brokerageName"], "joinNonEmpty": " · " }
+  },
+
+  "chrome": {
+    "background": "ink",
+    "grid": { "enabled": true, "color": "accent", "opacity": 0.04 },
+    "accentRibbon": { "enabled": true, "height": 4, "position": "top" },
+    "centerMedallion": { "enabled": true, "glyph": "&" },
+    "registrationMarks": { "enabled": true, "color": "accent", "size": 28, "inset": 20, "stroke": 1.5 }
+  }
+}

@@ -15,8 +15,9 @@ import {
   Home,
   ArrowRightLeft,
   CalendarDays,
-  Lightbulb,
-  BookOpen,
+  TrendingDown,
+  Award,
+  Clock,
   Image as ImageIcon,
 } from 'lucide-react';
 import { useBrandKit } from '../hooks/useBrandKit';
@@ -38,7 +39,13 @@ interface SocialPackProps {
   };
 }
 
-type TemplateId = 'just-listed' | 'before-after' | 'open-house' | 'tip-card' | 'carousel-cover';
+type TemplateId =
+  | 'just-listed'
+  | 'open-house'
+  | 'price-reduced'
+  | 'sold'
+  | 'before-after'
+  | 'coming-soon';
 type FormatId = 'ig-post' | 'ig-portrait' | 'ig-story';
 
 const TEMPLATES: Array<{
@@ -47,11 +54,12 @@ const TEMPLATES: Array<{
   icon: React.ElementType;
   description: string;
 }> = [
-  { id: 'just-listed', label: 'Just Listed', icon: Home, description: 'Editorial hero + typographic price' },
-  { id: 'before-after', label: 'Before / After', icon: ArrowRightLeft, description: 'Plate I / Plate II transformation' },
-  { id: 'open-house', label: 'Open House', icon: CalendarDays, description: 'Invitation-grade event card' },
-  { id: 'tip-card', label: 'Field Note', icon: Lightbulb, description: 'Pull-quote authority piece' },
-  { id: 'carousel-cover', label: 'Carousel Cover', icon: BookOpen, description: 'Hook slide / reel cover' },
+  { id: 'just-listed',   label: 'Just Listed',    icon: Home,          description: 'Editorial hero + typographic price' },
+  { id: 'open-house',    label: 'Open House',     icon: CalendarDays,  description: 'Invitation-grade event card' },
+  { id: 'price-reduced', label: 'Price Reduced',  icon: TrendingDown,  description: 'Strike-through old + new accent price' },
+  { id: 'sold',          label: 'Just Sold',      icon: Award,         description: 'Celebration + optional sale price' },
+  { id: 'before-after',  label: 'Before / After', icon: ArrowRightLeft, description: 'Plate I / Plate II transformation' },
+  { id: 'coming-soon',   label: 'Coming Soon',    icon: Clock,         description: 'Teaser w/ blurred hero + expected date' },
 ];
 
 const FORMATS: Array<{ id: FormatId; label: string; dims: string }> = [
@@ -105,8 +113,16 @@ const SocialPack: React.FC<SocialPackProps> = ({ images, propertyDetails }) => {
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
 
-  // Tip card specific
-  const [headline, setHeadline] = useState('');
+  // Price Reduced
+  const [oldPrice, setOldPrice] = useState('');
+
+  // Sold
+  const [representation, setRepresentation] = useState('');
+
+  // Coming Soon
+  const [expectedDate, setExpectedDate] = useState('');
+
+  // Shared tagline (sold/before-after), kept for backward compat
   const [tagline, setTagline] = useState('');
 
   const [isRendering, setIsRendering] = useState(false);
@@ -133,7 +149,8 @@ const SocialPack: React.FC<SocialPackProps> = ({ images, propertyDetails }) => {
         headshot: brandKit.headshot || undefined,
       };
 
-      if (template === 'just-listed' || template === 'open-house' || template === 'carousel-cover') {
+      // All templates except before-after use the single hero photo.
+      if (template !== 'before-after') {
         if (address) data.address = titleCase(address);
         if (city) data.city = titleCase(city);
         if (state) data.state = state.trim().toUpperCase();
@@ -149,16 +166,23 @@ const SocialPack: React.FC<SocialPackProps> = ({ images, propertyDetails }) => {
         if (date) data.date = date;
         if (time) data.time = time;
       }
+      if (template === 'price-reduced') {
+        if (oldPrice) data.oldPrice = oldPrice;
+      }
+      if (template === 'sold') {
+        if (representation) data.representation = representation;
+        if (tagline) data.tagline = tagline;
+      }
+      if (template === 'coming-soon') {
+        if (expectedDate) data.expectedDate = expectedDate;
+      }
       if (template === 'before-after') {
         if (address) data.address = titleCase(address);
         if (city) data.city = titleCase(city);
         if (state) data.state = state.trim().toUpperCase();
+        if (tagline) data.tagline = tagline;
         if (beforeImage) data.beforeImage = await toDataURL(beforeImage.source);
         if (afterImage) data.afterImage = await toDataURL(afterImage.source);
-      }
-      if (template === 'tip-card' || template === 'carousel-cover') {
-        if (headline) data.headline = headline;
-        if (tagline) data.tagline = tagline;
       }
 
       const res = await fetch('/api/render-template', {
@@ -180,7 +204,8 @@ const SocialPack: React.FC<SocialPackProps> = ({ images, propertyDetails }) => {
     }
   }, [
     template, format, brandKit, address, city, state, zip, price, beds, baths, sqft, yearBuilt,
-    date, time, headline, tagline, heroImage, beforeImage, afterImage,
+    date, time, oldPrice, representation, expectedDate, tagline,
+    heroImage, beforeImage, afterImage,
   ]);
 
   const handleDownload = useCallback(() => {
@@ -191,10 +216,13 @@ const SocialPack: React.FC<SocialPackProps> = ({ images, propertyDetails }) => {
     a.click();
   }, [renderedPng, template, format]);
 
-  const needsHero = template === 'just-listed' || template === 'open-house' || template === 'carousel-cover';
+  const needsHero = template !== 'before-after';
   const needsBeforeAfter = template === 'before-after';
-  const needsListingFields = template !== 'tip-card' && template !== 'carousel-cover';
-  const needsHookFields = template === 'tip-card' || template === 'carousel-cover';
+  const needsListingFields = true;  // all v1 templates use listing fields
+  const needsOldPrice = template === 'price-reduced';
+  const needsRepresentation = template === 'sold';
+  const needsExpectedDate = template === 'coming-soon';
+  const needsTagline = template === 'sold' || template === 'before-after';
 
   return (
     <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-5 space-y-4">
@@ -360,12 +388,57 @@ const SocialPack: React.FC<SocialPackProps> = ({ images, propertyDetails }) => {
         </div>
       )}
 
-      {/* Tip card / carousel cover fields */}
-      {needsHookFields && (
-        <div className="space-y-2">
-          <input type="text" placeholder={template === 'carousel-cover' ? "Eyebrow (optional, e.g., '123 Main St.')" : "Headline label (e.g., 'FIELD NOTE')"} value={template === 'carousel-cover' ? address : headline} onChange={e => template === 'carousel-cover' ? setAddress(e.target.value) : setHeadline(e.target.value)} className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#0A84FF] outline-none" />
-          <textarea placeholder={template === 'carousel-cover' ? "Hook headline (the big serif line)" : "The quote body (the thing people save)"} value={tagline} onChange={e => setTagline(e.target.value)} rows={3} className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#0A84FF] outline-none resize-none" />
+      {/* Price Reduced: original price */}
+      {needsOldPrice && (
+        <input
+          type="text"
+          placeholder="Old price (e.g., $450,000)"
+          value={oldPrice}
+          onChange={e => setOldPrice(e.target.value)}
+          className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#0A84FF] outline-none"
+        />
+      )}
+
+      {/* Sold: representation */}
+      {needsRepresentation && (
+        <div className="flex gap-2">
+          {(['Buyer', 'Seller', 'Both'] as const).map(opt => (
+            <button
+              key={opt}
+              type="button"
+              onClick={() => setRepresentation(representation === opt ? '' : opt)}
+              className={`flex-1 px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-200 border ${
+                representation === opt
+                  ? 'bg-[#0A84FF]/10 border-[#0A84FF] text-white'
+                  : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-white'
+              }`}
+            >
+              Represented {opt}
+            </button>
+          ))}
         </div>
+      )}
+
+      {/* Coming Soon: expected on market */}
+      {needsExpectedDate && (
+        <input
+          type="text"
+          placeholder="Expected on market (e.g., May 4)"
+          value={expectedDate}
+          onChange={e => setExpectedDate(e.target.value)}
+          className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#0A84FF] outline-none"
+        />
+      )}
+
+      {/* Tagline (Sold + Before-After) */}
+      {needsTagline && (
+        <textarea
+          placeholder={template === 'sold' ? 'Optional closing note (e.g., "Another home closed in 11 days.")' : 'Optional transformation note'}
+          value={tagline}
+          onChange={e => setTagline(e.target.value)}
+          rows={2}
+          className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#0A84FF] outline-none resize-none"
+        />
       )}
 
       {/* Preview + Render */}

@@ -25,6 +25,8 @@ import { FurnitureRoomType, SavedStage } from '../types';
 import { sharpenImage } from '../utils/sharpen';
 import { compositeStackedEdit } from '../utils/stackComposite';
 import { CLEANUP_COMPOSITE_OPTIONS, shouldSkipCompositeForTool } from '../utils/compositeProfiles';
+import { shouldPromptNonStackable } from '../utils/nonStackableTools';
+import NonStackableConfirm from './NonStackableConfirm';
 import PanelHeader from './PanelHeader';
 import { Badge, Button } from './ui';
 import {
@@ -154,6 +156,10 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
     // R11: retry handle for the last failed tool run. Cleared on success and
     // on user-initiated cancel. Populated in the catch block of `run`.
     const [retryFn, setRetryFn] = useState<(() => void) | null>(null);
+    // When the user clicks Remove Clutter and already has AI-edited state
+    // on screen, we pause and confirm. `pendingCleanup` holds the in-flight
+    // callback that will actually start the run after confirm.
+    const [pendingCleanup, setPendingCleanup] = useState<null | (() => void)>(null);
     // F9: AbortController for the currently-running Pro AI tool.
     const activeAbortRef = useRef<AbortController | null>(null);
 
@@ -430,86 +436,102 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                 <p className="text-sm text-[var(--color-text)]/80 mb-3">
                     Remove personal items, clutter, and distractions so buyers see the room, not the seller's stuff.
                 </p>
+                <p className="text-xs text-[var(--color-text)]/55 px-1 mt-1">
+                    Works on your original photo. If you've already staged, Smart Cleanup will
+                    replace your current result — run it first, then stage on top.
+                </p>
                 <button
                     type="button"
                     disabled={loading !== null || (!currentImage && !canBatch)}
-                    onClick={() => canBatch
-                        ? runBatch('declutter', (img, signal) => instantDeclutter(img, selectedRoom, isPro, signal))
-                        : run('declutter', async (signal) => {
-                            setDeclutterSignal(buildCleanupSignal({
-                                risk: 'review',
-                                source: 'single',
-                                reason: 'Cleanup is running quality checks.',
-                                compositeMode: 'not_applicable',
-                                nextActions: ['Review boundaries after generation'],
-                            }));
-                            try {
-                                const result = await postProcessToolOutput(await instantDeclutter(currentImage!, selectedRoom, isPro, signal), currentImage, 'cleanup');
-                                onNewImage(result, 'cleanup');
-                                const auditToken = ++declutterAuditRef.current;
+                    onClick={() => {
+                        if (canBatch) {
+                            runBatch('declutter', (img, signal) => instantDeclutter(img, selectedRoom, isPro, signal));
+                        } else {
+                            const doCleanup = () => run('declutter', async (signal) => {
+                                // Use originalImage if non-stackable gate triggered, else currentImage.
+                                const input = shouldPromptNonStackable('cleanup', currentImage, originalImage)
+                                    ? originalImage!
+                                    : currentImage!;
                                 setDeclutterSignal(buildCleanupSignal({
                                     risk: 'review',
                                     source: 'single',
-                                    reason: 'Cleanup completed. Running quality audit.',
-                                    compositeMode: 'applied',
-                                    nextActions: ['Review boundaries while quality audit runs'],
+                                    reason: 'Cleanup is running quality checks.',
+                                    compositeMode: 'not_applicable',
+                                    nextActions: ['Review boundaries after generation'],
                                 }));
                                 try {
-                                    const score = await withTimeout(
-                                        scoreListingImage(result, selectedRoom),
-                                        18000,
-                                        'Cleanup quality scoring timed out'
-                                    );
-                                    if (auditToken !== declutterAuditRef.current) return;
-                                    const resolvedRisk = cleanupRiskFromQualityScore(score.overall) ?? 'review';
-                                    const resolvedSignal = buildCleanupSignal({
-                                        risk: resolvedRisk,
-                                        source: 'single',
-                                        qualityScore: score.overall,
-                                        reason:
-                                            resolvedRisk === 'safe'
-                                                ? `Cleanup passed checks (quality ${score.overall.toFixed(1)}/10).`
-                                                : resolvedRisk === 'high'
-                                                    ? `Cleanup shows high artifact risk (quality ${score.overall.toFixed(1)}/10).`
-                                                    : `Cleanup needs review before export (quality ${score.overall.toFixed(1)}/10).`,
-                                        compositeMode: 'applied',
-                                        nextActions:
-                                            resolvedRisk === 'safe'
-                                                ? ['Export when ready']
-                                                : ['Inspect edges before export', 'Retry tighter cleanup scope'],
-                                    });
-                                    setDeclutterSignal(resolvedSignal);
-                                    trackCleanupRisk(resolvedSignal.risk, {
-                                        source: 'pro-tools',
-                                        qualityScore: score.overall,
-                                    });
-                                } catch (scoreErr) {
-                                    console.warn('[SpecialModesPanel] Cleanup quality scoring skipped:', scoreErr);
-                                    if (auditToken !== declutterAuditRef.current) return;
-                                    const review = buildCleanupSignal({
+                                    const result = await postProcessToolOutput(await instantDeclutter(input, selectedRoom, isPro, signal), input, 'cleanup');
+                                    onNewImage(result, 'cleanup');
+                                    const auditToken = ++declutterAuditRef.current;
+                                    setDeclutterSignal(buildCleanupSignal({
                                         risk: 'review',
                                         source: 'single',
-                                        reason: 'Cleanup completed but quality scoring was unavailable.',
+                                        reason: 'Cleanup completed. Running quality audit.',
                                         compositeMode: 'applied',
-                                        nextActions: ['Inspect edges before export', 'Retry if ghosting persists'],
+                                        nextActions: ['Review boundaries while quality audit runs'],
+                                    }));
+                                    try {
+                                        const score = await withTimeout(
+                                            scoreListingImage(result, selectedRoom),
+                                            18000,
+                                            'Cleanup quality scoring timed out'
+                                        );
+                                        if (auditToken !== declutterAuditRef.current) return;
+                                        const resolvedRisk = cleanupRiskFromQualityScore(score.overall) ?? 'review';
+                                        const resolvedSignal = buildCleanupSignal({
+                                            risk: resolvedRisk,
+                                            source: 'single',
+                                            qualityScore: score.overall,
+                                            reason:
+                                                resolvedRisk === 'safe'
+                                                    ? `Cleanup passed checks (quality ${score.overall.toFixed(1)}/10).`
+                                                    : resolvedRisk === 'high'
+                                                        ? `Cleanup shows high artifact risk (quality ${score.overall.toFixed(1)}/10).`
+                                                        : `Cleanup needs review before export (quality ${score.overall.toFixed(1)}/10).`,
+                                            compositeMode: 'applied',
+                                            nextActions:
+                                                resolvedRisk === 'safe'
+                                                    ? ['Export when ready']
+                                                    : ['Inspect edges before export', 'Retry tighter cleanup scope'],
+                                        });
+                                        setDeclutterSignal(resolvedSignal);
+                                        trackCleanupRisk(resolvedSignal.risk, {
+                                            source: 'pro-tools',
+                                            qualityScore: score.overall,
+                                        });
+                                    } catch (scoreErr) {
+                                        console.warn('[SpecialModesPanel] Cleanup quality scoring skipped:', scoreErr);
+                                        if (auditToken !== declutterAuditRef.current) return;
+                                        const review = buildCleanupSignal({
+                                            risk: 'review',
+                                            source: 'single',
+                                            reason: 'Cleanup completed but quality scoring was unavailable.',
+                                            compositeMode: 'applied',
+                                            nextActions: ['Inspect edges before export', 'Retry if ghosting persists'],
+                                        });
+                                        setDeclutterSignal(review);
+                                        trackCleanupRisk(review.risk, { source: 'pro-tools' });
+                                    }
+                                } catch (err) {
+                                    const high = buildCleanupSignal({
+                                        risk: 'high',
+                                        source: 'single',
+                                        reason: 'Cleanup failed in Pro Tools.',
+                                        compositeMode: 'not_applicable',
+                                        nextActions: ['Retry cleanup', 'Use smaller edit scope'],
                                     });
-                                    setDeclutterSignal(review);
-                                    trackCleanupRisk(review.risk, { source: 'pro-tools' });
+                                    setDeclutterSignal(high);
+                                    trackCleanupRisk(high.risk, { source: 'pro-tools' });
+                                    throw err;
                                 }
-                            } catch (err) {
-                                const high = buildCleanupSignal({
-                                    risk: 'high',
-                                    source: 'single',
-                                    reason: 'Cleanup failed in Pro Tools.',
-                                    compositeMode: 'not_applicable',
-                                    nextActions: ['Retry cleanup', 'Use smaller edit scope'],
-                                });
-                                setDeclutterSignal(high);
-                                trackCleanupRisk(high.risk, { source: 'pro-tools' });
-                                throw err;
+                            });
+                            if (shouldPromptNonStackable('cleanup', currentImage, originalImage)) {
+                                setPendingCleanup(() => doCleanup);
+                            } else {
+                                doCleanup();
                             }
-                        })
-                    }
+                        }
+                    }}
                     className={`w-full rounded-2xl px-4 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all ${loading === 'declutter' ? 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border)]' : 'bg-white/[0.03] text-white border border-white/10 hover:bg-white/[0.06] hover:border-white/20 flex items-center justify-center gap-2 [&_svg]:text-[var(--color-primary)]'}`}
                 >
                     {loading === 'declutter' ? <><Loader2 size={16} className="animate-spin text-[var(--color-primary)]" /> {canBatch ? 'Processing batch...' : 'Cleaning up...'}</> : <><Trash2 size={16} /> {canBatch ? `Apply to All (${batchImages.length})` : 'Remove Clutter'}</>}
@@ -703,6 +725,17 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                     </div>
                 )}
             </Section>
+
+            <NonStackableConfirm
+                open={pendingCleanup !== null}
+                toolName="Smart Cleanup"
+                onConfirm={() => {
+                    const fn = pendingCleanup;
+                    setPendingCleanup(null);
+                    fn?.();
+                }}
+                onCancel={() => setPendingCleanup(null)}
+            />
         </div>
     );
 };

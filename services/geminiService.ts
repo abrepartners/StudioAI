@@ -753,13 +753,15 @@ If you cannot confidently label an object, default to PRESERVE. It is better to 
 === REMOVE ALL OF THESE ===
 - Realtor signs, for-sale signs, lockboxes, key boxes on doors
 - Toys, pet items, children's items, strollers, Little Tikes, play kitchens, ride-on vehicles
+- PETS AND ANIMALS — dogs, cats, birds, fish tanks, small mammals. The animal itself must be removed AND so must its bed/crate/bowl/leash. Listings must be species-neutral.
 - Vinyl wall decals, stickers, quote art, kid names on walls
 - Visible laundry, shoes, bags, backpacks on the floor
 - Trash, debris, junk, broken items, construction materials
 - Countertop clutter: mail, keys, loose bottles, random cups, toiletries, fruit baskets, cookie jars
 - Visible cords and cables on the floor
 - Refrigerator magnets, sticky notes, taped papers
-- Personal photos and children's drawings on walls
+- PERSONAL PHOTOGRAPHS OF PEOPLE — framed portraits, family photos, wedding photos, baby photos, school photos. Remove regardless of where they are: on walls, dressers, desks, nightstands, shelves, bookcases, mantles, pianos, countertops, refrigerators. Remove both the photo AND the frame. Neutral landscape/abstract art in frames stays.
+- Children's drawings, handprints, art projects taped or framed anywhere
 - Yard clutter: hoses, tools, buckets, tarps, random outdoor items
 - Moving boxes, packing materials
 - Cleaning supplies left out (brooms, mops, spray bottles)
@@ -782,10 +784,25 @@ If you cannot confidently label an object, default to PRESERVE. It is better to 
 - The output image MUST have the EXACT same framing, crop, zoom level, and camera angle as the input. Do NOT reframe, zoom, pan, or rotate.
 - If you cannot remove the clutter without changing the framing, remove the clutter WITHOUT changing the framing — do not reframe to fix composition.
 
-=== REMOVAL QUALITY STANDARD ===
-- Either erase a detected clutter item COMPLETELY (with seamless fill of the surface behind it), or leave it alone. Never ship partial erasure, half-faded smudges, or ghostly outlines.
-- Prefer complete erasure whenever feasible — being too conservative defeats the tool's purpose.
-- If a clutter item is reflected in a mirror, erase BOTH the item and its reflection together; never erase only one.
+=== REMOVAL QUALITY STANDARD — ZERO TOLERANCE FOR PARTIAL ERASURE ===
+
+This is the #1 failure mode of cleanup tools and an automatic FAIL condition:
+
+A "dry-erase-board" or "smudge" output — where the item is half-gone, faded, blurred, or replaced with an off-color patch that doesn't match the surrounding surface — is WORSE than not removing the item at all. It draws MORE attention to the spot than the original clutter did.
+
+Per-item decision rule (apply BEFORE generating any pixel):
+
+1. **Can I fully reconstruct the surface behind this item** (wall, floor, counter) so that after removal the spot is INDISTINGUISHABLE from its neighbors in color, texture, grain, and pattern?
+   - If YES → fully remove the item AND fully reconstruct the surface.
+   - If NO → do NOT touch the item. Leave it 100% intact.
+
+2. **Never an in-between.** A ghost outline, a faint silhouette, a blurred smear, a flat gray/beige fill where the item used to be — all of these are automatic failures. Ship the item intact instead.
+
+3. **Mirror reflections** — if a clutter item is reflected in a mirror, erase BOTH the item and its reflection together. Never erase only one.
+
+4. **Items on complex surfaces** (patterned wallpaper, brick, tile with grout lines, hardwood with visible planks, veined countertops) — only remove if you can continue the pattern through the removed footprint with NO visible seam. Otherwise LEAVE IT.
+
+Prefer complete erasure whenever you can honestly deliver it. Be aggressive where you're confident in the surface reconstruction, conservative where you're not. Never commit to half-measures.
 
 === SURFACE-ACCURATE IN-PAINTING (READ CAREFULLY) ===
 The empty footprint left by each removed item MUST be in-painted with the EXACT color, texture, grain, and pattern of the SURROUNDING VISIBLE SURFACE — not a generic gray patch, not a blurred smear, not a flat color fill.

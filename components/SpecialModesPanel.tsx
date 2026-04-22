@@ -27,7 +27,8 @@ import { compositeStackedEdit } from '../utils/stackComposite';
 import { CLEANUP_COMPOSITE_OPTIONS, shouldSkipCompositeForTool } from '../utils/compositeProfiles';
 import { shouldPromptNonStackable } from '../utils/nonStackableTools';
 import { checkAlignment } from '../utils/alignmentCheck';
-import { detectClutterMasks } from '../services/samService';
+import { detectClutterMasks, combineSelectedMasks, type SamDetectResult } from '../services/samService';
+import ClutterMaskSelector from './ClutterMaskSelector';
 import NonStackableConfirm from './NonStackableConfirm';
 import PanelHeader from './PanelHeader';
 import { Badge, Button } from './ui';
@@ -162,6 +163,15 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
     // on screen, we pause and confirm. `pendingCleanup` holds the in-flight
     // callback that will actually start the run after confirm.
     const [pendingCleanup, setPendingCleanup] = useState<null | (() => void)>(null);
+    // After SAM detects objects, we pause the cleanup run and show the
+    // mask selector so the user can deselect things SAM shouldn't erase
+    // (paintings, plants, built-ins). `resolve` is plumbed through so the
+    // awaiting run() can keep its linear flow.
+    const [maskSelectorState, setMaskSelectorState] = useState<{
+        input: string;
+        sam: SamDetectResult;
+        resolve: (selectedIndices: number[] | null) => void;
+    } | null>(null);
     // F9: AbortController for the currently-running Pro AI tool.
     const activeAbortRef = useRef<AbortController | null>(null);
 
@@ -477,7 +487,49 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                                 // If SAM fails or returns nothing, gracefully fall through to the
                                 // legacy prompt-only cleanup.
                                 const sam = await detectClutterMasks(input).catch(() => null);
-                                if (sam) {
+                                if (signal.aborted) throw new Error('ABORTED');
+
+                                // Mask resolved for this run — either from the user's selection
+                                // in the ClutterMaskSelector modal, or the plain dilated combined
+                                // mask if we skip the modal, or null for prompt-only fallback.
+                                let cleanupMask: string | null = null;
+
+                                if (sam && sam.individualMasksBase64.length > 0) {
+                                    setDeclutterSignal(buildCleanupSignal({
+                                        risk: 'review',
+                                        source: 'single',
+                                        reason: `Found ${sam.maskCount} objects (${(sam.latencyMs / 1000).toFixed(1)}s). Review what to remove.`,
+                                        compositeMode: 'not_applicable',
+                                        nextActions: ['Tap objects in the photo to keep them'],
+                                    }));
+                                    // Pause this run() until the user confirms in the modal.
+                                    const selected = await new Promise<number[] | null>((resolve) => {
+                                        setMaskSelectorState({ input, sam, resolve });
+                                    });
+                                    setMaskSelectorState(null);
+                                    if (selected === null) {
+                                        // User cancelled — bail cleanly.
+                                        setDeclutterSignal(null);
+                                        return;
+                                    }
+                                    if (selected.length === 0) {
+                                        // Nothing selected — no-op cleanup. Just return without touching the image.
+                                        setDeclutterSignal(null);
+                                        return;
+                                    }
+                                    const picked = selected.map((i) => sam.individualMasksBase64[i]);
+                                    cleanupMask = await combineSelectedMasks(picked, 24);
+                                    setDeclutterSignal(buildCleanupSignal({
+                                        risk: 'review',
+                                        source: 'single',
+                                        reason: `Removing ${selected.length} selected ${selected.length === 1 ? 'item' : 'items'} with precision mask.`,
+                                        compositeMode: 'not_applicable',
+                                        nextActions: ['Review boundaries after generation'],
+                                    }));
+                                } else if (sam) {
+                                    // SAM ran but returned no individual masks — use the combined
+                                    // mask directly (legacy behavior, no modal).
+                                    cleanupMask = sam.combinedMaskBase64;
                                     setDeclutterSignal(buildCleanupSignal({
                                         risk: 'review',
                                         source: 'single',
@@ -486,9 +538,10 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                                         nextActions: ['Review boundaries after generation'],
                                     }));
                                 }
+
                                 try {
                                     const result = await postProcessToolOutput(
-                                        await instantDeclutter(input, selectedRoom, isPro, signal, sam?.combinedMaskBase64 || null),
+                                        await instantDeclutter(input, selectedRoom, isPro, signal, cleanupMask),
                                         input,
                                         'cleanup',
                                     );
@@ -767,6 +820,15 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                 }}
                 onCancel={() => setPendingCleanup(null)}
             />
+
+            {maskSelectorState && (
+                <ClutterMaskSelector
+                    imageBase64={maskSelectorState.input}
+                    individualMasks={maskSelectorState.sam.individualMasksBase64}
+                    onConfirm={(indices) => maskSelectorState.resolve(indices)}
+                    onCancel={() => maskSelectorState.resolve(null)}
+                />
+            )}
         </div>
     );
 };

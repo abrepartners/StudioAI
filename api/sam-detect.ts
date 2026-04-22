@@ -10,7 +10,8 @@
  *
  * Output (200 JSON):
  *   { ok: true,
- *     combinedMaskBase64: string,     // data:image/png;base64,...
+ *     combinedMaskBase64: string,          // data:image/png;base64,...
+ *     individualMasksBase64: string[],     // one data URL per detected object
  *     maskCount: number,
  *     latencyMs: number }
  *
@@ -127,9 +128,29 @@ export default async function handler(req: any, res: any) {
     const maskBuf = Buffer.from(await maskRes.arrayBuffer());
     const combinedMaskBase64 = `data:image/png;base64,${maskBuf.toString('base64')}`;
 
+    // Also fetch every individual mask in parallel so the client can show each
+    // one as a toggleable overlay (ClutterMaskSelector). Cap at 30 masks — any
+    // more and the UI gets unusable anyway. Failed fetches are silently dropped.
+    const capped = individualMasks.slice(0, 30);
+    const individualMasksBase64 = (
+      await Promise.all(
+        capped.map(async (url): Promise<string | null> => {
+          try {
+            const r = await fetch(url);
+            if (!r.ok) return null;
+            const buf = Buffer.from(await r.arrayBuffer());
+            return `data:image/png;base64,${buf.toString('base64')}`;
+          } catch {
+            return null;
+          }
+        }),
+      )
+    ).filter((m): m is string => m !== null);
+
     json(res, 200, {
       ok: true,
       combinedMaskBase64,
+      individualMasksBase64,
       maskCount: individualMasks.length,
       latencyMs: Date.now() - t0,
     });

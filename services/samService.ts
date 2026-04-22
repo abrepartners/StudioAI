@@ -16,6 +16,8 @@
 export interface SamDetectResult {
   /** data URL of the combined mask (white = objects, black = background). */
   combinedMaskBase64: string;
+  /** data URLs — one per detected object, aligned to input resolution. */
+  individualMasksBase64: string[];
   /** Number of individual object instances SAM detected. */
   maskCount: number;
   /** End-to-end latency including the Replicate call. */
@@ -52,11 +54,15 @@ export async function detectClutterMasks(
     // Raw SAM masks cover the object pixels exactly; shadows extend beyond.
     // Without dilation Gemini erases the object but leaves the shadow halo.
     const dilated = await dilateMask(data.combinedMaskBase64, 24);
+    const individualMasksBase64: string[] = Array.isArray(data.individualMasksBase64)
+      ? data.individualMasksBase64
+      : [];
     console.log(
-      `[samService] SAM found ${data.maskCount} objects in ${data.latencyMs}ms, dilated +24px for shadow halos`,
+      `[samService] SAM found ${data.maskCount} objects (${individualMasksBase64.length} individual masks) in ${data.latencyMs}ms, dilated +24px for shadow halos`,
     );
     return {
       combinedMaskBase64: dilated,
+      individualMasksBase64,
       maskCount: data.maskCount,
       latencyMs: data.latencyMs,
     };
@@ -64,6 +70,50 @@ export async function detectClutterMasks(
     console.warn('[samService] request failed:', err);
     return null;
   }
+}
+
+/**
+ * Combine a set of individual SAM masks into one white-on-black mask,
+ * then dilate for shadow coverage. Used by ClutterMaskSelector after the
+ * user has deselected the masks they DON'T want erased.
+ *
+ * Returns a data URL. Throws on empty input (caller should skip cleanup).
+ */
+export async function combineSelectedMasks(
+  maskDataUrls: string[],
+  dilatePx: number = 24,
+): Promise<string> {
+  if (maskDataUrls.length === 0) {
+    throw new Error('combineSelectedMasks: no masks to combine');
+  }
+  const imgs = await Promise.all(
+    maskDataUrls.map(
+      (url) =>
+        new Promise<HTMLImageElement>((resolve, reject) => {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+          img.src = url;
+        }),
+    ),
+  );
+  const w = imgs[0].naturalWidth;
+  const h = imgs[0].naturalHeight;
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d')!;
+  // Fill black, then draw each mask with 'lighter' blend — white pixels accumulate.
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, w, h);
+  ctx.globalCompositeOperation = 'lighter';
+  for (const img of imgs) {
+    ctx.drawImage(img, 0, 0, w, h);
+  }
+  ctx.globalCompositeOperation = 'source-over';
+  const combined = canvas.toDataURL('image/png');
+  return dilateMask(combined, dilatePx);
 }
 
 /**

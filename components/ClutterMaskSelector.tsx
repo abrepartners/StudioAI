@@ -96,7 +96,32 @@ const ClutterMaskSelector: React.FC<ClutterMaskSelectorProps> = ({
       tctx.globalCompositeOperation = 'source-in';
       tctx.fillStyle = OVERLAY_COLORS[i % OVERLAY_COLORS.length];
       tctx.fillRect(0, 0, imgDims.w, imgDims.h);
-      ctx.globalAlpha = 0.45;
+      // Per-mask alpha is deliberately low (0.22) so overlapping masks don't
+      // compound into opaque blobs that hide the photo. With 30+ masks the
+      // old 0.45 value painted over everything — user couldn't tell what was
+      // what. At 0.22 you can still see the room AND the tint is visible.
+      ctx.globalAlpha = 0.22;
+      ctx.drawImage(tmp, 0, 0);
+      ctx.globalAlpha = 1.0;
+    });
+    // Draw a crisp 2px colored stroke around each mask so boundaries are
+    // legible even where fills compound. Stroke ignores compound alpha.
+    loadedMasks.forEach((maskImg, i) => {
+      if (!selected.has(i)) return;
+      const tmp = document.createElement('canvas');
+      tmp.width = imgDims.w;
+      tmp.height = imgDims.h;
+      const tctx = tmp.getContext('2d')!;
+      // Dilate the mask by 1px and subtract the original to get an outline.
+      tctx.filter = 'blur(1.5px)';
+      tctx.drawImage(maskImg, 0, 0, imgDims.w, imgDims.h);
+      tctx.filter = 'none';
+      tctx.globalCompositeOperation = 'destination-out';
+      tctx.drawImage(maskImg, 0, 0, imgDims.w, imgDims.h);
+      tctx.globalCompositeOperation = 'source-in';
+      tctx.fillStyle = OVERLAY_COLORS[i % OVERLAY_COLORS.length];
+      tctx.fillRect(0, 0, imgDims.w, imgDims.h);
+      ctx.globalAlpha = 0.9;
       ctx.drawImage(tmp, 0, 0);
       ctx.globalAlpha = 1.0;
     });

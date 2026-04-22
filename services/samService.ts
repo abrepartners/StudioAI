@@ -36,10 +36,17 @@ export async function detectClutterMasks(
   imageBase64: string,
 ): Promise<SamDetectResult | null> {
   try {
+    // SAM 2 does its own downscaling internally — running on a 2K+ image just
+    // means we're uploading a massive JSON body for no better result. Vercel's
+    // serverless body limit is ~4.5MB; a 2048×1366 base64 JPEG typically lands
+    // around 5-8MB and 413s the call. Resize to 1280px longest side for the
+    // SAM request only (mask comes back at that resolution — Gemini handles
+    // mask-vs-image size mismatch fine via its own rescaling).
+    const shrunk = await resizeForSam(imageBase64, 1280);
     const res = await fetch('/api/sam-detect', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ imageBase64 }),
+      body: JSON.stringify({ imageBase64: shrunk }),
     });
     if (!res.ok) {
       console.warn(`[samService] /api/sam-detect returned ${res.status}`);
@@ -70,6 +77,37 @@ export async function detectClutterMasks(
     console.warn('[samService] request failed:', err);
     return null;
   }
+}
+
+/**
+ * Downscale an image (data URL or raw base64 JPEG) so its longest side is
+ * `maxEdge` px, then re-encode as JPEG @ 0.8 quality. Used to keep the
+ * /api/sam-detect payload under Vercel's body limit without hurting mask
+ * quality (SAM downsamples to ~1024 internally anyway).
+ */
+async function resizeForSam(imageBase64: string, maxEdge: number): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const srcW = img.naturalWidth;
+      const srcH = img.naturalHeight;
+      const longest = Math.max(srcW, srcH);
+      if (longest <= maxEdge) return resolve(imageBase64);
+      const scale = maxEdge / longest;
+      const w = Math.round(srcW * scale);
+      const h = Math.round(srcH * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return resolve(imageBase64);
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/jpeg', 0.8));
+    };
+    img.onerror = () => resolve(imageBase64);
+    img.src = imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`;
+  });
 }
 
 /**

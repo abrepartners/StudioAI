@@ -17,7 +17,7 @@
  */
 import { json, setCors, handleOptions, rejectMethod, parseBody } from './utils.js';
 
-export const config = { runtime: 'nodejs', maxDuration: 120 };
+export const config = { runtime: 'nodejs', maxDuration: 60 };
 
 const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN || '';
 const REAL_ESRGAN_MODEL = 'nightmareai/real-esrgan';
@@ -68,7 +68,7 @@ export default async function handler(req: any, res: any) {
         headers: {
           'Authorization': `Token ${REPLICATE_TOKEN}`,
           'Content-Type': 'application/json',
-          'Prefer': 'wait=115',
+          'Prefer': 'wait=55',
         },
         body: JSON.stringify({
           input: {

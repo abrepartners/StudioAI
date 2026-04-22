@@ -19,8 +19,8 @@ import {
   generateRoomDesign,
   virtualTwilight,
   replaceSky,
-  instantDeclutter,
 } from '../services/geminiService';
+import { fluxCleanup } from '../services/fluxService';
 import { FurnitureRoomType, SavedStage } from '../types';
 import { type BatchImage, type BatchAction } from './BatchUploader';
 import Tooltip from './Tooltip';
@@ -104,34 +104,8 @@ const processImage = async (img: BatchImage, isPro: boolean = false): Promise<st
       return await postProcessBatchOutput(results[0], img.base64, 'stage');
     }
     case 'cleanup': {
-      const raw = await instantDeclutter(img.base64, roomType, isPro);
-      // X4: Post-gen alignment guard for cleanup on flash tier. Skip for Pro
-      // (gemini-3-pro-image-preview is more stable). If overlap < 70% the
-      // model likely reframed; bail and return the input unchanged with a
-      // BatchAlignmentBailError the orchestrator surfaces as a row error.
-      if (!isPro) {
-        try {
-          const alignment = await checkAlignment(img.base64, raw);
-          console.log(
-            `[BatchProcessor] X4 alignment — id=${img.id} overlap=${(alignment.overlap * 100).toFixed(1)}%`
-          );
-          if (!alignment.aligned) {
-            console.warn(
-              `[BatchProcessor] X4 BAIL — cleanup reframed (overlap ${(alignment.overlap * 100).toFixed(1)}% < 70%) for id=${img.id}`
-            );
-            const err: Error & { code?: string } = new Error(
-              "Cleanup couldn't safely process this image — upgrade to Pro for higher quality"
-            );
-            err.code = 'ALIGNMENT_BAIL';
-            throw err;
-          }
-        } catch (e: any) {
-          if (e?.code === 'ALIGNMENT_BAIL') throw e;
-          // Non-fatal in alignment compute itself — continue to composite.
-          console.warn('[BatchProcessor] X4 alignment check failed (non-fatal):', e);
-        }
-      }
-      return await postProcessBatchOutput(raw, img.base64, 'cleanup');
+      const { resultBase64 } = await fluxCleanup(img.base64, roomType);
+      return await postProcessBatchOutput(resultBase64, img.base64, 'cleanup');
     }
     case 'twilight': {
       const raw = await virtualTwilight(img.base64, isPro);

@@ -42,11 +42,11 @@ import JSZip from 'jszip';
 import {
   generateRoomDesign,
   virtualTwilight,
-  instantDeclutter,
   generateListingCopy,
   type ListingCopyPropertyDetails,
   type ListingCopyTone,
 } from '../services/geminiService';
+import { fluxCleanup } from '../services/fluxService';
 import {
   processForMLS,
   MLS_PRESETS,
@@ -292,7 +292,8 @@ const ListingKitPipeline: React.FC<ListingKitPipelineProps> = ({
           const source = img.id === heroImage.id && twilightHero
             ? twilightHero
             : (stagedByImageId.get(img.id) || img.base64);
-          return await instantDeclutter(source, img.roomType || 'Living Room', isPro, signal);
+          const { resultBase64 } = await fluxCleanup(source, img.roomType || 'Living Room', signal);
+          return resultBase64;
         },
         (done, total) => updateStep('cleanup', { stepDetail: `${done}/${total} photos` }),
         signal

@@ -24,7 +24,7 @@ export interface SamDetectResult {
 
 /**
  * Run SAM 2 on the given image and return a combined object mask.
- * The returned mask is DILATED by ~24px so it covers each object PLUS a
+ * The returned mask is DILATED by ~40px so it covers each object PLUS a
  * margin for cast shadows and reflections. Gemini's erasure then includes
  * those shadow halos instead of leaving the "after-shadow" residue pattern.
  *
@@ -51,9 +51,9 @@ export async function detectClutterMasks(
     // Dilate the mask to include shadows + reflections around each object.
     // Raw SAM masks cover the object pixels exactly; shadows extend beyond.
     // Without dilation Gemini erases the object but leaves the shadow halo.
-    const dilated = await dilateMask(data.combinedMaskBase64, 24);
+    const dilated = await dilateMask(data.combinedMaskBase64, 40);
     console.log(
-      `[samService] SAM found ${data.maskCount} objects in ${data.latencyMs}ms, dilated +24px for shadow halos`,
+      `[samService] SAM found ${data.maskCount} objects in ${data.latencyMs}ms, dilated +40px for shadow halos`,
     );
     return {
       combinedMaskBase64: dilated,

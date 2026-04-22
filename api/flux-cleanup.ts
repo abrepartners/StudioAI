@@ -1,19 +1,26 @@
 /**
  * api/flux-cleanup.ts
  *
- * Server-side proxy to Replicate's Flux Kontext Pro for Smart Cleanup.
- * Replaces the Gemini + SAM pipeline — Flux Kontext has native framing-lock
- * and does text-only cleanup without hallucinating new objects (the reason
- * SAM existed was to contain Gemini's "remove a painting you didn't ask
- * for" instincts).
+ * Server-side proxy to Replicate for Smart Cleanup. Runs two models in
+ * sequence on the same Function invocation:
+ *   1) black-forest-labs/flux-kontext-pro  — text-driven declutter
+ *   2) nightmareai/real-esrgan             — silent 4x finalization
  *
- * Input (POST JSON):   { imageBase64: string, prompt: string }
- *   imageBase64 can be a raw base64 string or a data URL.
+ * Consolidated into one endpoint so the deploy fits the Vercel Hobby
+ * function count limit (12). Chaining server-side also saves a client
+ * round-trip and keeps the upscale gated behind `skipUpscale` for
+ * batch paths that don't need it.
+ *
+ * Input (POST JSON):
+ *   { imageBase64: string, prompt: string, skipUpscale?: boolean }
+ *     imageBase64 can be raw base64 or a data URL.
+ *     skipUpscale defaults to false — set true from batch/listing-kit
+ *     paths where the output is about to be resized down anyway.
  *
  * Output (200 JSON):   { ok: true, resultBase64: string, latencyMs: number }
- * Output (200 JSON):   { ok: false, error: string }  — caller handles fallback
+ * Output (200 JSON):   { ok: false, error: string }  — caller falls back
  *
- * Pricing reference: ~$0.04 per prediction as of 2026-04-22.
+ * Pricing reference: ~$0.04 Flux + ~$0.002 Real-ESRGAN per call.
  */
 import { json, setCors, handleOptions, rejectMethod, parseBody } from './utils.js';
 
@@ -21,6 +28,7 @@ export const config = { runtime: 'nodejs', maxDuration: 60 };
 
 const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN || '';
 const FLUX_MODEL = 'black-forest-labs/flux-kontext-pro';
+const REAL_ESRGAN_MODEL = 'nightmareai/real-esrgan';
 
 async function extractUrl(output: any): Promise<string | null> {
   if (!output) return null;
@@ -38,6 +46,18 @@ async function extractUrl(output: any): Promise<string | null> {
   return null;
 }
 
+async function waitForReplicate(startResponse: any): Promise<any> {
+  let final: any = startResponse;
+  while (final.status === 'starting' || final.status === 'processing') {
+    await new Promise((r) => setTimeout(r, 1500));
+    const pollRes = await fetch(final.urls.get, {
+      headers: { 'Authorization': `Token ${REPLICATE_TOKEN}` },
+    });
+    final = await pollRes.json();
+  }
+  return final;
+}
+
 export default async function handler(req: any, res: any) {
   setCors(res, 'POST,OPTIONS');
   if (handleOptions(req, res)) return;
@@ -51,6 +71,7 @@ export default async function handler(req: any, res: any) {
   const body = parseBody(req.body);
   const imageBase64 = String(body.imageBase64 || '');
   const prompt = String(body.prompt || '');
+  const skipUpscale = Boolean(body.skipUpscale);
   if (!imageBase64) {
     json(res, 400, { ok: false, error: 'imageBase64 is required' });
     return;
@@ -66,12 +87,13 @@ export default async function handler(req: any, res: any) {
 
   const t0 = Date.now();
   try {
-    const predict = await fetch('https://api.replicate.com/v1/predictions', {
+    // --- Step 1: Flux Kontext cleanup -------------------------------------
+    const fluxStart = await fetch('https://api.replicate.com/v1/predictions', {
       method: 'POST',
       headers: {
         'Authorization': `Token ${REPLICATE_TOKEN}`,
         'Content-Type': 'application/json',
-        'Prefer': 'wait=55',
+        'Prefer': 'wait=40',
       },
       body: JSON.stringify({
         model: FLUX_MODEL,
@@ -83,34 +105,69 @@ export default async function handler(req: any, res: any) {
         },
       }),
     });
-
-    if (!predict.ok) {
-      const text = await predict.text();
-      console.warn(`[flux-cleanup] Replicate ${predict.status}: ${text.slice(0, 200)}`);
-      json(res, 200, { ok: false, error: `Replicate ${predict.status}` });
+    if (!fluxStart.ok) {
+      const text = await fluxStart.text();
+      console.warn(`[flux-cleanup] Flux ${fluxStart.status}: ${text.slice(0, 200)}`);
+      json(res, 200, { ok: false, error: `Flux ${fluxStart.status}` });
       return;
     }
-
-    let final: any = await predict.json();
-    while (final.status === 'starting' || final.status === 'processing') {
-      await new Promise((r) => setTimeout(r, 1500));
-      const pollRes = await fetch(final.urls.get, {
-        headers: { 'Authorization': `Token ${REPLICATE_TOKEN}` },
-      });
-      final = await pollRes.json();
-    }
-    if (final.status !== 'succeeded' || !final.output) {
-      console.warn(`[flux-cleanup] status=${final.status} error=${final.error}`);
-      json(res, 200, { ok: false, error: final.error || `status: ${final.status}` });
+    const fluxFinal = await waitForReplicate(await fluxStart.json());
+    if (fluxFinal.status !== 'succeeded' || !fluxFinal.output) {
+      console.warn(`[flux-cleanup] flux status=${fluxFinal.status} error=${fluxFinal.error}`);
+      json(res, 200, { ok: false, error: fluxFinal.error || `flux status: ${fluxFinal.status}` });
       return;
     }
-
-    const resultUrl = await extractUrl(final.output);
-    if (!resultUrl) {
+    const cleanUrl = await extractUrl(fluxFinal.output);
+    if (!cleanUrl) {
       json(res, 200, { ok: false, error: 'Flux returned no image URL' });
       return;
     }
-    const imgRes = await fetch(resultUrl);
+    const fluxMs = Date.now() - t0;
+    console.log(`[flux-cleanup] Flux done in ${fluxMs}ms`);
+
+    // --- Step 2 (optional): Real-ESRGAN 4x upscale ------------------------
+    let finalUrl = cleanUrl;
+    if (!skipUpscale) {
+      const tUpscale = Date.now();
+      const esrStart = await fetch(
+        `https://api.replicate.com/v1/models/${REAL_ESRGAN_MODEL}/predictions`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Token ${REPLICATE_TOKEN}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'wait=15',
+          },
+          body: JSON.stringify({
+            input: {
+              image: cleanUrl,
+              scale: 4,
+              face_enhance: false,
+            },
+          }),
+        },
+      );
+      if (!esrStart.ok) {
+        const text = await esrStart.text();
+        console.warn(`[flux-cleanup] ESRGAN ${esrStart.status}: ${text.slice(0, 200)} — using un-upscaled`);
+      } else {
+        const esrFinal = await waitForReplicate(await esrStart.json());
+        if (esrFinal.status === 'succeeded' && esrFinal.output) {
+          const upscaledUrl = await extractUrl(esrFinal.output);
+          if (upscaledUrl) {
+            finalUrl = upscaledUrl;
+            console.log(`[flux-cleanup] Upscaled in ${Date.now() - tUpscale}ms`);
+          } else {
+            console.warn('[flux-cleanup] ESRGAN returned no URL — using un-upscaled');
+          }
+        } else {
+          console.warn(`[flux-cleanup] ESRGAN status=${esrFinal.status} error=${esrFinal.error} — using un-upscaled`);
+        }
+      }
+    }
+
+    // --- Step 3: Fetch final URL and return base64 ------------------------
+    const imgRes = await fetch(finalUrl);
     if (!imgRes.ok) {
       json(res, 200, { ok: false, error: `result fetch ${imgRes.status}` });
       return;

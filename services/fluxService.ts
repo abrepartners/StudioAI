@@ -15,28 +15,8 @@ import { resizeForUpload } from '../utils/resizeForUpload';
 // output to ~5120 px anyway.
 const FLUX_UPLOAD_MAX_EDGE = 1280;
 
-const CLEANUP_PROMPT = (selectedRoom: string) => `You are editing a real estate listing photo of a ${selectedRoom}. REMOVE all clutter, personal items, and distractions. Nothing else.
-
-REMOVE:
-- Shoes, slippers, coats, bags, umbrellas, backpacks, loose clothing
-- Trash, recycling, food, dishes on surfaces, water bottles, cups
-- Personal photos, framed family pictures, kids' artwork on walls or fridges
-- Real estate signs, open-house signs, lockboxes
-- Pets and pet accessories: food bowls, toys, crates, beds, leashes
-- Magnets, sticky notes, papers, mail, keys
-- Visible power cords, cables, power strips, chargers
-- Dirt, scuff marks, water rings, dust bunnies on floors and counters
-- Kids' toys, stuffed animals, play mats
-
-PRESERVE EXACTLY:
-- All furniture (sofas, chairs, beds, tables, dressers, nightstands)
-- All artwork, wall decor, mirrors, landscape paintings — even if personal-style
-- All built-ins: kitchen cabinets, bathroom vanities, closet shelving, fireplaces
-- Appliances, fixtures, lighting, ceiling fans, vents
-- Floors, walls, ceilings, doors, windows, trim, baseboards
-- The room's exact geometry, camera angle, framing, and perspective
-
-NEVER invent or add objects that weren't in the source photo. This is a REMOVAL-ONLY edit. If unsure whether an item is "personal clutter" or "staged decor," LEAVE IT. Photo-realistic. No stylistic changes. Same lighting. Same time of day.`;
+const CLEANUP_PROMPT = (selectedRoom: string) =>
+  `Remove all clutter, personal items, decorations, framed photos, artwork, pillows with patterns, throw blankets, books, shelving contents, clothing, hanging items, small accessories, rugs, and any personal belongings from this ${selectedRoom}. Leave only major furniture (beds, chairs, tables, desks, dressers), lighting fixtures, window treatments, and structural elements (walls, floor, ceiling, doors, windows, fixtures). Empty all bookshelves completely. The room should look staged, clean, and depersonalized — ready for an MLS listing. Preserve exact lighting, perspective, and architectural details.`;
 
 export interface FluxCleanupResult {
   resultBase64: string;

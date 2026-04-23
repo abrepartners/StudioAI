@@ -1,14 +1,12 @@
 /**
  * api/flux-cleanup.ts
  *
- * Smart Cleanup via Replicate: Flux Kontext Pro → Real-ESRGAN 4x.
+ * Smart Cleanup via Replicate: Flux 2 Pro → Real-ESRGAN 4x.
  *
  * Uses the Replicate Node SDK (already in package.json) instead of raw
- * fetch, because Flux Kontext Pro's input_image field only accepts HTTPS
- * URLs — not data URIs. The SDK transparently uploads the data URI to
- * Replicate's temp file storage and passes the resulting URL, which is
- * the correct call pattern. Raw fetch was sending the data URI directly,
- * which caused the 422 schema mismatch.
+ * fetch, because Flux's input_images field only accepts HTTPS URLs — not
+ * data URIs. The SDK transparently uploads the data URI to Replicate's
+ * temp file storage and passes the resulting URL.
  *
  * Input (POST JSON):
  *   { imageBase64: string, prompt: string, skipUpscale?: boolean }
@@ -63,13 +61,13 @@ export default async function handler(req: any, res: any) {
   const t0 = Date.now();
 
   try {
-    // --- Step 1: Flux Kontext Pro cleanup -----------------------------------
+    // --- Step 1: Flux 2 Pro cleanup ------------------------------------------
     // SDK auto-uploads the data URI to Replicate's temp storage and passes
     // the resulting HTTPS URL — this is the fix for the 422 schema error.
-    console.log('[flux-cleanup] Starting Flux Kontext Pro...');
-    const fluxOutput = await replicate.run('black-forest-labs/flux-kontext-pro', {
+    console.log('[flux-cleanup] Starting Flux 2 Pro...');
+    const fluxOutput = await replicate.run('black-forest-labs/flux-2-pro', {
       input: {
-        input_image: dataUrl,
+        input_images: [dataUrl],
         prompt,
         output_format: 'jpg',
         safety_tolerance: 2,

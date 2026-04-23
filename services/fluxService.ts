@@ -1,9 +1,9 @@
 /**
  * services/fluxService.ts
  *
- * Client wrapper for Flux Kontext Pro. This is the cleanup engine for
+ * Client wrapper for Flux 2 Pro. This is the cleanup engine for
  * Smart Cleanup — replaces the old Gemini + SAM pipeline which hallucinated
- * objects and needed a mask selector to stay honest. Flux Kontext preserves
+ * objects and needed a mask selector to stay honest. Flux 2 Pro preserves
  * framing natively and does text-driven cleanup without inventing content.
  */
 
@@ -50,7 +50,7 @@ export interface FluxCleanupOptions {
 }
 
 /**
- * Run Flux Kontext Pro cleanup on a room photo. Server chains a silent
+ * Run Flux 2 Pro cleanup on a room photo. Server chains a silent
  * Real-ESRGAN 4x finalization unless `options.skipUpscale === true`.
  * All the heavy lifting happens in one /api/flux-cleanup call — we
  * collapsed the pipeline to one endpoint to fit the Vercel Hobby

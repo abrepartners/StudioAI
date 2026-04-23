@@ -26,6 +26,8 @@ export interface FluxCleanupResult {
 export interface FluxCleanupOptions {
   /** When true, skip the server-side Real-ESRGAN 4x finalization. */
   skipUpscale?: boolean;
+  /** Override the default cleanup prompt (used by Design Direction toggle). */
+  customPrompt?: string;
 }
 
 /**
@@ -50,7 +52,7 @@ export async function fluxCleanup(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       imageBase64: shrunk,
-      prompt: CLEANUP_PROMPT(selectedRoom),
+      prompt: options.customPrompt || CLEANUP_PROMPT(selectedRoom),
       skipUpscale: Boolean(options.skipUpscale),
     }),
     signal: abortSignal,

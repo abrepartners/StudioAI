@@ -19,6 +19,7 @@ import {
   Lock,
   Image as ImageIcon,
   X,
+  Zap,
 } from 'lucide-react';
 import PanelHeader from './PanelHeader';
 import { Pill, Badge } from './ui';
@@ -28,7 +29,7 @@ type StageMode = 'text' | 'packs' | 'furniture';
 interface RenovationControlsProps {
   activeMode: 'cleanup' | 'design';
   hasGenerated: boolean;
-  onGenerate: (prompt: string, opts?: { fromPack?: boolean }) => void;
+  onGenerate: (prompt: string, opts?: { fromPack?: boolean; useFlux?: boolean }) => void;
   onStageModeChange?: (mode: StageMode) => void;
   isGenerating: boolean;
   hasMask: boolean;
@@ -128,6 +129,7 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
   const [selectedPreset, setSelectedPreset] = useState<StylePreset | null>(initialPreset as StylePreset | null);
   const [customPrompt, setCustomPrompt] = useState(initialPrompt);
   const [stageMode, setStageMode] = useState<StageMode>(initialStageMode);
+  const [useFlux, setUseFlux] = useState(false);
 
   // X3: Narrow-room detection for pack mode. Kick a hidden Image load and
   // cache whether the source ratio is "awkward" (too wide or too tall). Packs
@@ -288,7 +290,7 @@ HARD PRESERVATION RULES — these override any instinct to "improve" the room:
       prompt += ' ONLY update the masked area, keeping the rest of the image identical.';
     }
 
-    onGenerate(prompt, { fromPack: stageMode === 'packs' });
+    onGenerate(prompt, { fromPack: stageMode === 'packs', useFlux: stageMode === 'text' && useFlux });
   };
 
   if (activeMode === 'cleanup') {
@@ -444,6 +446,37 @@ HARD PRESERVATION RULES — these override any instinct to "improve" the room:
                 {suggestion}
               </Pill>
             ))}
+          </div>
+
+          {/* Engine toggle: Gemini (staging) vs Flux 2 Pro (removal/editing) */}
+          <div className="mt-3 flex items-center gap-2">
+            <span className="text-[10.5px] uppercase tracking-wider font-bold text-[var(--color-text)]/50">Engine</span>
+            <button
+              type="button"
+              onClick={() => setUseFlux(false)}
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                !useFlux
+                  ? 'bg-[var(--color-primary)]/20 text-[var(--color-primary)] border border-[var(--color-primary)]/40'
+                  : 'bg-white/[0.03] text-[var(--color-text)]/50 border border-transparent hover:bg-white/[0.06]'
+              }`}
+            >
+              Gemini
+            </button>
+            <button
+              type="button"
+              onClick={() => setUseFlux(true)}
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 ${
+                useFlux
+                  ? 'bg-[#30D158]/20 text-[#30D158] border border-[#30D158]/40'
+                  : 'bg-white/[0.03] text-[var(--color-text)]/50 border border-transparent hover:bg-white/[0.06]'
+              }`}
+            >
+              <Zap size={10} />
+              Flux
+            </button>
+            <span className="text-[10px] text-[var(--color-text)]/40 ml-1">
+              {useFlux ? 'Best for removal — no ghosting' : 'Best for staging — adds furniture'}
+            </span>
           </div>
 
           {/* D3: Reference-image drop zone. Text mode only. Packs skip —

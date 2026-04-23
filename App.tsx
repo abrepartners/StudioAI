@@ -4,6 +4,8 @@ import {
   detectRoomType,
 } from './services/geminiService';
 import { sharpenImage } from './utils/sharpen';
+import { fluxCleanup } from './services/fluxService';
+import { resizeToMatch } from './utils/resizeToMatch';
 import { compositeStackedEdit } from './utils/stackComposite';
 import { checkAlignment } from './utils/alignmentCheck';
 import { generateThumbnail } from './utils/thumbnail';
@@ -909,7 +911,7 @@ const App: React.FC = () => {
       setIsAnalyzing(false);
     }
   };
-  const handleGenerate = async (prompt: string, opts?: { fromPack?: boolean }) => {
+  const handleGenerate = async (prompt: string, opts?: { fromPack?: boolean; useFlux?: boolean }) => {
     if (!originalImage) return;
 
     if (!subscription.canGenerate) {
@@ -971,6 +973,32 @@ const App: React.FC = () => {
     try {
       lastPromptRef.current = prompt;
       console.log('[StudioAI] Generation prompt:', prompt);
+
+      // Flux 2 Pro path: Design Direction with Flux engine toggle.
+      // Bypasses Gemini + stackComposite entirely — Flux handles removal
+      // without ghosting artifacts. Sharpen + resize to match original dims.
+      if (opts?.useFlux) {
+        console.log('[StudioAI] Flux 2 Pro engine selected — bypassing Gemini pipeline.');
+        const sourceImage = generatedImage || originalImage;
+        const { resultBase64 } = await fluxCleanup(
+          sourceImage,
+          selectedRoom,
+          abortController.signal,
+          { customPrompt: prompt },
+        );
+        if (abortController.signal.aborted) throw new Error('ABORTED');
+        const sharpened = await sharpenImage(resultBase64, 0.4, 1, 'png');
+        const result = await resizeToMatch(sharpened, sourceImage);
+        setGeneratedImage(result);
+        setHasGenerated(true);
+        setIsGenerating(false);
+        stopGenerationTimer();
+        generatingSessionsRef.current.delete(generatingSessionId);
+        generationAbortersRef.current.delete(generatingSessionId);
+        if (isMobileViewport && sheetWasOpen) setSheetOpen(true);
+        subscription.recordGeneration();
+        return;
+      }
 
       // Stacking architecture:
       // - Text prompts and cleanup build on the current result ("source of state").

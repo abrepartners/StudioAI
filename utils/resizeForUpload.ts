@@ -10,10 +10,13 @@
  * diff/mask/blend still operate at input resolution.
  */
 
-const MAX_LONG_EDGE = 2048;
+const DEFAULT_MAX_LONG_EDGE = 2048;
 const JPEG_QUALITY = 0.85;
 
-export async function resizeForUpload(base64OrDataUrl: string): Promise<string> {
+export async function resizeForUpload(
+  base64OrDataUrl: string,
+  maxLongEdge: number = DEFAULT_MAX_LONG_EDGE,
+): Promise<string> {
   // Parse dataURL or raw base64
   const dataUrl = base64OrDataUrl.startsWith('data:')
     ? base64OrDataUrl
@@ -24,12 +27,12 @@ export async function resizeForUpload(base64OrDataUrl: string): Promise<string> 
     img.onload = () => {
       const { naturalWidth: w, naturalHeight: h } = img;
       const longEdge = Math.max(w, h);
-      if (longEdge <= MAX_LONG_EDGE) {
+      if (longEdge <= maxLongEdge) {
         // Already small enough — pass through unchanged
         resolve(base64OrDataUrl);
         return;
       }
-      const scale = MAX_LONG_EDGE / longEdge;
+      const scale = maxLongEdge / longEdge;
       const targetW = Math.round(w * scale);
       const targetH = Math.round(h * scale);
       const canvas = document.createElement('canvas');

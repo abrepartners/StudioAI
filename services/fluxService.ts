@@ -7,6 +7,14 @@
  * framing natively and does text-driven cleanup without inventing content.
  */
 
+import { resizeForUpload } from '../utils/resizeForUpload';
+
+// Vercel's body limit is ~4.5 MB; a 2048 JPEG base64s to 3-4 MB which can
+// still punch through on photo-heavy rooms. 1280 keeps us safely under the
+// ceiling — no visible quality loss since Real-ESRGAN 4x brings the final
+// output to ~5120 px anyway.
+const FLUX_UPLOAD_MAX_EDGE = 1280;
+
 const CLEANUP_PROMPT = (selectedRoom: string) => `You are editing a real estate listing photo of a ${selectedRoom}. REMOVE all clutter, personal items, and distractions. Nothing else.
 
 REMOVE:
@@ -56,11 +64,12 @@ export async function fluxCleanup(
   abortSignal?: AbortSignal,
   options: FluxCleanupOptions = {},
 ): Promise<FluxCleanupResult> {
+  const shrunk = await resizeForUpload(imageBase64, FLUX_UPLOAD_MAX_EDGE);
   const res = await fetch('/api/flux-cleanup', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      imageBase64,
+      imageBase64: shrunk,
       prompt: CLEANUP_PROMPT(selectedRoom),
       skipUpscale: Boolean(options.skipUpscale),
     }),

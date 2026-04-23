@@ -26,6 +26,9 @@ export const FLUX_CLEANUP_COMPOSITE_OPTIONS: StackCompositeOptions = {
   threshold: 0.05,
   dilatePx: 2,
   featherPx: 10,
+  // Flux retextures the whole frame subtly — without raising the bail bound,
+  // the default 95% bail fires and ships raw Flux output (no composite, ghosts survive).
+  maxChangeBail: 0.99,
 };
 
 // Lighting-only tools (twilight / sky) repaint broad regions. Blending those

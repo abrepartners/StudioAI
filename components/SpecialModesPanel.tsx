@@ -29,6 +29,7 @@ import { shouldPromptNonStackable } from '../utils/nonStackableTools';
 import { resizeToMatch } from '../utils/resizeToMatch';
 import { checkAlignment } from '../utils/alignmentCheck';
 import { fluxCleanup } from '../services/fluxService';
+import { fluxTwilight, TWILIGHT_STYLES, type TwilightStyle } from '../services/twilightService';
 import NonStackableConfirm from './NonStackableConfirm';
 import PanelHeader from './PanelHeader';
 import { Badge, Button } from './ui';
@@ -169,6 +170,9 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
     const [batchProgress, setBatchProgress] = useState<{ current: number; total: number; results: string[] } | null>(null);
     const [declutterSignal, setDeclutterSignal] = useState<CleanupQualitySignal | null>(null);
     const declutterAuditRef = useRef(0);
+
+    // Twilight style
+    const [twilightStyle, setTwilightStyle] = useState<TwilightStyle>('warm-classic');
 
     // Sky replacement
     const [skyStyle, setSkyStyle] = useState<SkyStyle>('blue');
@@ -382,26 +386,48 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                 </div>
             )}
 
-            {/* Virtual Twilight -> Twilight Compute */}
+            {/* Virtual Twilight -> Flux 2 Pro with reference styles */}
             <Section id="twilight" icon={<Sunset size={18} />} title="Day to Dusk" subtitle="Turn daytime exteriors into twilight shots" isOpen={openSection === 'twilight'} onToggle={toggleSection}>
                 <p className="text-sm text-[var(--color-text)]/80 mb-3">
-                    Convert any daytime exterior into a twilight shot with warm interior glow and golden-hour light — the #1 photographer trick for sell-faster listings.
+                    Pick a twilight style, then generate. Flux 2 Pro relights your photo to match the reference — no perspective changes, no invented objects.
                 </p>
+                <div className="grid grid-cols-3 gap-2 mb-3">
+                    {TWILIGHT_STYLES.map((s) => (
+                        <button
+                            key={s.key}
+                            type="button"
+                            onClick={() => setTwilightStyle(s.key)}
+                            className={`rounded-xl overflow-hidden border-2 transition-all ${
+                                twilightStyle === s.key
+                                    ? 'border-[var(--color-primary)] ring-1 ring-[var(--color-primary)]'
+                                    : 'border-transparent hover:border-[var(--color-border-strong)]'
+                            }`}
+                        >
+                            <img
+                                src={s.preview}
+                                alt={s.label}
+                                className="w-full aspect-[3/2] object-cover"
+                            />
+                            <div className="px-2 py-1.5 bg-black/80">
+                                <p className="text-[10.5px] font-bold text-[var(--color-ink)] leading-tight">{s.label}</p>
+                                <p className="text-[9px] text-[var(--color-text)]/50 leading-tight mt-0.5">{s.description}</p>
+                            </div>
+                        </button>
+                    ))}
+                </div>
                 <button
                     type="button"
                     disabled={loading !== null || (!currentImage && !canBatch)}
                     onClick={() => canBatch
-                        ? runBatch('twilight', (img, signal) => virtualTwilight(img, isPro, signal, img))
+                        ? runBatch('twilight', async (img, signal) => {
+                            const { resultBase64 } = await fluxTwilight(img, twilightStyle, signal);
+                            return resultBase64;
+                          })
                         : run('twilight', async (signal) => {
-                            // Anchor on original so Gemini has a framing-lock reference.
-                            // No alignment check — the edge-based guard was wrongly flagging
-                            // valid dusk outputs because the lighting transformation itself
-                            // changes what "edges" exist (tree leaves collapse into dark
-                            // silhouettes, window glows add new edges, shadows deepen).
-                            // Anchor + prompt is the framing control; user's eye is the
-                            // final judge.
-                            const raw = await virtualTwilight(currentImage!, isPro, signal, originalImage);
-                            const result = await postProcessToolOutput(raw, currentImage, 'twilight');
+                            const { resultBase64 } = await fluxTwilight(currentImage!, twilightStyle, signal);
+                            if (signal.aborted) throw new Error('ABORTED');
+                            const sharpened = await postProcessToolOutput(resultBase64, null, 'twilight');
+                            const result = await resizeToMatch(sharpened, currentImage!);
                             onNewImage(result, 'twilight');
                           })
                     }

@@ -47,6 +47,7 @@ import {
   type ListingCopyTone,
 } from '../services/geminiService';
 import { fluxCleanup } from '../services/fluxService';
+import { fluxTwilight } from '../services/twilightService';
 import {
   processForMLS,
   MLS_PRESETS,
@@ -269,7 +270,8 @@ const ListingKitPipeline: React.FC<ListingKitPipelineProps> = ({
       updateStep('twilight', { status: 'running', stepDetail: heroImage.roomType || 'hero' });
       try {
         const heroSource = stagedByImageId.get(heroImage.id) || heroImage.base64;
-        twilightHero = await virtualTwilight(heroSource, isPro, signal);
+        const { resultBase64 } = await fluxTwilight(heroSource, 'warm-classic', signal);
+        twilightHero = resultBase64;
         updateStep('twilight', { status: 'done', stepDetail: 'dusk applied' });
       } catch (err: any) {
         if (isAbort(err)) throw err;

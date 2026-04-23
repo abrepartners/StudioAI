@@ -21,6 +21,7 @@ import {
   replaceSky,
 } from '../services/geminiService';
 import { fluxCleanup } from '../services/fluxService';
+import { fluxTwilight } from '../services/twilightService';
 import { FurnitureRoomType, SavedStage } from '../types';
 import { type BatchImage, type BatchAction } from './BatchUploader';
 import Tooltip from './Tooltip';
@@ -114,8 +115,9 @@ const processImage = async (img: BatchImage, isPro: boolean = false): Promise<st
       return await resizeToMatch(sharpened, img.base64);
     }
     case 'twilight': {
-      const raw = await virtualTwilight(img.base64, isPro);
-      return await postProcessBatchOutput(raw, img.base64, 'twilight');
+      const { resultBase64 } = await fluxTwilight(img.base64, 'warm-classic');
+      const sharpened = await sharpenImage(resultBase64, 0.4, 1, 'jpeg');
+      return await resizeToMatch(sharpened, img.base64);
     }
     case 'sky': {
       const raw = await replaceSky(img.base64, 'blue', isPro);

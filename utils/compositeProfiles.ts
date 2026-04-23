@@ -17,6 +17,17 @@ export const CLEANUP_COMPOSITE_OPTIONS: StackCompositeOptions = {
   featherPx: 10,
 };
 
+// Flux Kontext cleanup: model is pixel-precise so we can run a tighter diff.
+// threshold: 0.05 — catches subtle Flux re-renders on carpet/walls without
+//   flagging the whole frame like 0.04 did on the old Gemini tests.
+// dilatePx: 2 — minimal dilation; Flux edges are crisp, no SAM shadow halos.
+// featherPx: 10 — keep smooth boundary blend same as Gemini cleanup.
+export const FLUX_CLEANUP_COMPOSITE_OPTIONS: StackCompositeOptions = {
+  threshold: 0.05,
+  dilatePx: 2,
+  featherPx: 10,
+};
+
 // Lighting-only tools (twilight / sky) repaint broad regions. Blending those
 // back into the prior frame can create double-exposure overlays, so we skip
 // composite and ship sharpened model output.

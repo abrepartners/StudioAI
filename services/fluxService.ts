@@ -29,7 +29,9 @@ Leave existing major furniture (beds, chairs, tables, desks, dressers, bookshelv
 
 Preserve exactly: walls, floor, ceiling, doors, windows, window treatments (including any pink, patterned, or colored curtains), lighting fixtures, built-ins, and all architectural elements. Preserve exactly: the position, size, shape, and TYPE of every piece of existing furniture.
 
-The room should look clean, empty, and depersonalized — ready for an MLS listing. Lighting, perspective, color palette, and all architectural details must match the original exactly.`;
+The room should look clean, empty, and depersonalized — ready for an MLS listing. Lighting, perspective, color palette, and all architectural details must match the original exactly.
+
+Do not re-render, retexture, or subtly modify any part of the image that does not need a change. Carpets, walls, ceilings, floors, and all unchanged areas must stay visually identical to the input.`;
 
 export interface FluxCleanupResult {
   resultBase64: string;

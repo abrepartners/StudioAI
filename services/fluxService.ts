@@ -16,20 +16,15 @@ import { resizeForUpload } from '../utils/resizeForUpload';
 const FLUX_UPLOAD_MAX_EDGE = 1280;
 
 const CLEANUP_PROMPT = (selectedRoom: string) =>
-  `Remove all clutter, personal items, decorations, framed photos, artwork, wall signs, letters, initials, pillows with patterns, throw blankets, books, shelving contents, clothing, shoes, toys, accessories, backpacks, hanging items, calendars, notes, canopies, and any personal belongings from this ${selectedRoom}.
+  `Remove all clutter, personal items, temporary belongings, decorations, signage, loose objects, and anything non-permanent from this ${selectedRoom}.
 
-CRITICAL RULES — DO NOT VIOLATE:
-- DO NOT add any new furniture or objects that were not in the original photo.
-- DO NOT replace existing furniture with different furniture (do not swap a dresser for a desk, a bed for a different bed, etc).
-- DO NOT restyle or redecorate.
-- DO NOT change bedding style, color, or pattern beyond making the bed look neatly made.
-- DO NOT invent architectural details not present in the original.
+Specifically remove: wall art, paintings, framed photos, signs, calendars, notes, books, magazines, clothing, shoes, toys, backpacks, blankets, pillows, accessories, shelving contents, trash bins, garden hoses, pool toys, garden tools, holiday decorations, lawn chairs, pet accessories, personal yard clutter, and any other portable or personal items.
 
-Leave existing major furniture (beds, chairs, tables, desks, dressers, bookshelves) exactly where it is — same position, same size, same style, same type — just clear their surfaces completely. Empty all bookshelf shelves. Make beds look neatly made with their EXISTING bedding visible (just tidied, not replaced).
+Leave only major furniture (interior) or permanent architectural features (exterior). Empty all shelves, countertops, nightstands, and flat surfaces completely. Neutral MLS-ready staging.
 
-Preserve exactly: walls, floor, ceiling, doors, windows, window treatments (including any pink, patterned, or colored curtains), lighting fixtures, built-ins, and all architectural elements. Preserve exactly: the position, size, shape, and TYPE of every piece of existing furniture.
+Preserve exactly as-is: walls, floors, ceilings, windows, curtains, blinds, doors, fixtures, lighting, roofs, siding, driveways, porches, landscaping trees/shrubs/grass, and all major furniture or architectural elements. Do not redecorate, replace, or invent any new items.
 
-The room should look clean, empty, and depersonalized — ready for an MLS listing. Lighting, perspective, color palette, and all architectural details must match the original exactly.`;
+Do not re-render, retexture, or subtly modify any unchanged areas. All preserved surfaces must stay visually identical to the input.`;
 
 export interface FluxCleanupResult {
   resultBase64: string;

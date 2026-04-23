@@ -3,7 +3,7 @@
  *
  * Single button that runs the saved A&B "AI Listing Kit" recipe end-to-end:
  *   1. Stage all uploaded photos        (geminiService.generateRoomDesign)
- *   2. Apply dusk to the chosen hero    (geminiService.virtualTwilight)
+ *   2. Apply dusk to the chosen hero    (twilightService.fluxTwilight)
  *   3. Smart cleanup pass on every shot (geminiService.instantDeclutter)
  *   4. MLS export (HD Landscape preset) (utils/imageExport.processForMLS)
  *   5. Social pack — branded just-listed
@@ -41,7 +41,6 @@ import {
 import JSZip from 'jszip';
 import {
   generateRoomDesign,
-  virtualTwilight,
   generateListingCopy,
   type ListingCopyPropertyDetails,
   type ListingCopyTone,

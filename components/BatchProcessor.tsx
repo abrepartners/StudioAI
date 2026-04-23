@@ -17,7 +17,6 @@ import {
 } from 'lucide-react';
 import {
   generateRoomDesign,
-  virtualTwilight,
   replaceSky,
 } from '../services/geminiService';
 import { fluxCleanup } from '../services/fluxService';

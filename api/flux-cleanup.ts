@@ -102,12 +102,13 @@ export default async function handler(req: any, res: any) {
           prompt,
           output_format: 'jpg',
           safety_tolerance: 2,
+          aspect_ratio: 'match_input_image',
         },
       }),
     });
     if (!fluxStart.ok) {
       const text = await fluxStart.text();
-      console.warn(`[flux-cleanup] Flux ${fluxStart.status}: ${text.slice(0, 200)}`);
+      console.warn(`[flux-cleanup] Flux ${fluxStart.status}: ${text.slice(0, 600)}`);
       json(res, 200, { ok: false, error: `Flux ${fluxStart.status}` });
       return;
     }

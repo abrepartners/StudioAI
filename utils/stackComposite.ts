@@ -43,12 +43,6 @@ export interface StackCompositeOptions {
   dilatePx?: number;
   /** Output format. PNG for further stacking; JPEG for one-shot exports. */
   format?: 'png' | 'jpeg';
-  /**
-   * Bail if changeRatio EXCEEDS this value — ships raw model output without
-   * composite. Default 0.95. Raise to 0.99 for Flux so the bail doesn't fire
-   * when Flux subtly retextures the whole frame (threshold=0.05 catches those).
-   */
-  maxChangeBail?: number;
 }
 
 export async function compositeStackedEdit(
@@ -56,7 +50,7 @@ export async function compositeStackedEdit(
   newDataUrl: string,
   options: StackCompositeOptions = {}
 ): Promise<string> {
-  const { threshold = 0.15, featherPx = 24, dilatePx = 1, format = 'png', maxChangeBail = 0.95 } = options;
+  const { threshold = 0.15, featherPx = 24, dilatePx = 1, format = 'png' } = options;
 
   const [priorImg, newImg] = await Promise.all([loadImage(priorDataUrl), loadImage(newDataUrl)]);
 
@@ -120,9 +114,9 @@ export async function compositeStackedEdit(
   console.log(
     `[stackComposite] pre-dilate change=${(changeRatio * 100).toFixed(2)}% at ${diffW}x${diffH} (threshold=${threshold})`
   );
-  if (changeRatio < 0.001 || changeRatio > maxChangeBail) {
+  if (changeRatio < 0.001 || changeRatio > 0.95) {
     console.log(
-      `[stackComposite] BAILED — change ratio ${(changeRatio * 100).toFixed(2)}% outside (0.1%, ${(maxChangeBail * 100).toFixed(0)}%) — shipping raw upscaled model output.`
+      `[stackComposite] BAILED — change ratio ${(changeRatio * 100).toFixed(2)}% outside (0.1%, 95%) — shipping raw upscaled model output.`
     );
     return upscaleToDataUrl(newImg, priorW, priorH, format);
   }

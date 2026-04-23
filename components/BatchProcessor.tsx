@@ -29,7 +29,8 @@ import { sharpenImage } from '../utils/sharpen';
 import { compositeStackedEdit } from '../utils/stackComposite';
 import { checkAlignment } from '../utils/alignmentCheck';
 import { generateThumbnail } from '../utils/thumbnail';
-import { CLEANUP_COMPOSITE_OPTIONS, FLUX_CLEANUP_COMPOSITE_OPTIONS, shouldSkipCompositeForTool } from '../utils/compositeProfiles';
+import { CLEANUP_COMPOSITE_OPTIONS, shouldSkipCompositeForTool } from '../utils/compositeProfiles';
+import { resizeToMatch } from '../utils/resizeToMatch';
 import { buildCleanupSignal, type CleanupQualitySignal } from '../src/types/cleanupQuality';
 import { trackCleanupRisk, trackEvent } from '../src/lib/analytics';
 
@@ -39,12 +40,7 @@ import { trackCleanupRisk, trackEvent } from '../src/lib/analytics';
 // not from Gemini's re-synthesis. Without this, batch outputs look soft/washed
 // compared to single-image runs. Twilight/Sky skip compositing to avoid
 // blend overlays on broad relighting edits.
-async function postProcessBatchOutput(
-  raw: string,
-  prior: string,
-  action: BatchAction,
-  customCompositeOpts?: { threshold?: number; dilatePx?: number; featherPx?: number },
-): Promise<string> {
+async function postProcessBatchOutput(raw: string, prior: string, action: BatchAction): Promise<string> {
   const chainEnabled = typeof window !== 'undefined'
     ? new URLSearchParams(window.location.search).get('chain') !== '0'
     : true;
@@ -55,10 +51,7 @@ async function postProcessBatchOutput(
   if (shouldSkipCompositeForTool(toolForComposite)) {
     return sharpened;
   }
-  const baseOpts = action === 'cleanup' ? CLEANUP_COMPOSITE_OPTIONS : undefined;
-  const compositeOptions = customCompositeOpts
-    ? { ...baseOpts, ...customCompositeOpts }
-    : baseOpts;
+  const compositeOptions = action === 'cleanup' ? CLEANUP_COMPOSITE_OPTIONS : undefined;
   try {
     return await compositeStackedEdit(prior, sharpened, { format: fmt, ...compositeOptions });
   } catch (err) {
@@ -113,7 +106,12 @@ const processImage = async (img: BatchImage, isPro: boolean = false): Promise<st
     }
     case 'cleanup': {
       const { resultBase64 } = await fluxCleanup(img.base64, roomType);
-      return await postProcessBatchOutput(resultBase64, img.base64, 'cleanup', FLUX_CLEANUP_COMPOSITE_OPTIONS);
+      // Skip composite on the Flux path — composite was merging the original
+      // back over Flux's output causing ghost artifacts. Sharpen + resize only.
+      const chainEnabled = new URLSearchParams(window.location.search).get('chain') !== '0';
+      const fmt: 'png' | 'jpeg' = chainEnabled ? 'png' : 'jpeg';
+      const sharpened = await sharpenImage(resultBase64, 0.4, 1, fmt);
+      return await resizeToMatch(sharpened, img.base64);
     }
     case 'twilight': {
       const raw = await virtualTwilight(img.base64, isPro);

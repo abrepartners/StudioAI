@@ -16,18 +16,28 @@ import { resizeForUpload } from '../utils/resizeForUpload';
 const FLUX_UPLOAD_MAX_EDGE = 1280;
 
 const CLEANUP_PROMPT = (selectedRoom: string) =>
-  `Remove all clutter, personal items, temporary belongings, decorations, signage, gym equipment, weights, benches, power racks, exercise equipment, loose objects, and anything non-permanent from this ${selectedRoom}.
+  `Remove all clutter, personal items, temporary belongings, decorations, signage, and anything non-permanent from this ${selectedRoom}.
 
-Specifically remove: wall art, paintings, framed photos, signs, motivational posters, whiteboards, calendars, notes, books, magazines, clothing, shoes, toys, backpacks, blankets, pillows, throws, accessories, shelving contents, trash bins, pet items (including pets themselves, bowls, beds), garden hoses, pool toys, garden tools, holiday decorations, lawn chairs, personal yard clutter, exercise mats, dumbbells, and any other portable or personal items.
+Specifically remove these categories:
+- Wall items: art, paintings, framed photos, signs, motivational posters, whiteboards, calendars, notes, hanging decorations
+- Surface clutter: books, magazines, clothing, shoes, toys, backpacks, accessories, personal belongings, small electronics
+- Soft goods: blankets, throws, pillows with patterns or decorative designs, rugs layered on top of flooring
+- Exercise and hobby equipment: weights, dumbbells, benches, power racks, mats, cardio machines, bikes, musical instruments
+- Pets and pet items: pets themselves, pet beds, bowls, toys, leashes, crates
+- Kitchen clutter: small appliances on counters, dish racks, paper towels, food items, cutting boards (keep major appliances like fridges, stoves, dishwashers)
+- Bathroom clutter: visible toiletries, hanging towels, shower accessories, bath toys
+- Outdoor clutter: trash bins, garden hoses, pool toys, garden tools, portable furniture, umbrellas, grills, holiday decorations, yard signs
 
-Leave only major furniture and architectural elements. Empty all shelves, countertops, nightstands, and flat surfaces completely. Neutral MLS-ready staging.
+Leave only major furniture (beds, sofas, chairs, tables, desks, dressers, bookshelves) and architectural/structural elements. Empty all shelves, countertops, nightstands, and flat surfaces completely. Neutral MLS-ready staging.
 
 CRITICAL PRESERVATION RULES:
-- Preserve all fabric textures, material surfaces, and visible patterns exactly as they appear in the input (corduroy, leather, wood grain, tile, carpet, fabric weave, etc.). Do not smooth, blur, or re-interpret textures.
-- Any mirrors in the image must show reflections consistent with the cleaned room. If a mirror reflection shows items that have been removed, update the reflection to match.
-- Do not re-render, retexture, or subtly modify any unchanged areas. Walls, floors, ceilings, existing furniture, and all preserved elements must stay visually identical to the input.
+- Preserve all fabric textures, material surfaces, and visible patterns exactly as they appear in the input (corduroy, leather, wood grain, tile, carpet, fabric weave, stainless steel, etc.). Do not smooth, blur, or re-interpret textures.
+- Any mirrors in the image must show reflections consistent with the cleaned room. Update reflections to match the cleaned version.
+- Do not re-render, retexture, or subtly modify any unchanged areas. Walls, floors, ceilings, major furniture, and all preserved elements must stay visually identical to the input.
 
-Preserve exactly: walls, floors, ceilings, windows, curtains, blinds, doors, fixtures, lighting, mirrors, built-ins, and all major furniture exactly as-is. Do not redecorate, replace, or invent any new items.`;
+Preserve exactly: walls, floors, ceilings, windows, curtains, blinds, doors, fixtures, lighting, mirrors, built-ins, and all major furniture. Do not redecorate, replace, or invent any new items.
+
+END OF PROMPT.`;
 
 export interface FluxCleanupResult {
   resultBase64: string;

@@ -34,11 +34,9 @@ import PanelHeader from './PanelHeader';
 import { Badge, Button } from './ui';
 import {
     buildCleanupSignal,
-    cleanupRiskFromQualityScore,
     type CleanupQualitySignal,
 } from '../src/types/cleanupQuality';
 import { trackCleanupRisk } from '../src/lib/analytics';
-import { scoreListingImage } from '../services/qualityScoreService';
 
 // Post-process a Pro AI Tool's raw Gemini output:
 //   1. Sharpen (PNG when chain is on — no JPEG spiral on further stacking)
@@ -488,56 +486,14 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                                     const sharpened = await postProcessToolOutput(resultBase64, null, 'cleanup');
                                     const result = await resizeToMatch(sharpened, input);
                                     onNewImage(result, 'cleanup');
-                                    const auditToken = ++declutterAuditRef.current;
                                     setDeclutterSignal(buildCleanupSignal({
-                                        risk: 'review',
+                                        risk: 'safe',
                                         source: 'single',
-                                        reason: 'Cleanup completed. Running quality audit.',
-                                        compositeMode: 'applied',
-                                        nextActions: ['Review boundaries while quality audit runs'],
+                                        reason: 'Cleanup complete.',
+                                        compositeMode: 'not_applicable',
+                                        nextActions: ['Export when ready'],
                                     }));
-                                    try {
-                                        const score = await withTimeout(
-                                            scoreListingImage(result, selectedRoom),
-                                            30000,
-                                            'Cleanup quality scoring timed out'
-                                        );
-                                        if (auditToken !== declutterAuditRef.current) return;
-                                        const resolvedRisk = cleanupRiskFromQualityScore(score.overall) ?? 'review';
-                                        const resolvedSignal = buildCleanupSignal({
-                                            risk: resolvedRisk,
-                                            source: 'single',
-                                            qualityScore: score.overall,
-                                            reason:
-                                                resolvedRisk === 'safe'
-                                                    ? `Cleanup passed checks (quality ${score.overall.toFixed(1)}/10).`
-                                                    : resolvedRisk === 'high'
-                                                        ? `Cleanup shows high artifact risk (quality ${score.overall.toFixed(1)}/10).`
-                                                        : `Cleanup needs review before export (quality ${score.overall.toFixed(1)}/10).`,
-                                            compositeMode: 'applied',
-                                            nextActions:
-                                                resolvedRisk === 'safe'
-                                                    ? ['Export when ready']
-                                                    : ['Inspect edges before export', 'Retry tighter cleanup scope'],
-                                        });
-                                        setDeclutterSignal(resolvedSignal);
-                                        trackCleanupRisk(resolvedSignal.risk, {
-                                            source: 'pro-tools',
-                                            qualityScore: score.overall,
-                                        });
-                                    } catch (scoreErr) {
-                                        console.warn('[SpecialModesPanel] Cleanup quality scoring skipped:', scoreErr);
-                                        if (auditToken !== declutterAuditRef.current) return;
-                                        const review = buildCleanupSignal({
-                                            risk: 'review',
-                                            source: 'single',
-                                            reason: 'Cleanup completed but quality scoring was unavailable.',
-                                            compositeMode: 'applied',
-                                            nextActions: ['Inspect edges before export', 'Retry if ghosting persists'],
-                                        });
-                                        setDeclutterSignal(review);
-                                        trackCleanupRisk(review.risk, { source: 'pro-tools' });
-                                    }
+                                    trackCleanupRisk('safe', { source: 'pro-tools' });
                                 } catch (err) {
                                     const high = buildCleanupSignal({
                                         risk: 'high',

@@ -16,15 +16,18 @@ import { resizeForUpload } from '../utils/resizeForUpload';
 const FLUX_UPLOAD_MAX_EDGE = 1280;
 
 const CLEANUP_PROMPT = (selectedRoom: string) =>
-  `Remove all clutter, personal items, temporary belongings, decorations, signage, loose objects, and anything non-permanent from this ${selectedRoom}.
+  `Remove all clutter, personal items, temporary belongings, decorations, signage, gym equipment, weights, benches, power racks, exercise equipment, loose objects, and anything non-permanent from this ${selectedRoom}.
 
-Specifically remove: wall art, paintings, framed photos, signs, calendars, notes, books, magazines, clothing, shoes, toys, backpacks, blankets, pillows, accessories, shelving contents, trash bins, garden hoses, pool toys, garden tools, holiday decorations, lawn chairs, pet accessories, personal yard clutter, and any other portable or personal items.
+Specifically remove: wall art, paintings, framed photos, signs, motivational posters, whiteboards, calendars, notes, books, magazines, clothing, shoes, toys, backpacks, blankets, pillows, throws, accessories, shelving contents, trash bins, pet items (including pets themselves, bowls, beds), garden hoses, pool toys, garden tools, holiday decorations, lawn chairs, personal yard clutter, exercise mats, dumbbells, and any other portable or personal items.
 
-Leave only major furniture (interior) or permanent architectural features (exterior). Empty all shelves, countertops, nightstands, and flat surfaces completely. Neutral MLS-ready staging.
+Leave only major furniture and architectural elements. Empty all shelves, countertops, nightstands, and flat surfaces completely. Neutral MLS-ready staging.
 
-Preserve exactly as-is: walls, floors, ceilings, windows, curtains, blinds, doors, fixtures, lighting, roofs, siding, driveways, porches, landscaping trees/shrubs/grass, and all major furniture or architectural elements. Do not redecorate, replace, or invent any new items.
+CRITICAL PRESERVATION RULES:
+- Preserve all fabric textures, material surfaces, and visible patterns exactly as they appear in the input (corduroy, leather, wood grain, tile, carpet, fabric weave, etc.). Do not smooth, blur, or re-interpret textures.
+- Any mirrors in the image must show reflections consistent with the cleaned room. If a mirror reflection shows items that have been removed, update the reflection to match.
+- Do not re-render, retexture, or subtly modify any unchanged areas. Walls, floors, ceilings, existing furniture, and all preserved elements must stay visually identical to the input.
 
-Do not re-render, retexture, or subtly modify any unchanged areas. All preserved surfaces must stay visually identical to the input.`;
+Preserve exactly: walls, floors, ceilings, windows, curtains, blinds, doors, fixtures, lighting, mirrors, built-ins, and all major furniture exactly as-is. Do not redecorate, replace, or invent any new items.`;
 
 export interface FluxCleanupResult {
   resultBase64: string;

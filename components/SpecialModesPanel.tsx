@@ -26,6 +26,7 @@ import { sharpenImage } from '../utils/sharpen';
 import { compositeStackedEdit } from '../utils/stackComposite';
 import { CLEANUP_COMPOSITE_OPTIONS, shouldSkipCompositeForTool } from '../utils/compositeProfiles';
 import { shouldPromptNonStackable } from '../utils/nonStackableTools';
+import { resizeToMatch } from '../utils/resizeToMatch';
 import { checkAlignment } from '../utils/alignmentCheck';
 import { fluxCleanup } from '../services/fluxService';
 import NonStackableConfirm from './NonStackableConfirm';
@@ -479,11 +480,13 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                                 try {
                                     const { resultBase64 } = await fluxCleanup(input, selectedRoom, signal);
                                     if (signal.aborted) throw new Error('ABORTED');
-                                    const result = await postProcessToolOutput(
-                                        resultBase64,
-                                        input,
-                                        'cleanup',
-                                    );
+                                    // Pass null as prior — skips stackComposite entirely on the Flux
+                                    // path. Flux already preserves architecture; compositing 83% of
+                                    // the original back over it creates ghost artifacts. Resize to
+                                    // original dimensions explicitly instead (stackComposite did this
+                                    // implicitly via pixelmatch canvas sizing).
+                                    const sharpened = await postProcessToolOutput(resultBase64, null, 'cleanup');
+                                    const result = await resizeToMatch(sharpened, input);
                                     onNewImage(result, 'cleanup');
                                     const auditToken = ++declutterAuditRef.current;
                                     setDeclutterSignal(buildCleanupSignal({

@@ -30,6 +30,7 @@ import { compositeStackedEdit } from '../utils/stackComposite';
 import { checkAlignment } from '../utils/alignmentCheck';
 import { generateThumbnail } from '../utils/thumbnail';
 import { CLEANUP_COMPOSITE_OPTIONS, shouldSkipCompositeForTool } from '../utils/compositeProfiles';
+import { resizeToMatch } from '../utils/resizeToMatch';
 import { buildCleanupSignal, type CleanupQualitySignal } from '../src/types/cleanupQuality';
 import { trackCleanupRisk, trackEvent } from '../src/lib/analytics';
 
@@ -105,7 +106,12 @@ const processImage = async (img: BatchImage, isPro: boolean = false): Promise<st
     }
     case 'cleanup': {
       const { resultBase64 } = await fluxCleanup(img.base64, roomType);
-      return await postProcessBatchOutput(resultBase64, img.base64, 'cleanup');
+      // Skip composite on the Flux path — composite was merging the original
+      // back over Flux's output causing ghost artifacts. Sharpen + resize only.
+      const chainEnabled = new URLSearchParams(window.location.search).get('chain') !== '0';
+      const fmt: 'png' | 'jpeg' = chainEnabled ? 'png' : 'jpeg';
+      const sharpened = await sharpenImage(resultBase64, 0.4, 1, fmt);
+      return await resizeToMatch(sharpened, img.base64);
     }
     case 'twilight': {
       const raw = await virtualTwilight(img.base64, isPro);

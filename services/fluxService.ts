@@ -16,7 +16,20 @@ import { resizeForUpload } from '../utils/resizeForUpload';
 const FLUX_UPLOAD_MAX_EDGE = 1280;
 
 const CLEANUP_PROMPT = (selectedRoom: string) =>
-  `Remove all clutter, personal items, decorations, framed photos, artwork, pillows with patterns, throw blankets, books, shelving contents, clothing, hanging items, small accessories, rugs, and any personal belongings from this ${selectedRoom}. Leave only major furniture (beds, chairs, tables, desks, dressers), lighting fixtures, window treatments, and structural elements (walls, floor, ceiling, doors, windows, fixtures). Empty all bookshelves completely. The room should look staged, clean, and depersonalized — ready for an MLS listing. Preserve exact lighting, perspective, and architectural details.`;
+  `Remove all clutter, personal items, decorations, framed photos, artwork, wall signs, letters, initials, pillows with patterns, throw blankets, books, shelving contents, clothing, shoes, toys, accessories, backpacks, hanging items, calendars, notes, canopies, and any personal belongings from this ${selectedRoom}.
+
+CRITICAL RULES — DO NOT VIOLATE:
+- DO NOT add any new furniture or objects that were not in the original photo.
+- DO NOT replace existing furniture with different furniture (do not swap a dresser for a desk, a bed for a different bed, etc).
+- DO NOT restyle or redecorate.
+- DO NOT change bedding style, color, or pattern beyond making the bed look neatly made.
+- DO NOT invent architectural details not present in the original.
+
+Leave existing major furniture (beds, chairs, tables, desks, dressers, bookshelves) exactly where it is — same position, same size, same style, same type — just clear their surfaces completely. Empty all bookshelf shelves. Make beds look neatly made with their EXISTING bedding visible (just tidied, not replaced).
+
+Preserve exactly: walls, floor, ceiling, doors, windows, window treatments (including any pink, patterned, or colored curtains), lighting fixtures, built-ins, and all architectural elements. Preserve exactly: the position, size, shape, and TYPE of every piece of existing furniture.
+
+The room should look clean, empty, and depersonalized — ready for an MLS listing. Lighting, perspective, color palette, and all architectural details must match the original exactly.`;
 
 export interface FluxCleanupResult {
   resultBase64: string;

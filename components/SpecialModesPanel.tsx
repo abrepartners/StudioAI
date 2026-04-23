@@ -499,7 +499,7 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                                     try {
                                         const score = await withTimeout(
                                             scoreListingImage(result, selectedRoom),
-                                            18000,
+                                            30000,
                                             'Cleanup quality scoring timed out'
                                         );
                                         if (auditToken !== declutterAuditRef.current) return;

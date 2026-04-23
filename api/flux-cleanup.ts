@@ -70,7 +70,6 @@ export default async function handler(req: any, res: any) {
         input_images: [dataUrl],
         prompt,
         output_format: 'jpg',
-        safety_tolerance: 2,
         aspect_ratio: 'match_input_image',
       },
     });

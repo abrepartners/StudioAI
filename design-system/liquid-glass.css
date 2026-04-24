@@ -1,47 +1,115 @@
-/* ─────────────────────────────────────────────────────────────────────
- * design-system/liquid-glass.css
+/* design-system/liquid-glass.css — v2
  *
- * Utility layer for Apple-style "liquid glass" surfaces. Drop-in upgrade —
- * applied via className to existing containers without touching component
- * structure. Works alongside the existing Tailwind + CSS-variable theme.
- *
- * Base classes:
- *   .lg-panel   — primary surface (sidebar, modal, panel)
- *   .lg-card    — nested surface (tool inside a panel, result card)
- *   .lg-chip    — selection chips, style picks, preset buttons
- *   .lg-button  — primary CTA with liquid highlight
- *   .lg-divider — hairline divider that reads well on glass
- *
- * Modifiers (stack with base):
- *   .lg-tint-primary  — subtle tint of --color-primary (selected state)
- *   .lg-tint-success  — green tint (completed / safe)
- *   .lg-tint-warn     — amber tint (caution / processing)
- *   .lg-tint-danger   — rose tint (error / destructive)
- *   .lg-interactive   — adds hover + active transform; use on buttons/chips
- *   .lg-elevated      — deeper shadow for hover states
- *
- * Pulse / motion:
- *   @keyframes lg-pulse-soft — gentle breathing pulse for idle CTAs
- *   .animate-grab-hint      — short bounce for drag affordances
- * ────────────────────────────────────────────────────────────────────── */
+ * v2 adds GLOBAL class overrides that upgrade the existing app surfaces
+ * (premium-surface, premium-surface-strong, subtle-card, glass-overlay)
+ * with true liquid-glass aesthetics — backdrop blur, inner highlight sheen,
+ * edge-lit borders, deeper shadows. Zero component changes required.
+ */
 
 :root {
-  /* Edge highlight color for inner top-sheen (1px inset at 0deg) */
   --lg-highlight: rgba(255, 255, 255, 0.07);
-  /* Inner stroke on the glass edge */
-  --lg-edge: rgba(255, 255, 255, 0.09);
-  /* Deeper edge stroke for elevated / hovered states */
+  --lg-highlight-strong: rgba(255, 255, 255, 0.11);
+  --lg-edge: rgba(255, 255, 255, 0.10);
   --lg-edge-strong: rgba(255, 255, 255, 0.18);
-  /* Background tint for base glass — sits over page background */
-  --lg-bg: rgba(12, 14, 18, 0.55);
-  --lg-bg-card: rgba(18, 20, 26, 0.6);
+  --lg-bg: rgba(18, 18, 22, 0.62);
+  --lg-bg-strong: rgba(28, 28, 32, 0.72);
+  --lg-bg-card: rgba(22, 22, 26, 0.58);
   --lg-bg-chip: rgba(255, 255, 255, 0.04);
-  /* Outer shadow color — tuned for dark theme */
-  --lg-shadow: rgba(0, 0, 0, 0.45);
-  --lg-shadow-elevated: rgba(0, 0, 0, 0.6);
+  --lg-shadow: 0 14px 44px rgba(0, 0, 0, 0.5);
+  --lg-shadow-strong: 0 24px 64px rgba(0, 0, 0, 0.6);
+  --lg-shadow-card: 0 8px 28px rgba(0, 0, 0, 0.42);
 }
 
-/* ─── Primary surfaces ───────────────────────────────────────────────── */
+.premium-surface {
+  position: relative;
+  background: var(--lg-bg) !important;
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  border: 1px solid var(--lg-edge) !important;
+  box-shadow: var(--lg-shadow), inset 0 1px 0 var(--lg-highlight) !important;
+}
+.premium-surface::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: radial-gradient(120% 70% at 20% -5%, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0) 55%);
+}
+
+.premium-surface-strong {
+  position: relative;
+  background: var(--lg-bg-strong) !important;
+  backdrop-filter: blur(32px) saturate(1.5);
+  -webkit-backdrop-filter: blur(32px) saturate(1.5);
+  border: 1px solid var(--lg-edge-strong) !important;
+  box-shadow: var(--lg-shadow-strong), inset 0 1px 0 var(--lg-highlight-strong) !important;
+}
+.premium-surface-strong::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: radial-gradient(120% 70% at 20% -5%, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0) 55%);
+}
+
+.subtle-card {
+  position: relative;
+  background: var(--lg-bg-card) !important;
+  backdrop-filter: blur(14px) saturate(1.3);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  border: 1px solid var(--lg-edge) !important;
+  box-shadow: var(--lg-shadow-card), inset 0 1px 0 var(--lg-highlight) !important;
+  transition: border-color 200ms ease, transform 160ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 220ms ease;
+}
+.subtle-card:hover {
+  border-color: var(--lg-edge-strong) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 16px 40px rgba(0,0,0,0.5), inset 0 1px 0 var(--lg-highlight-strong) !important;
+}
+
+.glass-overlay {
+  background: rgba(20, 20, 24, 0.78) !important;
+  backdrop-filter: blur(44px) saturate(1.8) !important;
+  -webkit-backdrop-filter: blur(44px) saturate(1.8) !important;
+  border: 1px solid var(--lg-edge) !important;
+  border-top: 1px solid var(--lg-edge-strong) !important;
+  box-shadow: inset 0 1px 0 var(--lg-highlight-strong);
+}
+
+button.w-full.rounded-2xl {
+  position: relative;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: transform 140ms cubic-bezier(0.22, 1, 0.36, 1), background-color 180ms ease, border-color 180ms ease, box-shadow 220ms ease !important;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.4), inset 0 1px 0 var(--lg-highlight) !important;
+}
+button.w-full.rounded-2xl:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.5), 0 0 0 1px var(--lg-edge-strong), inset 0 1px 0 var(--lg-highlight-strong) !important;
+}
+button.w-full.rounded-2xl:not(:disabled):active {
+  transform: translateY(0) scale(0.985);
+  transition-duration: 60ms !important;
+}
+
+button.rounded-xl.overflow-hidden {
+  transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1), border-color 200ms ease, box-shadow 220ms ease !important;
+}
+button.rounded-xl.overflow-hidden:hover {
+  transform: translateY(-1px);
+}
+
+nav.sticky.top-0 {
+  background: rgba(0, 0, 0, 0.6) !important;
+  backdrop-filter: blur(22px) saturate(1.5) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(1.5) !important;
+  border-bottom: 1px solid var(--lg-edge) !important;
+  box-shadow: 0 1px 0 var(--lg-highlight);
+}
+
+.studio-shell { position: relative; isolation: isolate; }
 
 .lg-panel {
   position: relative;
@@ -50,28 +118,17 @@
   -webkit-backdrop-filter: blur(24px) saturate(1.4);
   border: 1px solid var(--lg-edge);
   border-radius: 20px;
-  box-shadow:
-    0 20px 60px var(--lg-shadow),
-    inset 0 1px 0 var(--lg-highlight);
+  box-shadow: var(--lg-shadow), inset 0 1px 0 var(--lg-highlight);
   overflow: hidden;
 }
-
-/* Radial sheen on the top-left — gives the "lit from above" read. Zero layout
-   impact because it's a pseudo-element. */
 .lg-panel::before {
   content: '';
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background:
-    radial-gradient(
-      140% 80% at 20% -10%,
-      rgba(255, 255, 255, 0.08) 0%,
-      rgba(255, 255, 255, 0) 60%
-    );
+  background: radial-gradient(140% 80% at 20% -10%, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0) 60%);
   border-radius: inherit;
 }
-
 .lg-card {
   position: relative;
   background: var(--lg-bg-card);
@@ -79,199 +136,67 @@
   -webkit-backdrop-filter: blur(12px) saturate(1.25);
   border: 1px solid var(--lg-edge);
   border-radius: 14px;
-  box-shadow:
-    0 8px 28px var(--lg-shadow),
-    inset 0 1px 0 var(--lg-highlight);
+  box-shadow: var(--lg-shadow-card), inset 0 1px 0 var(--lg-highlight);
 }
-
-/* ─── Chips and buttons ──────────────────────────────────────────────── */
-
 .lg-chip {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.875rem;
-  background: var(--lg-bg-chip);
-  border: 1px solid var(--lg-edge);
-  border-radius: 999px;
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  position: relative; display: inline-flex; align-items: center; gap: 0.5rem;
+  padding: 0.5rem 0.875rem; background: var(--lg-bg-chip);
+  border: 1px solid var(--lg-edge); border-radius: 999px;
+  color: rgba(255,255,255,0.85); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.02em;
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
   transition: background 180ms ease, border-color 180ms ease, transform 120ms ease;
 }
-
 .lg-button {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
+  position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
   padding: 0.75rem 1rem;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.06) 0%,
-    rgba(255, 255, 255, 0.02) 100%
-  );
-  border: 1px solid var(--lg-edge);
-  border-radius: 16px;
-  color: #fff;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  font-size: 0.78rem;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow:
-    0 6px 18px var(--lg-shadow),
-    inset 0 1px 0 var(--lg-highlight);
+  background: linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%);
+  border: 1px solid var(--lg-edge); border-radius: 16px; color: #fff;
+  font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; font-size: 0.78rem;
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.45), inset 0 1px 0 var(--lg-highlight);
   cursor: pointer;
-  transition:
-    transform 140ms cubic-bezier(0.22, 1, 0.36, 1),
-    background 160ms ease,
-    border-color 160ms ease,
-    box-shadow 200ms ease;
+  transition: transform 140ms cubic-bezier(0.22, 1, 0.36, 1), background 160ms ease, border-color 160ms ease, box-shadow 200ms ease;
 }
+.lg-interactive { cursor: pointer; }
+.lg-interactive:hover { border-color: var(--lg-edge-strong); background-color: rgba(255,255,255,0.06); transform: translateY(-1px); }
+.lg-interactive:active { transform: translateY(0) scale(0.98); transition-duration: 60ms; }
+.lg-elevated { box-shadow: 0 16px 40px rgba(0,0,0,0.6), inset 0 1px 0 var(--lg-highlight-strong); }
 
-/* ─── Interactive modifier ───────────────────────────────────────────── */
+.lg-tint-primary { background-color: color-mix(in srgb, var(--color-primary) 12%, transparent); border-color: color-mix(in srgb, var(--color-primary) 45%, var(--lg-edge)); color: var(--color-primary); }
+.lg-tint-success { background-color: rgba(48,209,88,0.1); border-color: rgba(48,209,88,0.4); color: #30D158; }
+.lg-tint-warn    { background-color: rgba(255,214,10,0.1); border-color: rgba(255,214,10,0.4); color: #FFD60A; }
+.lg-tint-danger  { background-color: rgba(255,55,95,0.1); border-color: rgba(255,55,95,0.4); color: #FF375F; }
 
-.lg-interactive {
-  cursor: pointer;
-}
-
-.lg-interactive:hover {
-  border-color: var(--lg-edge-strong);
-  background-color: rgba(255, 255, 255, 0.06);
-  transform: translateY(-1px);
-}
-
-.lg-interactive:active {
-  transform: translateY(0) scale(0.98);
-  transition-duration: 60ms;
-}
-
-.lg-elevated {
-  box-shadow:
-    0 16px 40px var(--lg-shadow-elevated),
-    inset 0 1px 0 var(--lg-highlight);
-}
-
-/* ─── Tints — selected / state colors ────────────────────────────────── */
-
-.lg-tint-primary {
-  background-color: color-mix(in srgb, var(--color-primary) 12%, transparent);
-  border-color: color-mix(in srgb, var(--color-primary) 45%, var(--lg-edge));
-  color: var(--color-primary);
-}
-
-.lg-tint-success {
-  background-color: rgba(48, 209, 88, 0.1);
-  border-color: rgba(48, 209, 88, 0.4);
-  color: #30D158;
-}
-
-.lg-tint-warn {
-  background-color: rgba(255, 214, 10, 0.1);
-  border-color: rgba(255, 214, 10, 0.4);
-  color: #FFD60A;
-}
-
-.lg-tint-danger {
-  background-color: rgba(255, 55, 95, 0.1);
-  border-color: rgba(255, 55, 95, 0.4);
-  color: #FF375F;
-}
-
-/* ─── Dividers ───────────────────────────────────────────────────────── */
-
-.lg-divider {
-  height: 1px;
-  background: linear-gradient(
-    to right,
-    transparent 0%,
-    var(--lg-edge) 20%,
-    var(--lg-edge) 80%,
-    transparent 100%
-  );
-  border: 0;
-}
-
-/* ─── Motion keyframes ───────────────────────────────────────────────── */
+.lg-divider { height: 1px; background: linear-gradient(to right, transparent 0%, var(--lg-edge) 20%, var(--lg-edge) 80%, transparent 100%); border: 0; }
 
 @keyframes lg-pulse-soft {
-  0%, 100% {
-    transform: scale(1);
-    box-shadow:
-      0 6px 18px var(--lg-shadow),
-      inset 0 1px 0 var(--lg-highlight),
-      0 0 0 0 rgba(255, 255, 255, 0.22);
-  }
-  50% {
-    transform: scale(1.01);
-    box-shadow:
-      0 10px 24px var(--lg-shadow),
-      inset 0 1px 0 var(--lg-highlight),
-      0 0 0 6px rgba(255, 255, 255, 0.04);
-  }
+  0%, 100% { transform: scale(1); box-shadow: 0 6px 18px rgba(0,0,0,0.45), inset 0 1px 0 var(--lg-highlight), 0 0 0 0 rgba(255,255,255,0.22); }
+  50%      { transform: scale(1.01); box-shadow: 0 10px 24px rgba(0,0,0,0.5), inset 0 1px 0 var(--lg-highlight), 0 0 0 6px rgba(255,255,255,0.04); }
 }
+.animate-pulse-soft { animation: lg-pulse-soft 2.4s ease-in-out infinite; }
 
-.animate-pulse-soft {
-  animation: lg-pulse-soft 2.4s ease-in-out infinite;
-}
-
-/* First-time affordance — drag handle on CompareSlider.
-   Plays once, then settles. Prefers-reduced-motion disables. */
 @keyframes lg-grab-hint {
   0%   { transform: translate(-50%, -50%) scale(1); }
   40%  { transform: translate(-50%, -50%) scale(1.12); }
   70%  { transform: translate(-50%, -50%) scale(0.96); }
   100% { transform: translate(-50%, -50%) scale(1); }
 }
+.animate-grab-hint { animation: lg-grab-hint 700ms cubic-bezier(0.22, 1, 0.36, 1) 1 300ms; }
 
-.animate-grab-hint {
-  animation: lg-grab-hint 700ms cubic-bezier(0.22, 1, 0.36, 1) 1 300ms;
-}
-
-/* Slide-down for popovers (QualityScore dial tooltip, etc.) */
 @keyframes lg-slide-down {
-  from {
-    opacity: 0;
-    transform: translateY(-6px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
-
-.animate-slide-down {
-  animation: lg-slide-down 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-/* ─── Accessibility — reduced motion ─────────────────────────────────── */
+.animate-slide-down { animation: lg-slide-down 220ms cubic-bezier(0.22, 1, 0.36, 1) both; }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-pulse-soft,
-  .animate-grab-hint,
-  .animate-slide-down {
-    animation: none !important;
-  }
-  .lg-interactive,
-  .lg-button {
-    transition: none !important;
-  }
+  .animate-pulse-soft, .animate-grab-hint, .animate-slide-down { animation: none !important; }
+  .lg-interactive, .lg-button, button.w-full.rounded-2xl, .subtle-card { transition: none !important; }
 }
 
-/* ─── Safari backdrop-filter fallback ────────────────────────────────── */
-
 @supports not (backdrop-filter: blur(1px)) {
-  .lg-panel,
-  .lg-card,
-  .lg-chip,
-  .lg-button {
-    background-color: rgba(12, 14, 18, 0.9);
+  .premium-surface, .premium-surface-strong, .subtle-card, .glass-overlay,
+  .lg-panel, .lg-card, .lg-chip, .lg-button, nav.sticky.top-0 {
+    background-color: rgba(18, 18, 22, 0.96) !important;
   }
 }

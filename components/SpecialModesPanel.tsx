@@ -385,10 +385,10 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                 </div>
             )}
 
-            {/* Virtual Twilight -> Flux 2 Pro with reference styles */}
+            {/* Virtual Twilight -> Flux 2 Pro prompt-only */}
             <Section id="twilight" icon={<Sunset size={18} />} title="Day to Dusk" subtitle="Turn daytime exteriors into twilight shots" isOpen={openSection === 'twilight'} onToggle={toggleSection}>
                 <p className="text-sm text-[var(--color-text)]/80 mb-3">
-                    Pick a twilight style, then generate. Flux 2 Pro relights your photo to match the reference — no perspective changes, no invented objects.
+                    Pick a twilight mood, then generate. Flux 2 Pro relights your photo to the selected atmosphere — no perspective changes, no invented objects.
                 </p>
                 <div className="grid grid-cols-3 gap-2 mb-3">
                     {TWILIGHT_STYLES.map((s) => (
@@ -396,21 +396,14 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                             key={s.key}
                             type="button"
                             onClick={() => setTwilightStyle(s.key)}
-                            className={`rounded-xl overflow-hidden border-2 transition-all ${
+                            className={`rounded-xl border-2 transition-all px-3 py-3 text-left ${
                                 twilightStyle === s.key
-                                    ? 'border-[var(--color-primary)] ring-1 ring-[var(--color-primary)]'
-                                    : 'border-transparent hover:border-[var(--color-border-strong)]'
+                                    ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/10 ring-1 ring-[var(--color-primary)]/30'
+                                    : 'border-[var(--color-border-strong)] bg-black/40 hover:bg-black/60'
                             }`}
                         >
-                            <img
-                                src={s.preview}
-                                alt={s.label}
-                                className="w-full aspect-[3/2] object-cover"
-                            />
-                            <div className="px-2 py-1.5 bg-black/80">
-                                <p className="text-[10.5px] font-bold text-[var(--color-ink)] leading-tight">{s.label}</p>
-                                <p className="text-[9px] text-[var(--color-text)]/50 leading-tight mt-0.5">{s.description}</p>
-                            </div>
+                            <p className={`text-xs font-bold leading-tight ${twilightStyle === s.key ? 'text-[var(--color-primary)]' : 'text-[var(--color-ink)]'}`}>{s.label}</p>
+                            <p className="text-[10px] text-[var(--color-text)]/60 leading-snug mt-1">{s.description}</p>
                         </button>
                     ))}
                 </div>

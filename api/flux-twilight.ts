@@ -1,10 +1,20 @@
 /**
- * api/flux-twilight.ts
+ * api/flux-twilight.ts  —  DAY TO DUSK (v2, single-image relight)
  *
- * Day-to-Dusk via Flux 2 Pro with reference image style transfer.
- * Sends the user's daytime exterior + a curated twilight reference photo
- * to Flux 2 Pro, which relights the scene to match the reference style.
- * Chains Real-ESRGAN 4x for final resolution.
+ * PREVIOUS BEHAVIOR (broken): passed user image + a curated twilight reference
+ * image to Flux 2 Pro as `input_images: [userImg, refImg]`. Flux 2 Pro in
+ * multi-reference mode performs reference-based style transfer, not
+ * relighting — it blends the two images as creative targets. Result:
+ * entirely different houses in the output.
+ *
+ * NEW BEHAVIOR: pass ONLY the user image. Describe the twilight atmosphere
+ * in the text prompt. Use very strict preservation language. This coerces
+ * Flux 2 Pro into img2img mode with the user image as hard ground truth.
+ *
+ * If this still hallucinates for some exterior archetypes, the next step is
+ * to swap the model to a true relighting model (IC-Light 2 on Replicate:
+ * `zsxkib/ic-light-v2`), which is purpose-built to change lighting while
+ * preserving architecture. Kept as a feature-flag swap at the bottom.
  *
  * Input (POST JSON):
  *   { imageBase64: string, style: 'warm-classic' | 'modern-dramatic' | 'golden-luxury' }
@@ -14,52 +24,26 @@
  *   { ok: false, error: string }
  */
 import Replicate from 'replicate';
-import { readFileSync } from 'fs';
-import { join } from 'path';
 import { json, setCors, handleOptions, rejectMethod, parseBody } from './utils.js';
 
 export const config = { runtime: 'nodejs', maxDuration: 120 };
 
 const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN || '';
 
+// Feature flag: flip to true once IC-Light v2 is validated on exteriors.
+const USE_IC_LIGHT = process.env.TWILIGHT_USE_IC_LIGHT === 'true';
+
 type TwilightStyle = 'warm-classic' | 'modern-dramatic' | 'golden-luxury';
 
-const STYLE_FILES: Record<TwilightStyle, string> = {
-  'warm-classic': 'warm-classic.jpg',
-  'modern-dramatic': 'modern-dramatic.jpg',
-  'golden-luxury': 'golden-luxury.jpg',
+// Style descriptors — baked into the prompt, no reference image needed.
+const STYLE_DESCRIPTIONS: Record<TwilightStyle, string> = {
+  'warm-classic':
+    'Blue hour sky (deep saturated teal fading to warm peach-pink at the horizon). Warm amber (2700K) light behind every visible window. Subtle warm halos around any existing porch or exterior fixtures. Gentle warm rim lighting catching roof edges and architectural silhouettes. Deep cool blue-violet shadows under eaves and overhangs.',
+  'modern-dramatic':
+    'Deep blue-purple twilight sky with a hint of magenta at the horizon. Strong bright warm interior glow spilling out of every window, bright enough to cast visible warm light pools on nearby walls, porches, and the ground. Architectural sconces and path lights turned on. Deep cool shadows that read as luxury / Sotheby\'s-style listing photography.',
+  'golden-luxury':
+    'Soft pastel pink-peach sunset sky fading gently to light blue overhead. Warm golden window glow (2700K) in every visible window. Warm diffused fill on light-colored surfaces facing the horizon (stucco, light siding, trim). Soft golden hour transitioning into blue hour, elegant and airy.',
 };
-
-const STYLE_PROMPTS: Record<TwilightStyle, string> = {
-  'warm-classic': JSON.stringify({
-    scene: 'Same house and property as image 1, transformed to twilight/dusk matching image 2',
-    lighting: 'Soft blue hour sky with warm peach-pink sunset horizon. Every visible window glows warm amber (2700K). Porch lights and exterior fixtures turned on with warm halos. Wet surface reflections of warm light.',
-    style: 'Professional real estate twilight photography, magazine-quality blue hour',
-    camera: 'Identical framing, angle, field of view, and perspective as image 1. Do not reframe or zoom.',
-    color_palette: ['#1e2d5a', '#4a5c8a', '#e8956a', '#ffd166', '#ffa64d'],
-  }),
-  'modern-dramatic': JSON.stringify({
-    scene: 'Same house and property as image 1, transformed to dramatic deep dusk matching image 2',
-    lighting: 'Deep blue-purple twilight sky. Strong warm interior glow through all windows, bright enough to cast light spill on nearby walls and ground. Wall sconces and architectural lighting on. Deep cool shadows under eaves and overhangs.',
-    style: 'Dramatic architectural photography, luxury listing, Sotheby\'s quality',
-    camera: 'Identical framing, angle, field of view, and perspective as image 1. Do not reframe or zoom.',
-    color_palette: ['#1a1040', '#3d2d7a', '#6b4fa0', '#ffb347', '#fff0c4'],
-  }),
-  'golden-luxury': JSON.stringify({
-    scene: 'Same house and property as image 1, transformed to golden twilight matching image 2',
-    lighting: 'Soft pastel pink-peach sunset sky fading to light blue. Warm golden window glow (2700K) in every visible window. Exterior fixtures with soft warm light. Gentle warm color cast on light-colored surfaces facing the horizon.',
-    style: 'Elegant luxury real estate photography, soft golden hour transitioning to blue hour',
-    camera: 'Identical framing, angle, field of view, and perspective as image 1. Do not reframe or zoom.',
-    color_palette: ['#2a3a6a', '#8a7ab0', '#f0a080', '#ffd699', '#ffe4b5'],
-  }),
-};
-
-function loadReferenceImage(style: TwilightStyle): string {
-  const filename = STYLE_FILES[style];
-  const refPath = join(process.cwd(), 'public', 'references', 'twilight', filename);
-  const buf = readFileSync(refPath);
-  return `data:image/jpeg;base64,${buf.toString('base64')}`;
-}
 
 async function extractUrl(output: unknown): Promise<string | null> {
   if (!output) return null;
@@ -73,6 +57,34 @@ async function extractUrl(output: unknown): Promise<string | null> {
     if (typeof o.url === 'string') return o.url;
   }
   return null;
+}
+
+function buildTwilightPrompt(style: TwilightStyle): string {
+  const atmosphere = STYLE_DESCRIPTIONS[style];
+  return `LIGHTING-ONLY EDIT. This is a photo restoration / relighting task, not a creative regeneration task. Take the input photograph and change only the lighting and sky. Everything else must remain pixel-accurate.
+
+TARGET LIGHTING ATMOSPHERE:
+${atmosphere}
+
+PRESERVE EXACTLY (must be pixel-identical to the input):
+- House structure, silhouette, and all architectural features (walls, siding, trim, columns, porches, railings, roofs, chimneys, gutters, eaves).
+- Siding material and color (do not change or "upgrade" materials).
+- Every window: count, position, size, framing, mullions, glass.
+- Every door: count, position, size, style, color, hardware.
+- Roof: shape, pitch, material, shingle pattern.
+- Yard, grass, driveway, walkways, hardscape, fences, mailbox.
+- Existing trees, shrubs, flower beds — no additions or removals.
+- Camera framing, angle, field of view, perspective, and crop.
+
+STRICT RULES:
+- Do NOT invent, add, or remove any physical object, plant, or architectural element.
+- Do NOT change camera angle, zoom, or perspective.
+- Do NOT upgrade, repaint, re-side, or re-roof the house.
+- Do NOT regenerate grass, trees, or landscaping.
+- Do NOT add new windows, doors, lights, cars, furniture, or decor.
+- Only change: sky (to the target atmosphere), exterior ambient light, interior window glow, reflections that follow naturally from the new lighting.
+
+Output the same photograph relit to the target atmosphere. Treat the input as immutable geometry and change only the light energy in the scene.`;
 }
 
 export default async function handler(req: any, res: any) {
@@ -90,7 +102,7 @@ export default async function handler(req: any, res: any) {
   const style = String(body.style || '') as TwilightStyle;
 
   if (!imageBase64) { json(res, 400, { ok: false, error: 'imageBase64 is required' }); return; }
-  if (!STYLE_FILES[style]) { json(res, 400, { ok: false, error: `Invalid style: ${style}` }); return; }
+  if (!STYLE_DESCRIPTIONS[style]) { json(res, 400, { ok: false, error: `Invalid style: ${style}` }); return; }
 
   const userDataUrl = imageBase64.startsWith('data:')
     ? imageBase64
@@ -100,38 +112,48 @@ export default async function handler(req: any, res: any) {
   const t0 = Date.now();
 
   try {
-    const refDataUrl = loadReferenceImage(style);
-    const stylePrompt = STYLE_PROMPTS[style];
+    // ─── PRIMARY PATH: Flux 2 Pro single-image relight ─────────────────
+    // Pass ONLY the user image. The twilight style is described entirely
+    // in the text prompt. No reference image = no style-transfer blending.
+    console.log(`[flux-twilight] Starting Flux 2 Pro single-image (${style})...`);
+    let primaryOutput;
+    if (USE_IC_LIGHT) {
+      // ─── ALTERNATIVE PATH: IC-Light v2 (enable via env flag) ─────────
+      // IC-Light is purpose-built for relighting: preserves subject
+      // pixel-accurately and only modifies light energy. Swap-in when
+      // validated on architectural exteriors.
+      console.log('[flux-twilight] Using IC-Light v2 path');
+      primaryOutput = await replicate.run('zsxkib/ic-light-v2', {
+        input: {
+          subject_image: userDataUrl,
+          prompt: buildTwilightPrompt(style),
+          num_samples: 1,
+          image_width: 1280,
+          image_height: 0, // auto from aspect
+          steps: 25,
+          lowres_denoise: 0.9,
+          highres_denoise: 0.5,
+        },
+      });
+    } else {
+      primaryOutput = await replicate.run('black-forest-labs/flux-2-pro', {
+        input: {
+          input_images: [userDataUrl], // ← single image, no reference blending
+          prompt: buildTwilightPrompt(style),
+          output_format: 'jpg',
+          aspect_ratio: 'match_input_image',
+        },
+      });
+    }
 
-    console.log(`[flux-twilight] Starting Flux 2 Pro (${style})...`);
-    const fluxOutput = await replicate.run('black-forest-labs/flux-2-pro', {
-      input: {
-        input_images: [userDataUrl, refDataUrl],
-        prompt: `Transform image 1 into a professional twilight/dusk real estate photo matching the lighting atmosphere of image 2. This is a LIGHTING-ONLY edit of image 1 — relight the scene to dusk/twilight.
-
-${stylePrompt}
-
-CRITICAL RULES:
-- Preserve the EXACT architecture, landscaping, driveway, walkways, and all physical objects from image 1.
-- Do NOT add any new objects, plants, furniture, lights, or decorations not already in image 1.
-- Do NOT change the camera angle, framing, perspective, or field of view from image 1.
-- Every visible window must glow with warm interior light.
-- Turn on any existing exterior light fixtures with warm halos.
-- Roof edges and architectural silhouettes should have subtle warm rim lighting from the dusk sky.
-- Deepen shadows under eaves and overhangs to cool blue-violet tones.`,
-        output_format: 'jpg',
-        aspect_ratio: 'match_input_image',
-      },
-    });
-
-    const cleanUrl = await extractUrl(fluxOutput);
+    const cleanUrl = await extractUrl(primaryOutput);
     if (!cleanUrl) {
-      json(res, 200, { ok: false, error: 'Flux returned no image URL' });
+      json(res, 200, { ok: false, error: 'Primary relight returned no image URL' });
       return;
     }
-    console.log(`[flux-twilight] Flux done in ${Date.now() - t0}ms → ${cleanUrl.slice(0, 60)}...`);
+    console.log(`[flux-twilight] Relight done in ${Date.now() - t0}ms`);
 
-    // Real-ESRGAN 4x upscale
+    // ─── Real-ESRGAN 4x upscale ────────────────────────────────────────
     let finalUrl = cleanUrl;
     const tEsr = Date.now();
     try {

@@ -1,3 +1,9 @@
+/* Liquid glass utility layer — drop-in Apple-style glass surfaces */
+@import './design-system/liquid-glass.css';
+
+/* Liquid glass utility layer */
+@import './design-system/liquid-glass.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

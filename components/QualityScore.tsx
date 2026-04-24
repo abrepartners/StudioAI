@@ -1,17 +1,19 @@
 /**
  * components/QualityScore.tsx — D1 Listing Score badge (Cluster J).
  *
- * Small badge that lives on top of every staged result. Shows the overall
- * 1-10 score with a color (red <6, amber 6-8, green >=8). Hover (desktop) or
- * click (mobile/touch) to expand the 4 sub-scores + per-dimension callouts.
+ * v2 UPGRADE: circular SVG dial that animates from 0 → score when the value
+ * lands. Replaces the flat pill badge. Expanded popover unchanged (dimensions
+ * still list out on hover/focus). Zero API change; same props.
  *
- * Lifecycle:
- *  - Fires async after `generatedImage` lands. Does NOT block the user from
- *    seeing the result — badge shows a "Scoring..." spinner until the call
- *    returns.
- *  - Caches by image hash via a parent-owned `useRef<Map>` so re-renders
- *    (history nav, undo/redo) re-use the prior score instead of re-billing
- *    Gemini for the same pixels.
+ * Visual spec:
+ *  - 56×56 circular dial with a thin (3px) background ring and a tier-colored
+ *    progress ring that fills clockwise over 900ms with ease-out.
+ *  - Center shows the score number in tabular-nums; small "/10" under it.
+ *  - Tier colors match prior behavior (green ≥8, amber 6-8, red <6).
+ *  - Subtle outer halo glow in the tier color on "strong" tier.
+ *  - Liquid-glass container (backdrop-blur + inner highlight) on popover.
+ *
+ * Lifecycle unchanged — same score fetch, cache, and race-guard logic.
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2, Sparkles } from 'lucide-react';
@@ -35,10 +37,17 @@ const tierFor = (score: number): Tier => {
   return 'weak';
 };
 
-const TIER_BADGE: Record<Tier, string> = {
-  strong: 'bg-[#30D158]/15 text-[#30D158] border-[#30D158]/40',
-  ok: 'bg-[#FFD60A]/15 text-[#FFD60A] border-[#FFD60A]/40',
-  weak: 'bg-[#FF375F]/15 text-[#FF375F] border-[#FF375F]/40',
+// Tier → ring stroke color + glow color + text color.
+const TIER_RING: Record<Tier, string> = {
+  strong: '#30D158',
+  ok: '#FFD60A',
+  weak: '#FF375F',
+};
+
+const TIER_GLOW: Record<Tier, string> = {
+  strong: 'rgba(48, 209, 88, 0.35)',
+  ok: 'rgba(255, 214, 10, 0.25)',
+  weak: 'rgba(255, 55, 95, 0.28)',
 };
 
 const TIER_BAR: Record<Tier, string> = {
@@ -53,13 +62,8 @@ const TIER_LABEL: Record<Tier, string> = {
   weak: 'Needs work',
 };
 
-// Module-level cache shared across mounts (e.g. when QualityScore unmounts
-// during a panel switch and remounts). Keyed by image hash, value is the
-// fully-resolved ListingScore. Score is deterministic per image, so cross-mount
-// reuse is safe and keeps Gemini cost flat.
+// Module-level caches (unchanged from v1).
 const scoreCache = new Map<string, ListingScore>();
-// Inflight promise cache so we don't double-fire if the component re-renders
-// while the score is still in flight (StrictMode in dev does this).
 const inflight = new Map<string, Promise<ListingScore>>();
 
 const DimensionRow: React.FC<{ label: string; data: ListingScoreDimension }> = ({ label, data }) => {
@@ -75,7 +79,7 @@ const DimensionRow: React.FC<{ label: string; data: ListingScoreDimension }> = (
       </div>
       <div className="h-1 w-full rounded-full bg-white/10 overflow-hidden">
         <div
-          className={`h-full rounded-full transition-[width] duration-500 ${TIER_BAR[tier]}`}
+          className={`h-full rounded-full transition-[width] duration-700 ease-out ${TIER_BAR[tier]}`}
           style={{ width: `${widthPct}%` }}
         />
       </div>
@@ -84,15 +88,82 @@ const DimensionRow: React.FC<{ label: string; data: ListingScoreDimension }> = (
   );
 };
 
+// ─── Animated ring dial ────────────────────────────────────────────────
+// Uses stroke-dasharray + stroke-dashoffset trick. We mount at offset=full
+// (empty) and animate to offset=full*(1 - score/10) via CSS transition.
+const ScoreDial: React.FC<{ score: number; tier: Tier; size?: number }> = ({ score, tier, size = 56 }) => {
+  const strokeW = 3;
+  const r = (size - strokeW * 2) / 2;
+  const c = 2 * Math.PI * r;
+  const target = Math.max(0, Math.min(10, score));
+  const offset = c * (1 - target / 10);
+
+  // Start from empty, then snap to target after first paint so the CSS
+  // transition plays. Without this the dial renders pre-filled.
+  const [animatedOffset, setAnimatedOffset] = useState(c);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setAnimatedOffset(offset));
+    return () => cancelAnimationFrame(id);
+  }, [offset, c]);
+
+  return (
+    <div
+      className="relative"
+      style={{
+        width: size,
+        height: size,
+        // Subtle glow only on strong scores — rewards completion, doesn't
+        // scream on amber/red which users shouldn't celebrate.
+        filter: tier === 'strong' ? `drop-shadow(0 0 8px ${TIER_GLOW[tier]})` : undefined,
+      }}
+    >
+      <svg width={size} height={size} className="-rotate-90">
+        {/* Background ring */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke="rgba(255,255,255,0.12)"
+          strokeWidth={strokeW}
+        />
+        {/* Foreground progress ring */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke={TIER_RING[tier]}
+          strokeWidth={strokeW}
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={animatedOffset}
+          style={{
+            transition: 'stroke-dashoffset 900ms cubic-bezier(0.22, 1, 0.36, 1)',
+          }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span
+          className="text-[13px] font-bold tabular-nums leading-none"
+          style={{ color: TIER_RING[tier] }}
+        >
+          {target.toFixed(1)}
+        </span>
+        <span className="text-[8px] font-semibold uppercase tracking-wider text-white/40 leading-none mt-0.5">
+          /10
+        </span>
+      </div>
+    </div>
+  );
+};
+
 const QualityScore: React.FC<QualityScoreProps> = ({ generatedImage, roomType }) => {
   const [score, setScore] = useState<ListingScore | null>(null);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
-  // Track which image URL the current `score` belongs to so a fast image swap
-  // doesn't show stale numbers under a fresh result.
   const lastHashRef = useRef<string | null>(null);
 
-  // Stable hash of the current image — same hash = same score, no re-fetch.
   const currentHash = useMemo(
     () => (generatedImage ? hashImageDataUrl(generatedImage) : null),
     [generatedImage],
@@ -105,7 +176,6 @@ const QualityScore: React.FC<QualityScoreProps> = ({ generatedImage, roomType })
       return;
     }
 
-    // Cache hit: render instantly, no API call.
     const cached = scoreCache.get(currentHash);
     if (cached) {
       setScore(cached);
@@ -118,7 +188,6 @@ const QualityScore: React.FC<QualityScoreProps> = ({ generatedImage, roomType })
     setLoading(true);
     setScore(null);
 
-    // De-dupe: if another mount already fired this hash, ride the same promise.
     let promise = inflight.get(currentHash);
     if (!promise) {
       promise = scoreListingImage(generatedImage, roomType).then((res) => {
@@ -135,16 +204,12 @@ const QualityScore: React.FC<QualityScoreProps> = ({ generatedImage, roomType })
     promise
       .then((res) => {
         if (cancelled) return;
-        // Guard against race: only commit if the image hasn't changed since
-        // we kicked off this scoring call.
         if (lastHashRef.current && lastHashRef.current !== currentHash) return;
         lastHashRef.current = currentHash;
         setScore(res);
       })
       .catch((err) => {
         if (cancelled) return;
-        // Silent failure — scoring is non-critical. Console-log for debugging,
-        // but don't show a user error. The badge just disappears.
         console.warn('[QualityScore] Scoring failed:', err);
         setScore(null);
       })
@@ -159,19 +224,16 @@ const QualityScore: React.FC<QualityScoreProps> = ({ generatedImage, roomType })
 
   if (!generatedImage) return null;
 
-  // Loading state — small badge with spinner. Same footprint as the final
-  // badge so the layout doesn't jump when scoring lands.
+  // Loading state — same footprint as the final dial (56×56) so no layout jump.
   if (loading) {
     return (
       <div
-        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-white/10 bg-black/60 backdrop-blur-sm"
+        className="inline-flex items-center justify-center rounded-full border border-white/10 bg-black/50 backdrop-blur-xl"
+        style={{ width: 56, height: 56 }}
         aria-live="polite"
         aria-label="Scoring listing quality"
       >
-        <Loader2 size={12} className="animate-spin text-[var(--color-primary)]" />
-        <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-text)]">
-          Scoring
-        </span>
+        <Loader2 size={18} className="animate-spin text-[var(--color-primary)]" />
       </div>
     );
   }
@@ -189,43 +251,41 @@ const QualityScore: React.FC<QualityScoreProps> = ({ generatedImage, roomType })
         onMouseLeave={() => setOpen(false)}
         onFocus={() => setOpen(true)}
         onBlur={() => setOpen(false)}
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${TIER_BADGE[overallTier]} backdrop-blur-sm font-semibold tabular-nums shadow-sm hover:shadow-md transition-shadow`}
+        className="rounded-full p-1 hover:scale-105 active:scale-95 transition-transform"
         aria-expanded={open}
         aria-label={`Listing quality score ${score.overall} out of 10. ${TIER_LABEL[overallTier]}.`}
       >
-        <Sparkles size={12} />
-        <span className="text-sm">
-          {score.overall.toFixed(1)}<span className="opacity-70">/10</span>
-        </span>
+        <ScoreDial score={score.overall} tier={overallTier} />
       </button>
 
       {open && (
         <div
-          // Click handlers are mouse-only; we keep mouse-enter on the popover so
-          // users can move into it without it closing.
           onMouseEnter={() => setOpen(true)}
           onMouseLeave={() => setOpen(false)}
-          className="absolute right-0 top-full mt-2 w-72 z-30 rounded-xl border border-[var(--color-border-strong)] bg-[var(--color-surface-elevated)] shadow-xl p-3 space-y-3 animate-slide-down"
+          className="absolute right-0 top-full mt-2 w-72 z-30 rounded-2xl border border-white/10 bg-black/70 backdrop-blur-2xl shadow-2xl shadow-black/60 p-4 space-y-3 animate-slide-down"
           role="dialog"
           aria-label="Listing score details"
+          style={{
+            // Inner highlight — liquid glass top sheen.
+            boxShadow:
+              '0 10px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)',
+          }}
         >
-          <div className="flex items-baseline justify-between">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-text)]">
-                Listing Score
-              </p>
-              <p className="text-xs font-medium text-[var(--color-ink)] mt-0.5">
-                {TIER_LABEL[overallTier]}
-              </p>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <Sparkles size={14} className="text-[var(--color-primary)]" />
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-white/50">
+                  Listing Score
+                </p>
+                <p className="text-sm font-semibold text-white mt-0.5" style={{ color: TIER_RING[overallTier] }}>
+                  {TIER_LABEL[overallTier]}
+                </p>
+              </div>
             </div>
-            <div className="text-right">
-              <p className="text-2xl font-bold tabular-nums text-[var(--color-ink)] leading-none">
-                {score.overall.toFixed(1)}
-              </p>
-              <p className="text-xs text-[var(--color-text)] mt-0.5">/ 10</p>
-            </div>
+            <ScoreDial score={score.overall} tier={overallTier} size={48} />
           </div>
-          <div className="space-y-2.5 pt-2 border-t border-white/5">
+          <div className="space-y-3 pt-3 border-t border-white/5">
             <DimensionRow label="Architectural integrity" data={score.architecture} />
             <DimensionRow label="Lighting realism" data={score.lighting} />
             <DimensionRow label="Perspective accuracy" data={score.perspective} />

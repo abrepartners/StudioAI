@@ -14,12 +14,12 @@ import {
     X,
 } from 'lucide-react';
 import {
-    replaceSky,
     instantDeclutter,
     virtualRenovation,
     generateListingCopy,
     type ListingCopyTone,
 } from '../services/geminiService';
+import { nanoSky } from '../services/skyService';
 import { FurnitureRoomType, SavedStage } from '../types';
 import { sharpenImage } from '../utils/sharpen';
 import { compositeStackedEdit } from '../utils/stackComposite';
@@ -429,7 +429,7 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                 </button>
             </Section>
 
-            {/* Sky Replacement -> Atmosphere Override */}
+            {/* Sky Replacement -> Nano Banana */}
             <Section id="sky" icon={<Cloud size={18} />} title="Sky Replacement" subtitle="Swap dull skies for a cleaner one" isOpen={openSection === 'sky'} onToggle={toggleSection}>
                 <p className="text-sm text-[var(--color-text)]/80 mb-3">Swap overcast or blown-out skies for blue, dramatic, golden-hour, or stormy. Pick a preset below.</p>
                 <div className="grid grid-cols-2 gap-2">
@@ -452,8 +452,15 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                     type="button"
                     disabled={loading !== null || (!currentImage && !canBatch)}
                     onClick={() => canBatch
-                        ? runBatch('sky', (img, signal) => replaceSky(img, skyStyle, isPro, signal))
-                        : run('sky', async (signal) => { const result = await postProcessToolOutput(await replaceSky(currentImage!, skyStyle, isPro, signal), currentImage, 'sky'); onNewImage(result, 'sky'); })
+                        ? runBatch('sky', async (img, signal) => {
+                            const { resultBase64 } = await nanoSky(img, skyStyle, signal);
+                            return resultBase64;
+                          })
+                        : run('sky', async (signal) => {
+                            const { resultBase64 } = await nanoSky(currentImage!, skyStyle, signal);
+                            const result = await postProcessToolOutput(resultBase64, currentImage, 'sky');
+                            onNewImage(result, 'sky');
+                          })
                     }
                     className={`mt-2 w-full rounded-2xl px-4 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all ${loading === 'sky' ? 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border)]' : 'bg-white/[0.03] text-white border border-white/10 hover:bg-white/[0.06] hover:border-white/20 flex items-center justify-center gap-2 [&_svg]:text-[var(--color-primary)]'}`}
                 >

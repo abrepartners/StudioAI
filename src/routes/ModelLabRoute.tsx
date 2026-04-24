@@ -13,7 +13,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { readGoogleUser, isAdmin } from './authStorage';
 
-type Tool = 'twilight' | 'cleanup' | 'sky' | 'renovation';
+type Tool = 'twilight' | 'cleanup' | 'sky' | 'renovation' | 'staging';
 
 type RunResult = { ok: true; image: string; latencyMs: number } | { ok: false; error: string; latencyMs?: number };
 
@@ -35,6 +35,19 @@ const CLEANUP_PROMPT = `Remove personal items, clutter, trash, construction debr
 const SKY_PROMPT = `Replace the sky only with a vivid deep blue sky with scattered cumulus clouds. Keep the house, landscaping, perspective, and everything else pixel-identical.`;
 
 const RENO_PROMPT = `Change cabinets to white shaker style with brushed nickel hardware. Keep everything else in the photo (walls, floor, appliances, perspective, architecture) pixel-identical.`;
+
+const STAGING_PROMPT = `Virtually stage this empty room with photorealistic modern transitional furniture appropriate for the room's type and scale. Add a sofa and accent chairs in neutral tones, a coffee table or ottoman, an area rug that fits the space, a console or side tables, tasteful artwork and lamps, and a few plants. Furniture must be proportional to the room — no king beds in small rooms, no oversized sectionals in tight spaces.
+
+ABSOLUTE PRESERVATION — pixel-identical on every non-furniture surface:
+- Walls, wall color, paint, trim, baseboards
+- Floors, flooring material, rugs that are actually painted on the floor
+- Ceiling, ceiling fans, light fixtures already in place
+- Windows, window frames, blinds/curtains already present, views through windows
+- Doors, door frames, doorways
+- Architectural details: crown molding, wainscoting, built-ins
+- Camera framing, perspective, focal length, lens distortion
+
+Shadows under new furniture must match the existing light direction in the photo. Professional real estate photography style — crisp, bright, neutral color balance. Do NOT repaint walls, do NOT change flooring, do NOT alter architecture.`;
 
 const CONFIGS: Record<Tool, ModelConfig[]> = {
   twilight: [
@@ -179,6 +192,42 @@ const CONFIGS: Record<Tool, ModelConfig[]> = {
       }),
     },
   ],
+  staging: [
+    {
+      name: 'Adirik Interior Design',
+      description: 'Budget tier — ~$0.0072/img (~6x cheaper than Gemini/Flux). SD-based with interior-design finetune. Big margin unlock if quality holds.',
+      modelSlug: 'adirik/interior-design',
+      buildInput: (img, p) => ({
+        image: img,
+        prompt: p || STAGING_PROMPT,
+        negative_prompt: 'lowres, blurry, distorted, deformed, watermark, text, cartoon, anime, painting, oversized furniture, unrealistic proportions, wrong perspective, different room, changed walls, changed floors',
+        prompt_strength: 0.8,
+        num_inference_steps: 50,
+        guidance_scale: 15,
+      }),
+    },
+    {
+      name: 'Flux Kontext Pro',
+      description: 'Editing-specialized Flux. Strong at adding objects into a scene while keeping walls/floors/perspective pixel-accurate.',
+      modelSlug: 'black-forest-labs/flux-kontext-pro',
+      buildInput: (img, p) => ({
+        input_image: img,
+        prompt: p || STAGING_PROMPT,
+        output_format: 'jpg',
+        aspect_ratio: 'match_input_image',
+      }),
+    },
+    {
+      name: 'Google Nano Banana',
+      description: 'Gemini 2.5 Flash Image. Same model we locked for cleanup + sky. ~$0.04/img. Strong preservation.',
+      modelSlug: 'google/nano-banana',
+      buildInput: (img, p) => ({
+        image_input: [img],
+        prompt: p || STAGING_PROMPT,
+        output_format: 'jpg',
+      }),
+    },
+  ],
 };
 
 const TOOL_LABELS: Record<Tool, { label: string; sub: string }> = {
@@ -186,6 +235,7 @@ const TOOL_LABELS: Record<Tool, { label: string; sub: string }> = {
   cleanup: { label: 'Smart Cleanup', sub: 'Remove clutter & personal items' },
   sky: { label: 'Sky Replacement', sub: 'Swap dull skies' },
   renovation: { label: 'Virtual Renovation', sub: 'Material & finish swaps' },
+  staging: { label: 'Virtual Staging', sub: 'Fill empty rooms with furniture' },
 };
 
 /** Downscale a data URL to <=1280px longest side to stay under Vercel's 4.5MB limit. */
@@ -226,6 +276,7 @@ const ModelLabRoute: React.FC = () => {
     cleanup: CONFIGS.cleanup.map(c => c.modelSlug),
     sky: CONFIGS.sky.map(c => c.modelSlug),
     renovation: CONFIGS.renovation.map(c => c.modelSlug),
+    staging: CONFIGS.staging.map(c => c.modelSlug),
   });
 
   useEffect(() => {

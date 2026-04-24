@@ -26,6 +26,25 @@ const ACTION_CONFIG: Record<BatchAction, { label: string; icon: React.ReactNode;
   export:  { label: 'Export Only', icon: <Download size={12} />, color: '#BF5AF2', short: 'EXP' },
 };
 
+// Full FurnitureRoomType palette surfaced in the manual-override UI. Kept in
+// sync with App.tsx. Used by both the per-tile dropdown and the bulk setter.
+const ROOM_TYPES: FurnitureRoomType[] = [
+  'Living Room',
+  'Kitchen',
+  'Bedroom',
+  'Primary Bedroom',
+  'Bathroom',
+  'Dining Room',
+  'Office',
+  'Laundry Room',
+  'Closet',
+  'Nursery',
+  'Garage',
+  'Patio',
+  'Basement',
+  'Exterior',
+];
+
 export interface BatchImage {
   id: string;
   file: File;
@@ -100,7 +119,10 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
       return combined;
     });
 
-    // Auto-detect room types concurrently (3 at a time)
+    // Auto-detect room types concurrently (3 at a time). Non-blocking —
+    // user can override any tile's room type via the dropdown while this
+    // still runs. Detection sets detecting:false + roomType; manual
+    // override also sets detecting:false and skips the auto-result.
     const CONCURRENCY = 3;
     for (let i = 0; i < newImages.length; i += CONCURRENCY) {
       const chunk = newImages.slice(i, i + CONCURRENCY);
@@ -113,6 +135,10 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
 
       setBatchImages(prev =>
         prev.map(img => {
+          // If the user already manually picked a room type while detection
+          // was running, respect their choice — don't overwrite.
+          if (!img.detecting) return img;
+
           const result = results.find(
             r => r.status === 'fulfilled' && r.value.id === img.id
           );
@@ -157,9 +183,26 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
     );
   };
 
+  /** Manual per-image room type override. Also clears the `detecting` flag
+      so the auto-detect result (if it arrives later) won't stomp the user's
+      choice. */
+  const setImageRoomType = (id: string, roomType: FurnitureRoomType) => {
+    setBatchImages(prev =>
+      prev.map(img => (img.id === id ? { ...img, roomType, detecting: false } : img))
+    );
+  };
+
   const applyActionToSelected = (action: BatchAction) => {
     setBatchImages(prev =>
       prev.map(img => (img.selected ? { ...img, action } : img))
+    );
+  };
+
+  /** Bulk room-type override for every currently-selected image. Also
+      clears `detecting` so the auto-detect results won't clobber. */
+  const applyRoomTypeToSelected = (roomType: FurnitureRoomType) => {
+    setBatchImages(prev =>
+      prev.map(img => (img.selected ? { ...img, roomType, detecting: false } : img))
     );
   };
 
@@ -277,7 +320,7 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
           </h3>
           <p className="text-xs text-[var(--color-text)]/70">
             {selectedCount} of {batchImages.length} selected
-            {detectingCount > 0 && ` · Detecting ${detectingCount} rooms...`}
+            {detectingCount > 0 && ` · Detecting ${detectingCount} rooms… (or pick manually)`}
           </p>
         </div>
         <div className="flex items-center gap-1.5">
@@ -340,6 +383,33 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
         </div>
       )}
 
+      {/* Bulk room-type setter — skip the auto-detect wait entirely. */}
+      {selectedCount > 0 && (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-xs uppercase tracking-wider text-[var(--color-text)]/50 font-semibold mr-1">
+            Room type:
+          </span>
+          <select
+            onChange={(e) => {
+              if (e.target.value) {
+                applyRoomTypeToSelected(e.target.value as FurnitureRoomType);
+                e.target.value = '';
+              }
+            }}
+            defaultValue=""
+            className="rounded-lg px-2.5 py-1.5 text-xs font-semibold bg-black/40 text-white border border-[var(--color-border-strong)] hover:border-[var(--color-primary)]/60 focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] cursor-pointer transition-all"
+          >
+            <option value="">Set {selectedCount} selected to…</option>
+            {ROOM_TYPES.map((rt) => (
+              <option key={rt} value={rt} className="text-black">{rt}</option>
+            ))}
+          </select>
+          <span className="text-[10.5px] text-[var(--color-text)]/40 ml-1">
+            Overrides auto-detect
+          </span>
+        </div>
+      )}
+
       {/* Thumbnail grid */}
       <div className="grid grid-cols-3 gap-1.5 max-h-[280px] overflow-y-auto">
         {batchImages.map((img) => {
@@ -382,17 +452,28 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
                 </button>
               </div>
 
-              {/* Room type badge — bottom */}
-              <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-1.5">
-                {img.detecting ? (
-                  <span className="inline-flex items-center gap-1 text-xs text-[var(--color-primary)]">
-                    <Loader2 size={10} className="animate-spin" /> Detecting...
-                  </span>
-                ) : (
-                  <span className="text-xs font-semibold text-white truncate block">
-                    {img.roomType}
-                  </span>
+              {/* Room type selector — bottom. Clickable dropdown overrides auto-detect. */}
+              <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-1.5 flex items-center gap-1">
+                {img.detecting && !img.roomType && (
+                  <Loader2 size={10} className="animate-spin text-[var(--color-primary)] shrink-0" />
                 )}
+                <select
+                  value={img.roomType || ''}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    if (e.target.value) setImageRoomType(img.id, e.target.value as FurnitureRoomType);
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex-1 min-w-0 text-xs font-semibold text-white bg-transparent border-0 focus:outline-none cursor-pointer appearance-none truncate"
+                  aria-label="Pick room type"
+                >
+                  <option value="" disabled className="text-black">
+                    {img.detecting ? 'Detecting… or pick' : 'Pick room'}
+                  </option>
+                  {ROOM_TYPES.map((rt) => (
+                    <option key={rt} value={rt} className="text-black">{rt}</option>
+                  ))}
+                </select>
               </div>
 
               {/* Selection indicator */}

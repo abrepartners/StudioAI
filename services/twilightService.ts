@@ -1,10 +1,9 @@
 /**
  * services/twilightService.ts
  *
- * Client wrapper for Flux 2 Pro twilight conversion. Sends the user's
- * daytime exterior photo to /api/flux-twilight with a style choice.
- * The server pairs it with a curated reference image and uses Flux 2 Pro's
- * multi-reference capability to relight the scene, then chains ESRGAN 4x.
+ * Client wrapper for Flux 2 Pro twilight conversion (v4, prompt-only).
+ * No reference image is used — the server builds a detailed atmosphere
+ * prompt from the user's style choice alone.
  */
 
 import { resizeForUpload } from '../utils/resizeForUpload';
@@ -17,7 +16,6 @@ export interface TwilightStyleOption {
   key: TwilightStyle;
   label: string;
   description: string;
-  preview: string;
 }
 
 export const TWILIGHT_STYLES: TwilightStyleOption[] = [
@@ -25,19 +23,16 @@ export const TWILIGHT_STYLES: TwilightStyleOption[] = [
     key: 'warm-classic',
     label: 'Warm Classic',
     description: 'Blue hour with warm amber glow and sunset horizon',
-    preview: '/references/twilight/warm-classic.jpg',
   },
   {
     key: 'modern-dramatic',
     label: 'Deep Dramatic',
     description: 'Purple-blue sky with strong interior light spill',
-    preview: '/references/twilight/modern-dramatic.jpg',
   },
   {
     key: 'golden-luxury',
     label: 'Golden Luxury',
     description: 'Soft pink-peach sunset with elegant golden glow',
-    preview: '/references/twilight/golden-luxury.jpg',
   },
 ];
 

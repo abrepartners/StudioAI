@@ -7,11 +7,11 @@
  *  - v2 (round 1): Flux 2 Pro + 1 image + tight prompt. Result: still
  *    hallucinating because Flux 2 Pro is inherently a generative edit model,
  *    not a relighting model.
- *  - v3 (this file): zsxkib/ic-light-background. IC-Light is a dedicated
- *    relighting model that uses the subject as HARD ground truth and only
- *    modifies the light field. Cannot invent new architecture. The twilight
- *    reference image is passed as the background/lighting source, telling
- *    IC-Light how to relight the house.
+ *  - v3 (this file): zsxkib/ic-light-background (pinned version). IC-Light
+ *    is a dedicated relighting model that uses the subject as HARD ground
+ *    truth and only modifies the light field. Cannot invent new
+ *    architecture. The twilight reference image is passed as the
+ *    background/lighting source, telling IC-Light how to relight the house.
  *
  * Fallback: set TWILIGHT_USE_FLUX=true in Vercel env to revert to v2 behavior
  * (Flux 2 Pro single-image) if IC-Light is worse on any archetype.
@@ -36,6 +36,12 @@ const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN || '';
 // v2 Flux 2 Pro single-image path if IC-Light regresses on any archetype.
 const USE_FLUX_FALLBACK = process.env.TWILIGHT_USE_FLUX === 'true';
 
+// Pinned version hash for zsxkib/ic-light-background. The model doesn't expose
+// a "latest" alias on Replicate's models API, so the slug alone returns 404.
+// Using owner/model:version forces the predictions API which always works.
+const IC_LIGHT_VERSION =
+  'zsxkib/ic-light-background:60015df78a8a795470da6494822982140d57b150b9ef14354e79302ff89f69e3';
+
 type TwilightStyle = 'warm-classic' | 'modern-dramatic' | 'golden-luxury';
 
 const STYLE_FILES: Record<TwilightStyle, string> = {
@@ -44,9 +50,6 @@ const STYLE_FILES: Record<TwilightStyle, string> = {
   'golden-luxury': 'golden-luxury.jpg',
 };
 
-// IC-Light prompts — tuned for real estate twilight. These describe the SCENE
-// ATMOSPHERE (what lighting looks like), not the subject, because IC-Light
-// preserves the subject pixel-accurately from subject_image.
 const STYLE_PROMPTS: Record<TwilightStyle, string> = {
   'warm-classic':
     'professional real estate twilight photography, blue hour with warm peach sunset horizon, warm amber glow in every window, porch lights on with warm halos, cinematic dusk lighting, magazine-quality blue hour exterior',
@@ -80,7 +83,6 @@ async function extractUrl(output: unknown): Promise<string | null> {
   return null;
 }
 
-// Flux 2 Pro single-image fallback path (same as v2).
 async function runFluxFallback(
   replicate: Replicate,
   userDataUrl: string,
@@ -128,16 +130,14 @@ export default async function handler(req: any, res: any) {
     let cleanUrl: string | null = null;
 
     if (USE_FLUX_FALLBACK) {
-      // ─── FLUX 2 PRO FALLBACK PATH (feature flag) ──────────────────
       console.log(`[flux-twilight] Using Flux 2 Pro fallback (${style})`);
       cleanUrl = await runFluxFallback(replicate, userDataUrl, style);
     } else {
-      // ─── PRIMARY PATH: IC-Light background relighting ─────────────
       const refDataUrl = loadReferenceImage(style);
       const atmospherePrompt = STYLE_PROMPTS[style];
 
       console.log(`[flux-twilight] Starting IC-Light background relight (${style})`);
-      const output = await replicate.run('zsxkib/ic-light-background', {
+      const output = await replicate.run(IC_LIGHT_VERSION as `${string}/${string}:${string}`, {
         input: {
           subject_image: userDataUrl,
           background_image: refDataUrl,

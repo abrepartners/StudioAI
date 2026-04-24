@@ -16,6 +16,11 @@
  * on exteriors — the open canvas (grass, siding, sky, roof) gives them
  * too much room to repaint. Interior prompt is narrower so it survives
  * with less scaffolding.
+ *
+ * Exteriors also route through Clarity Upscaler (detail-adding SD-based
+ * upscale). Interiors use Real-ESRGAN (fast, flat, cheap). The
+ * isExterior flag sent in the POST body drives the upscaler branch on
+ * the backend.
  */
 
 import { resizeForUpload } from '../utils/resizeForUpload';
@@ -26,7 +31,8 @@ const FLUX_UPLOAD_MAX_EDGE = 1280;
 // Room types that are outdoor / architecturally open-ended. These need a
 // much stricter preservation prompt because cleanup models will happily
 // regenerate grass, siding, roofs, landscaping, and sky if given "remove
-// clutter" latitude.
+// clutter" latitude. Also drives the upscaler branch: exteriors get
+// Clarity for detail-adding upscale, interiors get Real-ESRGAN for speed.
 const EXTERIOR_ROOMS = new Set<string>(['Exterior', 'Patio']);
 
 // Interior prompt — short and narrow. Works because interiors have less
@@ -62,13 +68,17 @@ export function buildCleanupPrompt(selectedRoom: string): string {
   return INTERIOR_CLEANUP_PROMPT(room || 'room');
 }
 
+export function isExteriorRoom(selectedRoom: string): boolean {
+  return EXTERIOR_ROOMS.has((selectedRoom || '').trim());
+}
+
 export interface FluxCleanupResult {
   resultBase64: string;
   latencyMs: number;
 }
 
 export interface FluxCleanupOptions {
-  /** When true, skip the server-side Real-ESRGAN 4x finalization. */
+  /** When true, skip the server-side upscale finalization. */
   skipUpscale?: boolean;
   /** Override the default cleanup prompt (used by Design Direction toggle). */
   customPrompt?: string;
@@ -76,8 +86,12 @@ export interface FluxCleanupOptions {
 
 /**
  * Run the Smart Cleanup pipeline on a room photo. Server calls
- * google/nano-banana and then chains a silent Real-ESRGAN 4x upscale
- * unless `options.skipUpscale === true`.
+ * google/nano-banana and then chains an upscaler unless
+ * `options.skipUpscale === true`.
+ *
+ * Upscaler routing (server-side, driven by isExterior flag below):
+ *   - Exterior / Patio  →  philz1337x/clarity-upscaler  (~14s, $0.05)
+ *   - Everything else    →  nightmareai/real-esrgan       (~8s,  $0.002)
  *
  * Prompt is selected from INTERIOR_CLEANUP_PROMPT vs
  * EXTERIOR_CLEANUP_PROMPT based on selectedRoom — exteriors get heavier
@@ -91,6 +105,7 @@ export async function fluxCleanup(
   options: FluxCleanupOptions = {},
 ): Promise<FluxCleanupResult> {
   const shrunk = await resizeForUpload(imageBase64, FLUX_UPLOAD_MAX_EDGE);
+  const isExterior = isExteriorRoom(selectedRoom);
   const res = await fetch('/api/flux-cleanup', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -98,13 +113,15 @@ export async function fluxCleanup(
       imageBase64: shrunk,
       prompt: options.customPrompt || buildCleanupPrompt(selectedRoom),
       skipUpscale: Boolean(options.skipUpscale),
+      isExterior,
     }),
     signal: abortSignal,
   });
   if (!res.ok) throw new Error(`flux-cleanup HTTP ${res.status}`);
   const data = await res.json();
   if (!data.ok) throw new Error(data.error || 'flux-cleanup failed');
-  console.log(`[fluxService] Nano Banana+ESRGAN done in ${data.latencyMs}ms (${selectedRoom})`);
+  const upscalerLabel = isExterior ? 'Clarity' : 'ESRGAN';
+  console.log(`[fluxService] Nano Banana+${upscalerLabel} done in ${data.latencyMs}ms (${selectedRoom})`);
   return {
     resultBase64: data.resultBase64,
     latencyMs: data.latencyMs,

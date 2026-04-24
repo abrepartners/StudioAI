@@ -6,25 +6,29 @@
  * Pipeline:
  *   1. google/nano-banana (Gemini 2.5 Flash Image) — does the actual
  *      clutter removal while preserving architecture.
- *   2. philz1337x/clarity-upscaler — upscales with juggernaut_reborn +
- *      ControlNet tile + 4x-UltraSharp + DPM++ 3M SDE Karras to add
- *      real photographic detail (not just pixel stretch).
+ *   2. Upscaler, branched by isExterior flag from client:
+ *      - Exterior / Patio  →  philz1337x/clarity-upscaler (SD + ControlNet
+ *        tile + 4x-UltraSharp, ~14s, ~$0.05). Detail-adding upscale that
+ *        matters for siding textures, shingles, landscaping.
+ *      - Interior          →  nightmareai/real-esrgan (~8s, ~$0.002).
+ *        Fast pixel-stretch upscale, fine for indoor clean surfaces.
  *
  * Input (POST JSON):
- *   { imageBase64: string, prompt: string, skipUpscale?: boolean }
+ *   { imageBase64: string, prompt: string, isExterior?: boolean, skipUpscale?: boolean }
  *
  * Output (200 JSON):
  *   { ok: true, resultBase64: string, latencyMs: number }
  *   { ok: false, error: string }
  *
- * Cost: Nano Banana ~$0.04 + Clarity ~$0.05 = ~$0.09/img.
- * Latency: ~20-25s (Nano Banana) + ~14s (Clarity) = ~35-40s end-to-end.
+ * Cost:
+ *   - Exterior: Nano Banana $0.04 + Clarity $0.05 = ~$0.09/img
+ *   - Interior: Nano Banana $0.04 + ESRGAN $0.002 = ~$0.042/img
  *
- * Historical note: we evaluated flux-2-pro, flux-kontext-pro, and
- * google/nano-banana in the Model Lab. Nano Banana won cleanup
- * (2026-04-24). Upscaler evaluated: Real-ESRGAN (fast, flat) vs
- * Clarity Upscaler (slower, sharper). Clarity won on real estate
- * interiors (2026-04-24).
+ * Historical note: Model Lab evaluations on 2026-04-24:
+ *   Cleanup engine: flux-2-pro vs flux-kontext-pro vs nano-banana
+ *     → Nano Banana won (preserves exteriors cleanest)
+ *   Upscaler: ESRGAN (fast, flat) vs Clarity (slow, sharper)
+ *     → Clarity won on exteriors; ESRGAN kept for interiors.
  */
 import Replicate from 'replicate';
 import { json, setCors, handleOptions, rejectMethod, parseBody } from './utils.js';
@@ -61,6 +65,7 @@ export default async function handler(req: any, res: any) {
   const imageBase64 = String(body.imageBase64 || '');
   const prompt = String(body.prompt || '');
   const skipUpscale = Boolean(body.skipUpscale);
+  const isExterior = Boolean(body.isExterior);
 
   if (!imageBase64) { json(res, 400, { ok: false, error: 'imageBase64 is required' }); return; }
   if (!prompt) { json(res, 400, { ok: false, error: 'prompt is required' }); return; }
@@ -77,7 +82,7 @@ export default async function handler(req: any, res: any) {
     // Replicate SDK uploads the data URI to temp storage and passes the
     // resulting HTTPS URL to the model. Nano Banana's input field is
     // `image_input` (array), not `input_images` like Flux.
-    console.log('[flux-cleanup] Starting Google Nano Banana...');
+    console.log(`[flux-cleanup] Starting Google Nano Banana... (${isExterior ? 'exterior' : 'interior'})`);
     const nbOutput = await replicate.run('google/nano-banana', {
       input: {
         image_input: [dataUrl],
@@ -93,39 +98,53 @@ export default async function handler(req: any, res: any) {
     }
     console.log(`[flux-cleanup] Nano Banana done in ${Date.now() - t0}ms → ${cleanUrl.slice(0, 60)}...`);
 
-    // --- Step 2 (optional): Clarity Upscaler ---------------------------
-    // philz1337x/clarity-upscaler: SD-based detail-adding upscaler.
-    // Runs juggernaut_reborn + ControlNet tile (control_v11f1e_sd15_tile)
-    // + 4x-UltraSharp + DPM++ 3M SDE Karras. Unlike ESRGAN which just
-    // does pixel interpolation, Clarity actually generates new detail
-    // through the SD diffusion pass — textures, edges, materials all
-    // read sharper. Cost ~$0.05 vs ESRGAN's $0.002 but quality jump is
-    // worth it for cleanup where fidelity matters most.
-    //
-    // scale_factor: 2 (not 4) — Clarity adds detail per pixel, so 2x
-    // from 1280px source lands at ~2560px which is plenty for MLS.
-    // All other params use Clarity's defaults (creativity 0.35,
-    // resemblance 0.6, 18 inference steps) which match the playground
-    // config Thomas validated.
+    // --- Step 2 (optional): Upscale branch -----------------------------
+    // Exteriors → Clarity (detail-adding). Interiors → Real-ESRGAN (fast).
     let finalUrl = cleanUrl;
     if (!skipUpscale) {
       const tUp = Date.now();
-      try {
-        const clarityOutput = await replicate.run('philz1337x/clarity-upscaler', {
-          input: {
-            image: cleanUrl,
-            scale_factor: 2,
-          },
-        });
-        const upscaledUrl = await extractUrl(clarityOutput);
-        if (upscaledUrl) {
-          finalUrl = upscaledUrl;
-          console.log(`[flux-cleanup] Clarity upscaled in ${Date.now() - tUp}ms`);
-        } else {
-          console.warn('[flux-cleanup] Clarity no URL — using un-upscaled');
+      if (isExterior) {
+        // Clarity Upscaler for exteriors.
+        // Runs juggernaut_reborn + ControlNet tile (control_v11f1e_sd15_tile)
+        // + 4x-UltraSharp + DPM++ 3M SDE Karras. Generates real photographic
+        // detail through SD diffusion instead of just interpolating pixels.
+        // scale_factor: 2 (not 4) — Clarity adds detail per pixel, so 2x
+        // from 1280px source lands at ~2560px which is plenty for MLS.
+        try {
+          const clarityOutput = await replicate.run('philz1337x/clarity-upscaler', {
+            input: {
+              image: cleanUrl,
+              scale_factor: 2,
+            },
+          });
+          const upscaledUrl = await extractUrl(clarityOutput);
+          if (upscaledUrl) {
+            finalUrl = upscaledUrl;
+            console.log(`[flux-cleanup] Clarity upscaled in ${Date.now() - tUp}ms (exterior path)`);
+          } else {
+            console.warn('[flux-cleanup] Clarity no URL — using un-upscaled');
+          }
+        } catch (upErr: any) {
+          console.warn(`[flux-cleanup] Clarity failed: ${upErr?.message} — using un-upscaled`);
         }
-      } catch (upErr: any) {
-        console.warn(`[flux-cleanup] Clarity failed: ${upErr?.message} — using un-upscaled`);
+      } else {
+        // Real-ESRGAN 4x for interiors. Fast (~8s), flat upscale.
+        // Indoor scenes (clean surfaces, less fine texture) don't need
+        // Clarity's detail-adding pass and don't justify its $0.05 cost.
+        try {
+          const esrOutput = await replicate.run('nightmareai/real-esrgan', {
+            input: { image: cleanUrl, scale: 4, face_enhance: false },
+          });
+          const upscaledUrl = await extractUrl(esrOutput);
+          if (upscaledUrl) {
+            finalUrl = upscaledUrl;
+            console.log(`[flux-cleanup] ESRGAN upscaled in ${Date.now() - tUp}ms (interior path)`);
+          } else {
+            console.warn('[flux-cleanup] ESRGAN no URL — using un-upscaled');
+          }
+        } catch (upErr: any) {
+          console.warn(`[flux-cleanup] ESRGAN failed: ${upErr?.message} — using un-upscaled`);
+        }
       }
     }
 
@@ -138,7 +157,8 @@ export default async function handler(req: any, res: any) {
     const buf = Buffer.from(await imgRes.arrayBuffer());
     const resultBase64 = `data:image/jpeg;base64,${buf.toString('base64')}`;
 
-    console.log(`[flux-cleanup] Total: ${Date.now() - t0}ms (Nano Banana + Clarity)`);
+    const upscalerUsed = skipUpscale ? 'none' : (isExterior ? 'Clarity' : 'ESRGAN');
+    console.log(`[flux-cleanup] Total: ${Date.now() - t0}ms (Nano Banana + ${upscalerUsed})`);
     json(res, 200, { ok: true, resultBase64, latencyMs: Date.now() - t0 });
 
   } catch (err: any) {

@@ -1,17 +1,17 @@
 /**
  * api/flux-renovation.ts
  *
- * Virtual Renovation via Flux 2 Pro on Replicate. Chosen over Gemini and
- * Kontext for renovation specifically because Flux 2 Pro produces the
- * cleanest material / finish swaps in lab testing. Downside: Flux tends
- * to re-render the whole frame at its own preferred contrast/exposure,
- * causing a subtle global "drift" even when the local edit is correct.
+ * Virtual Renovation via Flux 2 Pro on Replicate. Flux 2 Pro was chosen
+ * over Gemini/Kontext for the cleanest material swaps. Known Flux drift
+ * pattern: the model bakes in its preferred photographic "look" on top
+ * of the requested edit — specifically warming the image and adding
+ * shadow depth. Prompt below explicitly forbids both.
  *
  * Mitigation (two-layer):
- *   1. This prompt explicitly forbids global tonal changes.
- *   2. The frontend runs RENOVATION_COMPOSITE in postProcessToolOutput
- *      which pixel-matches the result against the original and brings
- *      back non-edited regions byte-identical.
+ *   1. This prompt forbids warmth shift and shadow addition by name.
+ *   2. Frontend runs RENOVATION_COMPOSITE in postProcessToolOutput which
+ *      pixel-matches the result against the original and keeps unchanged
+ *      regions byte-identical.
  *
  * Input (POST JSON):
  *   { imageBase64: string, cabinets?: string, countertops?: string,
@@ -44,28 +44,38 @@ function buildRenovationPrompt(d: RenovationDetails): string {
 
   const changeList = changes.length > 0 ? changes.join('\n') : '- (none specified)';
 
-  return `PHOTOSHOP-IN-PLACE EDIT. This is a surgical replacement task, not a full re-render.
+  return `PHOTOSHOP-IN-PLACE EDIT. This is a surgical material replacement task, not a full re-render.
 
 CHANGES TO APPLY (only these, nothing else):
 ${changeList}
 
-CRITICAL PRESERVATION RULES — MATCH THE INPUT IMAGE EXACTLY:
-- Match the INPUT IMAGE's exposure, white balance, contrast, saturation, shadow depth, highlight rolloff, and overall color grade. DO NOT apply any global tonal or color adjustments. DO NOT brighten, darken, boost contrast, or shift color temperature.
-- All NON-EDITED regions (appliances, fixtures, windows, ceilings, light switches, outlets, furniture, decor, perspective, reflections, room geometry) must look PIXEL-IDENTICAL to the input. Same grain, same noise profile, same color.
+==============================
+FLUX DRIFT — DO NOT DO THESE:
+==============================
+- DO NOT WARM THE IMAGE. Do not shift color temperature toward amber, orange, or gold. If the input is neutral or cool, the output must also be neutral or cool. Match the exact Kelvin value of the input.
+- DO NOT DEEPEN SHADOWS. Do not add darkness, add contrast in the shadow range, or crush blacks. The shadow density, black point, and darkest pixel values must be IDENTICAL to the input.
+- DO NOT STYLIZE, DRAMATIZE, OR MOODY-UP THE IMAGE. This is not a look development pass. The output should NOT look moodier, more dramatic, more cinematic, or more "professionally graded" than the input.
+- DO NOT apply any global tonal curve, LUT, color grade, or saturation adjustment.
+
+==============================
+CRITICAL PRESERVATION RULES:
+==============================
+- Match the INPUT IMAGE's exposure, white balance, contrast, saturation, shadow depth, highlight rolloff, color temperature, and overall rendering exactly. Every non-edited pixel should read as the same photograph.
+- All NON-EDITED regions (appliances, fixtures, windows, ceilings, light switches, outlets, furniture, decor, perspective, reflections, room geometry) must look PIXEL-IDENTICAL to the input.
 - Camera angle, focal length, perspective, lens distortion, and framing must be identical.
 - Lighting direction, intensity, and color temperature on every non-edited surface must stay the same.
 - If a surface is NOT listed in the CHANGES, it must be the same pixels as the input.
 
+==============================
 STRICT RULES:
-- DO NOT adjust overall image contrast, saturation, or brightness.
-- DO NOT apply color grading, filtering, or stylization.
-- DO NOT sharpen, soften, denoise, or smooth the image.
-- DO NOT change exposure or white balance of non-edited regions.
-- DO NOT re-render the whole image — only replace the specified surfaces.
+==============================
 - DO NOT add, remove, or reposition any physical object.
 - DO NOT change the perspective or crop.
+- DO NOT sharpen, soften, denoise, or smooth the image.
+- DO NOT re-render the whole image — only replace the specified surfaces.
+- DO NOT adjust overall image brightness, contrast, saturation, or vibrance.
 
-Treat this like a Photoshop clone-stamp / material-replace edit where the replaced pixels are the ONLY new information. Everything else must come from the source image untouched. Output must look like the exact same photograph with just the listed materials swapped — no new "look," no new edit style, no re-colorization.`;
+Think of this as a Photoshop clone-stamp / material-replace edit where the replaced pixels are the ONLY new information. Everything else must come from the source image untouched. The output should look like the EXACT same photograph with just the listed materials swapped — same look, same warmth, same shadows, same mood. No new "look," no new edit style, no re-colorization, no enhancement.`;
 }
 
 async function extractUrl(output: unknown): Promise<string | null> {
@@ -113,7 +123,7 @@ export default async function handler(req: any, res: any) {
   const t0 = Date.now();
 
   try {
-    console.log(`[flux-renovation] Starting Flux 2 Pro renovation`);
+    console.log(`[flux-renovation] Starting Flux 2 Pro renovation with anti-drift prompt`);
     const fluxOutput = await replicate.run('black-forest-labs/flux-2-pro', {
       input: {
         input_images: [userDataUrl],

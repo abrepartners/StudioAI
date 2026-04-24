@@ -1,15 +1,16 @@
 /**
- * api/flux-twilight.ts  —  DAY TO DUSK (v4, prompt-only Flux 2 Pro)
+ * api/flux-twilight.ts  —  DAY TO DUSK (v5, brightened prompts)
  *
  * HISTORY:
- *  - v1: Flux 2 Pro + 2 images (user + reference). Different house in output.
- *  - v2: Flux 2 Pro + 1 image + tight prompt. Still hallucinating.
- *  - v3: IC-Light background relighting. Pinned version, functional but
- *    required a reference image as background_image.
- *  - v4 (this file): drop reference images entirely. Prompt-only Flux 2 Pro.
- *    User picks a style; backend maps it to a detailed atmosphere prompt.
- *    No background_image, no reference JPG loaded from disk. Simpler,
- *    matches Thomas's direction.
+ *  - v1: Flux 2 Pro + 2 images (user + reference). Different house.
+ *  - v2: Flux 2 Pro + 1 image. Still hallucinating.
+ *  - v3: IC-Light background relighting.
+ *  - v4: prompt-only Flux 2 Pro, no reference images.
+ *  - v5 (this file): brightened all 3 style prompts. v4 was pushing Flux
+ *    toward late blue hour / near-night exposure. v5 targets CIVIL
+ *    TWILIGHT — sun just below horizon, sky still warm, architectural
+ *    details still clearly visible. Added an explicit brightness
+ *    guardrail to the main prompt structure.
  *
  * Input (POST JSON):
  *   { imageBase64: string, style: 'warm-classic' | 'modern-dramatic' | 'golden-luxury' }
@@ -33,13 +34,18 @@ const VALID_STYLES: ReadonlyArray<TwilightStyle> = [
   'golden-luxury',
 ];
 
+// CIVIL TWILIGHT: the brightest of the three twilight phases, sun just
+// below the horizon, sky still colorful, all exterior details still visible.
+// This is what MLS / Architectural Digest twilight shots actually look like.
+// Avoids the "blue hour silhouette" trap where Flux flattens everything to
+// near-black.
 const STYLE_ATMOSPHERE: Record<TwilightStyle, string> = {
   'warm-classic':
-    'Blue hour sky (deep saturated teal fading to warm peach-pink at the horizon). Warm amber (2700K) light behind every visible window. Subtle warm halos around any existing porch or exterior fixtures. Gentle warm rim lighting catching roof edges and architectural silhouettes. Deep cool blue-violet shadows under eaves and overhangs. Cinematic real estate twilight photography, magazine-quality blue hour exterior.',
+    'Magic hour exterior, CIVIL TWILIGHT (sun just set, sky still warm and bright). Warm peach-amber horizon fading to soft violet at the top of frame. Warm amber 2700K light glowing from every visible window. Existing porch lights and path lights ON with soft warm halos. Gentle lingering warm daylight still illuminating the siding, trim, and landscaping — NOT dark, NOT silhouetted. Exterior details remain clearly visible and pleasant. Think Architectural Digest twilight cover shot, Sotheby\'s real estate magazine, magic hour photography — not late night.',
   'modern-dramatic':
-    'Deep blue-purple twilight sky with a hint of magenta near the horizon. Strong bright warm interior glow spilling from every window, bright enough to cast warm light pools on nearby walls, porches, and the ground. Architectural sconces and path lights turned on. Deep cool shadows that read as luxury Sotheby\'s-style listing photography.',
+    'Dramatic civil twilight, luxury Sotheby\'s-style real estate photography. Deep blue-violet sky with a strong magenta-pink horizon band. Bright warm interior glow from every window (noticeably brighter than ambient) spilling warm light onto nearby walls, porches, and ground. Architectural sconces, recessed soffit lights, and path lights ON. Shadows are cool but NOT crushed — siding texture, landscaping, and architectural features all clearly visible. Overall exposure is bright enough to read every detail of the house. Magazine-quality luxury listing at dusk, not night.',
   'golden-luxury':
-    'Soft pastel pink-peach sunset sky fading gently to light blue overhead. Warm golden window glow (2700K) in every visible window. Warm diffused fill on light-colored surfaces facing the horizon. Soft golden hour transitioning into blue hour, elegant and airy luxury listing exterior.',
+    'Soft golden hour transitioning into the first minute of dusk. Still BRIGHT. Warm peach-pink sunset sky with lingering daylight. Warm amber 2700K window glow in every window. Golden fill light on the whole scene — siding, trim, and landscaping warmly lit from the horizon. Soft pastel palette, elegant and airy. This is the "last 15 minutes of sunlight" look real estate photographers chase, not late dusk.',
 };
 
 function buildTwilightPrompt(style: TwilightStyle): string {
@@ -48,6 +54,12 @@ function buildTwilightPrompt(style: TwilightStyle): string {
 
 TARGET LIGHTING ATMOSPHERE:
 ${atmosphere}
+
+BRIGHTNESS / EXPOSURE GUARDRAIL (critical):
+- MEDIUM-HIGH exposure. The frame must stay bright enough that the siding, trim, windows, landscaping, and architectural details are all clearly visible WITHOUT squinting or needing to brighten the output.
+- DO NOT render this as night, late blue hour, or silhouette. This is CIVIL TWILIGHT / magic hour — the colorful, luminous window of dusk where MLS listing shots are captured.
+- Shadows should be soft and readable, not crushed black.
+- Overall scene should read 2-3 f-stops BRIGHTER than a "moody night" edit.
 
 PRESERVE EXACTLY (must be pixel-identical to the input):
 - House structure, silhouette, and all architectural features (walls, siding, trim, columns, porches, railings, roofs, chimneys, gutters, eaves).
@@ -65,9 +77,9 @@ STRICT RULES:
 - Do NOT upgrade, repaint, re-side, or re-roof the house.
 - Do NOT regenerate grass, trees, or landscaping.
 - Do NOT add new windows, doors, lights, cars, furniture, or decor.
-- Only change: sky (to the target atmosphere), exterior ambient light, interior window glow, reflections that follow naturally from the new lighting.
+- Only change: sky (to the target atmosphere), exterior ambient light level, interior window glow, and reflections that follow naturally from the new lighting.
 
-Output the same photograph relit to the target atmosphere. Treat the input as immutable geometry and change only the light energy in the scene.`;
+Output the same photograph relit to the target atmosphere. Treat the input as immutable geometry and change only the light energy in the scene — keeping exposure bright and details visible.`;
 }
 
 async function extractUrl(output: unknown): Promise<string | null> {
@@ -109,7 +121,7 @@ export default async function handler(req: any, res: any) {
   const t0 = Date.now();
 
   try {
-    console.log(`[flux-twilight] Starting Flux 2 Pro prompt-only (${style})`);
+    console.log(`[flux-twilight] Starting Flux 2 Pro v5 brightened (${style})`);
     const fluxOutput = await replicate.run('black-forest-labs/flux-2-pro', {
       input: {
         input_images: [userDataUrl],
@@ -126,7 +138,6 @@ export default async function handler(req: any, res: any) {
     }
     console.log(`[flux-twilight] Flux done in ${Date.now() - t0}ms`);
 
-    // Real-ESRGAN 4x upscale
     let finalUrl = cleanUrl;
     const tEsr = Date.now();
     try {

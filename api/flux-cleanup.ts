@@ -1,18 +1,23 @@
 /**
  * api/flux-cleanup.ts
  *
- * Smart Cleanup via Replicate: Flux 2 Pro → Real-ESRGAN 4x.
- *
- * Uses the Replicate Node SDK (already in package.json) instead of raw
- * fetch, because Flux's input_images field only accepts HTTPS URLs — not
- * data URIs. The SDK transparently uploads the data URI to Replicate's
- * temp file storage and passes the resulting URL.
+ * Smart Cleanup via Replicate. Model switched from Flux 2 Pro to Google
+ * Nano Banana (Gemini 2.5 Flash Image) for stronger architectural
+ * preservation. Chains Real-ESRGAN 4x for final resolution unless
+ * skipUpscale is set.
  *
  * Input (POST JSON):
  *   { imageBase64: string, prompt: string, skipUpscale?: boolean }
  *
- * Output (200 JSON):   { ok: true, resultBase64: string, latencyMs: number }
- * Output (200 JSON):   { ok: false, error: string }
+ * Output (200 JSON):
+ *   { ok: true, resultBase64: string, latencyMs: number }
+ *   { ok: false, error: string }
+ *
+ * Historical note: we evaluated flux-2-pro, flux-kontext-pro, and
+ * google/nano-banana in the Model Lab. Nano Banana was the cleanest on
+ * exteriors — preserves grass, siding, and architecture better than
+ * Flux 2 Pro on open-canvas scenes. Similar cost (~$0.04/img), similar
+ * or faster latency.
  */
 import Replicate from 'replicate';
 import { json, setCors, handleOptions, rejectMethod, parseBody } from './utils.js';
@@ -61,27 +66,27 @@ export default async function handler(req: any, res: any) {
   const t0 = Date.now();
 
   try {
-    // --- Step 1: Flux 2 Pro cleanup ------------------------------------------
-    // SDK auto-uploads the data URI to Replicate's temp storage and passes
-    // the resulting HTTPS URL — this is the fix for the 422 schema error.
-    console.log('[flux-cleanup] Starting Flux 2 Pro...');
-    const fluxOutput = await replicate.run('black-forest-labs/flux-2-pro', {
+    // --- Step 1: Google Nano Banana cleanup ----------------------------
+    // Replicate SDK uploads the data URI to temp storage and passes the
+    // resulting HTTPS URL to the model. Nano Banana's input field is
+    // `image_input` (array), not `input_images` like Flux.
+    console.log('[flux-cleanup] Starting Google Nano Banana...');
+    const nbOutput = await replicate.run('google/nano-banana', {
       input: {
-        input_images: [dataUrl],
+        image_input: [dataUrl],
         prompt,
         output_format: 'jpg',
-        aspect_ratio: 'match_input_image',
       },
     });
 
-    const cleanUrl = await extractUrl(fluxOutput);
+    const cleanUrl = await extractUrl(nbOutput);
     if (!cleanUrl) {
-      json(res, 200, { ok: false, error: 'Flux returned no image URL' });
+      json(res, 200, { ok: false, error: 'Nano Banana returned no image URL' });
       return;
     }
-    console.log(`[flux-cleanup] Flux done in ${Date.now() - t0}ms → ${cleanUrl.slice(0, 60)}...`);
+    console.log(`[flux-cleanup] Nano Banana done in ${Date.now() - t0}ms → ${cleanUrl.slice(0, 60)}...`);
 
-    // --- Step 2 (optional): Real-ESRGAN 4x upscale -------------------------
+    // --- Step 2 (optional): Real-ESRGAN 4x upscale ---------------------
     let finalUrl = cleanUrl;
     if (!skipUpscale) {
       const tEsr = Date.now();
@@ -101,7 +106,7 @@ export default async function handler(req: any, res: any) {
       }
     }
 
-    // --- Step 3: Fetch final URL and return base64 -------------------------
+    // --- Step 3: Fetch final URL and return base64 ---------------------
     const imgRes = await fetch(finalUrl);
     if (!imgRes.ok) {
       json(res, 200, { ok: false, error: `result fetch ${imgRes.status}` });

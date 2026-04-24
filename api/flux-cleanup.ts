@@ -1,10 +1,14 @@
 /**
  * api/flux-cleanup.ts
  *
- * Smart Cleanup via Replicate. Model switched from Flux 2 Pro to Google
- * Nano Banana (Gemini 2.5 Flash Image) for stronger architectural
- * preservation. Chains Real-ESRGAN 4x for final resolution unless
- * skipUpscale is set.
+ * Smart Cleanup via Replicate.
+ *
+ * Pipeline:
+ *   1. google/nano-banana (Gemini 2.5 Flash Image) — does the actual
+ *      clutter removal while preserving architecture.
+ *   2. philz1337x/clarity-upscaler — upscales with juggernaut_reborn +
+ *      ControlNet tile + 4x-UltraSharp + DPM++ 3M SDE Karras to add
+ *      real photographic detail (not just pixel stretch).
  *
  * Input (POST JSON):
  *   { imageBase64: string, prompt: string, skipUpscale?: boolean }
@@ -13,11 +17,14 @@
  *   { ok: true, resultBase64: string, latencyMs: number }
  *   { ok: false, error: string }
  *
+ * Cost: Nano Banana ~$0.04 + Clarity ~$0.05 = ~$0.09/img.
+ * Latency: ~20-25s (Nano Banana) + ~14s (Clarity) = ~35-40s end-to-end.
+ *
  * Historical note: we evaluated flux-2-pro, flux-kontext-pro, and
- * google/nano-banana in the Model Lab. Nano Banana was the cleanest on
- * exteriors — preserves grass, siding, and architecture better than
- * Flux 2 Pro on open-canvas scenes. Similar cost (~$0.04/img), similar
- * or faster latency.
+ * google/nano-banana in the Model Lab. Nano Banana won cleanup
+ * (2026-04-24). Upscaler evaluated: Real-ESRGAN (fast, flat) vs
+ * Clarity Upscaler (slower, sharper). Clarity won on real estate
+ * interiors (2026-04-24).
  */
 import Replicate from 'replicate';
 import { json, setCors, handleOptions, rejectMethod, parseBody } from './utils.js';
@@ -86,23 +93,39 @@ export default async function handler(req: any, res: any) {
     }
     console.log(`[flux-cleanup] Nano Banana done in ${Date.now() - t0}ms → ${cleanUrl.slice(0, 60)}...`);
 
-    // --- Step 2 (optional): Real-ESRGAN 4x upscale ---------------------
+    // --- Step 2 (optional): Clarity Upscaler ---------------------------
+    // philz1337x/clarity-upscaler: SD-based detail-adding upscaler.
+    // Runs juggernaut_reborn + ControlNet tile (control_v11f1e_sd15_tile)
+    // + 4x-UltraSharp + DPM++ 3M SDE Karras. Unlike ESRGAN which just
+    // does pixel interpolation, Clarity actually generates new detail
+    // through the SD diffusion pass — textures, edges, materials all
+    // read sharper. Cost ~$0.05 vs ESRGAN's $0.002 but quality jump is
+    // worth it for cleanup where fidelity matters most.
+    //
+    // scale_factor: 2 (not 4) — Clarity adds detail per pixel, so 2x
+    // from 1280px source lands at ~2560px which is plenty for MLS.
+    // All other params use Clarity's defaults (creativity 0.35,
+    // resemblance 0.6, 18 inference steps) which match the playground
+    // config Thomas validated.
     let finalUrl = cleanUrl;
     if (!skipUpscale) {
-      const tEsr = Date.now();
+      const tUp = Date.now();
       try {
-        const esrOutput = await replicate.run('nightmareai/real-esrgan', {
-          input: { image: cleanUrl, scale: 4, face_enhance: false },
+        const clarityOutput = await replicate.run('philz1337x/clarity-upscaler', {
+          input: {
+            image: cleanUrl,
+            scale_factor: 2,
+          },
         });
-        const upscaledUrl = await extractUrl(esrOutput);
+        const upscaledUrl = await extractUrl(clarityOutput);
         if (upscaledUrl) {
           finalUrl = upscaledUrl;
-          console.log(`[flux-cleanup] Upscaled in ${Date.now() - tEsr}ms`);
+          console.log(`[flux-cleanup] Clarity upscaled in ${Date.now() - tUp}ms`);
         } else {
-          console.warn('[flux-cleanup] ESRGAN no URL — using un-upscaled');
+          console.warn('[flux-cleanup] Clarity no URL — using un-upscaled');
         }
-      } catch (esrErr: any) {
-        console.warn(`[flux-cleanup] ESRGAN failed: ${esrErr?.message} — using un-upscaled`);
+      } catch (upErr: any) {
+        console.warn(`[flux-cleanup] Clarity failed: ${upErr?.message} — using un-upscaled`);
       }
     }
 
@@ -115,7 +138,7 @@ export default async function handler(req: any, res: any) {
     const buf = Buffer.from(await imgRes.arrayBuffer());
     const resultBase64 = `data:image/jpeg;base64,${buf.toString('base64')}`;
 
-    console.log(`[flux-cleanup] Total: ${Date.now() - t0}ms`);
+    console.log(`[flux-cleanup] Total: ${Date.now() - t0}ms (Nano Banana + Clarity)`);
     json(res, 200, { ok: true, resultBase64, latencyMs: Date.now() - t0 });
 
   } catch (err: any) {

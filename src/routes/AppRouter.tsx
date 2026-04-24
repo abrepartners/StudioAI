@@ -26,6 +26,7 @@ import TryRoute from './TryRoute';
 import ListingsRoute from './ListingsRoute';
 import SettingsRoute from './SettingsRoute';
 import AdminPackMatrixRoute from './AdminPackMatrixRoute';
+import ModelLabRoute from './ModelLabRoute';
 
 const RouteFallback: React.FC = () => (
   <div className="min-h-screen grid place-items-center bg-black text-zinc-400 text-sm">
@@ -60,6 +61,9 @@ const AppRouter: React.FC = () => {
 
           {/* Admin: Pack verification matrix (7×3 grid, admin-only) */}
           <Route path="/admin/pack-matrix" element={<AdminPackMatrixRoute />} />
+
+          {/* Admin: Model Lab — A/B/C test Replicate models per tool */}
+          <Route path="/admin/model-lab" element={<ModelLabRoute />} />
 
           {/* Fallback: unknown path → editor */}
           <Route path="*" element={<Navigate to="/" replace />} />

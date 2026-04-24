@@ -1,11 +1,21 @@
 /**
  * services/fluxService.ts
  *
- * Client wrapper for Flux 2 Pro. This is the cleanup engine for
- * Smart Cleanup. Exteriors and interiors now use separate prompts because
- * Flux 2 Pro hallucinates architecture when given a generic "keep as-is"
- * instruction on exteriors — the open canvas (grass, siding, sky, roof)
- * gives it too much room to repaint. Interior prompt stayed narrow by accident.
+ * Client wrapper for the Smart Cleanup endpoint (/api/flux-cleanup).
+ *
+ * NAMING NOTE: the file / function / endpoint still carry "flux" in the
+ * name because they predate the model swap. The actual backend model is
+ * google/nano-banana (Gemini 2.5 Flash Image), swapped in on 2026-04-24
+ * after Model Lab testing showed Nano Banana preserved architecture,
+ * grass, and siding more reliably on exteriors than Flux 2 Pro did.
+ * Renaming the file would require updating ~20 imports — not worth the
+ * friction for a cosmetic change.
+ *
+ * Exteriors and interiors use separate prompts because cleanup models
+ * hallucinate architecture when given a generic "keep as-is" instruction
+ * on exteriors — the open canvas (grass, siding, sky, roof) gives them
+ * too much room to repaint. Interior prompt is narrower so it survives
+ * with less scaffolding.
  */
 
 import { resizeForUpload } from '../utils/resizeForUpload';
@@ -14,16 +24,18 @@ import { resizeForUpload } from '../utils/resizeForUpload';
 const FLUX_UPLOAD_MAX_EDGE = 1280;
 
 // Room types that are outdoor / architecturally open-ended. These need a
-// much stricter preservation prompt because Flux 2 Pro will happily regenerate
-// grass, siding, roofs, landscaping, and sky if given "remove clutter" latitude.
+// much stricter preservation prompt because cleanup models will happily
+// regenerate grass, siding, roofs, landscaping, and sky if given "remove
+// clutter" latitude.
 const EXTERIOR_ROOMS = new Set<string>(['Exterior', 'Patio']);
 
-// Interior prompt — what worked in production before the exterior regression.
+// Interior prompt — short and narrow. Works because interiors have less
+// open canvas for the model to hallucinate into.
 const INTERIOR_CLEANUP_PROMPT = (room: string) =>
   `Remove all clutter, personal items, and temporary objects from this ${room}. Keep all furniture and architecture exactly as-is. Do not add anything.`;
 
-// Exterior prompt — surgical. Every line is a preservation guardrail because
-// Flux 2 Pro treats unconstrained surface area as creative license.
+// Exterior prompt — surgical. Every line is a preservation guardrail
+// because exterior scenes have too much unconstrained surface area.
 const EXTERIOR_CLEANUP_PROMPT = (room: string) =>
   `Remove only movable clutter from this ${room}: construction debris, tools, ladders, hoses, trash cans, personal yard items, for-sale signs, and temporary objects. Leave everything else pixel-identical.
 
@@ -63,11 +75,14 @@ export interface FluxCleanupOptions {
 }
 
 /**
- * Run Flux 2 Pro cleanup on a room photo. Server chains a silent
- * Real-ESRGAN 4x finalization unless `options.skipUpscale === true`.
- * Prompt is selected from INTERIOR_CLEANUP_PROMPT vs EXTERIOR_CLEANUP_PROMPT
- * based on selectedRoom — exteriors get heavy preservation language because
- * Flux 2 Pro overfits on open-canvas scenes otherwise.
+ * Run the Smart Cleanup pipeline on a room photo. Server calls
+ * google/nano-banana and then chains a silent Real-ESRGAN 4x upscale
+ * unless `options.skipUpscale === true`.
+ *
+ * Prompt is selected from INTERIOR_CLEANUP_PROMPT vs
+ * EXTERIOR_CLEANUP_PROMPT based on selectedRoom — exteriors get heavier
+ * preservation language because cleanup models overfit on open-canvas
+ * scenes otherwise.
  */
 export async function fluxCleanup(
   imageBase64: string,
@@ -89,7 +104,7 @@ export async function fluxCleanup(
   if (!res.ok) throw new Error(`flux-cleanup HTTP ${res.status}`);
   const data = await res.json();
   if (!data.ok) throw new Error(data.error || 'flux-cleanup failed');
-  console.log(`[fluxService] Flux+ESRGAN done in ${data.latencyMs}ms (${selectedRoom})`);
+  console.log(`[fluxService] Nano Banana+ESRGAN done in ${data.latencyMs}ms (${selectedRoom})`);
   return {
     resultBase64: data.resultBase64,
     latencyMs: data.latencyMs,

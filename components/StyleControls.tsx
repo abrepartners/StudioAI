@@ -448,7 +448,7 @@ HARD PRESERVATION RULES — these override any instinct to "improve" the room:
             ))}
           </div>
 
-          {/* Engine toggle: Gemini (staging) vs Flux 2 Pro (removal/editing) */}
+          {/* Engine toggle: Gemini (staging) vs Nano Banana (removal/editing) */}
           <div className="mt-3 flex items-center gap-2">
             <span className="text-[10.5px] uppercase tracking-wider font-bold text-[var(--color-text)]/50">Engine</span>
             <button
@@ -472,7 +472,7 @@ HARD PRESERVATION RULES — these override any instinct to "improve" the room:
               }`}
             >
               <Zap size={10} />
-              Flux
+              Nano Banana
             </button>
             <span className="text-[10px] text-[var(--color-text)]/40 ml-1">
               {useFlux ? 'Best for removal — no ghosting' : 'Best for staging — adds furniture'}
@@ -705,7 +705,7 @@ HARD PRESERVATION RULES — these override any instinct to "improve" the room:
              ) : hasGenerated ? (
                <><Wand2 size={18} /> {stageMode === 'packs' ? 'Restage in this style' : 'Apply this tweak'}</>
              ) : (
-               <><Sparkles size={18} className="animate-pulse" /> Stage this room</>
+               <><Sparkles size={18} /> Stage this room</>
              )}
           </span>
         </button>

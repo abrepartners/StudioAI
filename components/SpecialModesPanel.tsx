@@ -15,11 +15,11 @@ import {
 } from 'lucide-react';
 import {
     instantDeclutter,
-    virtualRenovation,
     generateListingCopy,
     type ListingCopyTone,
 } from '../services/geminiService';
 import { nanoSky } from '../services/skyService';
+import { fluxRenovation } from '../services/renovationService';
 import { FurnitureRoomType, SavedStage } from '../types';
 import { sharpenImage } from '../utils/sharpen';
 import { compositeStackedEdit } from '../utils/stackComposite';
@@ -564,7 +564,7 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                 )}
             </Section>
 
-            {/* Virtual Renovation -> Matter Reconstitution */}
+            {/* Virtual Renovation -> Flux 2 Pro (with anti-drift prompt) */}
             <Section id="renovation" icon={<Hammer size={18} />} title="Virtual Renovation" subtitle="Preview finishes before the work" isOpen={openSection === 'renovation'} onToggle={toggleSection}>
                 <p className="text-sm text-[var(--color-text)]/80 mb-3">Preview new cabinets, countertops, flooring, and wall colors on the listing photo before a contractor picks up a hammer.</p>
                 <div className="space-y-3 mb-3">
@@ -589,8 +589,15 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                     type="button"
                     disabled={loading !== null || ((!currentImage && !canBatch) || (!cabinets && !countertops && !flooring && !walls))}
                     onClick={() => canBatch
-                        ? runBatch('renovation', (img, signal) => virtualRenovation(img, { cabinets, countertops, flooring, walls }, signal))
-                        : run('renovation', async (signal) => { const result = await postProcessToolOutput(await virtualRenovation(currentImage!, { cabinets, countertops, flooring, walls }, signal), currentImage, 'renovation', RENOVATION_COMPOSITE); onNewImage(result, 'renovation'); })
+                        ? runBatch('renovation', async (img, signal) => {
+                            const { resultBase64 } = await fluxRenovation(img, { cabinets, countertops, flooring, walls }, signal);
+                            return resultBase64;
+                          })
+                        : run('renovation', async (signal) => {
+                            const { resultBase64 } = await fluxRenovation(currentImage!, { cabinets, countertops, flooring, walls }, signal);
+                            const result = await postProcessToolOutput(resultBase64, currentImage, 'renovation', RENOVATION_COMPOSITE);
+                            onNewImage(result, 'renovation');
+                          })
                     }
                     className={`w-full rounded-2xl px-4 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all ${loading === 'renovation' ? 'bg-[var(--color-bg-deep)] text-[var(--color-text)] border border-[var(--color-border)]' : 'bg-white/[0.03] text-white border border-white/10 hover:bg-white/[0.06] hover:border-white/20 flex items-center justify-center gap-2 [&_svg]:text-[var(--color-primary)]'}`}
                 >

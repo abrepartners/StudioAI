@@ -27,6 +27,7 @@ import ListingsRoute from './ListingsRoute';
 import SettingsRoute from './SettingsRoute';
 import AdminPackMatrixRoute from './AdminPackMatrixRoute';
 import ModelLabRoute from './ModelLabRoute';
+import AdminApiDashboardRoute from './AdminApiDashboardRoute';
 
 const RouteFallback: React.FC = () => (
   <div className="min-h-screen grid place-items-center bg-black text-zinc-400 text-sm">
@@ -64,6 +65,9 @@ const AppRouter: React.FC = () => {
 
           {/* Admin: Model Lab — A/B/C test Replicate models per tool */}
           <Route path="/admin/model-lab" element={<ModelLabRoute />} />
+
+          {/* Admin: API registry dashboard */}
+          <Route path="/admin/api" element={<AdminApiDashboardRoute />} />
 
           {/* Fallback: unknown path → editor */}
           <Route path="*" element={<Navigate to="/" replace />} />

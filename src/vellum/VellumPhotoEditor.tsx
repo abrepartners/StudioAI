@@ -71,7 +71,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
   const [activity, setActivity] = useState<{ who: string; what: string; cost: number; when: string }[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
-  let nextId = useRef(0);
+  const nextId = useRef(0);
 
   const processFiles = async (files: FileList | File[]) => {
     const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
@@ -153,18 +153,37 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
   const abortRef = useRef<AbortController | null>(null);
   const [processedResults, setProcessedResults] = useState<Record<number, string>>({});
 
+  // Batch processing state
+  const batchQueueRef = useRef<number[]>([]);
+  const [batchMode, setBatchMode] = useState(false);
+  const [batchTotal, setBatchTotal] = useState(0);
+  const [batchDone, setBatchDone] = useState(0);
+  // Pending auto-apply: set to a photo ID when user clicks an unrefined thumbnail
+  const pendingAutoRef = useRef<number | null>(null);
+
   const photoCount = photos.length;
-  const totalCost = Math.round(TOOL_COST[activeTool] * photoCount);
+
+  // Refs for values needed inside async batch loop (avoids stale closures)
+  const photosRef = useRef(photos);
+  photosRef.current = photos;
+  const activeToolRef = useRef(activeTool);
+  activeToolRef.current = activeTool;
+  const stylePresetRef = useRef(stylePreset);
+  stylePresetRef.current = stylePreset;
+  const processedSetRef = useRef(processedSet);
+  processedSetRef.current = processedSet;
 
   const callApi = async (imageBase64: string, roomLabel: string, signal: AbortSignal): Promise<string> => {
+    const tool = activeToolRef.current;
+    const preset = stylePresetRef.current;
     const presetMap: Record<string, Record<string, string>> = {
       twilight: { 'golden hour': 'warm-classic', 'blue hour': 'modern-dramatic', 'after sunset': 'golden-luxury' },
       sky: { 'clear blue': 'blue', 'golden hour': 'golden', 'soft overcast': 'stormy', 'dramatic': 'dramatic' },
     };
 
-    switch (activeTool) {
+    switch (tool) {
       case 'staging': {
-        const prompt = `Virtually stage this ${roomLabel.toLowerCase()} with ${stylePreset} style furniture. Professional real estate photography, warm editorial lighting, high-end finishes.`;
+        const prompt = `Virtually stage this ${roomLabel.toLowerCase()} with ${preset} style furniture. Professional real estate photography, warm editorial lighting, high-end finishes.`;
         const results = await generateRoomDesign(imageBase64, prompt, undefined, false, 1, true, undefined, signal);
         return results[0] || imageBase64;
       }
@@ -173,22 +192,22 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
         return `data:image/jpeg;base64,${result.resultBase64}`;
       }
       case 'whiten': {
-        const prompt = `Correct white balance and lighting on this ${roomLabel.toLowerCase()} photo. Make it ${stylePreset}: even exposure, natural daylight, warm tones. Keep all furniture and architecture exactly as-is.`;
+        const prompt = `Correct white balance and lighting on this ${roomLabel.toLowerCase()} photo. Make it ${preset}: even exposure, natural daylight, warm tones. Keep all furniture and architecture exactly as-is.`;
         const results = await generateRoomDesign(imageBase64, prompt, undefined, false, 1, true, undefined, signal);
         return results[0] || imageBase64;
       }
       case 'twilight': {
-        const mapped = presetMap.twilight[stylePreset] || 'warm-classic';
+        const mapped = presetMap.twilight[preset] || 'warm-classic';
         const result = await fluxTwilight(imageBase64, mapped as TwilightStyle, signal);
         return `data:image/jpeg;base64,${result.resultBase64}`;
       }
       case 'sky': {
-        const mapped = presetMap.sky[stylePreset] || 'blue';
+        const mapped = presetMap.sky[preset] || 'blue';
         const result = await nanoSky(imageBase64, mapped as SkyStyle, signal);
         return `data:image/jpeg;base64,${result.resultBase64}`;
       }
       case 'lawn': {
-        const prompt = `Enhance the lawn and landscaping of this exterior photo. Make the grass ${stylePreset}, green, and manicured. Keep the house, driveway, sky, and all architecture exactly unchanged.`;
+        const prompt = `Enhance the lawn and landscaping of this exterior photo. Make the grass ${preset}, green, and manicured. Keep the house, driveway, sky, and all architecture exactly unchanged.`;
         const results = await generateRoomDesign(imageBase64, prompt, undefined, false, 1, true, undefined, signal);
         return results[0] || imageBase64;
       }
@@ -200,7 +219,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
   const startProgressAnimation = () => {
     setGenStep(0);
     setGenProgress(0);
-    const steps = TOOL_STEPS[activeTool] || TOOL_STEPS.staging;
+    const steps = TOOL_STEPS[activeToolRef.current] || TOOL_STEPS.staging;
     let step = 0;
     let prog = 0;
     const tick = () => {
@@ -216,67 +235,142 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
     genRef.current = setTimeout(tick, 200);
   };
 
+  // Core: process a single photo by ID. Returns true on success.
+  const processOnePhoto = async (photoId: number): Promise<boolean> => {
+    const photo = photosRef.current.find(p => p.id === photoId);
+    if (!photo) return false;
+
+    setGenerating(true);
+    startProgressAnimation();
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    try {
+      const resultDataUrl = await callApi(photo.dataUrl, photo.label, controller.signal);
+
+      if (genRef.current) clearTimeout(genRef.current);
+      setGenProgress(100);
+      setGenStep((TOOL_STEPS[activeToolRef.current] || TOOL_STEPS.staging).length - 1);
+
+      setProcessedResults(prev => ({ ...prev, [photo.id]: resultDataUrl }));
+      setProcessedSet(prev => new Set([...prev, photo.id]));
+
+      const tool = TOOLS.find(t => 'id' in t && t.id === activeToolRef.current);
+      setActivity(a => [{
+        who: 'Vellum',
+        what: `${(tool as any)?.name} applied to ${photo.label} · ${stylePresetRef.current}`,
+        cost: TOOL_COST[activeToolRef.current],
+        when: 'just now',
+      }, ...a]);
+
+      await new Promise(r => setTimeout(r, 500));
+      setGenerating(false);
+      setGenProgress(0);
+      setGenStep(0);
+      return true;
+    } catch (err: any) {
+      if (err.name === 'AbortError') return false;
+      console.error('[Vellum] Generation failed:', err);
+      if (genRef.current) clearTimeout(genRef.current);
+      setGenerating(false);
+      setGenProgress(0);
+      setGenStep(0);
+      setActivity(a => [{
+        who: 'Vellum',
+        what: `Failed on ${photo.label} — ${err.message || 'unknown error'}`,
+        cost: 0,
+        when: 'just now',
+      }, ...a]);
+      return false;
+    }
+  };
+
+  // Apply to single selected photo
   const handleApply = () => {
     if (generating || !photos.length) return;
-    const doGenerate = async () => {
-      setGenerating(true);
-      startProgressAnimation();
+    const photoIdx = view === 'single' ? (singlePhoto ?? selectedPhoto) : selectedPhoto;
+    const photo = photos[photoIdx];
+    if (!photo) return;
 
-      const controller = new AbortController();
-      abortRef.current = controller;
+    requestSpend(TOOL_COST[activeTool], () => {
+      processOnePhoto(photo.id);
+    });
+  };
 
-      try {
-        const photoIdx = view === 'single' ? (singlePhoto ?? selectedPhoto) : selectedPhoto;
-        const photo = photos[photoIdx];
-        if (!photo) throw new Error('No photo selected');
+  // Apply to ALL unrefined photos in batch
+  const handleApplyAll = () => {
+    if (generating || !photos.length) return;
+    const unrefined = photos.filter(p => !processedSet.has(p.id));
+    if (!unrefined.length) return;
 
-        const resultDataUrl = await callApi(photo.dataUrl, photo.label, controller.signal);
+    const totalCost = TOOL_COST[activeTool] * unrefined.length;
 
-        if (genRef.current) clearTimeout(genRef.current);
-        setGenProgress(100);
-        setGenStep((TOOL_STEPS[activeTool] || TOOL_STEPS.staging).length - 1);
+    requestSpend(totalCost, async () => {
+      batchQueueRef.current = unrefined.map(p => p.id);
+      setBatchMode(true);
+      setBatchTotal(unrefined.length);
+      setBatchDone(0);
 
-        setProcessedResults(prev => ({ ...prev, [photo.id]: resultDataUrl }));
-        setProcessedSet(prev => new Set([...prev, photo.id]));
-
-        setTimeout(() => {
-          setGenerating(false);
-          setGenProgress(0);
-          setGenStep(0);
-          const tool = TOOLS.find(t => 'id' in t && t.id === activeTool);
+      const runNext = async (): Promise<void> => {
+        const nextId = batchQueueRef.current.shift();
+        if (nextId === undefined) {
+          setBatchMode(false);
           setActivity(a => [{
             who: 'Vellum',
-            what: `${(tool as any)?.name} applied to ${photo.label} · ${stylePreset}`,
-            cost: TOOL_COST[activeTool],
+            what: `Batch complete — ${unrefined.length} photos refined`,
+            cost: 0,
             when: 'just now',
           }, ...a]);
-        }, 600);
-      } catch (err: any) {
-        if (err.name === 'AbortError') return;
-        console.error('[Vellum] Generation failed:', err);
-        if (genRef.current) clearTimeout(genRef.current);
-        setGenerating(false);
-        setGenProgress(0);
-        setGenStep(0);
-        setActivity(a => [{
-          who: 'Vellum',
-          what: `Generation failed — ${err.message || 'unknown error'}`,
-          cost: 0,
-          when: 'just now',
-        }, ...a]);
-      }
-    };
+          return;
+        }
 
-    const cost = TOOL_COST[activeTool];
-    requestSpend(cost, doGenerate);
+        // Select this photo so user sees progress
+        const idx = photosRef.current.findIndex(p => p.id === nextId);
+        if (idx >= 0) setSelectedPhoto(idx);
+
+        const ok = await processOnePhoto(nextId);
+        setBatchDone(d => d + 1);
+
+        if (ok || !abortRef.current?.signal.aborted) {
+          await runNext();
+        } else {
+          setBatchMode(false);
+        }
+      };
+
+      await runNext();
+    });
   };
+
+  // Auto-apply: when user clicks an unrefined thumbnail, auto-apply the current tool
+  const handleSelectPhoto = (idx: number) => {
+    setSelectedPhoto(idx);
+    const photo = photos[idx];
+    if (photo && !processedSet.has(photo.id) && !generating && processedSet.size > 0) {
+      pendingAutoRef.current = photo.id;
+    }
+  };
+
+  useEffect(() => {
+    if (pendingAutoRef.current === null || generating) return;
+    const photoId = pendingAutoRef.current;
+    pendingAutoRef.current = null;
+
+    if (processedSetRef.current.has(photoId)) return;
+
+    requestSpend(TOOL_COST[activeToolRef.current], () => {
+      processOnePhoto(photoId);
+    });
+  });
 
   useEffect(() => () => {
     if (genRef.current) clearTimeout(genRef.current);
     if (abortRef.current) abortRef.current.abort();
+    batchQueueRef.current = [];
   }, []);
 
-  const getAfterImage = (photo: UploadedPhoto) => processedResults[photo.id] || photo.dataUrl;
+  const getAfterImage = (photo: UploadedPhoto) => processedResults[photo.id] || null;
   const isRefined = (photo: UploadedPhoto) => processedSet.has(photo.id);
   const refinedCount = photos.filter(p => processedSet.has(p.id)).length;
 
@@ -357,28 +451,66 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
   }
 
   const currentPhoto = photos[selectedPhoto] || photos[0];
+  const afterImage = getAfterImage(currentPhoto);
+  const toolName = (TOOLS.find(t => 'id' in t && t.id === activeTool) as any)?.name || 'Processing';
 
-  const renderCompare = () => (
-    <>
+  const renderBeforeAfter = (
+    containerRef: React.RefObject<HTMLDivElement | null>,
+    photo: UploadedPhoto,
+    showOverlay?: boolean,
+  ) => {
+    const after = getAfterImage(photo);
+    const refined = isRefined(photo);
+
+    return (
       <div
         className="v-ba-stage"
-        ref={stageRef}
+        ref={containerRef}
         onMouseDown={!generating ? onPointerDown : undefined}
         onTouchStart={!generating ? onPointerDown : undefined}
         style={{ cursor: generating ? 'default' : undefined }}
       >
-        <div className="v-ba-img" style={{ backgroundImage: `url(${currentPhoto.dataUrl})` }} />
+        {/* BEFORE — full stage background */}
+        <img src={photo.dataUrl} className="v-ba-img-el" alt="" draggable={false} />
+
+        {/* AFTER — clipped to splitPos%, or pending overlay */}
         <div className="v-ba-clip" style={{ width: `${splitPos}%` }}>
-          <div className="v-ba-img" style={{ backgroundImage: `url(${getAfterImage(currentPhoto)})`, width: `${100 / (splitPos / 100)}%` }} />
+          {refined && after ? (
+            <img
+              src={after}
+              className="v-ba-img-el"
+              alt=""
+              draggable={false}
+              style={{ width: `${100 / (splitPos / 100)}%` }}
+            />
+          ) : (
+            <>
+              <img
+                src={photo.dataUrl}
+                className="v-ba-img-el v-ba-img-dimmed"
+                alt=""
+                draggable={false}
+                style={{ width: `${100 / (splitPos / 100)}%` }}
+              />
+              {!generating && (
+                <div className="v-ba-pending">
+                  <span>Apply to see result</span>
+                </div>
+              )}
+            </>
+          )}
         </div>
+
         <div className="v-ba-tag b">Before</div>
-        <div className="v-ba-tag a">After · {currentPhoto.label}</div>
+        <div className="v-ba-tag a">{refined ? `After · ${photo.label}` : 'Pending'}</div>
+
         {!generating && (
           <div className="v-ba-handle" style={{ left: `${splitPos}%` }}>
             <div className="v-ba-knob">‹›</div>
           </div>
         )}
-        {generating && (
+
+        {generating && showOverlay !== false && (
           <div className="v-gen-overlay">
             <div className="v-gen-panel">
               <div className="v-gen-eye">
@@ -389,9 +521,8 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
                 {(TOOL_STEPS[activeTool] || TOOL_STEPS.staging)[genStep]}
               </div>
               <div className="v-gen-sub">
-                {TOOLS.find(t => 'id' in t && t.id === activeTool && 'name' in t)
-                  ? (TOOLS.find(t => 'id' in t && t.id === activeTool) as any).name
-                  : 'Processing'} · {stylePreset} · {currentPhoto.label}
+                {toolName} · {stylePreset} · {photo.label}
+                {batchMode && <> · {batchDone + 1} of {batchTotal}</>}
               </div>
               <div className="v-gen-bar-track">
                 <div className="v-gen-bar-fill" style={{ width: `${genProgress}%` }} />
@@ -402,14 +533,20 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
           </div>
         )}
       </div>
+    );
+  };
+
+  const renderCompare = () => (
+    <>
+      {renderBeforeAfter(stageRef, currentPhoto)}
 
       <div className="v-thumb-strip">
         {photos.map((p, i) => (
           <div
             key={p.id}
             className={'v-t' + (selectedPhoto === i ? ' selected' : '') + (isRefined(p) ? ' refined' : '')}
-            style={{ backgroundImage: `url(${isRefined(p) ? getAfterImage(p) : p.dataUrl})` }}
-            onClick={() => setSelectedPhoto(i)}
+            style={{ backgroundImage: `url(${isRefined(p) && getAfterImage(p) ? getAfterImage(p) : p.dataUrl})` }}
+            onClick={() => handleSelectPhoto(i)}
             title={p.label}
           >
             <span className="v-num">{String(i + 1).padStart(2, '0')}</span>
@@ -430,9 +567,11 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
         <div className="v-control-head">
           <div className="v-control-ttl">
             <span className="v-gold-rule" />
-            {(TOOLS.find(t => 'id' in t && t.id === activeTool) as any)?.name}
+            {toolName}
           </div>
-          <span className="v-muted" style={{ fontSize: 12 }}>Applies to selected photo</span>
+          <span className="v-muted" style={{ fontSize: 12 }}>
+            {processedSet.size > 0 ? 'Clicking a thumbnail auto-applies' : 'Applies to selected photo'}
+          </span>
         </div>
 
         <div className="v-field">
@@ -476,31 +615,34 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
 
   const renderGrid = () => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-      {photos.map((p, i) => (
-        <div
-          key={p.id}
-          onClick={() => { setSinglePhoto(i); setView('single'); }}
-          style={{
-            position: 'relative', aspectRatio: '4/3', borderRadius: 8,
-            backgroundImage: `url(${isRefined(p) ? getAfterImage(p) : p.dataUrl})`,
-            backgroundSize: 'cover', backgroundPosition: 'center',
-            cursor: 'pointer', overflow: 'hidden',
-            transition: 'transform 180ms ease, box-shadow 180ms ease',
-          }}
-        >
-          <span style={{
-            position: 'absolute', top: 8, left: 8, fontSize: 10, fontWeight: 600,
-            background: 'rgba(247,246,242,0.95)', padding: '3px 8px', borderRadius: 3,
-          }}>{String(i + 1).padStart(2, '0')}</span>
-          <span style={{
-            position: 'absolute', bottom: 8, left: 8, fontSize: 10, fontWeight: 500,
-            background: isRefined(p) ? 'rgba(76,175,80,0.9)' : 'rgba(27,29,31,0.5)',
-            color: 'var(--warm-ivory)', padding: '3px 8px', borderRadius: 3,
-          }}>
-            {isRefined(p) ? 'Refined' : p.detecting ? 'Detecting…' : p.label}
-          </span>
-        </div>
-      ))}
+      {photos.map((p, i) => {
+        const after = getAfterImage(p);
+        return (
+          <div
+            key={p.id}
+            onClick={() => { setSinglePhoto(i); setView('single'); }}
+            style={{
+              position: 'relative', aspectRatio: '4/3', borderRadius: 8,
+              backgroundImage: `url(${after || p.dataUrl})`,
+              backgroundSize: 'cover', backgroundPosition: 'center',
+              cursor: 'pointer', overflow: 'hidden',
+              transition: 'transform 180ms ease, box-shadow 180ms ease',
+            }}
+          >
+            <span style={{
+              position: 'absolute', top: 8, left: 8, fontSize: 10, fontWeight: 600,
+              background: 'rgba(247,246,242,0.95)', padding: '3px 8px', borderRadius: 3,
+            }}>{String(i + 1).padStart(2, '0')}</span>
+            <span style={{
+              position: 'absolute', bottom: 8, left: 8, fontSize: 10, fontWeight: 500,
+              background: isRefined(p) ? 'rgba(76,175,80,0.9)' : 'rgba(27,29,31,0.5)',
+              color: 'var(--warm-ivory)', padding: '3px 8px', borderRadius: 3,
+            }}>
+              {isRefined(p) ? 'Refined' : p.detecting ? 'Detecting…' : p.label}
+            </span>
+          </div>
+        );
+      })}
       <div
         onClick={() => fileInputRef.current?.click()}
         style={{
@@ -522,46 +664,34 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
     return (
       <div className="v-single-photo-view">
         <div className="v-single-nav">
-          {photos.map((p, i) => (
-            <button
-              key={p.id}
-              className={'v-single-thumb' + (spIdx === i ? ' active' : '') + (isRefined(p) ? ' refined' : '')}
-              onClick={() => setSinglePhoto(i)}
-              style={{ backgroundImage: `url(${getAfterImage(p)})` }}
-            >
-              <span className="v-single-num">{String(i + 1).padStart(2, '0')}</span>
-            </button>
-          ))}
+          {photos.map((p, i) => {
+            const after = getAfterImage(p);
+            return (
+              <button
+                key={p.id}
+                className={'v-single-thumb' + (spIdx === i ? ' active' : '') + (isRefined(p) ? ' refined' : '')}
+                onClick={() => { setSinglePhoto(i); handleSelectPhoto(i); }}
+                style={{ backgroundImage: `url(${after || p.dataUrl})` }}
+              >
+                <span className="v-single-num">{String(i + 1).padStart(2, '0')}</span>
+              </button>
+            );
+          })}
         </div>
-        <div
-          className="v-single-canvas"
-          ref={stageRef}
-          onMouseDown={!generating ? onPointerDown : undefined}
-          onTouchStart={!generating ? onPointerDown : undefined}
-        >
-          <div className="v-ba-img" style={{ backgroundImage: `url(${sp.dataUrl})` }} />
-          <div className="v-ba-clip" style={{ width: `${splitPos}%` }}>
-            <div className="v-ba-img" style={{ backgroundImage: `url(${getAfterImage(sp)})`, width: `${100 / (splitPos / 100)}%` }} />
-          </div>
-          <div className="v-ba-tag b">Before</div>
-          <div className="v-ba-tag a">After · {sp.label}</div>
-          {!generating && (
-            <div className="v-ba-handle" style={{ left: `${splitPos}%` }}>
-              <div className="v-ba-knob">‹›</div>
-            </div>
-          )}
-          <div style={{
-            position: 'absolute', bottom: 12, left: 12,
-            fontSize: 11, fontWeight: 500, padding: '4px 10px', borderRadius: 4,
-            background: isRefined(sp) ? 'rgba(76,175,80,0.9)' : 'rgba(27,29,31,0.6)',
-            color: 'var(--warm-ivory)',
-          }}>
-            {isRefined(sp) ? 'Refined' : 'Pending refinement'}
-          </div>
+        {renderBeforeAfter(stageRef, sp)}
+        <div style={{
+          position: 'absolute', bottom: 12, left: 12,
+          fontSize: 11, fontWeight: 500, padding: '4px 10px', borderRadius: 4,
+          background: isRefined(sp) ? 'rgba(76,175,80,0.9)' : 'rgba(27,29,31,0.6)',
+          color: 'var(--warm-ivory)', zIndex: 5,
+        }}>
+          {isRefined(sp) ? 'Refined' : 'Pending refinement'}
         </div>
       </div>
     );
   };
+
+  const unrefinedCount = photoCount - refinedCount;
 
   return (
     <div className={'v-editor' + (leftCollapsed ? ' left-collapsed' : '') + (rightCollapsed ? ' right-collapsed' : '')}>
@@ -623,13 +753,22 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
             <button className="v-btn v-btn--ghost v-btn--sm" onClick={() => fileInputRef.current?.click()}>
               <Icon name="plus" size={12} /> Add photos
             </button>
+            {unrefinedCount > 1 && (
+              <button
+                className="v-btn v-btn--secondary v-btn--sm"
+                onClick={handleApplyAll}
+                disabled={generating}
+              >
+                Apply to all ({unrefinedCount}) · {Math.round(TOOL_COST[activeTool] * unrefinedCount)} cr
+              </button>
+            )}
             <button
               className={'v-btn v-btn--primary v-btn--sm' + (generating ? ' generating' : '')}
               onClick={handleApply}
               disabled={generating || !photos.length}
             >
               {generating ? (
-                <><span className="v-gen-spinner" /> Processing…</>
+                <><span className="v-gen-spinner" /> {batchMode ? `${batchDone + 1} of ${batchTotal}` : 'Processing…'}</>
               ) : (
                 <>Apply · {TOOL_COST[activeTool]} cr <Icon name="arrow_right" size={12} /></>
               )}
@@ -655,7 +794,15 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
           <h4>Batch</h4>
           <div className="v-rp-row"><span className="v-rp-l">Photos uploaded</span><span className="v-rp-v">{photoCount}</span></div>
           <div className="v-rp-row"><span className="v-rp-l">Refined</span><span className="v-rp-v">{refinedCount}</span></div>
-          <div className="v-rp-row"><span className="v-rp-l">Pending</span><span className="v-rp-v">{photoCount - refinedCount}</span></div>
+          <div className="v-rp-row"><span className="v-rp-l">Pending</span><span className="v-rp-v">{unrefinedCount}</span></div>
+          {batchMode && (
+            <div style={{ marginTop: 8 }}>
+              <div style={{ height: 4, background: 'var(--soft-stone)', borderRadius: 2, overflow: 'hidden' }}>
+                <div style={{ width: `${(batchDone / batchTotal) * 100}%`, height: '100%', background: 'var(--pale-gold)', transition: 'width 300ms ease' }} />
+              </div>
+              <div className="v-muted" style={{ fontSize: 11, marginTop: 6 }}>Batch: {batchDone} of {batchTotal} complete</div>
+            </div>
+          )}
         </div>
 
         <div className="v-rp-section">

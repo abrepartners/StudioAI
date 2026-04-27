@@ -473,25 +473,13 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
         {/* BEFORE — full stage background */}
         <img src={photo.dataUrl} className="v-ba-img-el" alt="" draggable={false} />
 
-        {/* AFTER — clipped to splitPos%, or pending overlay */}
-        <div className="v-ba-clip" style={{ width: `${splitPos}%` }}>
+        {/* AFTER — full size, clipped from the right via clip-path */}
+        <div className="v-ba-clip" style={{ clipPath: `inset(0 ${100 - splitPos}% 0 0)` }}>
           {refined && after ? (
-            <img
-              src={after}
-              className="v-ba-img-el"
-              alt=""
-              draggable={false}
-              style={{ width: `${100 / (splitPos / 100)}%` }}
-            />
+            <img src={after} className="v-ba-img-el" alt="" draggable={false} />
           ) : (
             <>
-              <img
-                src={photo.dataUrl}
-                className="v-ba-img-el v-ba-img-dimmed"
-                alt=""
-                draggable={false}
-                style={{ width: `${100 / (splitPos / 100)}%` }}
-              />
+              <img src={photo.dataUrl} className="v-ba-img-el v-ba-img-dimmed" alt="" draggable={false} />
               {!generating && (
                 <div className="v-ba-pending">
                   <span>Apply to see result</span>

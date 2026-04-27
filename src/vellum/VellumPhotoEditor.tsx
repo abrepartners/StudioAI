@@ -189,7 +189,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
       }
       case 'declutter': {
         const result = await fluxCleanup(imageBase64, roomLabel, signal);
-        return `data:image/jpeg;base64,${result.resultBase64}`;
+        return result.resultBase64;
       }
       case 'whiten': {
         const prompt = `Correct white balance and lighting on this ${roomLabel.toLowerCase()} photo. Make it ${preset}: even exposure, natural daylight, warm tones. Keep all furniture and architecture exactly as-is.`;
@@ -199,12 +199,12 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
       case 'twilight': {
         const mapped = presetMap.twilight[preset] || 'warm-classic';
         const result = await fluxTwilight(imageBase64, mapped as TwilightStyle, signal);
-        return `data:image/jpeg;base64,${result.resultBase64}`;
+        return result.resultBase64;
       }
       case 'sky': {
         const mapped = presetMap.sky[preset] || 'blue';
         const result = await nanoSky(imageBase64, mapped as SkyStyle, signal);
-        return `data:image/jpeg;base64,${result.resultBase64}`;
+        return result.resultBase64;
       }
       case 'lawn': {
         const prompt = `Enhance the lawn and landscaping of this exterior photo. Make the grass ${preset}, green, and manicured. Keep the house, driveway, sky, and all architecture exactly unchanged.`;

@@ -29,6 +29,8 @@ import AdminPackMatrixRoute from './AdminPackMatrixRoute';
 import ModelLabRoute from './ModelLabRoute';
 import AdminApiDashboardRoute from './AdminApiDashboardRoute';
 
+const VellumApp = lazy(() => import('../vellum/VellumApp'));
+
 const RouteFallback: React.FC = () => (
   <div className="min-h-screen grid place-items-center bg-black text-zinc-400 text-sm">
     Loading…
@@ -68,6 +70,10 @@ const AppRouter: React.FC = () => {
 
           {/* Admin: API registry dashboard */}
           <Route path="/admin/api" element={<AdminApiDashboardRoute />} />
+
+          {/* Vellum — editorial hi-fi prototype (parallel build) */}
+          <Route path="/vellum" element={<VellumApp />} />
+          <Route path="/vellum/*" element={<VellumApp />} />
 
           {/* Fallback: unknown path → editor */}
           <Route path="*" element={<Navigate to="/" replace />} />

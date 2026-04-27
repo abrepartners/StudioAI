@@ -1256,3 +1256,62 @@
   letter-spacing: 0.18em; text-transform: uppercase;
   color: var(--graphite); padding: 0 0 8px;
 }
+
+/* ============ EMPTY STATES ============ */
+.v-empty-state {
+  display: flex; flex-direction: column; align-items: center;
+  text-align: center; padding: 64px 24px;
+}
+.v-empty-icon {
+  width: 64px; height: 64px; border-radius: 50%;
+  background: var(--background-primary);
+  border: 1px solid var(--soft-stone);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 20px;
+}
+.v-empty-state h3 {
+  font-family: var(--font-serif);
+  font-size: 22px; font-weight: 500;
+  margin: 0 0 8px;
+}
+.v-empty-state p {
+  font-size: 13px; color: var(--graphite);
+  margin: 0 0 24px; max-width: 360px; line-height: 1.6;
+}
+
+/* ============ PROJECT THUMBNAIL EMPTY STATE ============ */
+.v-proj-thumb--empty {
+  display: flex; align-items: center; justify-content: center;
+  background: var(--background-primary);
+  border: 1px solid var(--soft-stone);
+}
+
+/* ============ DESKTOP AUTO-SIZING ============ */
+.vellum { min-height: 100vh; display: flex; flex-direction: column; }
+.v-app { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+.v-app-body { flex: 1; overflow: hidden; }
+.v-app-main { overflow-y: auto; height: 100%; }
+
+/* ============ RESPONSIVE ============ */
+@media (max-width: 1200px) {
+  .v-main { padding: 32px 32px 48px; }
+  .v-split-2 { grid-template-columns: 1fr; }
+  .v-kpi-row { grid-template-columns: 1fr 1fr; }
+  .v-plans { grid-template-columns: 1fr; max-width: 480px; }
+  .v-video-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 900px) {
+  .v-app-body { grid-template-columns: 1fr; }
+  .v-sidebar { display: none; }
+  .v-main { padding: 24px 20px 40px; }
+  .v-page-title { font-size: 30px; }
+  .v-page-head { flex-direction: column; align-items: start; gap: 16px; }
+  .v-kpi-row { grid-template-columns: 1fr; }
+  .v-editor { grid-template-columns: 1fr; height: auto; }
+  .v-editor-left, .v-editor-right { display: none; }
+  .v-tbl { font-size: 12px; }
+  .v-tbl th, .v-tbl td { padding: 10px 12px; }
+  .v-filter-bar { flex-direction: column; align-items: stretch; }
+  .v-search-input { min-width: 0; }
+}

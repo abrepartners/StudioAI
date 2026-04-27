@@ -50,6 +50,8 @@ interface PhotoEditorProps {
   setPage: (p: string) => void;
   credits: number;
   requestSpend: (amount: number, after?: (res: any) => void) => boolean;
+  activeProject?: { id: string; address: string; city: string; propertyType: string; beds: number | null; baths: number | null } | null;
+  updateProject?: (id: string, partial: Record<string, any>) => void;
 }
 
 const readFileAsDataUrl = (file: File): Promise<string> =>
@@ -64,7 +66,7 @@ const dataUrlToBlob = async (dataUrl: string): Promise<Blob> => {
   return res.blob();
 };
 
-const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, requestSpend }) => {
+const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, requestSpend, activeProject, updateProject }) => {
   const [photos, setPhotos] = useState<UploadedPhoto[]>([]);
   const [activity, setActivity] = useState<{ who: string; what: string; cost: number; when: string }[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -339,7 +341,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
             <Icon name="upload" size={32} color="var(--pale-gold)" />
           </div>
           <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 500, margin: '16px 0 8px' }}>
-            Drop listing photos here
+            {activeProject ? `Upload photos for ${activeProject.address}` : 'Drop listing photos here'}
           </h2>
           <p style={{ fontSize: 13, color: 'var(--graphite)', margin: 0, lineHeight: 1.6 }}>
             or click to browse · JPG, PNG, WebP, HEIC · up to 50 photos per batch
@@ -585,9 +587,9 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
             <Icon name="chevron_right" size={11} color="var(--graphite)" style={{ transform: 'rotate(180deg)' }} /> Back
           </button>
           <div className="v-editor-breadcrumb" style={{ marginTop: 8 }}>
-            {photoCount} photo{photoCount !== 1 ? 's' : ''} · {refinedCount} refined
+            {activeProject ? activeProject.address : 'Quick edit'} · {photoCount} photo{photoCount !== 1 ? 's' : ''} · {refinedCount} refined
           </div>
-          <h2 className="v-editor-title">Photo refinement</h2>
+          <h2 className="v-editor-title">{activeProject ? activeProject.address.split(' ').slice(-2).join(' ') : 'Photo refinement'}</h2>
         </div>
 
         {TOOLS.map((t, i) => 'section' in t && !('id' in t) ? (

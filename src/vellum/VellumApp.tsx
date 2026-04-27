@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect, Suspense } from 'react';
 import './vellum.css';
 import { VellumTopbar } from './VellumTopbar';
 import { VellumSidebar } from './VellumSidebar';
+import { useVellumStore } from './useVellumStore';
 
 const VellumDashboard = React.lazy(() => import('./VellumDashboard'));
 const VellumProjects = React.lazy(() => import('./VellumProjects'));
@@ -11,6 +12,7 @@ const VellumBilling = React.lazy(() => import('./VellumBilling'));
 const VellumSettings = React.lazy(() => import('./VellumSettings'));
 const VellumHelp = React.lazy(() => import('./VellumHelp'));
 const VellumRefillModal = React.lazy(() => import('./VellumRefillModal'));
+const VellumNewListingModal = React.lazy(() => import('./VellumNewListingModal'));
 
 const VALID_PAGES = ['dashboard', 'projects', 'photo', 'video', 'billing', 'settings', 'help'];
 
@@ -26,8 +28,13 @@ const VellumApp: React.FC = () => {
     return VALID_PAGES.includes(h) ? h : 'dashboard';
   });
 
-  const [credits, setCredits] = useState(47);
+  const store = useVellumStore();
+  const [credits, setCredits] = useState(200);
   const [refill, setRefill] = useState<RefillState>({ open: false, needed: 0, onAfter: null });
+  const [newListingOpen, setNewListingOpen] = useState(false);
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+
+  const activeProject = store.projects.find(p => p.id === activeProjectId) || null;
 
   const requestSpend = useCallback((amount: number, after?: (res: any) => void) => {
     if (credits >= amount) {
@@ -51,6 +58,22 @@ const VellumApp: React.FC = () => {
     }
   }, [refill]);
 
+  const handleNewListing = useCallback(() => {
+    setNewListingOpen(true);
+  }, []);
+
+  const handleCreateListing = useCallback((data: { address: string; city: string; propertyType: string; beds: number | null; baths: number | null }) => {
+    const id = store.addProject(data);
+    setActiveProjectId(id);
+    setNewListingOpen(false);
+    setPage('photo');
+  }, [store]);
+
+  const handleSelectProject = useCallback((id: string) => {
+    setActiveProjectId(id);
+    setPage('photo');
+  }, []);
+
   useEffect(() => { window.location.hash = page; }, [page]);
 
   useEffect(() => {
@@ -65,17 +88,17 @@ const VellumApp: React.FC = () => {
   const renderPage = () => {
     switch (page) {
       case 'dashboard':
-        return <VellumDashboard setPage={setPage} credits={credits} />;
+        return <VellumDashboard setPage={setPage} credits={credits} projects={store.projects} profile={store.profile} onNewListing={handleNewListing} onSelectProject={handleSelectProject} />;
       case 'projects':
-        return <VellumProjects setPage={setPage} />;
+        return <VellumProjects setPage={setPage} projects={store.projects} onNewListing={handleNewListing} onSelectProject={handleSelectProject} onDeleteProject={store.deleteProject} />;
       case 'photo':
-        return <VellumPhotoEditor setPage={setPage} credits={credits} requestSpend={requestSpend} />;
+        return <VellumPhotoEditor setPage={setPage} credits={credits} requestSpend={requestSpend} activeProject={activeProject} updateProject={store.updateProject} />;
       case 'video':
-        return <VellumVideoEditor setPage={setPage} credits={credits} requestSpend={requestSpend} />;
+        return <VellumVideoEditor setPage={setPage} credits={credits} requestSpend={requestSpend} activeProject={activeProject} />;
       case 'billing':
         return <VellumBilling setPage={setPage} credits={credits} />;
       case 'settings':
-        return <VellumSettings setPage={setPage} />;
+        return <VellumSettings setPage={setPage} profile={store.profile} updateProfile={store.updateProfile} />;
       case 'help':
         return <VellumHelp setPage={setPage} />;
       default:
@@ -90,10 +113,11 @@ const VellumApp: React.FC = () => {
           page={page}
           setPage={setPage}
           credits={credits}
+          profile={store.profile}
           onRefill={() => setRefill({ open: true, needed: 0, onAfter: null })}
         />
         <div className="v-app-body">
-          <VellumSidebar page={page} setPage={setPage} />
+          <VellumSidebar page={page} setPage={setPage} onNewListing={handleNewListing} />
           <main className="v-app-main">
             <Suspense
               fallback={
@@ -117,6 +141,11 @@ const VellumApp: React.FC = () => {
             balance={credits}
             onClose={() => setRefill({ open: false, needed: 0, onAfter: null })}
             onConfirm={onRefillConfirm}
+          />
+          <VellumNewListingModal
+            open={newListingOpen}
+            onClose={() => setNewListingOpen(false)}
+            onCreate={handleCreateListing}
           />
         </Suspense>
       </div>

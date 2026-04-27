@@ -1,15 +1,19 @@
 import React from 'react';
 import { Icon } from './icons';
+import type { VellumProfile } from './useVellumStore';
 
 interface TopbarProps {
   page: string;
   setPage: (p: string) => void;
   credits: number;
+  profile: VellumProfile;
   onRefill: () => void;
 }
 
-export const VellumTopbar: React.FC<TopbarProps> = ({ page, setPage, credits, onRefill }) => {
+export const VellumTopbar: React.FC<TopbarProps> = ({ page, setPage, credits, profile, onRefill }) => {
   const low = credits < 20;
+  const initial = profile.name ? profile.name.charAt(0).toUpperCase() : 'V';
+
   return (
     <div className="v-topbar">
       <div className="wordmark">Vellum</div>
@@ -52,7 +56,7 @@ export const VellumTopbar: React.FC<TopbarProps> = ({ page, setPage, credits, on
           onClick={() => setPage('settings')}
           title="Account settings"
         >
-          M
+          {initial}
         </div>
       </div>
     </div>

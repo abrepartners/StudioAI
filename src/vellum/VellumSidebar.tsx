@@ -4,9 +4,10 @@ import { Icon } from './icons';
 interface SidebarProps {
   page: string;
   setPage: (p: string) => void;
+  onNewListing: () => void;
 }
 
-export const VellumSidebar: React.FC<SidebarProps> = ({ page, setPage }) => {
+export const VellumSidebar: React.FC<SidebarProps> = ({ page, setPage, onNewListing }) => {
   const [importOpen, setImportOpen] = useState(false);
   const importRef = useRef<HTMLDivElement>(null);
 
@@ -40,8 +41,8 @@ export const VellumSidebar: React.FC<SidebarProps> = ({ page, setPage }) => {
 
       <div className="v-create-card">
         <span className="label">Create new</span>
-        <button className="v-create-btn" onClick={() => setPage('photo')}>
-          <Icon name="image" size={13} /> Photo project
+        <button className="v-create-btn" onClick={onNewListing}>
+          <Icon name="image" size={13} /> New listing
         </button>
         <button className="v-create-btn video" onClick={() => setPage('video')}>
           <Icon name="play" size={13} /> Listing reel

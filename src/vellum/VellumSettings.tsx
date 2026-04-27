@@ -1,11 +1,14 @@
 import React, { useState, useRef } from 'react';
 import { Icon } from './icons';
+import type { VellumProfile } from './useVellumStore';
 
 interface SettingsProps {
   setPage: (p: string) => void;
+  profile: VellumProfile;
+  updateProfile: (partial: Partial<VellumProfile>) => void;
 }
 
-const VellumSettings: React.FC<SettingsProps> = ({ setPage }) => {
+const VellumSettings: React.FC<SettingsProps> = ({ setPage, profile, updateProfile }) => {
   const [tab, setTab] = useState('workspace');
   const [logo, setLogo] = useState<string | null>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -14,7 +17,7 @@ const VellumSettings: React.FC<SettingsProps> = ({ setPage }) => {
     style: 'contemporary', aesthetic: 'editorial', quality: 'print',
     autoTwilight: true, autoSky: false,
     aspect: '9_16', captions: true, music: true,
-    brand: 'Vellum Studio · Maya Lin Realty',
+    brand: profile.brokerage || '',
   });
 
   return (
@@ -29,9 +32,9 @@ const VellumSettings: React.FC<SettingsProps> = ({ setPage }) => {
 
       <div className="v-seg" style={{ width: 'fit-content', marginBottom: 28 }}>
         <button className={'v-seg-btn' + (tab === 'workspace' ? ' on' : '')} onClick={() => setTab('workspace')}>Workspace</button>
+        <button className={'v-seg-btn' + (tab === 'profile' ? ' on' : '')} onClick={() => setTab('profile')}>Profile</button>
         <button className={'v-seg-btn' + (tab === 'branding' ? ' on' : '')} onClick={() => setTab('branding')}>Branding</button>
         <button className={'v-seg-btn' + (tab === 'exports' ? ' on' : '')} onClick={() => setTab('exports')}>Export defaults</button>
-        <button className={'v-seg-btn' + (tab === 'team' ? ' on' : '')} onClick={() => setTab('team')}>Team</button>
       </div>
 
       {tab === 'workspace' && (
@@ -99,6 +102,41 @@ const VellumSettings: React.FC<SettingsProps> = ({ setPage }) => {
               <span>End card brand line</span>
               <input className="v-set-input" value={defaults.brand} onChange={(e) => setDefaults({ ...defaults, brand: e.target.value })} />
             </div>
+          </div>
+        </div>
+      )}
+
+      {tab === 'profile' && (
+        <div className="v-settings-card" style={{ maxWidth: 560 }}>
+          <div className="v-gold-rule" />
+          <h3>Your profile</h3>
+          <p className="v-muted" style={{ fontSize: 13, marginBottom: 20 }}>This information appears in exports, end cards, and team views.</p>
+          <div className="v-set-row">
+            <span>Full name</span>
+            <input
+              className="v-set-input"
+              value={profile.name}
+              onChange={e => updateProfile({ name: e.target.value })}
+              placeholder="Your name"
+            />
+          </div>
+          <div className="v-set-row">
+            <span>Email</span>
+            <input
+              className="v-set-input"
+              value={profile.email}
+              onChange={e => updateProfile({ email: e.target.value })}
+              placeholder="you@company.com"
+            />
+          </div>
+          <div className="v-set-row">
+            <span>Brokerage / company</span>
+            <input
+              className="v-set-input"
+              value={profile.brokerage}
+              onChange={e => updateProfile({ brokerage: e.target.value })}
+              placeholder="Your brokerage name"
+            />
           </div>
         </div>
       )}
@@ -190,14 +228,16 @@ const VellumSettings: React.FC<SettingsProps> = ({ setPage }) => {
               <div className="v-gold-rule" />
               <h3>Watermark preview</h3>
               <div className="v-wm-preview">
-                <img src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=900&q=80" alt="" />
+                <div style={{ width: '100%', height: '100%', background: 'var(--soft-stone)', display: 'grid', placeItems: 'center', color: 'var(--graphite)', fontSize: 12 }}>
+                  Upload a photo to preview watermark
+                </div>
                 {wm.on && (
                   <div
                     className={`v-wm-mark v-wm-${wm.position} v-wm-color-${wm.color}`}
                     style={{ opacity: wm.opacity }}
                   >
                     <span className="v-wm-rule" /><span className="v-wm-text">VELLUM</span><span className="v-wm-rule" />
-                    <span className="v-wm-sub">Maya Lin · Highland Park, IL</span>
+                    <span className="v-wm-sub">{profile.name || 'Your name'} · {profile.brokerage || 'Your brokerage'}</span>
                   </div>
                 )}
               </div>
@@ -215,11 +255,11 @@ const VellumSettings: React.FC<SettingsProps> = ({ setPage }) => {
           <h3>Default export destinations</h3>
           <p className="v-muted" style={{ fontSize: 13, marginBottom: 20 }}>Each project will pre-tick the destinations below. You can change per export.</p>
           {[
-            { id: 'mls', name: 'MLS upload', sub: 'JPG · sRGB · 1920×1280', on: true, badge: 'Connected — Bright MLS' },
-            { id: 'dropbox', name: 'Dropbox', sub: '/Listings/{address}', on: true, badge: 'Connected' },
+            { id: 'mls', name: 'MLS upload', sub: 'JPG · sRGB · 1920×1280', on: false, badge: 'Connect →' },
+            { id: 'dropbox', name: 'Dropbox', sub: '/Listings/{address}', on: false, badge: 'Connect →' },
             { id: 'drive', name: 'Google Drive', sub: 'Shared with brokerage', on: false, badge: 'Connect →' },
             { id: 'social', name: 'Social pack (IG · FB · TikTok)', sub: 'Auto-resized for each platform', on: true, badge: '' },
-            { id: 'zip', name: 'Direct download', sub: '.zip · grouped by room', on: false, badge: '' },
+            { id: 'zip', name: 'Direct download', sub: '.zip · grouped by room', on: true, badge: '' },
           ].map(d => (
             <div key={d.id} className="v-dest-row">
               <div className="v-dest-meta">
@@ -230,32 +270,6 @@ const VellumSettings: React.FC<SettingsProps> = ({ setPage }) => {
               <button className={'v-switch' + (d.on ? ' on' : '')}><span /></button>
             </div>
           ))}
-        </div>
-      )}
-
-      {tab === 'team' && (
-        <div className="v-settings-card" style={{ maxWidth: 720 }}>
-          <div className="v-gold-rule" />
-          <h3>Workspace members</h3>
-          <p className="v-muted" style={{ fontSize: 13, marginBottom: 20 }}>Studio plan includes 3 seats. Brokerage plan removes the limit.</p>
-          {[
-            { name: 'Maya Lin', role: 'Owner', email: 'maya@lurealty.co', credits: '38 cr used' },
-            { name: 'Jordan Vega', role: 'Editor', email: 'jordan@lurealty.co', credits: '9 cr used' },
-            { name: 'Sasha Patel', role: 'Editor', email: 'sasha@lurealty.co', credits: '0 cr used' },
-          ].map(m => (
-            <div key={m.email} className="v-dest-row">
-              <div className="v-dest-avatar">{m.name.split(' ').map(s => s[0]).join('')}</div>
-              <div className="v-dest-meta">
-                <div className="v-dest-name">{m.name}</div>
-                <div className="v-muted" style={{ fontSize: 12 }}>{m.email} · {m.credits}</div>
-              </div>
-              <span className="v-pill v-pill--ghost">{m.role}</span>
-              <button className="v-btn v-btn--ghost v-btn--sm">Manage</button>
-            </div>
-          ))}
-          <button className="v-btn v-btn--secondary v-btn--sm" style={{ marginTop: 16 }}>
-            <Icon name="plus" size={13} /> Invite teammate
-          </button>
         </div>
       )}
     </div>

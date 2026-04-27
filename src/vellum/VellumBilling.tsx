@@ -29,7 +29,7 @@ const VellumBilling: React.FC<BillingProps> = ({ setPage, credits }) => {
             <li>MLS-ready exports</li>
             <li>Email support</li>
           </ul>
-          <button className="v-plan-cta">Downgrade</button>
+          <button className="v-plan-cta">Select</button>
         </div>
 
         <div className="v-plan featured">
@@ -68,30 +68,29 @@ const VellumBilling: React.FC<BillingProps> = ({ setPage, credits }) => {
           <div className="eyebrow">Usage</div>
           <h2 className="title">This billing period</h2>
         </div>
-        <span className="v-muted" style={{ fontSize: 13 }}>April 12 – May 12, 2026</span>
       </div>
 
       <div className="v-kpi-row">
         <div className="v-kpi">
           <div className="v-gold-rule" />
           <div className="label">Photo credits</div>
-          <div className="value">{credits}<span style={{ fontSize: 24, color: 'var(--graphite)' }}> / 200</span></div>
+          <div className="value">{200 - credits}<span style={{ fontSize: 24, color: 'var(--graphite)' }}> / 200</span></div>
           <div style={{ height: 4, background: 'var(--soft-stone)', borderRadius: 2, marginTop: 12, overflow: 'hidden' }}>
-            <div style={{ width: `${(credits / 200) * 100}%`, height: '100%', background: 'var(--deep-charcoal)' }} />
+            <div style={{ width: `${((200 - credits) / 200) * 100}%`, height: '100%', background: 'var(--deep-charcoal)' }} />
           </div>
         </div>
         <div className="v-kpi">
           <div className="v-gold-rule" />
           <div className="label">Reels created</div>
-          <div className="value">3<span style={{ fontSize: 24, color: 'var(--graphite)' }}> / 10</span></div>
+          <div className="value">0<span style={{ fontSize: 24, color: 'var(--graphite)' }}> / 10</span></div>
           <div style={{ height: 4, background: 'var(--soft-stone)', borderRadius: 2, marginTop: 12, overflow: 'hidden' }}>
-            <div style={{ width: '30%', height: '100%', background: 'var(--deep-charcoal)' }} />
+            <div style={{ width: '0%', height: '100%', background: 'var(--deep-charcoal)' }} />
           </div>
         </div>
         <div className="v-kpi">
           <div className="v-gold-rule" />
           <div className="label">Storage</div>
-          <div className="value">8.4<span style={{ fontSize: 24, color: 'var(--graphite)' }}> GB</span></div>
+          <div className="value">0<span style={{ fontSize: 24, color: 'var(--graphite)' }}> GB</span></div>
           <div className="delta">Of 50 GB included</div>
         </div>
       </div>
@@ -103,33 +102,13 @@ const VellumBilling: React.FC<BillingProps> = ({ setPage, credits }) => {
         </div>
       </div>
 
-      <table className="v-tbl">
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Description</th>
-            <th>Amount</th>
-            <th>Status</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {[
-            { d: 'Apr 12, 2026', desc: 'Studio plan — monthly', amt: '$89.00', s: 'Paid' },
-            { d: 'Mar 12, 2026', desc: 'Studio plan — monthly', amt: '$89.00', s: 'Paid' },
-            { d: 'Feb 12, 2026', desc: 'Studio plan — monthly', amt: '$89.00', s: 'Paid' },
-            { d: 'Jan 12, 2026', desc: 'Solo plan — monthly', amt: '$29.00', s: 'Paid' },
-          ].map((r, i) => (
-            <tr key={i}>
-              <td className="v-muted">{r.d}</td>
-              <td>{r.desc}</td>
-              <td>{r.amt}</td>
-              <td><span className="v-pill v-pill--ready"><span className="dot" />{r.s}</span></td>
-              <td style={{ textAlign: 'right' }}><button className="v-btn v-btn--ghost v-btn--sm"><Icon name="download" size={12} /> PDF</button></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="v-empty-state" style={{ padding: '40px 0' }}>
+        <div className="v-empty-icon">
+          <Icon name="card" size={24} color="var(--graphite)" />
+        </div>
+        <h3>No invoices yet</h3>
+        <p>Your billing history will appear here once your first payment is processed.</p>
+      </div>
     </div>
   );
 };

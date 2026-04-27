@@ -5,6 +5,7 @@ interface VideoEditorProps {
   setPage: (p: string) => void;
   credits: number;
   requestSpend: (amount: number, after?: (res: any) => void) => boolean;
+  activeProject?: { id: string; address: string; city: string; propertyType: string; beds: number | null; baths: number | null } | null;
 }
 
 interface Scene {
@@ -34,7 +35,9 @@ const fmt = (s: number) => {
   return `${m}:${sec}`;
 };
 
-const VellumVideoEditor: React.FC<VideoEditorProps> = ({ setPage, credits, requestSpend }) => {
+const VellumVideoEditor: React.FC<VideoEditorProps> = ({ setPage, credits, requestSpend, activeProject }) => {
+  const listingName = activeProject?.address || 'New listing reel';
+  const listingMeta = activeProject ? `${activeProject.city || ''}${activeProject.beds ? ` · ${activeProject.beds} BD` : ''}${activeProject.baths ? ` · ${activeProject.baths} BA` : ''}` : '';
   const [aspect, setAspect] = useState('9_16');
   const [pace, setPace] = useState('medium');
   const [music, setMusic] = useState('still-water');
@@ -109,10 +112,10 @@ const VellumVideoEditor: React.FC<VideoEditorProps> = ({ setPage, credits, reque
         <div>
           <div className="v-crumb">
             <a onClick={() => setPage('projects')}>Projects</a>
-            <Icon name="chevron_right" size={11} /> 1247 Maple Ridge Drive
+            <Icon name="chevron_right" size={11} /> {listingName}
             <Icon name="chevron_right" size={11} /> <span>Listing reel</span>
           </div>
-          <h1 className="v-display">Listing reel <em>·</em> Maple Ridge</h1>
+          <h1 className="v-display">Listing reel{activeProject ? <> <em>·</em> {activeProject.address.split(' ').slice(-2).join(' ')}</> : ''}</h1>
           <div className="v-meta-row">
             <span><Icon name="play" size={11} /> {fmt(totalDur)}</span>
             <span className="v-dot-sep" />
@@ -134,8 +137,8 @@ const VellumVideoEditor: React.FC<VideoEditorProps> = ({ setPage, credits, reque
             {active.kind === 'intro' && (
               <div className="v-preview-card v-preview-intro">
                 <div className="v-badge-line"><span className="v-line" /> NOW SHOWING <span className="v-line" /></div>
-                <h2>1247 Maple Ridge Drive</h2>
-                <div className="v-sub">Highland Park · 4 BD · 3.5 BA · 4,200 sf</div>
+                <h2>{listingName}</h2>
+                <div className="v-sub">{listingMeta || 'Your listing details'}</div>
                 <div className="v-brand-strip">VELLUM</div>
               </div>
             )}
@@ -157,8 +160,8 @@ const VellumVideoEditor: React.FC<VideoEditorProps> = ({ setPage, credits, reque
               <div className="v-preview-card v-preview-end">
                 <div className="v-end-mark">V</div>
                 <h2 className="v-end-title">Inquiries</h2>
-                <div className="v-end-row">Marisol Reyes · Atelier Realty</div>
-                <div className="v-end-row dim">marisol@atelier.co · 312.555.0148</div>
+                <div className="v-end-row">Set your contact info in Settings</div>
+                <div className="v-end-row dim">End card pulls from your profile</div>
               </div>
             )}
             <div className="v-aspect-badge">{aspect.replace('_', ':')}</div>
@@ -216,7 +219,7 @@ const VellumVideoEditor: React.FC<VideoEditorProps> = ({ setPage, credits, reque
                     {s.kind === 'intro' && (
                       <div className="v-sb-card-mock">
                         <div className="v-mock-rule" />
-                        <div className="v-mock-title">1247 Maple Ridge</div>
+                        <div className="v-mock-title">{activeProject ? activeProject.address.split(' ').slice(0, 3).join(' ') : 'Title card'}</div>
                         <div className="v-mock-sub">Now showing</div>
                       </div>
                     )}

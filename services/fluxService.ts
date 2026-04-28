@@ -23,7 +23,7 @@ const FLUX_UPLOAD_MAX_EDGE = 1280;
 // regenerate grass, siding, roofs, landscaping, and sky if given "remove
 // clutter" latitude. Also drives the upscaler branch: exteriors get
 // Clarity for detail-adding upscale, interiors get Real-ESRGAN for speed.
-const EXTERIOR_ROOMS = new Set<string>(['Exterior', 'Patio']);
+const EXTERIOR_ROOMS = new Set<string>(['Exterior', 'Patio', 'Pool', 'Backyard', 'Front Yard']);
 
 // Per-room-type clutter removal targets. Each list is specific to what
 // agents actually encounter in listing shoots — including items that are

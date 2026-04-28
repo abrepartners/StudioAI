@@ -47,6 +47,7 @@ const TOOLS = [
 const PRESETS: Record<string, string[]> = {
   staging: ['Contemporary', 'Mid-century', 'Coastal', 'Farmhouse', 'Scandinavian', 'Minimalist'],
   declutter: ['Full clean', 'Personal items only', 'Surface clutter only'],
+  declutter_ext: ['Yard clutter', 'Vehicles & bins', 'Signs & temp items'],
   whiten: ['Bright & airy', 'Warm editorial', 'Neutral'],
   twilight: ['Golden hour', 'Blue hour', 'After sunset'],
   sky: ['Clear blue', 'Golden hour', 'Soft overcast', 'Dramatic'],
@@ -57,6 +58,9 @@ const DECLUTTER_FILTER_MAP: Record<string, string | undefined> = {
   'full clean': 'fullclean',
   'personal items only': 'personal',
   'surface clutter only': 'surfaces',
+  'yard clutter': undefined,
+  'vehicles & bins': undefined,
+  'signs & temp items': undefined,
 };
 
 const TOOL_STEPS: Record<string, string[]> = {
@@ -969,7 +973,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
             <div className="v-field">
               <span className="v-field-label">Style preset</span>
               <div className="v-preset-row">
-                {(PRESETS[activeTool] || []).map(p => (
+                {(PRESETS[activeTool === 'declutter' && isExteriorRoom(currentPhoto.label) ? 'declutter_ext' : activeTool] || []).map(p => (
                   <button key={p} className={'v-preset' + (stylePreset === p.toLowerCase() ? ' active' : '')} onClick={() => setStylePreset(p.toLowerCase())}>{p}</button>
                 ))}
               </div>

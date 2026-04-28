@@ -3,24 +3,14 @@
  *
  * Client wrapper for the Smart Cleanup endpoint (/api/flux-cleanup).
  *
- * NAMING NOTE: the file / function / endpoint still carry "flux" in the
- * name because they predate the model swap. The actual backend model is
- * google/nano-banana (Gemini 2.5 Flash Image), swapped in on 2026-04-24
- * after Model Lab testing showed Nano Banana preserved architecture,
- * grass, and siding more reliably on exteriors than Flux 2 Pro did.
- * Renaming the file would require updating ~20 imports — not worth the
- * friction for a cosmetic change.
+ * Two-engine architecture (swapped 2026-04-28 after bake-off):
+ *   - bria/fibo-edit (default) — targeted clutter removal, preserves furniture
+ *   - reve/edit ("Full Clean") — total room clearing, removes everything
  *
  * Exteriors and interiors use separate prompts because cleanup models
  * hallucinate architecture when given a generic "keep as-is" instruction
- * on exteriors — the open canvas (grass, siding, sky, roof) gives them
- * too much room to repaint. Interior prompt is narrower so it survives
- * with less scaffolding.
- *
- * Exteriors also route through Clarity Upscaler (detail-adding SD-based
- * upscale). Interiors use Real-ESRGAN (fast, flat, cheap). The
- * isExterior flag sent in the POST body drives the upscaler branch on
- * the backend.
+ * on exteriors. Exteriors route through Clarity Upscaler, interiors
+ * use Pruna.
  */
 
 import { resizeForUpload } from '../utils/resizeForUpload';
@@ -90,7 +80,11 @@ const INTERIOR_CLEANUP_PROMPT = (room: string, filter?: string, custom?: string)
   const clutterList = ROOM_CLUTTER[room] || GENERIC_INTERIOR_CLUTTER;
 
   let targets: string;
-  if (filter === 'personal') {
+  if (filter === 'fullclean') {
+    targets = 'ALL items in the room — all furniture, all decor, all personal items, all toys, all equipment, '
+      + 'all wall art, all shelving contents, all rugs, all curtains/drapes, everything. '
+      + 'Leave ONLY the bare room: walls, floor, ceiling, windows, doors, built-in fixtures, and light fixtures';
+  } else if (filter === 'personal') {
     targets = 'personal items, toiletries, family photos, medication, mail with names, phone chargers, and any identifying personal belongings';
   } else if (filter === 'surfaces') {
     targets = 'all items sitting on counters, tables, shelves, and other flat surfaces — leave floor items and furniture as-is';
@@ -163,7 +157,7 @@ export interface FluxCleanupResult {
 export interface FluxCleanupOptions {
   skipUpscale?: boolean;
   customPrompt?: string;
-  /** Declutter filter: 'full' (default), 'personal', or 'surfaces'. */
+  /** Declutter filter: 'fullclean', 'personal', or 'surfaces'. Omit for standard room clutter. */
   filter?: string;
   /** User-typed specific items to remove (appended to room prompt). */
   customRemoval?: string;
@@ -177,6 +171,7 @@ export async function fluxCleanup(
 ): Promise<FluxCleanupResult> {
   const shrunk = await resizeForUpload(imageBase64, FLUX_UPLOAD_MAX_EDGE);
   const isExterior = isExteriorRoom(selectedRoom);
+  const engine = options.filter === 'fullclean' ? 'reve' : 'bria';
   const prompt = options.customPrompt
     || buildCleanupPrompt(selectedRoom, options.filter, options.customRemoval);
   const res = await fetch('/api/flux-cleanup', {
@@ -185,6 +180,7 @@ export async function fluxCleanup(
     body: JSON.stringify({
       imageBase64: shrunk,
       prompt,
+      engine,
       skipUpscale: Boolean(options.skipUpscale),
       isExterior,
     }),
@@ -194,7 +190,7 @@ export async function fluxCleanup(
   const data = await res.json();
   if (!data.ok) throw new Error(data.error || 'flux-cleanup failed');
   const upscalerLabel = isExterior ? 'Clarity' : 'Pruna';
-  console.log(`[fluxService] Nano Banana+${upscalerLabel} done in ${data.latencyMs}ms (${selectedRoom})`);
+  console.log(`[fluxService] ${engine}+${upscalerLabel} done in ${data.latencyMs}ms (${selectedRoom})`);
   return {
     resultBase64: data.resultBase64,
     latencyMs: data.latencyMs,

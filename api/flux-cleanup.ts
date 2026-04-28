@@ -1,38 +1,33 @@
 /**
  * api/flux-cleanup.ts
  *
- * Smart Cleanup via Replicate.
+ * Smart Cleanup via Replicate — two-engine architecture.
  *
  * Pipeline:
- *   1. google/nano-banana (Gemini 2.5 Flash Image) — does the actual
- *      clutter removal while preserving architecture.
+ *   1. Cleanup engine (selected by `engine` field from client):
+ *      - "bria"  →  bria/fibo-edit (default). Targeted clutter removal,
+ *        preserves furniture and fixtures. Best for standard declutter.
+ *      - "reve"  →  reve/edit. Total room clearing — removes ALL items
+ *        including furniture. Used for "Full Clean" preset.
  *   2. Upscaler, branched by isExterior flag from client:
  *      - Exterior / Patio  →  philz1337x/clarity-upscaler (SD + ControlNet
- *        tile + 4x-UltraSharp, ~14s, ~$0.05). Detail-adding upscale that
- *        matters for siding textures, shingles, landscaping.
- *      - Interior          →  nightmareai/real-esrgan (~8s, ~$0.002).
- *        Fast pixel-stretch upscale, fine for indoor clean surfaces.
- *   3. If Clarity OOMs on Replicate's T4 (14.5 GB usable) we auto-retry
- *      through Real-ESRGAN so the user always gets an upscaled result.
+ *        tile + 4x-UltraSharp, ~14s, ~$0.05).
+ *      - Interior          →  prunaai/p-image-upscale (~1s, ~$0.005).
+ *   3. If Clarity OOMs on Replicate's T4 we auto-retry through Pruna.
  *
  * Input (POST JSON):
- *   { imageBase64: string, prompt: string, isExterior?: boolean, skipUpscale?: boolean }
+ *   { imageBase64, prompt, engine?: 'bria'|'reve', isExterior?, skipUpscale? }
  *
  * Output (200 JSON):
  *   { ok: true, resultBase64: string, latencyMs: number }
  *   { ok: false, error: string }
  *
- * Cost:
- *   - Exterior: Nano Banana $0.04 + Clarity $0.05 = ~$0.09/img (~$0.042 on OOM fallback)
- *   - Interior: Nano Banana $0.04 + ESRGAN $0.002 = ~$0.042/img
- *
- * Historical note: Model Lab evaluations on 2026-04-24:
- *   Cleanup engine: flux-2-pro vs flux-kontext-pro vs nano-banana
- *     → Nano Banana won (preserves exteriors cleanest)
- *   Upscaler: ESRGAN (fast, flat) vs Clarity (slow, sharper)
- *     → Clarity won on exteriors; ESRGAN kept for interiors.
- *   CUDA OOM seen on T4 when input > ~2048px. Mitigated via dynamic
- *   scale_factor + OOM → ESRGAN fallback (this file, 2026-04-24).
+ * Model bake-off (2026-04-28, Cody Garrett listing photos):
+ *   Tested nano-banana vs bria/fibo-edit vs reve/edit vs qwen-image-edit-plus
+ *   across 4 cluttered rooms. Nano Banana removed <40% of items on average.
+ *   Bria removed clutter while preserving furniture. Reve cleared rooms
+ *   completely. Qwen matched Bria quality but lower resolution output.
+ *   → Bria for standard cleanup, Reve for full clean.
  */
 import Replicate from 'replicate';
 import { json, setCors, handleOptions, rejectMethod, parseBody } from './utils.js';
@@ -112,6 +107,7 @@ export default async function handler(req: any, res: any) {
   const prompt = String(body.prompt || '');
   const skipUpscale = Boolean(body.skipUpscale);
   const isExterior = Boolean(body.isExterior);
+  const engine = String(body.engine || 'bria');
 
   if (!imageBase64) { json(res, 400, { ok: false, error: 'imageBase64 is required' }); return; }
   if (!prompt) { json(res, 400, { ok: false, error: 'prompt is required' }); return; }
@@ -124,22 +120,34 @@ export default async function handler(req: any, res: any) {
   const t0 = Date.now();
 
   try {
-    // --- Step 1: Google Nano Banana cleanup ----------------------------
-    console.log(`[flux-cleanup] Starting Google Nano Banana... (${isExterior ? 'exterior' : 'interior'})`);
-    const nbOutput = await replicate.run('google/nano-banana', {
-      input: {
-        image_input: [dataUrl],
-        prompt,
-        output_format: 'jpg',
-      },
-    });
+    // --- Step 1: Cleanup engine (Bria default, Reve for full-clean) ----
+    console.log(`[flux-cleanup] Starting ${engine} engine... (${isExterior ? 'exterior' : 'interior'})`);
+    let cleanUrl: string | null = null;
 
-    const cleanUrl = await extractUrl(nbOutput);
+    if (engine === 'reve') {
+      const output = await replicate.run('reve/edit', {
+        input: {
+          image: dataUrl,
+          prompt,
+          output_format: 'jpg',
+        },
+      });
+      cleanUrl = await extractUrl(output);
+    } else {
+      const output = await replicate.run('bria/fibo-edit', {
+        input: {
+          image: dataUrl,
+          instruction: prompt,
+        },
+      });
+      cleanUrl = await extractUrl(output);
+    }
+
     if (!cleanUrl) {
-      json(res, 200, { ok: false, error: 'Nano Banana returned no image URL' });
+      json(res, 200, { ok: false, error: `${engine} engine returned no image URL` });
       return;
     }
-    console.log(`[flux-cleanup] Nano Banana done in ${Date.now() - t0}ms → ${cleanUrl.slice(0, 60)}...`);
+    console.log(`[flux-cleanup] ${engine} done in ${Date.now() - t0}ms → ${cleanUrl.slice(0, 60)}...`);
 
     // Probe cleaned image size to decide on safe Clarity scale_factor.
     // HEAD first; fall back to GET if the host doesn't honor HEAD.
@@ -227,7 +235,7 @@ export default async function handler(req: any, res: any) {
     const buf = Buffer.from(await imgRes.arrayBuffer());
     const resultBase64 = `data:image/jpeg;base64,${buf.toString('base64')}`;
 
-    console.log(`[flux-cleanup] Total: ${Date.now() - t0}ms (Nano Banana + ${upscalerUsed})`);
+    console.log(`[flux-cleanup] Total: ${Date.now() - t0}ms (${engine} + ${upscalerUsed})`);
     json(res, 200, { ok: true, resultBase64, latencyMs: Date.now() - t0 });
 
   } catch (err: any) {

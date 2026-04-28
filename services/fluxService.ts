@@ -82,7 +82,7 @@ const INTERIOR_CLEANUP_PROMPT = (room: string, filter?: string, custom?: string)
   let targets: string;
   if (filter === 'fullclean') {
     targets = 'ALL items in the room — all furniture, all decor, all personal items, all toys, all equipment, '
-      + 'all wall art, all shelving contents, all rugs, all curtains/drapes, everything. '
+      + 'all wall art, wall-mounted televisions, all shelving contents, all rugs, all curtains/drapes, everything. '
       + 'Leave ONLY the bare room: walls, floor, ceiling, windows, doors, built-in fixtures, and light fixtures';
   } else if (filter === 'personal') {
     targets = 'personal items, toiletries, family photos, medication, mail with names, phone chargers, and any identifying personal belongings';
@@ -100,7 +100,11 @@ Also remove any item that clearly does not belong in a ${room} — for example, 
     prompt += `\n\nADDITIONALLY, specifically remove: ${custom}.`;
   }
 
-  prompt += `\n\nKeep all furniture, built-in fixtures, and architecture exactly as-is. Do not add anything. Reconstruct revealed surfaces from surrounding pixels. This is a photo-restoration task, not a styling task.`;
+  if (filter === 'fullclean') {
+    prompt += `\n\nKeep only built-in fixtures (cabinets, counters, toilets, sinks, tubs, appliances) and architecture exactly as-is. Do not add anything. Reconstruct revealed surfaces from surrounding pixels. This is a photo-restoration task, not a styling task.`;
+  } else {
+    prompt += `\n\nKeep all furniture, built-in fixtures, and architecture exactly as-is. Do not add anything. Reconstruct revealed surfaces from surrounding pixels. This is a photo-restoration task, not a styling task.`;
+  }
 
   return prompt;
 };

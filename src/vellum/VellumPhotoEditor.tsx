@@ -49,7 +49,7 @@ const PRESETS: Record<string, string[]> = {
   declutter: ['Full clean', 'Personal items only', 'Surface clutter only'],
   declutter_ext: ['Yard clutter', 'Vehicles & bins', 'Signs & temp items'],
   whiten: ['Bright & airy', 'Warm editorial', 'Neutral'],
-  twilight: ['Golden hour', 'Blue hour', 'After sunset'],
+  twilight: ['Golden hour', 'Blue hour', 'Last light'],
   sky: ['Clear blue', 'Golden hour', 'Soft overcast', 'Dramatic'],
   lawn: ['Manicured', 'Natural', 'Drought-resistant'],
 };
@@ -112,13 +112,22 @@ const callApiDirect = async (
   signal: AbortSignal,
 ): Promise<string> => {
   const presetMap: Record<string, Record<string, string>> = {
-    twilight: { 'golden hour': 'warm-classic', 'blue hour': 'modern-dramatic', 'after sunset': 'golden-luxury' },
-    sky: { 'clear blue': 'blue', 'golden hour': 'golden', 'soft overcast': 'stormy', 'dramatic': 'dramatic' },
+    twilight: { 'golden hour': 'warm-classic', 'blue hour': 'modern-dramatic', 'last light': 'golden-luxury' },
+    sky: { 'clear blue': 'blue', 'golden hour': 'golden', 'soft overcast': 'overcast', 'dramatic': 'dramatic' },
   };
 
   switch (tool) {
     case 'staging': {
-      const prompt = `Virtually stage this ${roomLabel.toLowerCase()} with ${preset} style furniture. Professional real estate photography, warm editorial lighting, high-end finishes.`;
+      const stageDesc: Record<string, string> = {
+        'contemporary': 'clean lines, neutral tones, glass and metal accents, open feel',
+        'mid-century': 'tapered legs, warm wood tones, organic curves, retro palette',
+        'coastal': 'light blues and whites, natural textures, wicker and linen, airy feel',
+        'farmhouse': 'rustic wood, neutral earth tones, shiplap accents, cozy warmth',
+        'scandinavian': 'pale wood, white and gray palette, minimal accessories, soft textiles',
+        'minimalist': 'very few pieces, monochromatic, negative space, sculptural forms',
+      };
+      const desc = stageDesc[preset] || 'modern, premium furnishings';
+      const prompt = `Virtually stage this ${roomLabel.toLowerCase()} with ${preset} style furnishings (${desc}). Use premium furniture materials. Match the room's existing lighting on all new pieces. Professional real estate photography composition.`;
       const results = await generateRoomDesign(imageBase64, prompt, undefined, false, 1, true, undefined, signal);
       return results[0] || imageBase64;
     }
@@ -131,7 +140,13 @@ const callApiDirect = async (
       return result.resultBase64;
     }
     case 'whiten': {
-      const prompt = `Correct white balance and lighting on this ${roomLabel.toLowerCase()} photo. Make it ${preset}: even exposure, natural daylight, warm tones. Keep all furniture and architecture exactly as-is.`;
+      const whitenDesc: Record<string, string> = {
+        'bright & airy': 'bright, high-key exposure with cool-neutral tones, maximized natural light, clean whites',
+        'warm editorial': 'warm golden tones, soft editorial lighting, rich but natural warmth',
+        'neutral': 'perfectly neutral white balance, no color cast, true-to-life colors, balanced exposure',
+      };
+      const desc = whitenDesc[preset] || 'even exposure, natural daylight';
+      const prompt = `Correct white balance and lighting on this ${roomLabel.toLowerCase()} photo. Target look: ${desc}. Keep all furniture and architecture exactly as-is.`;
       const results = await generateRoomDesign(imageBase64, prompt, undefined, false, 1, true, undefined, signal);
       return results[0] || imageBase64;
     }
@@ -146,7 +161,13 @@ const callApiDirect = async (
       return result.resultBase64;
     }
     case 'lawn': {
-      const prompt = `Enhance the lawn and landscaping of this exterior photo. Make the grass ${preset}, green, and manicured. Keep the house, driveway, sky, and all architecture exactly unchanged.`;
+      const lawnDesc: Record<string, string> = {
+        'manicured': 'perfectly manicured, uniformly green, freshly mowed with clean edges and defined borders',
+        'natural': 'natural and lush with organic variation, mixed grass heights, a lived-in but healthy yard',
+        'drought-resistant': 'drought-tolerant xeriscaping with native plants, decorative gravel, mulch beds, and sparse drought-resistant ground cover',
+      };
+      const desc = lawnDesc[preset] || 'lush, green, and manicured';
+      const prompt = `Enhance the lawn and landscaping of this exterior photo. Target look: ${desc}. Keep the house, driveway, sky, and all architecture exactly unchanged.`;
       const results = await generateRoomDesign(imageBase64, prompt, undefined, false, 1, true, undefined, signal);
       return results[0] || imageBase64;
     }
@@ -895,18 +916,33 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
           <h2 className="v-editor-title">{activeProject ? activeProject.address.split(' ').slice(-2).join(' ') : 'Photo refinement'}</h2>
         </div>
 
-        {TOOLS.map((t, i) => 'section' in t && !('id' in t) ? (
-          <div key={'s' + i} className="v-section-label">{t.section}</div>
-        ) : 'id' in t ? (
-          <div key={(t as any).id} className={'v-tool-item' + (activeTool === (t as any).id ? ' active' : '')} onClick={() => setActiveTool((t as any).id)}>
-            <div className="v-tool-icon"><Icon name={(t as any).icon} size={16} /></div>
-            <div className="v-tool-body">
-              <div className="v-tool-name">{(t as any).name}</div>
-              <div className="v-tool-desc">{(t as any).desc}</div>
+        {TOOLS.map((t, i) => {
+          if ('section' in t && !('id' in t)) {
+            return <div key={'s' + i} className="v-section-label">{t.section}</div>;
+          }
+          if (!('id' in t)) return null;
+          const tool = t as { id: string; icon: string; name: string; desc: string; cost: string };
+          const exteriorOnly = ['twilight', 'sky', 'lawn'].includes(tool.id);
+          const interiorOnly = ['staging', 'whiten'].includes(tool.id);
+          const photoIsExterior = currentPhoto ? isExteriorRoom(currentPhoto.label) : false;
+          const disabled = (exteriorOnly && !photoIsExterior) || (interiorOnly && photoIsExterior);
+          return (
+            <div
+              key={tool.id}
+              className={'v-tool-item' + (activeTool === tool.id ? ' active' : '') + (disabled ? ' disabled' : '')}
+              onClick={() => !disabled && setActiveTool(tool.id)}
+              title={disabled ? (exteriorOnly ? 'Exterior photos only' : 'Interior photos only') : undefined}
+              style={disabled ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
+            >
+              <div className="v-tool-icon"><Icon name={tool.icon} size={16} /></div>
+              <div className="v-tool-body">
+                <div className="v-tool-name">{tool.name}</div>
+                <div className="v-tool-desc">{disabled ? (exteriorOnly ? 'Exterior only' : 'Interior only') : tool.desc}</div>
+              </div>
+              <div className="v-tool-cost">{tool.cost}</div>
             </div>
-            <div className="v-tool-cost">{(t as any).cost}</div>
-          </div>
-        ) : null)}
+          );
+        })}
       </div>
 
       <div className="v-editor-center">

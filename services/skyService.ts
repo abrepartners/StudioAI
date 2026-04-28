@@ -10,7 +10,7 @@ import { resizeForUpload } from '../utils/resizeForUpload';
 
 const SKY_UPLOAD_MAX_EDGE = 1280;
 
-export type SkyStyle = 'blue' | 'dramatic' | 'golden' | 'stormy';
+export type SkyStyle = 'blue' | 'dramatic' | 'golden' | 'overcast' | 'stormy';
 
 export interface SkyResult {
   resultBase64: string;

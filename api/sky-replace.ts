@@ -19,9 +19,9 @@ export const config = { runtime: 'nodejs', maxDuration: 120 };
 
 const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN || '';
 
-type SkyStyle = 'blue' | 'dramatic' | 'golden' | 'stormy';
+type SkyStyle = 'blue' | 'dramatic' | 'golden' | 'overcast' | 'stormy';
 
-const VALID_STYLES: ReadonlyArray<SkyStyle> = ['blue', 'dramatic', 'golden', 'stormy'];
+const VALID_STYLES: ReadonlyArray<SkyStyle> = ['blue', 'dramatic', 'golden', 'overcast', 'stormy'];
 
 const STYLE_SKY_DESCRIPTIONS: Record<SkyStyle, string> = {
   blue:
@@ -30,6 +30,8 @@ const STYLE_SKY_DESCRIPTIONS: Record<SkyStyle, string> = {
     'a dramatic moody sky — layered gray and blue-violet storm clouds with visible light shafts breaking through, cinematic contrast',
   golden:
     'a warm golden-hour sky — soft peach-pink sunset fading to warm amber near the horizon, lingering daylight',
+  overcast:
+    'a soft, bright overcast sky — uniform light gray-white cloud cover, diffused gentle light, no harsh shadows, calm and even',
   stormy:
     'heavy dark storm clouds, deep gray tones with dramatic texture and moody contrast',
 };

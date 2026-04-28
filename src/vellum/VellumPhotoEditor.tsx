@@ -434,6 +434,10 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
   const [exporting, setExporting] = useState(false);
   const [exportLabel, setExportLabel] = useState('');
 
+  const currentPhoto = photos[selectedPhoto] || photos[0] || null;
+  const currentPhotoRef = useRef(currentPhoto);
+  currentPhotoRef.current = currentPhoto;
+
   const upscaleForExport = async (base64: string, label: string): Promise<string> => {
     try {
       const result = await upscaleImage(base64, isExteriorRoom(label));
@@ -532,10 +536,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
     );
   }
 
-  const currentPhoto = photos[selectedPhoto] || photos[0];
-  const currentPhotoRef = useRef(currentPhoto);
-  currentPhotoRef.current = currentPhoto;
-  const afterImage = getAfterImage(currentPhoto);
+  const afterImage = currentPhoto ? getAfterImage(currentPhoto) : null;
   const toolName = (TOOLS.find(t => 'id' in t && t.id === activeTool) as any)?.name || 'Processing';
 
   const renderBeforeAfter = (

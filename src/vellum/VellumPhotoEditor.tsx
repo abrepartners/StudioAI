@@ -61,6 +61,13 @@ const TOOL_STEPS: Record<string, string[]> = {
 
 const TOOL_COST: Record<string, number> = { staging: 2, declutter: 1, whiten: 0.5, twilight: 2, sky: 1, lawn: 1 };
 
+const ROOM_TYPES = [
+  'Living Room', 'Dining Room', 'Kitchen', 'Bedroom', 'Bathroom',
+  'Office', 'Laundry Room', 'Garage', 'Bonus Room', 'Nursery',
+  'Basement', 'Foyer', 'Hallway', 'Closet', 'Sunroom',
+  'Exterior', 'Patio', 'Pool', 'Backyard', 'Front Yard',
+];
+
 interface PhotoEditorProps {
   setPage: (p: string) => void;
   credits: number;
@@ -162,6 +169,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
   };
   const [view, setView] = useState<'compare' | 'grid' | 'single'>('compare');
   const [singlePhoto, setSinglePhoto] = useState<number | null>(null);
+  const [editingLabel, setEditingLabel] = useState(false);
 
   const [splitPos, setSplitPos] = useState(50);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -307,8 +315,18 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
 
   // Core: process a single photo by ID. Stacks on previous result if one exists.
   const processOnePhoto = async (photoId: number): Promise<boolean> => {
-    const photo = photosRef.current.find(p => p.id === photoId);
+    let photo = photosRef.current.find(p => p.id === photoId);
     if (!photo) return false;
+
+    // Wait up to 5s for room detection to finish so prompts use the right room type
+    if (photo.detecting) {
+      for (let i = 0; i < 25; i++) {
+        await new Promise(r => setTimeout(r, 200));
+        photo = photosRef.current.find(p => p.id === photoId);
+        if (!photo) return false;
+        if (!photo.detecting) break;
+      }
+    }
 
     setGenerating(true);
     setGeneratingPhotoId(photoId);
@@ -472,7 +490,8 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
   const [exporting, setExporting] = useState(false);
   const [exportLabel, setExportLabel] = useState('');
 
-  const currentPhoto = photos[selectedPhoto] || photos[0] || null;
+  const currentPhotoIdx = view === 'single' ? (singlePhoto ?? selectedPhoto) : selectedPhoto;
+  const currentPhoto = photos[currentPhotoIdx] || photos[0] || null;
   const currentPhotoRef = useRef(currentPhoto);
   currentPhotoRef.current = currentPhoto;
 
@@ -674,48 +693,6 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
         </div>
       </div>
 
-      <div className="v-control-card">
-        <div className="v-control-head">
-          <div className="v-control-ttl">
-            <span className="v-gold-rule" />
-            {toolName}
-          </div>
-          <span className="v-muted" style={{ fontSize: 12 }}>
-            Applies to selected photo
-          </span>
-        </div>
-
-        <div className="v-field">
-          <span className="v-field-label">Style preset</span>
-          <div className="v-preset-row">
-            {(PRESETS[activeTool] || []).map(p => (
-              <button key={p} className={'v-preset' + (stylePreset === p.toLowerCase() ? ' active' : '')} onClick={() => setStylePreset(p.toLowerCase())}>{p}</button>
-            ))}
-          </div>
-        </div>
-
-        {activeTool === 'declutter' && (
-          <div className="v-field" style={{ marginTop: 4 }}>
-            <span className="v-field-label">Specific items to remove</span>
-            <input
-              className="v-set-input"
-              placeholder="e.g. blue tarp on porch, exercise bike in corner"
-              value={customRemoval}
-              onChange={(e) => setCustomRemoval(e.target.value)}
-              style={{ width: '100%', fontSize: 12 }}
-            />
-          </div>
-        )}
-
-        <div className="v-field-row">
-          <div className="v-field">
-            <span className="v-field-label">Room type</span>
-            <div className="v-field-value">
-              <span>{currentPhoto.detecting ? 'Detecting…' : currentPhoto.label}</span>
-            </div>
-          </div>
-        </div>
-      </div>
     </>
   );
 
@@ -789,7 +766,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
             );
           })}
         </div>
-        <div className="v-ba-stage" ref={stageRef}>
+        <div className="v-ba-stage">
           <img src={showImage} className="v-ba-img-el" alt="" draggable={false} />
 
           {isGen && (
@@ -938,6 +915,75 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
         {view === 'compare' && renderCompare()}
         {view === 'grid' && renderGrid()}
         {view === 'single' && renderSingle()}
+
+        {currentPhoto && (
+          <div className="v-control-card">
+            <div className="v-control-head">
+              <div className="v-control-ttl">
+                <span className="v-gold-rule" />
+                {toolName}
+              </div>
+              <span className="v-muted" style={{ fontSize: 12 }}>
+                {view === 'single' ? `Photo ${(singlePhoto ?? selectedPhoto) + 1}` : `Photo ${selectedPhoto + 1}`} · {currentPhoto.label}
+              </span>
+            </div>
+
+            <div className="v-field">
+              <span className="v-field-label">Style preset</span>
+              <div className="v-preset-row">
+                {(PRESETS[activeTool] || []).map(p => (
+                  <button key={p} className={'v-preset' + (stylePreset === p.toLowerCase() ? ' active' : '')} onClick={() => setStylePreset(p.toLowerCase())}>{p}</button>
+                ))}
+              </div>
+            </div>
+
+            {activeTool === 'declutter' && (
+              <div className="v-field" style={{ marginTop: 4 }}>
+                <span className="v-field-label">Specific items to remove</span>
+                <input
+                  className="v-set-input"
+                  placeholder="e.g. blue tarp on porch, exercise bike in corner"
+                  value={customRemoval}
+                  onChange={(e) => setCustomRemoval(e.target.value)}
+                  style={{ width: '100%', fontSize: 12 }}
+                />
+              </div>
+            )}
+
+            <div className="v-field-row">
+              <div className="v-field">
+                <span className="v-field-label">Room type</span>
+                <div className="v-field-value">
+                  {editingLabel ? (
+                    <select
+                      className="v-set-input"
+                      value={currentPhoto.label}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const photoId = view === 'single' ? (photos[singlePhoto ?? selectedPhoto]?.id ?? currentPhoto.id) : currentPhoto.id;
+                        setPhotos(prev => prev.map(p => p.id === photoId ? { ...p, label: val, detecting: false } : p));
+                        setEditingLabel(false);
+                      }}
+                      onBlur={() => setEditingLabel(false)}
+                      autoFocus
+                      style={{ width: '100%', fontSize: 12 }}
+                    >
+                      {ROOM_TYPES.map(r => <option key={r} value={r}>{r}</option>)}
+                    </select>
+                  ) : (
+                    <span
+                      onClick={() => setEditingLabel(true)}
+                      style={{ cursor: 'pointer', borderBottom: '1px dashed var(--graphite)' }}
+                      title="Click to change room type"
+                    >
+                      {currentPhoto.detecting ? 'Detecting…' : currentPhoto.label}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className={'v-editor-right' + (rightCollapsed ? ' collapsed' : '')}>

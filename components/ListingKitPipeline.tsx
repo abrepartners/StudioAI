@@ -269,7 +269,7 @@ const ListingKitPipeline: React.FC<ListingKitPipelineProps> = ({
       updateStep('twilight', { status: 'running', stepDetail: heroImage.roomType || 'hero' });
       try {
         const heroSource = stagedByImageId.get(heroImage.id) || heroImage.base64;
-        const { resultBase64 } = await fluxTwilight(heroSource, 'warm-classic', signal);
+        const { resultBase64 } = await fluxTwilight(heroSource, 'golden', 'sunset', signal);
         twilightHero = resultBase64;
         updateStep('twilight', { status: 'done', stepDetail: 'dusk applied' });
       } catch (err: any) {

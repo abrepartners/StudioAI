@@ -115,7 +115,7 @@ const processImage = async (img: BatchImage, isPro: boolean = false): Promise<st
       return await resizeToMatch(sharpened, img.base64);
     }
     case 'twilight': {
-      const { resultBase64 } = await fluxTwilight(img.base64, 'warm-classic');
+      const { resultBase64 } = await fluxTwilight(img.base64, 'golden', 'sunset');
       const sharpened = await sharpenImage(resultBase64, 0.4, 1, 'jpeg');
       return await resizeToMatch(sharpened, img.base64);
     }

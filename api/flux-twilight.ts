@@ -1,19 +1,17 @@
 /**
- * api/flux-twilight.ts  —  DAY TO DUSK (v5, brightened prompts)
+ * api/flux-twilight.ts  —  DAY TO DUSK (v6, 2-axis: style × time of day)
  *
  * HISTORY:
- *  - v1: Flux 2 Pro + 2 images (user + reference). Different house.
- *  - v2: Flux 2 Pro + 1 image. Still hallucinating.
- *  - v3: IC-Light background relighting.
- *  - v4: prompt-only Flux 2 Pro, no reference images.
- *  - v5 (this file): brightened all 3 style prompts. v4 was pushing Flux
- *    toward late blue hour / near-night exposure. v5 targets CIVIL
- *    TWILIGHT — sun just below horizon, sky still warm, architectural
- *    details still clearly visible. Added an explicit brightness
- *    guardrail to the main prompt structure.
+ *  - v1-v4: see git log
+ *  - v5: brightened all prompts toward civil twilight
+ *  - v6 (this file): 2-axis system — 4 color styles × 3 times of day.
+ *    Style controls the sky color palette (pink, golden, purple, natural).
+ *    Time controls brightness and how far into dusk (early evening →
+ *    sunset → twilight). Total = 12 prompt combinations.
  *
  * Input (POST JSON):
- *   { imageBase64: string, style: 'warm-classic' | 'modern-dramatic' | 'golden-luxury' }
+ *   { imageBase64: string, style: string, timeOfDay?: string }
+ *   Legacy: style-only still works (maps to 'sunset' time)
  *
  * Output (200 JSON):
  *   { ok: true, resultBase64: string, latencyMs: number }
@@ -26,40 +24,61 @@ export const config = { runtime: 'nodejs', maxDuration: 120 };
 
 const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN || '';
 
-type TwilightStyle = 'warm-classic' | 'modern-dramatic' | 'golden-luxury';
+type TwilightColorStyle = 'pink' | 'golden' | 'purple' | 'natural';
+type TwilightTime = 'early-evening' | 'sunset' | 'twilight';
 
-const VALID_STYLES: ReadonlyArray<TwilightStyle> = [
-  'warm-classic',
-  'modern-dramatic',
-  'golden-luxury',
-];
+const VALID_STYLES: ReadonlyArray<TwilightColorStyle> = ['pink', 'golden', 'purple', 'natural'];
+const VALID_TIMES: ReadonlyArray<TwilightTime> = ['early-evening', 'sunset', 'twilight'];
 
-// CIVIL TWILIGHT: the brightest of the three twilight phases, sun just
-// below the horizon, sky still colorful, all exterior details still visible.
-// This is what MLS / Architectural Digest twilight shots actually look like.
-// Avoids the "blue hour silhouette" trap where Flux flattens everything to
-// near-black.
-const STYLE_ATMOSPHERE: Record<TwilightStyle, string> = {
-  'warm-classic':
-    'Magic hour exterior, CIVIL TWILIGHT (sun just set, sky still warm and bright). Warm peach-amber horizon fading to soft violet at the top of frame. Warm amber 2700K light glowing from every visible window. Existing porch lights and path lights ON with soft warm halos. Gentle lingering warm daylight still illuminating the siding, trim, and landscaping — NOT dark, NOT silhouetted. Exterior details remain clearly visible and pleasant. Think Architectural Digest twilight cover shot, Sotheby\'s real estate magazine, magic hour photography — not late night.',
-  'modern-dramatic':
-    'Dramatic civil twilight, luxury Sotheby\'s-style real estate photography. Deep blue-violet sky with a strong magenta-pink horizon band. Bright warm interior glow from every window (noticeably brighter than ambient) spilling warm light onto nearby walls, porches, and ground. Architectural sconces, recessed soffit lights, and path lights ON. Shadows are cool but NOT crushed — siding texture, landscaping, and architectural features all clearly visible. Overall exposure is bright enough to read every detail of the house. Magazine-quality luxury listing at dusk, not night.',
-  'golden-luxury':
-    'Soft golden hour transitioning into the first minute of dusk. Still BRIGHT. Warm peach-pink sunset sky with lingering daylight. Warm amber 2700K window glow in every window. Golden fill light on the whole scene — siding, trim, and landscaping warmly lit from the horizon. Soft pastel palette, elegant and airy. This is the "last 15 minutes of sunlight" look real estate photographers chase, not late dusk.',
+const LEGACY_MAP: Record<string, { style: TwilightColorStyle; time: TwilightTime }> = {
+  'warm-classic': { style: 'golden', time: 'sunset' },
+  'modern-dramatic': { style: 'purple', time: 'twilight' },
+  'golden-luxury': { style: 'golden', time: 'early-evening' },
 };
 
-function buildTwilightPrompt(style: TwilightStyle): string {
-  const atmosphere = STYLE_ATMOSPHERE[style];
+const SKY_PALETTE: Record<TwilightColorStyle, string> = {
+  pink: 'soft peach-pink and rose-magenta sky, warm salmon tones at the horizon fading to lavender-pink overhead',
+  golden: 'warm amber-gold sky, rich golden-orange at the horizon fading to soft peach then pale blue overhead',
+  purple: 'deep blue-violet sky with a strong magenta-pink horizon band, cool purple tones overhead transitioning to warm pink at the edge',
+  natural: 'realistic, true-to-life dusk sky — soft gradient from warm horizon to cool upper sky, no exaggerated color saturation, natural blend of ambient tones',
+};
+
+const TIME_EXPOSURE: Record<TwilightTime, { brightness: string; windowGlow: string; guardrail: string }> = {
+  'early-evening': {
+    brightness: 'Still BRIGHT — the last 15 minutes of sunlight. Sky is colorful but the scene is well-lit with lingering daylight. Siding, landscaping, and architecture warmly illuminated by ambient light from the horizon. This is the "golden hour" moment real estate photographers chase.',
+    windowGlow: 'Subtle warm 2700K glow just starting to appear in windows — visible but not dominant. Exterior light still competes with interior.',
+    guardrail: 'MEDIUM-HIGH exposure, 3+ f-stops brighter than a moody night edit. Scene should read as "late afternoon transitioning to evening," NOT dusk.',
+  },
+  sunset: {
+    brightness: 'CIVIL TWILIGHT — sun just below the horizon, sky still warm and bright with rich color. Architectural details all clearly visible. Gentle lingering daylight still illuminating siding, trim, and landscaping. Think Architectural Digest twilight cover shot.',
+    windowGlow: 'Warm amber 2700K light glowing from every visible window. Existing porch lights and path lights ON with soft warm halos. Interior glow noticeably brighter than ambient.',
+    guardrail: 'MEDIUM-HIGH exposure, 2-3 f-stops brighter than a moody night edit. All exterior details must remain clearly visible WITHOUT squinting.',
+  },
+  twilight: {
+    brightness: 'Late civil twilight / early blue hour — sky is deeper and more dramatic but the house is NOT a silhouette. Ambient light is lower but architectural details remain readable. Cool ambient light with strong warm interior contrast.',
+    windowGlow: 'Bright warm interior glow from every window spilling warm light onto nearby walls, porches, and ground. Architectural sconces, recessed soffit lights, path lights, and landscape uplighting all ON. Window glow is the dominant light source.',
+    guardrail: 'MEDIUM exposure — darker than sunset but all siding texture, landscaping, and architectural features still clearly visible. NOT night. NOT silhouette. 1-2 f-stops brighter than a moody night edit.',
+  },
+};
+
+function buildTwilightPrompt(style: TwilightColorStyle, time: TwilightTime): string {
+  const sky = SKY_PALETTE[style];
+  const exp = TIME_EXPOSURE[time];
+
   return `LIGHTING-ONLY EDIT. This is a photo restoration / relighting task, not a creative regeneration task. Take the input photograph and change only the lighting and sky. Everything else must remain pixel-accurate.
 
-TARGET LIGHTING ATMOSPHERE:
-${atmosphere}
+TARGET SKY:
+${sky}
+
+TARGET LIGHTING:
+${exp.brightness}
+
+WINDOW & FIXTURE GLOW:
+${exp.windowGlow}
 
 BRIGHTNESS / EXPOSURE GUARDRAIL (critical):
-- MEDIUM-HIGH exposure. The frame must stay bright enough that the siding, trim, windows, landscaping, and architectural details are all clearly visible WITHOUT squinting or needing to brighten the output.
-- DO NOT render this as night, late blue hour, or silhouette. This is CIVIL TWILIGHT / magic hour — the colorful, luminous window of dusk where MLS listing shots are captured.
+- ${exp.guardrail}
 - Shadows should be soft and readable, not crushed black.
-- Overall scene should read 2-3 f-stops BRIGHTER than a "moody night" edit.
 
 PRESERVE EXACTLY (must be pixel-identical to the input):
 - House structure, silhouette, and all architectural features (walls, siding, trim, columns, porches, railings, roofs, chimneys, gutters, eaves).
@@ -79,7 +98,7 @@ STRICT RULES:
 - Do NOT add new windows, doors, lights, cars, furniture, or decor.
 - Only change: sky (to the target atmosphere), exterior ambient light level, interior window glow, and reflections that follow naturally from the new lighting.
 
-Output the same photograph relit to the target atmosphere. Treat the input as immutable geometry and change only the light energy in the scene — keeping exposure bright and details visible.`;
+Output the same photograph relit to the target atmosphere. Treat the input as immutable geometry and change only the light energy in the scene.`;
 }
 
 async function extractUrl(output: unknown): Promise<string | null> {
@@ -108,10 +127,25 @@ export default async function handler(req: any, res: any) {
 
   const body = parseBody(req.body);
   const imageBase64 = String(body.imageBase64 || '');
-  const style = String(body.style || '') as TwilightStyle;
+  const rawStyle = String(body.style || '');
+  const rawTime = String(body.timeOfDay || '');
 
   if (!imageBase64) { json(res, 400, { ok: false, error: 'imageBase64 is required' }); return; }
-  if (!VALID_STYLES.includes(style)) { json(res, 400, { ok: false, error: `Invalid style: ${style}` }); return; }
+
+  let style: TwilightColorStyle;
+  let time: TwilightTime;
+
+  if (rawStyle in LEGACY_MAP) {
+    const mapped = LEGACY_MAP[rawStyle];
+    style = mapped.style;
+    time = mapped.time;
+  } else {
+    style = rawStyle as TwilightColorStyle;
+    time = (rawTime || 'sunset') as TwilightTime;
+  }
+
+  if (!VALID_STYLES.includes(style)) { json(res, 400, { ok: false, error: `Invalid style: ${rawStyle}` }); return; }
+  if (!VALID_TIMES.includes(time)) { json(res, 400, { ok: false, error: `Invalid timeOfDay: ${rawTime}` }); return; }
 
   const userDataUrl = imageBase64.startsWith('data:')
     ? imageBase64
@@ -121,11 +155,11 @@ export default async function handler(req: any, res: any) {
   const t0 = Date.now();
 
   try {
-    console.log(`[flux-twilight] Starting Flux 2 Pro v5 brightened (${style})`);
+    console.log(`[flux-twilight] Starting Flux 2 Pro v6 2-axis (${style}/${time})`);
     const fluxOutput = await replicate.run('black-forest-labs/flux-2-pro', {
       input: {
         input_images: [userDataUrl],
-        prompt: buildTwilightPrompt(style),
+        prompt: buildTwilightPrompt(style, time),
         output_format: 'jpg',
         aspect_ratio: 'match_input_image',
       },
@@ -161,7 +195,7 @@ export default async function handler(req: any, res: any) {
     const buf = Buffer.from(await imgRes.arrayBuffer());
     const resultBase64 = `data:image/jpeg;base64,${buf.toString('base64')}`;
 
-    console.log(`[flux-twilight] Total: ${Date.now() - t0}ms (${style})`);
+    console.log(`[flux-twilight] Total: ${Date.now() - t0}ms (${style}/${time})`);
     json(res, 200, { ok: true, resultBase64, latencyMs: Date.now() - t0 });
 
   } catch (err: any) {

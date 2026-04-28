@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Icon } from './icons';
 import { generateRoomDesign, detectRoomType } from '../../services/geminiService';
 import { fluxCleanup } from '../../services/fluxService';
-import { fluxTwilight, TwilightStyle } from '../../services/twilightService';
+import { fluxTwilight, TwilightColorStyle, TwilightTime } from '../../services/twilightService';
 import { nanoSky, SkyStyle } from '../../services/skyService';
 import { upscaleImage } from '../../services/upscaleService';
 import { isExteriorRoom } from '../../services/fluxService';
@@ -49,7 +49,8 @@ const PRESETS: Record<string, string[]> = {
   declutter: ['Full clean', 'Personal items only', 'Surface clutter only'],
   declutter_ext: ['Yard clutter', 'Vehicles & bins', 'Signs & temp items'],
   whiten: ['Bright & airy', 'Warm editorial', 'Neutral'],
-  twilight: ['Golden hour', 'Blue hour', 'Last light'],
+  twilight_style: ['Pink', 'Golden', 'Purple', 'Natural'],
+  twilight_time: ['Early evening', 'Sunset', 'Twilight'],
   sky: ['Clear blue', 'Golden hour', 'Soft overcast', 'Dramatic'],
   lawn: ['Manicured', 'Natural', 'Drought-resistant'],
 };
@@ -112,7 +113,6 @@ const callApiDirect = async (
   signal: AbortSignal,
 ): Promise<string> => {
   const presetMap: Record<string, Record<string, string>> = {
-    twilight: { 'golden hour': 'warm-classic', 'blue hour': 'modern-dramatic', 'last light': 'golden-luxury' },
     sky: { 'clear blue': 'blue', 'golden hour': 'golden', 'soft overcast': 'overcast', 'dramatic': 'dramatic' },
   };
 
@@ -151,8 +151,8 @@ const callApiDirect = async (
       return results[0] || imageBase64;
     }
     case 'twilight': {
-      const mapped = presetMap.twilight[preset] || 'warm-classic';
-      const result = await fluxTwilight(imageBase64, mapped as TwilightStyle, signal);
+      const [colorStyle, timeOfDay] = preset.split('|') as [TwilightColorStyle, TwilightTime];
+      const result = await fluxTwilight(imageBase64, colorStyle || 'golden', timeOfDay || 'sunset', signal);
       return result.resultBase64;
     }
     case 'sky': {
@@ -246,13 +246,19 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
 
   const [activeTool, setActiveToolRaw] = useState('staging');
   const [stylePreset, setStylePreset] = useState('contemporary');
+  const [twilightTime, setTwilightTime] = useState<TwilightTime>('sunset');
   const [customRemoval, setCustomRemoval] = useState('');
   const [selectedPhoto, setSelectedPhoto] = useState(0);
 
   const setActiveTool = (tool: string) => {
     setActiveToolRaw(tool);
-    const firstPreset = (PRESETS[tool] || [])[0];
-    if (firstPreset) setStylePreset(firstPreset.toLowerCase());
+    if (tool === 'twilight') {
+      setStylePreset('golden');
+      setTwilightTime('sunset');
+    } else {
+      const firstPreset = (PRESETS[tool] || [])[0];
+      if (firstPreset) setStylePreset(firstPreset.toLowerCase());
+    }
     setCustomRemoval('');
   };
   const [view, setView] = useState<'compare' | 'grid' | 'single'>('compare');
@@ -436,7 +442,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
     if (!photo || isPhotoGenerating(photo.id)) return;
 
     const frozenTool = activeTool;
-    const frozenPreset = stylePreset;
+    const frozenPreset = activeTool === 'twilight' ? `${stylePreset}|${twilightTime}` : stylePreset;
     const frozenCustom = customRemoval;
 
     requestSpend(TOOL_COST[activeTool], () => {
@@ -451,7 +457,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
     const totalCost = TOOL_COST[activeTool] * targets.length;
 
     const frozenTool = activeTool;
-    const frozenPreset = stylePreset;
+    const frozenPreset = activeTool === 'twilight' ? `${stylePreset}|${twilightTime}` : stylePreset;
     const frozenCustom = customRemoval;
 
     requestSpend(totalCost, async () => {
@@ -1006,14 +1012,38 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
               </span>
             </div>
 
-            <div className="v-field">
-              <span className="v-field-label">Style preset</span>
-              <div className="v-preset-row">
-                {(PRESETS[activeTool === 'declutter' && isExteriorRoom(currentPhoto.label) ? 'declutter_ext' : activeTool] || []).map(p => (
-                  <button key={p} className={'v-preset' + (stylePreset === p.toLowerCase() ? ' active' : '')} onClick={() => setStylePreset(p.toLowerCase())}>{p}</button>
-                ))}
+            {activeTool === 'twilight' ? (
+              <>
+                <div className="v-field">
+                  <span className="v-field-label">Color style</span>
+                  <div className="v-preset-row">
+                    {(PRESETS.twilight_style || []).map(p => (
+                      <button key={p} className={'v-preset' + (stylePreset === p.toLowerCase() ? ' active' : '')} onClick={() => setStylePreset(p.toLowerCase())}>{p}</button>
+                    ))}
+                  </div>
+                </div>
+                <div className="v-field" style={{ marginTop: 4 }}>
+                  <span className="v-field-label">Time of day</span>
+                  <div className="v-preset-row">
+                    {(PRESETS.twilight_time || []).map(p => {
+                      const val = p.toLowerCase().replace(/ /g, '-') as TwilightTime;
+                      return (
+                        <button key={p} className={'v-preset' + (twilightTime === val ? ' active' : '')} onClick={() => setTwilightTime(val)}>{p}</button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="v-field">
+                <span className="v-field-label">Style preset</span>
+                <div className="v-preset-row">
+                  {(PRESETS[activeTool === 'declutter' && isExteriorRoom(currentPhoto.label) ? 'declutter_ext' : activeTool] || []).map(p => (
+                    <button key={p} className={'v-preset' + (stylePreset === p.toLowerCase() ? ' active' : '')} onClick={() => setStylePreset(p.toLowerCase())}>{p}</button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {activeTool === 'declutter' && (
               <div className="v-field" style={{ marginTop: 4 }}>

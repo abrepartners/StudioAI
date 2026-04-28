@@ -28,7 +28,7 @@ import { shouldPromptNonStackable } from '../utils/nonStackableTools';
 import { resizeToMatch } from '../utils/resizeToMatch';
 import { checkAlignment } from '../utils/alignmentCheck';
 import { fluxCleanup } from '../services/fluxService';
-import { fluxTwilight, TWILIGHT_STYLES, type TwilightStyle } from '../services/twilightService';
+import { fluxTwilight, type TwilightColorStyle, type TwilightTime } from '../services/twilightService';
 import NonStackableConfirm from './NonStackableConfirm';
 import PanelHeader from './PanelHeader';
 import { Badge, Button } from './ui';
@@ -170,8 +170,9 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
     const [declutterSignal, setDeclutterSignal] = useState<CleanupQualitySignal | null>(null);
     const declutterAuditRef = useRef(0);
 
-    // Twilight style
-    const [twilightStyle, setTwilightStyle] = useState<TwilightStyle>('warm-classic');
+    // Twilight 2-axis
+    const [twilightStyle, setTwilightStyle] = useState<TwilightColorStyle>('golden');
+    const [twilightTime, setTwilightTime] = useState<TwilightTime>('sunset');
 
     // Sky replacement
     const [skyStyle, setSkyStyle] = useState<SkyStyle>('blue');
@@ -385,25 +386,42 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                 </div>
             )}
 
-            {/* Virtual Twilight -> Flux 2 Pro prompt-only */}
+            {/* Virtual Twilight -> Flux 2 Pro 2-axis */}
             <Section id="twilight" icon={<Sunset size={18} />} title="Day to Dusk" subtitle="Turn daytime exteriors into twilight shots" isOpen={openSection === 'twilight'} onToggle={toggleSection}>
                 <p className="text-sm text-[var(--color-text)]/80 mb-3">
-                    Pick a twilight mood, then generate. Flux 2 Pro relights your photo to the selected atmosphere — no perspective changes, no invented objects.
+                    Choose a sky color and time of day, then generate. Flux 2 Pro relights your photo — no perspective changes, no invented objects.
                 </p>
-                <div className="grid grid-cols-3 gap-2 mb-3">
-                    {TWILIGHT_STYLES.map((s) => (
+                <p className="text-[11px] font-semibold text-[var(--color-text)]/50 uppercase tracking-wider mb-1.5">Color style</p>
+                <div className="grid grid-cols-4 gap-2 mb-3">
+                    {(['pink', 'golden', 'purple', 'natural'] as TwilightColorStyle[]).map((s) => (
                         <button
-                            key={s.key}
+                            key={s}
                             type="button"
-                            onClick={() => setTwilightStyle(s.key)}
-                            className={`rounded-xl border-2 transition-all px-3 py-3 text-left ${
-                                twilightStyle === s.key
+                            onClick={() => setTwilightStyle(s)}
+                            className={`rounded-xl border-2 transition-all px-3 py-2.5 text-center ${
+                                twilightStyle === s
                                     ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/10 ring-1 ring-[var(--color-primary)]/30'
                                     : 'border-[var(--color-border-strong)] bg-black/40 hover:bg-black/60'
                             }`}
                         >
-                            <p className={`text-xs font-bold leading-tight ${twilightStyle === s.key ? 'text-[var(--color-primary)]' : 'text-[var(--color-ink)]'}`}>{s.label}</p>
-                            <p className="text-[10px] text-[var(--color-text)]/60 leading-snug mt-1">{s.description}</p>
+                            <p className={`text-xs font-bold leading-tight capitalize ${twilightStyle === s ? 'text-[var(--color-primary)]' : 'text-[var(--color-ink)]'}`}>{s}</p>
+                        </button>
+                    ))}
+                </div>
+                <p className="text-[11px] font-semibold text-[var(--color-text)]/50 uppercase tracking-wider mb-1.5">Time of day</p>
+                <div className="grid grid-cols-3 gap-2 mb-3">
+                    {([['early-evening', 'Early Evening'], ['sunset', 'Sunset'], ['twilight', 'Twilight']] as [TwilightTime, string][]).map(([key, label]) => (
+                        <button
+                            key={key}
+                            type="button"
+                            onClick={() => setTwilightTime(key)}
+                            className={`rounded-xl border-2 transition-all px-3 py-2.5 text-center ${
+                                twilightTime === key
+                                    ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/10 ring-1 ring-[var(--color-primary)]/30'
+                                    : 'border-[var(--color-border-strong)] bg-black/40 hover:bg-black/60'
+                            }`}
+                        >
+                            <p className={`text-xs font-bold leading-tight ${twilightTime === key ? 'text-[var(--color-primary)]' : 'text-[var(--color-ink)]'}`}>{label}</p>
                         </button>
                     ))}
                 </div>
@@ -412,11 +430,11 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                     disabled={loading !== null || (!currentImage && !canBatch)}
                     onClick={() => canBatch
                         ? runBatch('twilight', async (img, signal) => {
-                            const { resultBase64 } = await fluxTwilight(img, twilightStyle, signal);
+                            const { resultBase64 } = await fluxTwilight(img, twilightStyle, twilightTime, signal);
                             return resultBase64;
                           })
                         : run('twilight', async (signal) => {
-                            const { resultBase64 } = await fluxTwilight(currentImage!, twilightStyle, signal);
+                            const { resultBase64 } = await fluxTwilight(currentImage!, twilightStyle, twilightTime, signal);
                             if (signal.aborted) throw new Error('ABORTED');
                             const sharpened = await postProcessToolOutput(resultBase64, null, 'twilight');
                             const result = await resizeToMatch(sharpened, currentImage!);

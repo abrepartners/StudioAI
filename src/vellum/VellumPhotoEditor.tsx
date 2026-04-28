@@ -4,6 +4,8 @@ import { generateRoomDesign, detectRoomType } from '../../services/geminiService
 import { fluxCleanup } from '../../services/fluxService';
 import { fluxTwilight, TwilightStyle } from '../../services/twilightService';
 import { nanoSky, SkyStyle } from '../../services/skyService';
+import { upscaleImage } from '../../services/upscaleService';
+import { isExteriorRoom } from '../../services/fluxService';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 
@@ -28,11 +30,17 @@ const TOOLS = [
 
 const PRESETS: Record<string, string[]> = {
   staging: ['Contemporary', 'Mid-century', 'Coastal', 'Farmhouse', 'Scandinavian', 'Minimalist'],
-  declutter: ['Personal items', 'Cables & cords', 'Toys', 'Bathroom items', 'All of the above'],
+  declutter: ['Full clean', 'Personal items only', 'Surface clutter only'],
   whiten: ['Bright & airy', 'Warm editorial', 'Neutral'],
   twilight: ['Golden hour', 'Blue hour', 'After sunset'],
   sky: ['Clear blue', 'Golden hour', 'Soft overcast', 'Dramatic'],
   lawn: ['Manicured', 'Natural', 'Drought-resistant'],
+};
+
+const DECLUTTER_FILTER_MAP: Record<string, string | undefined> = {
+  'full clean': undefined,
+  'personal items only': 'personal',
+  'surface clutter only': 'surfaces',
 };
 
 const TOOL_STEPS: Record<string, string[]> = {
@@ -104,10 +112,17 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
     processFiles(e.dataTransfer.files);
   };
 
-  const [activeTool, setActiveTool] = useState('staging');
+  const [activeTool, setActiveToolRaw] = useState('staging');
   const [stylePreset, setStylePreset] = useState('contemporary');
-  const [intensity, setIntensity] = useState(0.7);
+  const [customRemoval, setCustomRemoval] = useState('');
   const [selectedPhoto, setSelectedPhoto] = useState(0);
+
+  const setActiveTool = (tool: string) => {
+    setActiveToolRaw(tool);
+    const firstPreset = (PRESETS[tool] || [])[0];
+    if (firstPreset) setStylePreset(firstPreset.toLowerCase());
+    setCustomRemoval('');
+  };
   const [view, setView] = useState<'compare' | 'grid' | 'single'>('compare');
   const [singlePhoto, setSinglePhoto] = useState<number | null>(null);
 
@@ -170,6 +185,8 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
   activeToolRef.current = activeTool;
   const stylePresetRef = useRef(stylePreset);
   stylePresetRef.current = stylePreset;
+  const customRemovalRef = useRef(customRemoval);
+  customRemovalRef.current = customRemoval;
   const processedSetRef = useRef(processedSet);
   processedSetRef.current = processedSet;
 
@@ -188,7 +205,11 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
         return results[0] || imageBase64;
       }
       case 'declutter': {
-        const result = await fluxCleanup(imageBase64, roomLabel, signal);
+        const filter = DECLUTTER_FILTER_MAP[preset] || undefined;
+        const custom = customRemovalRef.current || undefined;
+        const result = await fluxCleanup(imageBase64, roomLabel, signal, {
+          filter, customRemoval: custom, skipUpscale: true,
+        });
         return result.resultBase64;
       }
       case 'whiten': {
@@ -377,6 +398,17 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [exportLabel, setExportLabel] = useState('');
+
+  const upscaleForExport = async (base64: string, label: string): Promise<string> => {
+    try {
+      const result = await upscaleImage(base64, isExteriorRoom(label));
+      return result.resultBase64;
+    } catch (err: any) {
+      console.warn(`[Vellum] Upscale failed for ${label}, exporting preview quality:`, err?.message);
+      return base64;
+    }
+  };
 
   const doDownloadAll = async () => {
     const refined = photos.filter(p => processedResults[p.id]);
@@ -384,32 +416,48 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
     setExporting(true);
     try {
       if (refined.length === 1) {
-        const blob = await dataUrlToBlob(processedResults[refined[0].id]);
+        setExportLabel(`Upscaling ${refined[0].label}…`);
+        const upscaled = await upscaleForExport(processedResults[refined[0].id], refined[0].label);
+        const blob = await dataUrlToBlob(upscaled);
         saveAs(blob, `${refined[0].label.replace(/\s+/g, '_')}_refined.jpg`);
       } else {
         const zip = new JSZip();
         for (let i = 0; i < refined.length; i++) {
           const p = refined[i];
-          const blob = await dataUrlToBlob(processedResults[p.id]);
+          setExportLabel(`Upscaling ${i + 1} of ${refined.length}… ${p.label}`);
+          const upscaled = await upscaleForExport(processedResults[p.id], p.label);
+          const blob = await dataUrlToBlob(upscaled);
           const name = `${String(i + 1).padStart(3, '0')}_${p.label.replace(/\s+/g, '_')}_refined.jpg`;
           zip.file(name, blob);
         }
+        setExportLabel('Packaging zip…');
         const zipBlob = await zip.generateAsync({ type: 'blob' });
         saveAs(zipBlob, 'vellum_export.zip');
       }
-      setActivity(a => [{ who: 'Vellum', what: `Downloaded ${refined.length} refined photo${refined.length > 1 ? 's' : ''}`, cost: 0, when: 'just now' }, ...a]);
+      setActivity(a => [{ who: 'Vellum', what: `Downloaded ${refined.length} refined photo${refined.length > 1 ? 's' : ''} (upscaled)`, cost: 0, when: 'just now' }, ...a]);
     } catch (err: any) {
       console.error('[Vellum] Export failed:', err);
     }
     setExporting(false);
+    setExportLabel('');
   };
 
   const doDownloadSingle = async (idx: number) => {
     const photo = photos[idx];
     if (!photo) return;
-    const src = processedResults[photo.id] || photo.dataUrl;
-    const blob = await dataUrlToBlob(src);
-    saveAs(blob, `${photo.label.replace(/\s+/g, '_')}_refined.jpg`);
+    const src = processedResults[photo.id];
+    if (!src) return;
+    setExporting(true);
+    setExportLabel(`Upscaling ${photo.label}…`);
+    try {
+      const upscaled = await upscaleForExport(src, photo.label);
+      const blob = await dataUrlToBlob(upscaled);
+      saveAs(blob, `${photo.label.replace(/\s+/g, '_')}_refined.jpg`);
+    } catch (err: any) {
+      console.error('[Vellum] Single export failed:', err);
+    }
+    setExporting(false);
+    setExportLabel('');
   };
 
   // ---- Upload zone (shown when no photos loaded) ----
@@ -571,29 +619,24 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
           </div>
         </div>
 
-        <div className="v-field-row">
-          <div className="v-field">
-            <span className="v-field-label">Intensity</span>
-            <div className="v-slider-track" onClick={(e) => {
-              const r = e.currentTarget.getBoundingClientRect();
-              setIntensity(Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)));
-            }}>
-              <div className="v-slider-fill" style={{ width: `${intensity * 100}%` }} />
-              <div className="v-slider-thumb" style={{ left: `${intensity * 100}%` }} />
-            </div>
-            <span className="v-muted" style={{ fontSize: 11 }}>{Math.round(intensity * 100)}%</span>
+        {activeTool === 'declutter' && (
+          <div className="v-field" style={{ marginTop: 4 }}>
+            <span className="v-field-label">Specific items to remove</span>
+            <input
+              className="v-set-input"
+              placeholder="e.g. blue tarp on porch, exercise bike in corner"
+              value={customRemoval}
+              onChange={(e) => setCustomRemoval(e.target.value)}
+              style={{ width: '100%', fontSize: 12 }}
+            />
           </div>
+        )}
+
+        <div className="v-field-row">
           <div className="v-field">
             <span className="v-field-label">Room type</span>
             <div className="v-field-value">
               <span>{currentPhoto.detecting ? 'Detecting…' : currentPhoto.label}</span>
-            </div>
-          </div>
-          <div className="v-field">
-            <span className="v-field-label">Output quality</span>
-            <div className="v-field-value">
-              <span>Print · 4K</span>
-              <Icon name="chevron_down" size={12} color="var(--graphite)" />
             </div>
           </div>
         </div>
@@ -802,8 +845,12 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
               disabled={!refinedCount || exporting}
             >
               <Icon name="download" size={13} />
-              {refinedCount > 1 ? `Download all ${refinedCount} refined` : 'Download refined photo'}
-              <span className="v-export-meta">{refinedCount > 1 ? '.zip' : '.jpg'}</span>
+              {exporting && exportLabel
+                ? exportLabel
+                : refinedCount > 1
+                  ? `Download all ${refinedCount} refined`
+                  : 'Download refined photo'}
+              <span className="v-export-meta">{exporting ? 'upscaling…' : refinedCount > 1 ? '.zip' : '.jpg'}</span>
             </button>
             {view !== 'grid' && currentPhoto && processedResults[currentPhoto.id] && (
               <button className="v-export-btn" onClick={() => doDownloadSingle(selectedPhoto)}>

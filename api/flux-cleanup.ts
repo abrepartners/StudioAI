@@ -74,17 +74,25 @@ async function extractUrl(output: unknown): Promise<string | null> {
   return null;
 }
 
-// Real-ESRGAN wrapper — used as primary for interiors and as Clarity-OOM
-// fallback for exteriors. Returns null if the call failed; caller should
-// fall back to raw upstream input.
-async function runEsrgan(replicate: Replicate, imageUrl: string): Promise<string | null> {
+// Pruna upscaler — primary for interiors. Fast (<1s), $0.005/run, good
+// realism on interior surfaces. Also used as Clarity-OOM fallback.
+async function runPruna(replicate: Replicate, imageUrl: string): Promise<string | null> {
   try {
-    const out = await replicate.run('nightmareai/real-esrgan', {
-      input: { image: imageUrl, scale: 4, face_enhance: false },
+    const out = await replicate.run('prunaai/p-image-upscale', {
+      input: {
+        image: imageUrl,
+        factor: 4,
+        target: 5,
+        upscale_mode: 'factor',
+        output_format: 'jpg',
+        output_quality: 100,
+        enhance_details: false,
+        enhance_realism: true,
+      },
     });
     return await extractUrl(out);
   } catch (err: any) {
-    console.warn(`[flux-cleanup] ESRGAN failed: ${err?.message}`);
+    console.warn(`[flux-cleanup] Pruna failed: ${err?.message}`);
     return null;
   }
 }
@@ -144,14 +152,12 @@ export default async function handler(req: any, res: any) {
 
     // --- Step 2 (optional): Upscale branch -----------------------------
     let finalUrl = cleanUrl;
-    let upscalerUsed: 'none' | 'Clarity' | 'ESRGAN' | 'ESRGAN (Clarity OOM fallback)' = 'none';
+    let upscalerUsed: 'none' | 'Clarity' | 'Pruna' | 'Pruna (Clarity OOM fallback)' = 'none';
 
     if (!skipUpscale) {
       const tUp = Date.now();
       if (isExterior) {
-        // Clarity Upscaler for exteriors.
-        // Dynamic scale_factor: 2x when safe, 1.5x for bigger inputs to keep
-        // the output buffer under T4's ~14.5 GB VRAM ceiling.
+        // Clarity Upscaler for exteriors — full config from tested params.
         const safeScale = cleanedBytes > CLARITY_SAFE_BYTES ? 1.5 : 2;
         let clarityError: string | undefined;
         try {
@@ -161,8 +167,17 @@ export default async function handler(req: any, res: any) {
               scale_factor: safeScale,
               num_inference_steps: 18,
               dynamic: 6,
-              creativity: 0.3,
-              resemblance: 0.75,
+              creativity: 0.35,
+              resemblance: 2,
+              prompt: 'masterpiece, best quality, highres, <lora:more_details:0.5> <lora:SDXLrender_v2.0:1>',
+              negative_prompt: '(worst quality, low quality, normal quality:2) JuggernautNegative-neg',
+              scheduler: 'DPM++ 3M SDE Karras',
+              sd_model: 'juggernaut_reborn.safetensors [338b85bc4f]',
+              tiling_width: 112,
+              tiling_height: 144,
+              output_format: 'jpg',
+              sharpen: 0,
+              handfix: 'disabled',
             },
           });
           const upscaledUrl = await extractUrl(clarityOutput);
@@ -177,29 +192,28 @@ export default async function handler(req: any, res: any) {
           clarityError = upErr?.message || 'unknown';
         }
 
-        // OOM fallback → ESRGAN. Also covers generic Clarity failure so
-        // exteriors always get some upscale pass.
+        // OOM fallback → Pruna. Also covers generic Clarity failure.
         if (clarityError) {
           const wasOom = isOomError(clarityError);
-          console.warn(`[flux-cleanup] Clarity ${wasOom ? 'OOM' : 'failed'}: ${clarityError} — retrying via ESRGAN`);
-          const fallbackUrl = await runEsrgan(replicate, cleanUrl);
+          console.warn(`[flux-cleanup] Clarity ${wasOom ? 'OOM' : 'failed'}: ${clarityError} — retrying via Pruna`);
+          const fallbackUrl = await runPruna(replicate, cleanUrl);
           if (fallbackUrl) {
             finalUrl = fallbackUrl;
-            upscalerUsed = wasOom ? 'ESRGAN (Clarity OOM fallback)' : 'ESRGAN';
-            console.log(`[flux-cleanup] Fallback ESRGAN upscaled in ${Date.now() - tUp}ms total`);
+            upscalerUsed = wasOom ? 'Pruna (Clarity OOM fallback)' : 'Pruna';
+            console.log(`[flux-cleanup] Fallback Pruna upscaled in ${Date.now() - tUp}ms total`);
           } else {
-            console.warn('[flux-cleanup] Both Clarity and ESRGAN failed — returning un-upscaled');
+            console.warn('[flux-cleanup] Both Clarity and Pruna failed — returning un-upscaled');
           }
         }
       } else {
-        // Interior path — Real-ESRGAN.
-        const upscaledUrl = await runEsrgan(replicate, cleanUrl);
+        // Interior path — Pruna (fast <1s, $0.005, good realism).
+        const upscaledUrl = await runPruna(replicate, cleanUrl);
         if (upscaledUrl) {
           finalUrl = upscaledUrl;
-          upscalerUsed = 'ESRGAN';
-          console.log(`[flux-cleanup] ESRGAN upscaled in ${Date.now() - tUp}ms (interior path)`);
+          upscalerUsed = 'Pruna';
+          console.log(`[flux-cleanup] Pruna upscaled in ${Date.now() - tUp}ms (interior path)`);
         } else {
-          console.warn('[flux-cleanup] ESRGAN returned no URL — using un-upscaled');
+          console.warn('[flux-cleanup] Pruna returned no URL — using un-upscaled');
         }
       }
     }

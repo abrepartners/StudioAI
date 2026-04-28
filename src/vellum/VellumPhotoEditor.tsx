@@ -573,8 +573,8 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
           )}
         </div>
 
-        <div className="v-ba-tag b">Before</div>
-        <div className="v-ba-tag a">{refined ? `After · ${photo.label}` : 'Pending'}</div>
+        <div className="v-ba-tag b">{refined ? `After · ${photo.label}` : 'Pending'}</div>
+        <div className="v-ba-tag a">Before</div>
 
         {!generating && (
           <div className="v-ba-handle" style={{ left: `${splitPos}%` }}>

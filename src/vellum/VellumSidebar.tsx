@@ -5,9 +5,10 @@ interface SidebarProps {
   page: string;
   setPage: (p: string) => void;
   onNewListing: () => void;
+  onUploadFiles?: () => void;
 }
 
-export const VellumSidebar: React.FC<SidebarProps> = ({ page, setPage, onNewListing }) => {
+export const VellumSidebar: React.FC<SidebarProps> = ({ page, setPage, onNewListing, onUploadFiles }) => {
   const [importOpen, setImportOpen] = useState(false);
   const importRef = useRef<HTMLDivElement>(null);
 
@@ -21,13 +22,14 @@ export const VellumSidebar: React.FC<SidebarProps> = ({ page, setPage, onNewList
     return () => document.removeEventListener('click', onClick);
   }, []);
 
-  const NavItem = ({ id, icon, label }: { id: string; icon: string; label: string }) => (
+  const NavItem = ({ id, icon, label, badge }: { id: string; icon: string; label: string; badge?: string }) => (
     <button
       className={'v-nav-link' + (page === id ? ' active' : '')}
       onClick={() => setPage(id)}
     >
       <Icon name={icon} size={15} />
       <span>{label}</span>
+      {badge && <span className="v-nav-badge">{badge}</span>}
     </button>
   );
 
@@ -37,7 +39,7 @@ export const VellumSidebar: React.FC<SidebarProps> = ({ page, setPage, onNewList
       <NavItem id="dashboard" icon="home" label="Dashboard" />
       <NavItem id="projects" icon="folder" label="Projects" />
       <NavItem id="photo" icon="image" label="Photo editor" />
-      <NavItem id="video" icon="video" label="Video reels" />
+      <NavItem id="video" icon="video" label="Video reels" badge="Soon" />
 
       <div className="v-create-card">
         <span className="label">Create new</span>
@@ -62,7 +64,7 @@ export const VellumSidebar: React.FC<SidebarProps> = ({ page, setPage, onNewList
               <button><Icon name="mls" /> MLS listing</button>
               <button><Icon name="folder" /> Dropbox</button>
               <button><Icon name="image" /> Google Drive</button>
-              <button><Icon name="upload" /> Upload files</button>
+              <button onClick={() => { setImportOpen(false); onUploadFiles?.(); }}><Icon name="upload" /> Upload files</button>
             </div>
           )}
         </div>

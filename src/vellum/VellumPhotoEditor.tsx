@@ -8,6 +8,7 @@ import { upscaleImage } from '../../services/upscaleService';
 import { isExteriorRoom } from '../../services/fluxService';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
+import { savePhoto as idbSavePhoto, saveResult as idbSaveResult, loadPhotos as idbLoadPhotos, loadResults as idbLoadResults } from './imageStore';
 
 interface UploadedPhoto {
   id: number;
@@ -86,6 +87,33 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const nextId = useRef(0);
+  const restoredRef = useRef(false);
+
+  useEffect(() => {
+    if (!activeProject?.id || restoredRef.current) return;
+    restoredRef.current = true;
+    (async () => {
+      const [savedPhotos, savedResults] = await Promise.all([
+        idbLoadPhotos(activeProject.id),
+        idbLoadResults(activeProject.id),
+      ]);
+      if (!savedPhotos.length) return;
+      const maxId = Math.max(...savedPhotos.map(p => p.photoId));
+      nextId.current = maxId + 1;
+      const restored: UploadedPhoto[] = savedPhotos.map(p => ({
+        id: p.photoId,
+        file: new File([], p.fileName),
+        dataUrl: p.dataUrl,
+        label: p.label,
+        detecting: false,
+      }));
+      setPhotos(restored);
+      if (Object.keys(savedResults).length) {
+        setProcessedResults(savedResults);
+        setProcessedSet(new Set(Object.keys(savedResults).map(Number)));
+      }
+    })().catch(() => {});
+  }, [activeProject?.id]);
 
   const processFiles = async (files: FileList | File[]) => {
     const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
@@ -105,9 +133,12 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
     for (const p of newPhotos) {
       try {
         const roomType = await detectRoomType(p.dataUrl);
-        setPhotos(prev => prev.map(ph => ph.id === p.id ? { ...ph, label: roomType || ph.label, detecting: false } : ph));
+        const finalLabel = roomType || p.label;
+        setPhotos(prev => prev.map(ph => ph.id === p.id ? { ...ph, label: finalLabel, detecting: false } : ph));
+        if (activeProject?.id) idbSavePhoto(activeProject.id, p.id, p.dataUrl, finalLabel, p.file.name).catch(() => {});
       } catch {
         setPhotos(prev => prev.map(ph => ph.id === p.id ? { ...ph, detecting: false } : ph));
+        if (activeProject?.id) idbSavePhoto(activeProject.id, p.id, p.dataUrl, p.label, p.file.name).catch(() => {});
       }
     }
   };
@@ -165,6 +196,12 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
       window.removeEventListener('touchend', onUp);
     };
   }, [onMoveRaw, onUp]);
+
+  useEffect(() => {
+    const onUploadEvent = () => fileInputRef.current?.click();
+    window.addEventListener('vellum:upload-files', onUploadEvent);
+    return () => window.removeEventListener('vellum:upload-files', onUploadEvent);
+  }, []);
 
   const [generating, setGenerating] = useState(false);
   const [genStep, setGenStep] = useState(0);
@@ -291,6 +328,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
 
       setProcessedResults(prev => ({ ...prev, [photo.id]: resultDataUrl }));
       setProcessedSet(prev => new Set([...prev, photo.id]));
+      if (activeProject?.id) idbSaveResult(activeProject.id, photo.id, resultDataUrl).catch(() => {});
 
       // Push to history stack for undo/reset
       setPhotoHistory(prev => ({

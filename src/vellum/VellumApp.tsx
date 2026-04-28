@@ -62,6 +62,11 @@ const VellumApp: React.FC = () => {
     setNewListingOpen(true);
   }, []);
 
+  const handleUploadFiles = useCallback(() => {
+    setPage('photo');
+    setTimeout(() => window.dispatchEvent(new CustomEvent('vellum:upload-files')), 50);
+  }, []);
+
   const handleCreateListing = useCallback((data: { address: string; city: string; propertyType: string; beds: number | null; baths: number | null }) => {
     const id = store.addProject(data);
     setActiveProjectId(id);
@@ -117,7 +122,7 @@ const VellumApp: React.FC = () => {
           onRefill={() => setRefill({ open: true, needed: 0, onAfter: null })}
         />
         <div className="v-app-body">
-          <VellumSidebar page={page} setPage={setPage} onNewListing={handleNewListing} />
+          <VellumSidebar page={page} setPage={setPage} onNewListing={handleNewListing} onUploadFiles={handleUploadFiles} />
           <main className="v-app-main">
             <Suspense
               fallback={

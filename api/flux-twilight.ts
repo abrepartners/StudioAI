@@ -98,6 +98,11 @@ STRICT RULES:
 - Do NOT add new windows, doors, lights, cars, furniture, or decor.
 - Only change: sky (to the target atmosphere), exterior ambient light level, interior window glow, and reflections that follow naturally from the new lighting.
 
+PHOTOGRAPHY DNA — MATCH THE INPUT:
+- Preserve the input photo's noise/grain structure. Do not smooth or denoise.
+- The output should look like the same camera captured the scene at a different time of day — same sensor characteristics, same lens, same focal length.
+- If the input has JPEG compression artifacts, the output should have similar compression texture. Do not "clean up" the photo.
+
 Output the same photograph relit to the target atmosphere. Treat the input as immutable geometry and change only the light energy in the scene.`;
 }
 

@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import PanelHeader from './PanelHeader';
 import { Pill, Badge } from './ui';
+import { STYLE_PACKS, STYLE_CONTROLS_STYLE_MAP, getFurnitureSpec } from '../src/prompts/stylePacks';
 
 type StageMode = 'text' | 'packs' | 'furniture';
 
@@ -222,15 +223,14 @@ const RenovationControls: React.FC<RenovationControlsProps> = ({
     !packsBlockedByRoomType &&
     (stageMode === 'text' ? trimmedPrompt.length > 0 : stageMode === 'packs' ? Boolean(selectedPreset) : false);
 
-  const PACK_DETAILS: Record<string, string> = {
-    'Coastal Modern': 'light wood tones, white and sand-colored upholstery, rattan or woven accents, linen textures, soft blue and seafoam accents only in decor items',
-    'Urban Loft': 'dark leather seating, metal and reclaimed wood, concrete-toned accents, warm Edison-style lighting, muted earth tones in decor',
-    'Farmhouse Chic': 'distressed white wood, warm neutral fabrics, shiplap-compatible pieces, antique brass hardware accents, soft cream and sage decor',
-    'Minimalist': 'clean-lined low-profile furniture, neutral whites and warm grays, no clutter, one or two simple accent pieces maximum',
-    'Mid-Century Modern': 'tapered wood legs, warm walnut tones, mustard or teal accent pillows only, organic curved shapes, clean geometry',
-    'Scandinavian': 'pale birch wood, white and light gray upholstery, simple wool throws, minimal greenery, airy and uncluttered',
-    'Bohemian': 'layered textiles, warm terracotta and cream tones, woven rugs, macrame or rattan accents, natural materials',
-  };
+  const PACK_DETAILS: Record<string, string> = Object.fromEntries(
+    Object.entries(STYLE_CONTROLS_STYLE_MAP).map(([uiName, packKey]) => {
+      const pack = STYLE_PACKS[packKey];
+      if (!pack) return [uiName, ''];
+      const furniture = getFurnitureSpec(pack, selectedRoom);
+      return [uiName, `${pack.dna} Materials: ${pack.materials} Palette: ${pack.palette} Furniture: ${furniture} ${pack.antiPatterns}`];
+    })
+  );
 
   const buildPrompt = () => {
     if (stageMode === 'furniture') return;

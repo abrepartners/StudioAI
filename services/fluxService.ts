@@ -106,6 +106,12 @@ Also remove any item that clearly does not belong in a ${room} — for example, 
     prompt += `\n\nKeep all furniture, built-in fixtures, and architecture exactly as-is. Do not add anything. Reconstruct revealed surfaces from surrounding pixels. This is a photo-restoration task, not a styling task.`;
   }
 
+  prompt += `\n\nINPAINTING QUALITY STANDARD:
+- Where items are removed, reconstruct the revealed surface by sampling the EXACT texture, color, grain, and pattern from adjacent visible areas of the same surface.
+- Floor reconstruction: match plank direction, grout lines, carpet pile direction, tile pattern, and wear level from surrounding visible floor. Do NOT fill with a flat averaged color.
+- Wall reconstruction: match paint sheen (matte/eggshell/satin), texture (smooth/orange-peel/knockdown), and any visible color gradients from adjacent wall areas. Do NOT smooth or repaint.
+- The reconstructed area should be indistinguishable from the surrounding surface — same noise, same grain, same compression artifacts.`;
+
   return prompt;
 };
 
@@ -134,6 +140,12 @@ DO NOT:
 - Change window glass tint, reflections, or frame color.
 
 Output the input photograph with ONLY the listed clutter items erased and the revealed background reconstructed from surrounding pixels. Treat this as a photo-restoration task, not a styling task.`;
+
+  prompt += `\n\nINPAINTING QUALITY STANDARD:
+- Reconstruct revealed surfaces (grass, concrete, siding) by sampling the exact texture, grain, and color from adjacent visible areas.
+- Grass reconstruction: match blade height, color variation, thatch density, and shadow direction from surrounding lawn.
+- Concrete/driveway: match surface texture, staining, and crack patterns.
+- The reconstructed area should blend seamlessly with surrounding pixels.`;
 
   return prompt;
 };

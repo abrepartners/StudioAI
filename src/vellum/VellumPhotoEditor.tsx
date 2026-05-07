@@ -6,6 +6,7 @@ import { fluxTwilight, TwilightColorStyle, TwilightTime } from '../../services/t
 import { nanoSky, SkyStyle } from '../../services/skyService';
 import { upscaleImage } from '../../services/upscaleService';
 import { isExteriorRoom } from '../../services/fluxService';
+import { STYLE_PACKS, buildStagingAssignment } from '../prompts/stylePacks';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { savePhoto as idbSavePhoto, saveResult as idbSaveResult, loadPhotos as idbLoadPhotos, loadResults as idbLoadResults } from './imageStore';
@@ -88,6 +89,7 @@ interface PhotoEditorProps {
   setPage: (p: string) => void;
   credits: number;
   requestSpend: (amount: number, after?: (res: any) => void) => boolean;
+  refundCredits: (amount: number) => void;
   activeProject?: { id: string; address: string; city: string; propertyType: string; beds: number | null; baths: number | null } | null;
   updateProject?: (id: string, partial: Record<string, any>) => void;
 }
@@ -118,18 +120,16 @@ const callApiDirect = async (
 
   switch (tool) {
     case 'staging': {
-      const stageDesc: Record<string, string> = {
-        'contemporary': 'clean lines, neutral tones, glass and metal accents, open feel',
-        'mid-century': 'tapered legs, warm wood tones, organic curves, retro palette',
-        'coastal': 'light blues and whites, natural textures, wicker and linen, airy feel',
-        'farmhouse': 'rustic wood, neutral earth tones, shiplap accents, cozy warmth',
-        'scandinavian': 'pale wood, white and gray palette, minimal accessories, soft textiles',
-        'minimalist': 'very few pieces, monochromatic, negative space, sculptural forms',
-      };
-      const desc = stageDesc[preset] || 'modern, premium furnishings';
-      const prompt = `Virtually stage this ${roomLabel.toLowerCase()} with ${preset} style furnishings (${desc}). Use premium furniture materials. Match the room's existing lighting on all new pieces. Professional real estate photography composition.`;
+      const pack = STYLE_PACKS[preset];
+      const prompt = pack
+        ? buildStagingAssignment(pack, roomLabel)
+        : `Virtually stage this ${roomLabel.toLowerCase()} with ${preset} style furnishings. Use premium furniture materials. Match the room's existing lighting on all new pieces. Professional real estate photography composition.`;
       const results = await generateRoomDesign(imageBase64, prompt, undefined, false, 1, true, undefined, signal);
-      return results[0] || imageBase64;
+      const staged = results[0] || imageBase64;
+      try {
+        const up = await upscaleImage(staged, false, signal);
+        return up.resultBase64;
+      } catch { return staged; }
     }
     case 'declutter': {
       const filter = DECLUTTER_FILTER_MAP[preset] || undefined;
@@ -140,15 +140,49 @@ const callApiDirect = async (
       return result.resultBase64;
     }
     case 'whiten': {
-      const whitenDesc: Record<string, string> = {
-        'bright & airy': 'bright, high-key exposure with cool-neutral tones, maximized natural light, clean whites',
-        'warm editorial': 'warm golden tones, soft editorial lighting, rich but natural warmth',
-        'neutral': 'perfectly neutral white balance, no color cast, true-to-life colors, balanced exposure',
+      const whitenSpecs: Record<string, string> = {
+        'bright & airy': `TARGET: Bright, high-key real estate photography.
+- Color temperature: 5500K neutral to slightly cool (5800K max).
+- Exposure: lift +0.3 to +0.5 EV from current level. Aim for bright without blowout — highlights should clip at 250/255 max, not 255/255.
+- Shadows: open to 20-30% — detail visible in every corner and under furniture. No crushed blacks.
+- Whites: clean and bright without blue or yellow cast. White walls should read as true white, not warm cream or cool blue.
+- Saturation: natural — do not boost. Wood tones and fabric colors should remain accurate to life.`,
+        'warm editorial': `TARGET: Warm, editorial interior photography — Architectural Digest feel.
+- Color temperature: 4200-4500K warm. Golden window light enhanced but not orange. Think "late afternoon sun through a west window."
+- Exposure: +0.2 to +0.3 EV — slightly lifted but not high-key. Rich midtones are more important than bright highlights.
+- Shadows: warm and soft, 15-25% density. Shadow areas should feel inviting, not dark.
+- Whites: warm cream, not stark white. Warm but not yellow.
+- Saturation: natural with very slight warmth boost in wood tones and fabrics. Do not oversaturate.`,
+        'neutral': `TARGET: Perfectly neutral white balance — WYSIWYG accuracy.
+- Color temperature: 5000K daylight neutral. Zero color cast of any kind.
+- Exposure: match metered value — 0 EV correction. If the photo is slightly dark, keep it slightly dark. If bright, keep bright.
+- Whites: true neutral white. Use a white wall or ceiling as reference — it should appear as pure white with no warmth or coolness.
+- Saturation: accurate to life. No enhancement, no reduction.
+- This is a correction, not a look. The goal is "what your eyes saw when standing in the room."`,
       };
-      const desc = whitenDesc[preset] || 'even exposure, natural daylight';
-      const prompt = `Correct white balance and lighting on this ${roomLabel.toLowerCase()} photo. Target look: ${desc}. Keep all furniture and architecture exactly as-is.`;
+      const spec = whitenSpecs[preset] || whitenSpecs['neutral'];
+      const prompt = `PHOTO EDITING TASK — WHITE BALANCE AND EXPOSURE CORRECTION ONLY.
+
+${spec}
+
+PRESERVE EXACTLY (pixel-identical):
+- All furniture, objects, decor, and architecture — geometry unchanged.
+- All surface textures: carpet pile, wood grain, tile grout, fabric weave, wall texture. Do NOT smooth or denoise any surface.
+- Camera framing, perspective, lens distortion, depth of field.
+- All objects in the scene — do not add, remove, or reposition anything.
+
+DO NOT:
+- Smooth, denoise, sharpen, or HDR-process any surface.
+- Add or remove any object, shadow, reflection, or highlight.
+- Change the color of any object — only ambient light temperature changes.
+- Apply any tonal curve, LUT, or color grade beyond the specified target.
+- Make the photo "better" in any way not specified. This is a surgical white balance correction, not a retouch.`;
       const results = await generateRoomDesign(imageBase64, prompt, undefined, false, 1, true, undefined, signal);
-      return results[0] || imageBase64;
+      const whitened = results[0] || imageBase64;
+      try {
+        const up = await upscaleImage(whitened, false, signal);
+        return up.resultBase64;
+      } catch { return whitened; }
     }
     case 'twilight': {
       const [colorStyle, timeOfDay] = preset.split('|') as [TwilightColorStyle, TwilightTime];
@@ -161,32 +195,76 @@ const callApiDirect = async (
       return result.resultBase64;
     }
     case 'lawn': {
-      const lawnDesc: Record<string, string> = {
-        'manicured': 'perfectly manicured, uniformly green, freshly mowed with clean edges and defined borders',
-        'natural': 'natural and lush with organic variation, mixed grass heights, a lived-in but healthy yard',
-        'drought-resistant': 'drought-tolerant xeriscaping with native plants, decorative gravel, mulch beds, and sparse drought-resistant ground cover',
+      const lawnSpecs: Record<string, string> = {
+        'manicured': `TARGET: Professionally maintained residential lawn — the "just mowed for the listing shoot" look.
+- Grass color: rich, consistent green with natural micro-variation — NOT flat neon green. Real grass has 3-4 shades from light yellow-green (sun exposed) to deep green (shaded). Include this variation.
+- Grass texture: visible individual blade definition at close range. Slight height variation (0.5-1 inch). Natural thatch layer at base visible in foreground. Blade direction consistent with a mow pattern.
+- Edges: crisp, clean borders where grass meets concrete, mulch, or garden beds. Natural feathering — not a hard pixel line.
+- Shadows: micro-shadows between blades matching the scene's sun angle and direction. Shadow density consistent with the rest of the photo.
+- Bare spots or brown patches: fill with matching green grass at the same texture density as surrounding areas.`,
+        'natural': `TARGET: Healthy, lived-in lawn — lush and organic, not manicured.
+- Grass color: multi-tonal green with natural variation. Some areas slightly longer, some slightly shorter. Clover or ground cover patches acceptable.
+- Grass texture: mixed heights (1-3 inches), natural growth patterns, some seed heads in taller areas. Organic and realistic, not uniform.
+- Edges: soft, natural borders. Grass creeping slightly over concrete or mulch edges is fine — this is a natural yard.
+- Keep existing weeds that aren't distracting. Remove only obvious dead patches or bare dirt.`,
+        'drought-resistant': `TARGET: Drought-tolerant xeriscaping — intentionally sparse, landscaped.
+- Replace bare/dead lawn areas with: decorative gravel or decomposed granite, mulch beds with drought-resistant plants (succulents, agave, lavender, rosemary, ornamental grasses), and sparse drought-resistant ground cover.
+- Keep existing trees, large shrubs, and hardscape exactly as-is.
+- Natural, intentional spacing between plants. Not overgrown, not barren.
+- Gravel/stone should have natural color variation and shadow detail.`,
       };
-      const desc = lawnDesc[preset] || 'lush, green, and manicured';
-      const prompt = `Enhance the lawn and landscaping of this exterior photo. Target look: ${desc}. Keep the house, driveway, sky, and all architecture exactly unchanged.`;
+      const spec = lawnSpecs[preset] || lawnSpecs['manicured'];
+      const prompt = `LANDSCAPING ENHANCEMENT — EXTERIOR PHOTO EDIT.
+
+${spec}
+
+PHOTOGRAPHY DNA:
+- The enhanced lawn/landscaping must have the SAME photographic noise, grain, and compression texture as the rest of the image. If the photo is grainy, the grass is grainy. If clean, the grass is clean.
+- Shadows on grass must match the scene's sun position, angle, and softness.
+- Color temperature of the lawn must match the rest of the scene exactly.
+
+PRESERVE EXACTLY (pixel-identical):
+- House: every architectural element, siding, windows, doors, roof, trim.
+- Hardscape: driveway, walkways, retaining walls, fences, mailbox.
+- Sky, clouds, lighting conditions — no changes.
+- Existing mature trees and large shrubs — no additions or removals.
+- Camera framing and perspective.
+
+DO NOT:
+- Add new trees, structures, or landscape features not specified.
+- Change the season or time of day.
+- Smooth or denoise any non-lawn area.
+- Modify the house, driveway, or any built structure.`;
       const results = await generateRoomDesign(imageBase64, prompt, undefined, false, 1, true, undefined, signal);
-      return results[0] || imageBase64;
+      const enhanced = results[0] || imageBase64;
+      try {
+        const up = await upscaleImage(enhanced, true, signal);
+        return up.resultBase64;
+      } catch { return enhanced; }
     }
     default:
       return imageBase64;
   }
 };
 
-const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, requestSpend, activeProject, updateProject }) => {
+const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, requestSpend, refundCredits, activeProject, updateProject }) => {
   const [photos, setPhotos] = useState<UploadedPhoto[]>([]);
   const [activity, setActivity] = useState<{ who: string; what: string; cost: number; when: string }[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const nextId = useRef(0);
-  const restoredRef = useRef(false);
+  const restoredRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!activeProject?.id || restoredRef.current) return;
-    restoredRef.current = true;
+    if (!activeProject?.id || restoredRef.current === activeProject.id) return;
+    restoredRef.current = activeProject.id;
+
+    setPhotos([]);
+    setProcessedResults({});
+    setProcessedSet(new Set());
+    setPhotoHistory({});
+    nextId.current = 0;
+
     (async () => {
       const [savedPhotos, savedResults] = await Promise.all([
         idbLoadPhotos(activeProject.id),
@@ -319,6 +397,8 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
   photosRef.current = photos;
   const processedResultsRef = useRef(processedResults);
   processedResultsRef.current = processedResults;
+  const genMapRef = useRef(genMap);
+  genMapRef.current = genMap;
 
   const isPhotoGenerating = (id: number) => id in genMap;
   const anyGenerating = Object.keys(genMap).length > 0;
@@ -423,11 +503,21 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
         return next;
       });
 
-      if (err.name === 'AbortError') return false;
+      refundCredits(TOOL_COST[tool]);
+
+      if (err.name === 'AbortError') {
+        setActivity(a => [{
+          who: 'Vellum',
+          what: `Cancelled ${photo.label} — ${TOOL_COST[tool]} cr refunded`,
+          cost: 0,
+          when: 'just now',
+        }, ...a]);
+        return false;
+      }
       console.error('[Vellum] Generation failed:', err);
       setActivity(a => [{
         who: 'Vellum',
-        what: `Failed on ${photo.label} — ${err.message || 'unknown error'}`,
+        what: `Failed on ${photo.label} — ${TOOL_COST[tool]} cr refunded`,
         cost: 0,
         when: 'just now',
       }, ...a]);
@@ -521,7 +611,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
   };
 
   useEffect(() => () => {
-    (Object.values(genMap) as PhotoGenState[]).forEach(gs => {
+    (Object.values(genMapRef.current) as PhotoGenState[]).forEach(gs => {
       if (gs.timerRef) clearTimeout(gs.timerRef);
       gs.abort.abort();
     });
@@ -535,6 +625,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
   const [rightCollapsed, setRightCollapsed] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportLabel, setExportLabel] = useState('');
+  const [exportError, setExportError] = useState('');
 
   const currentPhotoIdx = view === 'single' ? (singlePhoto ?? selectedPhoto) : selectedPhoto;
   const currentPhoto = photos[currentPhotoIdx] || photos[0] || null;
@@ -578,6 +669,9 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
       setActivity(a => [{ who: 'Vellum', what: `Downloaded ${refined.length} refined photo${refined.length > 1 ? 's' : ''} (upscaled)`, cost: 0, when: 'just now' }, ...a]);
     } catch (err: any) {
       console.error('[Vellum] Export failed:', err);
+      setExportError('Export failed — please try again');
+      setActivity(a => [{ who: 'Vellum', what: `Export failed — ${err.message || 'unknown error'}`, cost: 0, when: 'just now' }, ...a]);
+      setTimeout(() => setExportError(''), 5000);
     }
     setExporting(false);
     setExportLabel('');
@@ -596,6 +690,9 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
       saveAs(blob, `${photo.label.replace(/\s+/g, '_')}_refined.jpg`);
     } catch (err: any) {
       console.error('[Vellum] Single export failed:', err);
+      setExportError('Export failed — please try again');
+      setActivity(a => [{ who: 'Vellum', what: `Export failed — ${err.message || 'unknown error'}`, cost: 0, when: 'just now' }, ...a]);
+      setTimeout(() => setExportError(''), 5000);
     }
     setExporting(false);
     setExportLabel('');
@@ -892,6 +989,9 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
   };
 
   const unrefinedCount = photoCount - refinedCount;
+  const applyAllTargets = photos.filter(p => !isPhotoGenerating(p.id));
+  const applyAllCount = applyAllTargets.length;
+  const applyAllCost = Math.round(TOOL_COST[activeTool] * applyAllCount);
 
   return (
     <div className={'v-editor' + (leftCollapsed ? ' left-collapsed' : '') + (rightCollapsed ? ' right-collapsed' : '')}>
@@ -978,8 +1078,9 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
               <button
                 className="v-btn v-btn--secondary v-btn--sm"
                 onClick={handleApplyAll}
+                disabled={applyAllCount === 0}
               >
-                Apply to all ({photoCount}) · {Math.round(TOOL_COST[activeTool] * photoCount)} cr
+                Apply to all ({applyAllCount}) · {applyAllCost} cr
               </button>
             )}
             <button
@@ -1175,7 +1276,13 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
               </button>
             )}
           </div>
-          {!refinedCount && (
+          {exportError && (
+            <div className="v-gate-note" style={{ color: 'var(--state-error)' }}>
+              <Icon name="sparkles" size={11} />
+              {exportError}
+            </div>
+          )}
+          {!refinedCount && !exportError && (
             <div className="v-gate-note">
               <Icon name="sparkles" size={11} />
               Apply a tool to your photos first, then export the results here.

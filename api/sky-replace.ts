@@ -36,9 +36,33 @@ const STYLE_SKY_DESCRIPTIONS: Record<SkyStyle, string> = {
     'heavy dark storm clouds, deep gray tones with dramatic texture and moody contrast',
 };
 
+const ATMOSPHERIC_LIGHTING: Record<SkyStyle, string> = {
+  blue: 'Bright neutral daylight — well-lit facades, crisp shadows.',
+  dramatic: 'Moodier contrast with directional light through cloud breaks — slightly lower ambient, stronger highlights.',
+  golden: 'Warm golden-hour side-lighting — warm tones on sun-facing surfaces, cool shadows.',
+  overcast: 'Soft, even diffused light — minimal shadows, gentle illumination on all surfaces.',
+  stormy: 'Lower ambient light, moody contrast — house still visible but under heavier cloud shadow.',
+};
+
 function buildSkyPrompt(style: SkyStyle): string {
   const skyDesc = STYLE_SKY_DESCRIPTIONS[style];
-  return `Replace ONLY the sky in this photograph with ${skyDesc}. Keep absolutely everything else pixel-identical: the house, siding, roof, windows, doors, landscaping, grass, trees, driveway, fence, mailbox, and every other non-sky element must be unchanged. Preserve the camera framing, perspective, and field of view exactly. Do not invent, add, or remove any physical object. Do not change any architectural features. Blend the new sky naturally with the existing scene — matching exposure so the house remains well-lit and visible against the new sky.`;
+  const atmo = ATMOSPHERIC_LIGHTING[style];
+  return `Replace ONLY the sky in this photograph with ${skyDesc}.
+
+PIXEL PRESERVATION (non-sky regions):
+Keep absolutely everything else pixel-identical: the house, siding, roof, windows, doors, landscaping, grass, trees, driveway, fence, mailbox, and every other non-sky element must be unchanged. Preserve the camera framing, perspective, and field of view exactly. Do not invent, add, or remove any physical object. Do not change any architectural features.
+
+ATMOSPHERIC CONSISTENCY:
+Adjust the ambient light on the house and ground to naturally match the new sky. ${atmo}
+The house should look naturally photographed under this sky, not composited.
+
+CRITICAL — NO GHOST ROOFLINE / NO DUPLICATED STRUCTURE:
+- The sky region above the roof must contain ONLY sky and clouds. Nothing else.
+- Do NOT draw, echo, duplicate, or silhouette the roofline, chimney, or house shape anywhere in the sky.
+- Do NOT create cloud formations that mirror or follow the roofline contour.
+- If a faint outline of the house appears in the sky, erase it — only sky and clouds should exist above the real roof edge.
+
+Blend the new sky naturally at the roofline edge — soft, clean transition with no haloing or hard compositing line.`;
 }
 
 async function extractUrl(output: unknown): Promise<string | null> {

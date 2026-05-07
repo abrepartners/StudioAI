@@ -221,6 +221,15 @@ ${rulesBlock}
         - Avoid AI tells: unnaturally symmetric arrangements, plastic-looking fabrics, over-saturated accents, uniform lighting on all surfaces.
 
         ========================================
+        PHOTOGRAPHY DNA — MATCH THE INPUT IMAGE
+        ========================================
+        - Study the input photo's noise/grain structure, JPEG compression texture, and sensor characteristics. Your output must have the SAME grain profile. If the input is slightly grainy from a high-ISO capture, your additions must be equally grainy. If the input is clean studio lighting, your additions must be clean. Never output a smoother or sharper image than the input.
+        - EXISTING SURFACES — carpet, hardwood, tile, concrete, walls, ceilings, countertops — must retain their original texture at pixel level. If the carpet has visible pile direction, fiber texture, and wear patterns, all of that must appear identically in the output. Do NOT smooth, denoise, upscale, or regenerate any existing surface. Existing surfaces are READ-ONLY pixels.
+        - Color temperature and white balance of the OUTPUT must exactly match the INPUT. Do not warm, cool, or re-grade any region you are not explicitly modifying.
+        - Match the input's dynamic range. If shadows are slightly crushed, keep them crushed. If highlights are slightly blown, keep them blown. Do not "improve" the photo's exposure or tonal curve.
+        - Lens characteristics: match the input's depth of field, barrel/pincushion distortion, vignetting, and chromatic aberration. New furniture at the same depth as existing furniture should have the same focus level.
+
+        ========================================
         FURNITURE PLACEMENT
         ========================================
         - Estimate real-world room size from door height (~6'8"), outlet height (~12"), and ceiling height. Small rooms (<12x12) get compact pieces only — queen bed max, loveseat not sectional. Medium (~12x14) fits standard furniture. Large (>14x16) tolerates king beds and sectionals. When in doubt, go smaller.

@@ -1,11 +1,13 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Icon } from './icons';
-import { generateRoomDesign, detectRoomType } from '../../services/geminiService';
+import { detectRoomType } from '../../services/geminiService';
 import { fluxCleanup } from '../../services/fluxService';
 import { fluxTwilight, TwilightColorStyle, TwilightTime } from '../../services/twilightService';
 import { nanoSky, SkyStyle } from '../../services/skyService';
 import { upscaleImage } from '../../services/upscaleService';
 import { isExteriorRoom } from '../../services/fluxService';
+import { fluxStaging } from '../../services/stagingService';
+import { reveEdit } from '../../services/reveEditService';
 import { STYLE_PACKS, buildStagingAssignment } from '../prompts/stylePacks';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
@@ -125,12 +127,8 @@ const callApiDirect = async (
       const prompt = pack
         ? buildStagingAssignment(pack, roomLabel)
         : `Virtually stage this ${roomLabel.toLowerCase()} with ${preset} style furnishings. Use premium furniture materials. Match the room's existing lighting on all new pieces. Professional real estate photography composition.`;
-      const results = await generateRoomDesign(imageBase64, prompt, undefined, false, 1, true, undefined, signal);
-      const staged = results[0] || imageBase64;
-      try {
-        const up = await upscaleImage(staged, false, signal);
-        return up.resultBase64;
-      } catch { return staged; }
+      const result = await fluxStaging(imageBase64, prompt, signal);
+      return result.resultBase64;
     }
     case 'declutter': {
       const filter = DECLUTTER_FILTER_MAP[preset] || undefined;
@@ -178,12 +176,8 @@ DO NOT:
 - Change the color of any object — only ambient light temperature changes.
 - Apply any tonal curve, LUT, or color grade beyond the specified target.
 - Make the photo "better" in any way not specified. This is a surgical white balance correction, not a retouch.`;
-      const results = await generateRoomDesign(imageBase64, prompt, undefined, false, 1, true, undefined, signal);
-      const whitened = results[0] || imageBase64;
-      try {
-        const up = await upscaleImage(whitened, false, signal);
-        return up.resultBase64;
-      } catch { return whitened; }
+      const result = await reveEdit(imageBase64, prompt, false, signal);
+      return result.resultBase64;
     }
     case 'twilight': {
       const [colorStyle, timeOfDay] = preset.split('|') as [TwilightColorStyle, TwilightTime];
@@ -236,12 +230,8 @@ DO NOT:
 - Change the season or time of day.
 - Smooth or denoise any non-lawn area.
 - Modify the house, driveway, or any built structure.`;
-      const results = await generateRoomDesign(imageBase64, prompt, undefined, false, 1, true, undefined, signal);
-      const enhanced = results[0] || imageBase64;
-      try {
-        const up = await upscaleImage(enhanced, true, signal);
-        return up.resultBase64;
-      } catch { return enhanced; }
+      const result = await reveEdit(imageBase64, prompt, true, signal);
+      return result.resultBase64;
     }
     default:
       return imageBase64;

@@ -42,8 +42,11 @@ const AppRouter: React.FC = () => {
     <BrowserRouter>
       <Suspense fallback={<RouteFallback />}>
         <Routes>
-          {/* Editor shell — existing App mounts at / */}
-          <Route path="/" element={<App />} />
+          {/* Vellum is the primary editor — redirect root to it */}
+          <Route path="/" element={<Navigate to="/vellum" replace />} />
+
+          {/* Legacy editor shell (Gemini-dependent, preserved for reference) */}
+          <Route path="/legacy" element={<App />} />
 
           {/* R24 — real marketing URLs, pre- and post-auth */}
           <Route path="/pricing" element={<MarketingRoute anchor="pricing" />} />

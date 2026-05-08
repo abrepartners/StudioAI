@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Icon } from './icons';
-import { detectRoomType } from '../../services/geminiService';
 import { fluxCleanup } from '../../services/fluxService';
 import { fluxTwilight, TwilightColorStyle, TwilightTime } from '../../services/twilightService';
 import { nanoSky, SkyStyle } from '../../services/skyService';
@@ -294,22 +293,14 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
       }
       const id = nextId.current++;
       const label = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
-      newPhotos.push({ id, file, dataUrl, label, detecting: true });
+      newPhotos.push({ id, file, dataUrl, label, detecting: false });
     }
 
     setPhotos(prev => [...prev, ...newPhotos]);
     setActivity(a => [{ who: 'You', what: `Uploaded ${newPhotos.length} photo${newPhotos.length > 1 ? 's' : ''}`, cost: 0, when: 'just now' }, ...a]);
 
     for (const p of newPhotos) {
-      try {
-        const roomType = await detectRoomType(p.dataUrl);
-        const finalLabel = roomType || p.label;
-        setPhotos(prev => prev.map(ph => ph.id === p.id ? { ...ph, label: finalLabel, detecting: false } : ph));
-        if (activeProject?.id) idbSavePhoto(activeProject.id, p.id, p.dataUrl, finalLabel, p.file.name).catch(() => {});
-      } catch {
-        setPhotos(prev => prev.map(ph => ph.id === p.id ? { ...ph, detecting: false } : ph));
-        if (activeProject?.id) idbSavePhoto(activeProject.id, p.id, p.dataUrl, p.label, p.file.name).catch(() => {});
-      }
+      if (activeProject?.id) idbSavePhoto(activeProject.id, p.id, p.dataUrl, p.label, p.file.name).catch(() => {});
     }
   };
 

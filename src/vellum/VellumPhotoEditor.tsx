@@ -9,7 +9,6 @@ import { fluxStaging } from '../../services/stagingService';
 import { reveEdit } from '../../services/reveEditService';
 import { STYLE_PACKS, buildStagingAssignment } from '../prompts/stylePacks';
 import JSZip from 'jszip';
-import { saveAs } from 'file-saver';
 import { savePhoto as idbSavePhoto, saveResult as idbSaveResult, loadPhotos as idbLoadPhotos, loadResults as idbLoadResults } from './imageStore';
 
 interface UploadedPhoto {
@@ -103,9 +102,26 @@ const readFileAsDataUrl = (file: File): Promise<string> =>
     reader.readAsDataURL(file);
   });
 
-const dataUrlToBlob = async (dataUrl: string): Promise<Blob> => {
-  const res = await fetch(dataUrl);
-  return res.blob();
+const dataUrlToBlob = (dataUrl: string): Blob => {
+  const [header, b64] = dataUrl.split(',');
+  const mime = header?.match(/:(.*?);/)?.[1] || 'image/jpeg';
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+};
+
+const triggerDownload = (blob: Blob, filename: string) => {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, 200);
 };
 
 const callApiDirect = async (
@@ -614,6 +630,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
   const [exporting, setExporting] = useState(false);
   const [exportLabel, setExportLabel] = useState('');
   const [exportError, setExportError] = useState('');
+  const [exportConfirm, setExportConfirm] = useState<null | 'single' | 'batch'>(null);
 
   const currentPhotoIdx = view === 'single' ? (singlePhoto ?? selectedPhoto) : selectedPhoto;
   const currentPhoto = photos[currentPhotoIdx] || photos[0] || null;
@@ -638,21 +655,21 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
       if (refined.length === 1) {
         setExportLabel(`Upscaling ${refined[0].label}…`);
         const upscaled = await upscaleForExport(processedResults[refined[0].id], refined[0].label);
-        const blob = await dataUrlToBlob(upscaled);
-        saveAs(blob, `${refined[0].label.replace(/\s+/g, '_')}_refined.jpg`);
+        const blob = dataUrlToBlob(upscaled);
+        triggerDownload(blob, `${refined[0].label.replace(/\s+/g, '_')}_refined.jpg`);
       } else {
         const zip = new JSZip();
         for (let i = 0; i < refined.length; i++) {
           const p = refined[i];
           setExportLabel(`Upscaling ${i + 1} of ${refined.length}… ${p.label}`);
           const upscaled = await upscaleForExport(processedResults[p.id], p.label);
-          const blob = await dataUrlToBlob(upscaled);
+          const blob = dataUrlToBlob(upscaled);
           const name = `${String(i + 1).padStart(3, '0')}_${p.label.replace(/\s+/g, '_')}_refined.jpg`;
           zip.file(name, blob);
         }
         setExportLabel('Packaging zip…');
         const zipBlob = await zip.generateAsync({ type: 'blob' });
-        saveAs(zipBlob, 'vellum_export.zip');
+        triggerDownload(zipBlob, 'vellum_export.zip');
       }
       setActivity(a => [{ who: 'Vellum', what: `Downloaded ${refined.length} refined photo${refined.length > 1 ? 's' : ''} (upscaled)`, cost: 0, when: 'just now' }, ...a]);
     } catch (err: any) {
@@ -674,12 +691,66 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
     setExportLabel(`Upscaling ${photo.label}…`);
     try {
       const upscaled = await upscaleForExport(src, photo.label);
-      const blob = await dataUrlToBlob(upscaled);
-      saveAs(blob, `${photo.label.replace(/\s+/g, '_')}_refined.jpg`);
+      const blob = dataUrlToBlob(upscaled);
+      triggerDownload(blob, `${photo.label.replace(/\s+/g, '_')}_refined.jpg`);
     } catch (err: any) {
       console.error('[Vellum] Single export failed:', err);
       setExportError('Export failed — please try again');
       setActivity(a => [{ who: 'Vellum', what: `Export failed — ${err.message || 'unknown error'}`, cost: 0, when: 'just now' }, ...a]);
+      setTimeout(() => setExportError(''), 5000);
+    }
+    setExporting(false);
+    setExportLabel('');
+  };
+
+  const doExportOriginalSingle = async (idx: number) => {
+    const photo = photos[idx];
+    if (!photo) return;
+    setExportConfirm(null);
+    setExporting(true);
+    setExportLabel(`Upscaling ${photo.label}…`);
+    try {
+      const upscaled = await upscaleForExport(photo.dataUrl, photo.label);
+      const blob = dataUrlToBlob(upscaled);
+      triggerDownload(blob, `${photo.label.replace(/\s+/g, '_')}_upscaled.jpg`);
+      setActivity(a => [{ who: 'Vellum', what: `Exported original (upscaled) · ${photo.label}`, cost: 0, when: 'just now' }, ...a]);
+    } catch (err: any) {
+      console.error('[Vellum] Original export failed:', err);
+      setExportError('Export failed — please try again');
+      setTimeout(() => setExportError(''), 5000);
+    }
+    setExporting(false);
+    setExportLabel('');
+  };
+
+  const doExportOriginalBatch = async () => {
+    const unedited = photos.filter(p => !processedResults[p.id]);
+    if (!unedited.length) return;
+    setExportConfirm(null);
+    setExporting(true);
+    try {
+      if (unedited.length === 1) {
+        setExportLabel(`Upscaling ${unedited[0].label}…`);
+        const upscaled = await upscaleForExport(unedited[0].dataUrl, unedited[0].label);
+        const blob = dataUrlToBlob(upscaled);
+        triggerDownload(blob, `${unedited[0].label.replace(/\s+/g, '_')}_upscaled.jpg`);
+      } else {
+        const zip = new JSZip();
+        for (let i = 0; i < unedited.length; i++) {
+          const p = unedited[i];
+          setExportLabel(`Upscaling ${i + 1} of ${unedited.length}… ${p.label}`);
+          const upscaled = await upscaleForExport(p.dataUrl, p.label);
+          const blob = dataUrlToBlob(upscaled);
+          zip.file(`${String(i + 1).padStart(3, '0')}_${p.label.replace(/\s+/g, '_')}_upscaled.jpg`, blob);
+        }
+        setExportLabel('Packaging zip…');
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        triggerDownload(zipBlob, 'vellum_originals_upscaled.zip');
+      }
+      setActivity(a => [{ who: 'Vellum', what: `Exported ${unedited.length} original${unedited.length > 1 ? 's' : ''} (upscaled)`, cost: 0, when: 'just now' }, ...a]);
+    } catch (err: any) {
+      console.error('[Vellum] Batch original export failed:', err);
+      setExportError('Export failed — please try again');
       setTimeout(() => setExportError(''), 5000);
     }
     setExporting(false);
@@ -1243,37 +1314,105 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
         <div className="v-rp-section">
           <h4>Export</h4>
           <div className="v-export-list">
-            <button
-              className="v-export-btn gold"
-              onClick={doDownloadAll}
-              disabled={!refinedCount || exporting}
-            >
-              <Icon name="download" size={13} />
-              {exporting && exportLabel
-                ? exportLabel
-                : refinedCount > 1
-                  ? `Download all ${refinedCount} refined`
-                  : 'Download refined photo'}
-              <span className="v-export-meta">{exporting ? 'upscaling…' : refinedCount > 1 ? '.zip' : '.jpg'}</span>
-            </button>
+            {/* Refined exports */}
+            {refinedCount > 0 && (
+              <button
+                className="v-export-btn gold"
+                onClick={doDownloadAll}
+                disabled={exporting}
+              >
+                <Icon name="download" size={13} />
+                {exporting && exportLabel
+                  ? exportLabel
+                  : refinedCount > 1
+                    ? `Download all ${refinedCount} refined`
+                    : 'Download refined photo'}
+                <span className="v-export-meta">{exporting ? 'upscaling…' : refinedCount > 1 ? '.zip' : '.jpg'}</span>
+              </button>
+            )}
             {view !== 'grid' && currentPhoto && processedResults[currentPhoto.id] && (
-              <button className="v-export-btn" onClick={() => doDownloadSingle(currentPhotoIdx)}>
+              <button className="v-export-btn" onClick={() => doDownloadSingle(currentPhotoIdx)} disabled={exporting}>
                 <Icon name="download" size={13} />
                 Download this photo
                 <span className="v-export-meta">.jpg · {currentPhoto.label}</span>
               </button>
             )}
+
+            {/* Original (upscale-only) exports */}
+            {view !== 'grid' && currentPhoto && !processedResults[currentPhoto.id] && (
+              <button
+                className="v-export-btn"
+                onClick={() => setExportConfirm('single')}
+                disabled={exporting}
+              >
+                <Icon name="upload" size={13} />
+                Export this photo
+                <span className="v-export-meta">upscale only · {currentPhoto.label}</span>
+              </button>
+            )}
+            {(() => {
+              const uneditedCount = photos.filter(p => !processedResults[p.id]).length;
+              if (uneditedCount === 0) return null;
+              return (
+                <button
+                  className="v-export-btn"
+                  onClick={() => setExportConfirm('batch')}
+                  disabled={exporting}
+                >
+                  <Icon name="upload" size={13} />
+                  Export {uneditedCount === photoCount ? 'all' : uneditedCount} original{uneditedCount !== 1 ? 's' : ''}
+                  <span className="v-export-meta">upscale only · {uneditedCount > 1 ? '.zip' : '.jpg'}</span>
+                </button>
+              );
+            })()}
           </div>
+
+          {/* Inline confirmation for upscale-only export */}
+          {exportConfirm && (
+            <div style={{
+              marginTop: 10, padding: '10px 12px', borderRadius: 6,
+              background: 'rgba(216,199,154,0.08)', border: '1px solid rgba(216,199,154,0.2)',
+            }}>
+              <div style={{ fontSize: 12, fontWeight: 500, marginBottom: 6, color: 'var(--warm-ivory)' }}>
+                Upscale only — no AI edits
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--graphite)', lineHeight: 1.5, marginBottom: 10 }}>
+                {exportConfirm === 'single'
+                  ? `This photo will be upscaled to full resolution without any AI edits applied. ${isExteriorRoom(currentPhoto?.label || '') ? 'Exterior upscale takes ~14s.' : 'Interior upscale takes ~1s.'}`
+                  : `${photos.filter(p => !processedResults[p.id]).length} photo${photos.filter(p => !processedResults[p.id]).length !== 1 ? 's' : ''} will be upscaled to full resolution without any AI edits applied.`
+                }
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  className="v-btn v-btn--primary v-btn--sm"
+                  style={{ fontSize: 11 }}
+                  onClick={() => exportConfirm === 'single' ? doExportOriginalSingle(currentPhotoIdx) : doExportOriginalBatch()}
+                  disabled={exporting}
+                >
+                  {exporting ? 'Exporting…' : 'Export'}
+                </button>
+                <button
+                  className="v-btn v-btn--ghost v-btn--sm"
+                  style={{ fontSize: 11 }}
+                  onClick={() => setExportConfirm(null)}
+                  disabled={exporting}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
           {exportError && (
             <div className="v-gate-note" style={{ color: 'var(--state-error)' }}>
               <Icon name="sparkles" size={11} />
               {exportError}
             </div>
           )}
-          {!refinedCount && !exportError && (
+          {!refinedCount && !exportConfirm && !exportError && photoCount > 0 && (
             <div className="v-gate-note">
               <Icon name="sparkles" size={11} />
-              Apply a tool to your photos first, then export the results here.
+              Export originals with upscale, or apply a tool first for AI-enhanced results.
             </div>
           )}
         </div>

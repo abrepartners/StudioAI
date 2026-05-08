@@ -104,26 +104,21 @@ export interface LoadedPhoto {
 export async function loadPhotos(projectId: string): Promise<LoadedPhoto[]> {
   const db = await getDb();
   const all: StoredPhoto[] = await db.getAllFromIndex(PHOTOS_STORE, 'projectId', projectId);
-  const results: LoadedPhoto[] = [];
-  for (const record of all) {
-    const dataUrl = await blobToDataUrl(record.blob);
-    results.push({
-      photoId: record.photoId,
-      dataUrl,
-      label: record.label,
-      fileName: record.fileName,
-    });
-  }
+  const results = await Promise.all(all.map(async (record) => ({
+    photoId: record.photoId,
+    dataUrl: await blobToDataUrl(record.blob),
+    label: record.label,
+    fileName: record.fileName,
+  })));
   return results.sort((a, b) => a.photoId - b.photoId);
 }
 
 export async function loadResults(projectId: string): Promise<Record<number, string>> {
   const db = await getDb();
   const all: StoredResult[] = await db.getAllFromIndex(RESULTS_STORE, 'projectId', projectId);
+  const entries = await Promise.all(all.map(async (record) => [record.photoId, await blobToDataUrl(record.blob)] as const));
   const map: Record<number, string> = {};
-  for (const record of all) {
-    map[record.photoId] = await blobToDataUrl(record.blob);
-  }
+  for (const [id, dataUrl] of entries) map[id] = dataUrl;
   return map;
 }
 

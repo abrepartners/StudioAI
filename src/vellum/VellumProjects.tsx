@@ -109,7 +109,17 @@ const VellumProjects: React.FC<ProjectsProps> = ({ setPage, projects, onNewListi
                   {p.status === 'draft' && <span className="v-pill v-pill--draft">Draft</span>}
                 </td>
                 <td className="v-muted">{timeAgo(p.lastEdited)}</td>
-                <td><Icon name="chevron_right" size={14} color="var(--graphite)" /></td>
+                <td style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <button
+                    className="v-btn v-btn--ghost v-btn--sm"
+                    style={{ padding: '4px 6px', opacity: 0.5 }}
+                    title="Delete project"
+                    onClick={(e) => { e.stopPropagation(); onDeleteProject(p.id); }}
+                  >
+                    <Icon name="close" size={13} />
+                  </button>
+                  <Icon name="chevron_right" size={14} color="var(--graphite)" />
+                </td>
               </tr>
             ))}
           </tbody>

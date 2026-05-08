@@ -8,9 +8,10 @@ interface TopbarProps {
   credits: number;
   profile: VellumProfile;
   onRefill: () => void;
+  onUploadFiles: () => void;
 }
 
-export const VellumTopbar: React.FC<TopbarProps> = ({ page, setPage, credits, profile, onRefill }) => {
+export const VellumTopbar: React.FC<TopbarProps> = ({ page, setPage, credits, profile, onRefill, onUploadFiles }) => {
   const low = credits < 20;
   const initial = profile.name ? profile.name.charAt(0).toUpperCase() : 'V';
 
@@ -48,7 +49,7 @@ export const VellumTopbar: React.FC<TopbarProps> = ({ page, setPage, credits, pr
           <span>{credits} credits</span>
           {low && <span className="chip-cta">Refill →</span>}
         </button>
-        <button className="v-btn v-btn--ghost v-btn--sm">
+        <button className="v-btn v-btn--ghost v-btn--sm" onClick={onUploadFiles}>
           <Icon name="upload" size={13} /> Upload
         </button>
         <div

@@ -46,6 +46,10 @@ const VellumApp: React.FC = () => {
     return false;
   }, [credits]);
 
+  const refundCredits = useCallback((amount: number) => {
+    setCredits(c => c + amount);
+  }, []);
+
   const onRefillConfirm = useCallback((added: number) => {
     setCredits(c => c + added);
     if (refill.onAfter) {
@@ -97,7 +101,7 @@ const VellumApp: React.FC = () => {
       case 'projects':
         return <VellumProjects setPage={setPage} projects={store.projects} onNewListing={handleNewListing} onSelectProject={handleSelectProject} onDeleteProject={store.deleteProject} />;
       case 'photo':
-        return <VellumPhotoEditor setPage={setPage} credits={credits} requestSpend={requestSpend} activeProject={activeProject} updateProject={store.updateProject} />;
+        return <VellumPhotoEditor setPage={setPage} credits={credits} requestSpend={requestSpend} refundCredits={refundCredits} activeProject={activeProject} updateProject={store.updateProject} />;
       case 'video':
         return <VellumVideoEditor setPage={setPage} credits={credits} requestSpend={requestSpend} activeProject={activeProject} />;
       case 'billing':
@@ -120,6 +124,7 @@ const VellumApp: React.FC = () => {
           credits={credits}
           profile={store.profile}
           onRefill={() => setRefill({ open: true, needed: 0, onAfter: null })}
+          onUploadFiles={handleUploadFiles}
         />
         <div className="v-app-body">
           <VellumSidebar page={page} setPage={setPage} onNewListing={handleNewListing} onUploadFiles={handleUploadFiles} />

@@ -1,6 +1,39 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Icon } from './icons';
 import type { VellumProfile } from './useVellumStore';
+
+const SETTINGS_KEY = 'vellum_settings';
+
+interface WmConfig { on: boolean; position: string; opacity: number; color: string }
+interface DefaultsConfig { style: string; aesthetic: string; quality: string; autoTwilight: boolean; autoSky: boolean; aspect: string; captions: boolean; music: boolean; brand: string }
+interface SavedSettings { logo: string | null; wm: WmConfig; defaults: DefaultsConfig }
+
+const DEFAULT_WM: WmConfig = { on: true, position: 'br', opacity: 0.65, color: 'ivory' };
+const DEFAULT_DEFAULTS: DefaultsConfig = {
+  style: 'contemporary', aesthetic: 'editorial', quality: 'print',
+  autoTwilight: true, autoSky: false,
+  aspect: '9_16', captions: true, music: true,
+  brand: '',
+};
+
+const loadSettings = (brokerage: string): SavedSettings => {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        logo: parsed.logo ?? null,
+        wm: { ...DEFAULT_WM, ...parsed.wm },
+        defaults: { ...DEFAULT_DEFAULTS, ...parsed.defaults },
+      };
+    }
+  } catch { /* ignore */ }
+  return { logo: null, wm: DEFAULT_WM, defaults: { ...DEFAULT_DEFAULTS, brand: brokerage } };
+};
+
+const saveSettings = (s: SavedSettings) => {
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch { /* ignore */ }
+};
 
 interface SettingsProps {
   setPage: (p: string) => void;
@@ -10,15 +43,15 @@ interface SettingsProps {
 
 const VellumSettings: React.FC<SettingsProps> = ({ setPage, profile, updateProfile }) => {
   const [tab, setTab] = useState('workspace');
-  const [logo, setLogo] = useState<string | null>(null);
+  const saved = useRef(loadSettings(profile.brokerage || ''));
+  const [logo, setLogo] = useState<string | null>(saved.current.logo);
   const logoInputRef = useRef<HTMLInputElement>(null);
-  const [wm, setWm] = useState({ on: true, position: 'br', opacity: 0.65, color: 'ivory' });
-  const [defaults, setDefaults] = useState({
-    style: 'contemporary', aesthetic: 'editorial', quality: 'print',
-    autoTwilight: true, autoSky: false,
-    aspect: '9_16', captions: true, music: true,
-    brand: profile.brokerage || '',
-  });
+  const [wm, setWm] = useState<WmConfig>(saved.current.wm);
+  const [defaults, setDefaults] = useState<DefaultsConfig>(saved.current.defaults);
+
+  useEffect(() => {
+    saveSettings({ logo, wm, defaults });
+  }, [logo, wm, defaults]);
 
   return (
     <div className="v-main">

@@ -95,9 +95,10 @@ interface PhotoEditorProps {
 }
 
 const readFileAsDataUrl = (file: File): Promise<string> =>
-  new Promise((resolve) => {
+  new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error(`Failed to read ${file.name}`));
     reader.readAsDataURL(file);
   });
 
@@ -294,7 +295,13 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
 
     const newPhotos: UploadedPhoto[] = [];
     for (const file of imageFiles) {
-      const dataUrl = await readFileAsDataUrl(file);
+      let dataUrl: string;
+      try {
+        dataUrl = await readFileAsDataUrl(file);
+      } catch {
+        console.warn(`[Vellum] Skipped unreadable file: ${file.name}`);
+        continue;
+      }
       const id = nextId.current++;
       const label = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
       newPhotos.push({ id, file, dataUrl, label, detecting: true });

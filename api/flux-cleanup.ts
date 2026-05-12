@@ -129,7 +129,6 @@ export default async function handler(req: any, res: any) {
         input: {
           image: dataUrl,
           prompt,
-          output_format: 'jpg',
         },
       });
       cleanUrl = await extractUrl(output);

@@ -116,36 +116,13 @@ Also remove any item that clearly does not belong in a ${room} — for example, 
 };
 
 const EXTERIOR_CLEANUP_PROMPT = (room: string, custom?: string) => {
-  let prompt = `Remove only movable clutter from this ${room}: construction debris, tools, ladders, hoses, trash cans, personal yard items, for-sale signs, temporary objects, vehicles in driveway, portable furniture, kids' outdoor toys, pet items, and seasonal decorations. Leave everything else pixel-identical.`;
+  let prompt = `Remove only movable clutter from this ${room}: trash cans, tools, hoses, ladders, construction debris, for-sale signs, vehicles in driveway, portable furniture, kids' outdoor toys, pet items, and seasonal decorations.`;
 
   if (custom) {
     prompt += `\n\nADDITIONALLY, specifically remove: ${custom}.`;
   }
 
-  prompt += `
-
-PRESERVE EXACTLY (must not change):
-- The house: structure, siding material, siding color, trim, windows (count, position, size, mullions), doors, roof shape, roof pitch, roof material, chimney, gutters, eaves, porch, railings.
-- The land: driveway, walkways, hardscape, retaining walls, fences, mailbox.
-- The landscaping: grass color and texture, existing trees, existing shrubs, existing flower beds, mulch lines.
-- Camera: exact framing, angle, field of view, perspective.
-- Lighting: time of day, sun angle, shadow direction, sky conditions.
-
-DO NOT:
-- Repaint grass (no "healthier" or "greener" regeneration).
-- Smooth, re-stucco, or re-texture siding.
-- Re-roof or re-shingle.
-- Add trees, shrubs, flowers, decorative rocks, or landscaping elements that are not in the input.
-- Change the sky, clouds, or time of day.
-- Change window glass tint, reflections, or frame color.
-
-Output the input photograph with ONLY the listed clutter items erased and the revealed background reconstructed from surrounding pixels. Treat this as a photo-restoration task, not a styling task.`;
-
-  prompt += `\n\nINPAINTING QUALITY STANDARD:
-- Reconstruct revealed surfaces (grass, concrete, siding) by sampling the exact texture, grain, and color from adjacent visible areas.
-- Grass reconstruction: match blade height, color variation, thatch density, and shadow direction from surrounding lawn.
-- Concrete/driveway: match surface texture, staining, and crack patterns.
-- The reconstructed area should blend seamlessly with surrounding pixels.`;
+  prompt += `\n\nDo not change the house, roof, siding, windows, doors, landscaping, grass, trees, driveway, walkways, fences, or sky. Reconstruct revealed areas by matching the surrounding surface texture exactly.`;
 
   return prompt;
 };

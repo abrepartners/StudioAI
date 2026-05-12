@@ -79,38 +79,20 @@ const GENERIC_INTERIOR_CLUTTER =
 const INTERIOR_CLEANUP_PROMPT = (room: string, filter?: string, custom?: string) => {
   const clutterList = ROOM_CLUTTER[room] || GENERIC_INTERIOR_CLUTTER;
 
-  let targets: string;
+  let prompt: string;
   if (filter === 'fullclean') {
-    targets = 'ALL items in the room — all furniture, all decor, all personal items, all toys, all equipment, '
-      + 'all wall art, wall-mounted televisions, all shelving contents, all rugs, all curtains/drapes, everything. '
-      + 'Leave ONLY the bare room: walls, floor, ceiling, windows, doors, built-in fixtures, and light fixtures';
+    prompt = `Remove all furniture, decor, rugs, curtains, wall art, and personal items from this ${room}. Leave only the bare empty room: walls, floor, ceiling, windows, doors, built-in fixtures (cabinets, counters, appliances), and light fixtures. Reconstruct revealed surfaces naturally by matching the texture, color, and pattern of surrounding visible areas. Do not add any new items.`;
   } else if (filter === 'personal') {
-    targets = 'personal items, toiletries, family photos, medication, mail with names, phone chargers, and any identifying personal belongings';
+    prompt = `Remove only personal and identifying items from this ${room}: family photos, toiletries, medication, mail with names, phone chargers, and personal belongings. Keep all furniture, decor, and general clutter in place. Reconstruct revealed surfaces by matching the surrounding texture exactly.`;
   } else if (filter === 'surfaces') {
-    targets = 'all items sitting on counters, tables, shelves, and other flat surfaces — leave floor items and furniture as-is';
+    prompt = `Remove all items sitting on counters, tables, shelves, and other flat surfaces in this ${room}. Leave floor items and furniture as-is. Reconstruct revealed surfaces by matching the surrounding texture exactly.`;
   } else {
-    targets = clutterList;
+    prompt = `Remove the following from this ${room}: ${clutterList}. Also remove any item that clearly does not belong in a ${room}. Keep all furniture, built-in fixtures, and architecture exactly as-is. Reconstruct revealed surfaces by matching the surrounding texture exactly.`;
   }
-
-  let prompt = `Remove the following from this ${room}: ${targets}.
-
-Also remove any item that clearly does not belong in a ${room} — for example, laundry baskets in a dining room, exercise equipment in a living room, pet bowls in a bedroom, or shoes in a kitchen. If it looks out of place for this room type, remove it.`;
 
   if (custom) {
     prompt += `\n\nADDITIONALLY, specifically remove: ${custom}.`;
   }
-
-  if (filter === 'fullclean') {
-    prompt += `\n\nKeep only built-in fixtures (cabinets, counters, toilets, sinks, tubs, appliances) and architecture exactly as-is. Do not add anything. Reconstruct revealed surfaces from surrounding pixels. This is a photo-restoration task, not a styling task.`;
-  } else {
-    prompt += `\n\nKeep all furniture, built-in fixtures, and architecture exactly as-is. Do not add anything. Reconstruct revealed surfaces from surrounding pixels. This is a photo-restoration task, not a styling task.`;
-  }
-
-  prompt += `\n\nINPAINTING QUALITY STANDARD:
-- Where items are removed, reconstruct the revealed surface by sampling the EXACT texture, color, grain, and pattern from adjacent visible areas of the same surface.
-- Floor reconstruction: match plank direction, grout lines, carpet pile direction, tile pattern, and wear level from surrounding visible floor. Do NOT fill with a flat averaged color.
-- Wall reconstruction: match paint sheen (matte/eggshell/satin), texture (smooth/orange-peel/knockdown), and any visible color gradients from adjacent wall areas. Do NOT smooth or repaint.
-- The reconstructed area should be indistinguishable from the surrounding surface — same noise, same grain, same compression artifacts.`;
 
   return prompt;
 };

@@ -137,6 +137,7 @@ export default async function handler(req: any, res: any) {
         input: {
           image: dataUrl,
           instruction: prompt,
+          negative_prompt: 'Do not add any new objects or change the room architecture, wall colors, flooring, or fixtures.',
         },
       });
       cleanUrl = await extractUrl(output);

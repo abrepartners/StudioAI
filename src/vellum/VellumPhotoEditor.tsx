@@ -46,7 +46,7 @@ const TOOLS = [
 ];
 
 const PRESETS: Record<string, string[]> = {
-  staging: ['Contemporary', 'Mid-century', 'Coastal', 'Farmhouse', 'Scandinavian', 'Minimalist'],
+  staging: ['Contemporary', 'Mid-century', 'Coastal', 'Farmhouse', 'Scandinavian', 'Minimalist', 'Urban loft', 'Bohemian'],
   declutter: ['Full clean', 'Personal items only', 'Surface clutter only'],
   declutter_ext: ['Yard clutter', 'Vehicles & bins', 'Signs & temp items'],
   whiten: ['Bright & airy', 'Warm editorial', 'Neutral'],
@@ -138,7 +138,8 @@ const callApiDirect = async (
 
   switch (tool) {
     case 'staging': {
-      const pack = STYLE_PACKS[preset];
+      const packKey = preset.replace(/ /g, '-');
+      const pack = STYLE_PACKS[packKey] || STYLE_PACKS[preset];
       const prompt = pack
         ? buildStagingAssignment(pack, roomLabel)
         : `Virtually stage this ${roomLabel.toLowerCase()} with ${preset} style furnishings. Use premium furniture materials. Match the room's existing lighting on all new pieces. Professional real estate photography composition.`;

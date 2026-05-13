@@ -22,18 +22,22 @@ export interface StylePack {
 }
 
 const FALLBACK_ROOM = 'Living Room';
+const NON_STAGEABLE = new Set(['Exterior', 'Patio', 'Pool', 'Backyard', 'Front Yard', 'Garage']);
 
 export function getFurnitureSpec(pack: StylePack, roomType: string): string {
+  if (NON_STAGEABLE.has(roomType)) return '';
   return pack.rooms[roomType] || pack.rooms[FALLBACK_ROOM] || '';
 }
 
 export function buildStagingAssignment(pack: StylePack, roomType: string): string {
   const furniture = getFurnitureSpec(pack, roomType);
+
+  const furnitureBlock = furniture
+    ? `\nFURNITURE TO PLACE:\n${furniture}\n`
+    : `\nThis is an outdoor/utility space — add only appropriate outdoor furniture and decor for the style. No indoor furniture.\n`;
+
   return `Virtually stage this ${roomType.toLowerCase()} in ${pack.label} style.
-
-FURNITURE TO PLACE:
-${furniture}
-
+${furnitureBlock}
 STYLE DNA:
 - Materials: ${pack.materials}
 - Color palette: ${pack.palette}
@@ -199,7 +203,7 @@ export const STYLE_PACKS: Record<string, StylePack> = {
   },
 };
 
-export const VELLUM_STYLE_KEYS = ['contemporary', 'mid-century', 'coastal', 'farmhouse', 'scandinavian', 'minimalist'] as const;
+export const VELLUM_STYLE_KEYS = ['contemporary', 'mid-century', 'coastal', 'farmhouse', 'scandinavian', 'minimalist', 'urban-loft', 'bohemian'] as const;
 
 export const STYLE_CONTROLS_STYLE_MAP: Record<string, string> = {
   'Coastal Modern': 'coastal',

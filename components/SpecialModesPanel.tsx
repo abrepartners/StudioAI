@@ -521,11 +521,7 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                                 try {
                                     const { resultBase64 } = await fluxCleanup(input, selectedRoom, signal);
                                     if (signal.aborted) throw new Error('ABORTED');
-                                    // Pass null as prior — skips stackComposite entirely on the cleanup
-                                    // path. Nano Banana already preserves architecture; compositing 83%
-                                    // of the original back over it would create ghost artifacts.
-                                    // Resize to original dimensions explicitly instead.
-                                    const sharpened = await postProcessToolOutput(resultBase64, null, 'cleanup');
+                                    const sharpened = await postProcessToolOutput(resultBase64, input, 'cleanup');
                                     const result = await resizeToMatch(sharpened, input);
                                     onNewImage(result, 'cleanup');
                                     setDeclutterSignal(buildCleanupSignal({

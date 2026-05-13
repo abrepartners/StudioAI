@@ -8,6 +8,8 @@ import { isExteriorRoom } from '../../services/fluxService';
 import { fluxStaging } from '../../services/stagingService';
 import { reveEdit } from '../../services/reveEditService';
 import { STYLE_PACKS, buildStagingAssignment } from '../prompts/stylePacks';
+import { compositeStackedEdit } from '../../utils/stackComposite';
+import { CLEANUP_COMPOSITE_OPTIONS } from '../../utils/compositeProfiles';
 import JSZip from 'jszip';
 import { savePhoto as idbSavePhoto, saveResult as idbSaveResult, loadPhotos as idbLoadPhotos, loadResults as idbLoadResults } from './imageStore';
 
@@ -466,7 +468,15 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
 
     try {
       const inputImage = processedResultsRef.current[photo.id] || photo.dataUrl;
-      const resultDataUrl = await callApiDirect(inputImage, photo.label, tool, preset, customRemovalVal, controller.signal);
+      let resultDataUrl = await callApiDirect(inputImage, photo.label, tool, preset, customRemovalVal, controller.signal);
+
+      if (tool === 'declutter') {
+        try {
+          resultDataUrl = await compositeStackedEdit(inputImage, resultDataUrl, CLEANUP_COMPOSITE_OPTIONS);
+        } catch (err) {
+          console.warn('[VellumPhotoEditor] cleanup composite failed, using raw output:', err);
+        }
+      }
 
       setGenMap(prev => {
         const entry = prev[photoId];

@@ -40,6 +40,8 @@ const paths: Record<string, React.ReactNode> = {
   pause: <><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></>,
   house: <><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></>,
   mls: <><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 14l3 3 5-5"/></>,
+  logout: <><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></>,
+  refresh: <><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></>,
 };
 
 export const Icon: React.FC<IconProps> = ({ name, size = 16, color = 'currentColor', style, className }) => (

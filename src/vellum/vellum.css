@@ -111,6 +111,7 @@
 .v-credits-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--pale-gold); }
 .v-credits-chip .chip-cta { font-size: 11px; font-weight: 600; color: var(--pale-gold); margin-left: 4px; }
 
+.v-avatar-wrap { position: relative; }
 .v-avatar {
   width: 32px; height: 32px; border-radius: 50%;
   background: var(--deep-charcoal); color: var(--warm-ivory);
@@ -118,6 +119,20 @@
   font-family: var(--font-serif);
   font-size: 14px; font-weight: 500; cursor: pointer;
 }
+.v-avatar-menu {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 100;
+  min-width: 180px; padding: 6px;
+  background: var(--background-elevated); border: 1px solid var(--border-light);
+  border-radius: 12px; box-shadow: var(--shadow-lg);
+}
+.v-avatar-menu button {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 8px 12px; border: none; background: none; border-radius: 8px;
+  font-size: 13px; color: var(--text-primary); cursor: pointer;
+  font-family: var(--font-sans); text-align: left;
+}
+.v-avatar-menu button:hover { background: var(--soft-stone); }
+.v-avatar-menu-divider { height: 1px; background: var(--border-light); margin: 4px 8px; }
 
 /* ============ APP SHELL ============ */
 .v-app { display: block; min-height: 100dvh; }

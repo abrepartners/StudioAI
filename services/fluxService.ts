@@ -97,8 +97,18 @@ const INTERIOR_CLEANUP_PROMPT = (room: string, filter?: string, custom?: string)
   return prompt;
 };
 
-const EXTERIOR_CLEANUP_PROMPT = (room: string, custom?: string) => {
-  let prompt = `Remove only movable clutter from this ${room}: trash cans, tools, hoses, ladders, construction debris, for-sale signs, vehicles in driveway, portable furniture, kids' outdoor toys, pet items, and seasonal decorations.`;
+const EXTERIOR_CLEANUP_PROMPT = (room: string, filter?: string, custom?: string) => {
+  let prompt: string;
+
+  if (filter === 'yard') {
+    prompt = `Remove yard clutter from this ${room}: trash cans, recycling bins, garden tools, hoses, ladders, kids' outdoor toys, pet items, scattered lawn equipment, and seasonal decorations. Keep all vehicles, signs, and permanent fixtures.`;
+  } else if (filter === 'vehicles') {
+    prompt = `Remove all vehicles, trash cans, recycling bins, and dumpsters from this ${room}. Keep landscaping, signs, outdoor furniture, and all other items.`;
+  } else if (filter === 'signs') {
+    prompt = `Remove for-sale signs, open house signs, construction debris, temporary fencing, port-a-potties, and any temporary or promotional items from this ${room}. Keep vehicles, landscaping, and permanent fixtures.`;
+  } else {
+    prompt = `Remove only movable clutter from this ${room}: trash cans, tools, hoses, ladders, construction debris, for-sale signs, vehicles in driveway, portable furniture, kids' outdoor toys, pet items, and seasonal decorations.`;
+  }
 
   if (custom) {
     prompt += `\n\nADDITIONALLY, specifically remove: ${custom}.`;
@@ -116,7 +126,7 @@ export function buildCleanupPrompt(
 ): string {
   const room = (selectedRoom || '').trim();
   const custom = (customRemoval || '').trim() || undefined;
-  if (EXTERIOR_ROOMS.has(room)) return EXTERIOR_CLEANUP_PROMPT(room, custom);
+  if (EXTERIOR_ROOMS.has(room)) return EXTERIOR_CLEANUP_PROMPT(room, filter, custom);
   return INTERIOR_CLEANUP_PROMPT(room || 'room', filter, custom);
 }
 

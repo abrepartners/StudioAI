@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Icon } from './icons';
 import type { VellumProfile } from './useVellumStore';
 
@@ -14,6 +14,22 @@ interface TopbarProps {
 export const VellumTopbar: React.FC<TopbarProps> = ({ page, setPage, credits, profile, onRefill, onUploadFiles }) => {
   const low = credits < 20;
   const initial = profile.name ? profile.name.charAt(0).toUpperCase() : 'V';
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [menuOpen]);
+
+  const handleSignOut = () => {
+    try { localStorage.removeItem('studioai_google_user'); } catch {}
+    window.location.assign('/');
+  };
 
   return (
     <div className="v-topbar">
@@ -52,12 +68,28 @@ export const VellumTopbar: React.FC<TopbarProps> = ({ page, setPage, credits, pr
         <button className="v-btn v-btn--ghost v-btn--sm" onClick={onUploadFiles}>
           <Icon name="upload" size={13} /> Upload
         </button>
-        <div
-          className="v-avatar"
-          onClick={() => setPage('settings')}
-          title="Account settings"
-        >
-          {initial}
+        <div className="v-avatar-wrap" ref={menuRef}>
+          <div
+            className="v-avatar"
+            onClick={() => setMenuOpen(v => !v)}
+            title="Account menu"
+          >
+            {initial}
+          </div>
+          {menuOpen && (
+            <div className="v-avatar-menu">
+              <button onClick={() => { setMenuOpen(false); setPage('settings'); }}>
+                <Icon name="settings" size={14} /> Settings
+              </button>
+              <button onClick={() => { window.location.assign('/legacy'); }}>
+                <Icon name="refresh" size={14} /> Classic editor
+              </button>
+              <div className="v-avatar-menu-divider" />
+              <button onClick={handleSignOut}>
+                <Icon name="logout" size={14} /> Sign out
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

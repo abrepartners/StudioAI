@@ -60,9 +60,9 @@ const DECLUTTER_FILTER_MAP: Record<string, string | undefined> = {
   'full clean': 'fullclean',
   'personal items only': 'personal',
   'surface clutter only': 'surfaces',
-  'yard clutter': undefined,
-  'vehicles & bins': undefined,
-  'signs & temp items': undefined,
+  'yard clutter': 'yard',
+  'vehicles & bins': 'vehicles',
+  'signs & temp items': 'signs',
 };
 
 const TOOL_STEPS: Record<string, string[]> = {
@@ -308,8 +308,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
         continue;
       }
       const id = nextId.current++;
-      const label = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
-      newPhotos.push({ id, file, dataUrl, label, detecting: false });
+      newPhotos.push({ id, file, dataUrl, label: 'Living Room', detecting: false });
     }
 
     setPhotos(prev => [...prev, ...newPhotos]);
@@ -318,6 +317,9 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
     for (const p of newPhotos) {
       if (activeProject?.id) idbSavePhoto(activeProject.id, p.id, p.dataUrl, p.label, p.file.name).catch(() => {});
     }
+
+    // Show room type picker so user can tag each photo
+    if (newPhotos.length > 0) setShowRoomPicker(true);
   };
 
   const onDrop = (e: React.DragEvent) => {
@@ -346,6 +348,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
   const [view, setView] = useState<'compare' | 'grid' | 'single'>('compare');
   const [singlePhoto, setSinglePhoto] = useState<number | null>(null);
   const [editingLabel, setEditingLabel] = useState(false);
+  const [showRoomPicker, setShowRoomPicker] = useState(false);
 
   const [splitPos, setSplitPos] = useState(50);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -1515,6 +1518,70 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
           ))}
         </div>
       </div>
+
+      {/* Room type picker modal — shown after uploading photos */}
+      {showRoomPicker && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 200,
+          background: 'rgba(27,29,31,0.6)', backdropFilter: 'blur(4px)',
+          display: 'grid', placeItems: 'center',
+        }} onClick={() => setShowRoomPicker(false)}>
+          <div
+            style={{
+              background: 'var(--background-elevated)', borderRadius: 16,
+              padding: '24px 28px', maxWidth: 600, width: '90%',
+              maxHeight: '80vh', overflow: 'auto',
+              boxShadow: 'var(--shadow-lg)', border: '1px solid var(--border-light)',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Tag room types</h3>
+              <button
+                className="v-btn v-btn--primary v-btn--sm"
+                onClick={() => setShowRoomPicker(false)}
+              >
+                Done
+              </button>
+            </div>
+            <p style={{ fontSize: 12, color: 'var(--graphite)', margin: '0 0 16px' }}>
+              Setting the room type improves cleanup prompts and enables exterior-specific tools.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10 }}>
+              {photos.map(p => (
+                <div key={p.id} style={{
+                  borderRadius: 10, overflow: 'hidden',
+                  border: '1px solid var(--border-light)', background: 'var(--background-secondary)',
+                }}>
+                  <div style={{
+                    aspectRatio: '4/3',
+                    backgroundImage: `url(${p.dataUrl})`,
+                    backgroundSize: 'cover', backgroundPosition: 'center',
+                  }} />
+                  <div style={{ padding: '6px 8px' }}>
+                    <select
+                      value={p.label}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setPhotos(prev => prev.map(ph => ph.id === p.id ? { ...ph, label: val, detecting: false } : ph));
+                        if (activeProject?.id) idbSavePhoto(activeProject.id, p.id, p.dataUrl, val, p.file.name).catch(() => {});
+                      }}
+                      style={{
+                        width: '100%', fontSize: 12, padding: '4px 6px',
+                        border: '1px solid var(--border-light)', borderRadius: 6,
+                        background: 'var(--background-elevated)', color: 'var(--text-primary)',
+                        fontFamily: 'var(--font-sans)',
+                      }}
+                    >
+                      {ROOM_TYPES.map(r => <option key={r} value={r}>{r}</option>)}
+                    </select>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

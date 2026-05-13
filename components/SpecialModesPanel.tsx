@@ -521,7 +521,7 @@ const SpecialModesPanel: React.FC<SpecialModesPanelProps> = ({
                                 try {
                                     const { resultBase64 } = await fluxCleanup(input, selectedRoom, signal);
                                     if (signal.aborted) throw new Error('ABORTED');
-                                    const sharpened = await postProcessToolOutput(resultBase64, input, 'cleanup');
+                                    const sharpened = await postProcessToolOutput(resultBase64, null, 'cleanup');
                                     const result = await resizeToMatch(sharpened, input);
                                     onNewImage(result, 'cleanup');
                                     setDeclutterSignal(buildCleanupSignal({

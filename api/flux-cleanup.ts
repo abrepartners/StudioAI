@@ -76,13 +76,13 @@ async function runPruna(replicate: Replicate, imageUrl: string): Promise<string 
     const out = await replicate.run('prunaai/p-image-upscale', {
       input: {
         image: imageUrl,
-        factor: 4,
+        factor: 2,
         target: 5,
         upscale_mode: 'factor',
         output_format: 'jpg',
-        output_quality: 100,
+        output_quality: 95,
         enhance_details: false,
-        enhance_realism: true,
+        enhance_realism: false,
       },
     });
     return await extractUrl(out);
@@ -137,7 +137,7 @@ export default async function handler(req: any, res: any) {
         input: {
           image: dataUrl,
           instruction: prompt,
-          negative_prompt: 'Do not add any new objects or change the room architecture, wall colors, flooring, or fixtures.',
+          negative_prompt: 'Do not add any new objects, furniture, decor, or items. Do not change room architecture, wall colors, wall texture, flooring, ceiling, or fixtures. Do not alter lighting, shadows, or color grading. Only remove specified items and fill with matching surface texture.',
         },
       });
       cleanUrl = await extractUrl(output);

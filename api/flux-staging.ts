@@ -38,13 +38,13 @@ async function runPruna(replicate: Replicate, imageUrl: string): Promise<string 
     const out = await replicate.run('prunaai/p-image-upscale', {
       input: {
         image: imageUrl,
-        factor: 4,
+        factor: 2,
         target: 5,
         upscale_mode: 'factor',
         output_format: 'jpg',
-        output_quality: 100,
+        output_quality: 95,
         enhance_details: false,
-        enhance_realism: true,
+        enhance_realism: false,
       },
     });
     return extractUrl(out);

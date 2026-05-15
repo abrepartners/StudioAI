@@ -1461,6 +1461,13 @@ img.v-ba-img-dimmed { opacity: 0.35; filter: grayscale(0.3); }
   z-index: 1;
 }
 
+/* index.css .reveal starts opacity:0 and waits for IntersectionObserver on document scroll.
+   Our landing page scrolls inside a fixed container, so the observer never fires. Force visible. */
+.vl-root .reveal {
+  opacity: 1;
+  transform: none;
+}
+
 /* ── Nav ─────────────────────────────────────────────────────────────── */
 .vl-nav {
   position: fixed; top: 0; left: 0; right: 0; z-index: 50;

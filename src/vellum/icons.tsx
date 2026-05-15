@@ -42,6 +42,7 @@ const paths: Record<string, React.ReactNode> = {
   mls: <><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 14l3 3 5-5"/></>,
   logout: <><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></>,
   refresh: <><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></>,
+  hammer: <><path d="M15 12l-8 8a2 2 0 0 1-2.83-2.83l8-8"/><path d="M17.64 15L22 10.64"/><path d="M20.91 11.7l-1.25-1.25a2 2 0 0 1 0-2.83l1.06-1.06-3-3-1.06 1.06a2 2 0 0 1-2.83 0L12.59 3.41 7 9l9.36 9.36 5.55-5.55a2 2 0 0 0 0-2.83z"/></>,
 };
 
 export const Icon: React.FC<IconProps> = ({ name, size = 16, color = 'currentColor', style, className }) => (

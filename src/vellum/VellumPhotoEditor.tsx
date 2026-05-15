@@ -7,6 +7,7 @@ import { upscaleImage } from '../../services/upscaleService';
 import { isExteriorRoom } from '../../services/fluxService';
 import { fluxStaging } from '../../services/stagingService';
 import { reveEdit } from '../../services/reveEditService';
+import { fluxRenovation } from '../../services/renovationService';
 import { STYLE_PACKS, buildStagingAssignment } from '../prompts/stylePacks';
 import { detectClutterMasks, combineSelectedMasks } from '../../services/samService';
 import ClutterMaskSelector from '../../components/ClutterMaskSelector';
@@ -41,6 +42,7 @@ const TOOLS = [
   { id: 'staging', icon: 'armchair', name: 'Virtual staging', desc: 'Add furniture in context', cost: '2 cr' },
   { id: 'declutter', icon: 'sparkles', name: 'Declutter & cleanup', desc: 'Remove personal items', cost: '1 cr' },
   { id: 'whiten', icon: 'sun', name: 'Daylight & white balance', desc: 'Even, warm exposure', cost: '0.5 cr' },
+  { id: 'renovation', icon: 'hammer', name: 'Virtual renovation', desc: 'Swap cabinets, counters, floors, walls', cost: '2 cr' },
   { section: 'Atmosphere' },
   { id: 'twilight', icon: 'moon', name: 'Twilight conversion', desc: 'Day to dusk', cost: '2 cr' },
   { id: 'sky', icon: 'cloud', name: 'Sky replacement', desc: 'Clear blue or golden hour', cost: '1 cr' },
@@ -68,15 +70,16 @@ const DECLUTTER_FILTER_MAP: Record<string, string | undefined> = {
 };
 
 const TOOL_STEPS: Record<string, string[]> = {
-  staging:   ['Analyzing room geometry…', 'Selecting furniture for style…', 'Rendering surfaces + shadows…', 'Finalizing…'],
-  declutter: ['Detecting personal items…', 'Mapping inpaint regions…', 'Reconstructing surfaces…', 'Finalizing…'],
-  whiten:    ['Sampling light sources…', 'Adjusting white balance…', 'Harmonizing exposure…', 'Finalizing…'],
-  twilight:  ['Analyzing exterior lighting…', 'Compositing golden hour sky…', 'Blending window glow…', 'Finalizing…'],
-  sky:       ['Masking roofline…', 'Matching perspective…', 'Compositing sky layer…', 'Finalizing…'],
-  lawn:      ['Detecting lawn area…', 'Applying seasonal correction…', 'Blending edges…', 'Finalizing…'],
+  staging:    ['Analyzing room geometry…', 'Selecting furniture for style…', 'Rendering surfaces + shadows…', 'Finalizing…'],
+  declutter:  ['Detecting personal items…', 'Mapping inpaint regions…', 'Reconstructing surfaces…', 'Finalizing…'],
+  whiten:     ['Sampling light sources…', 'Adjusting white balance…', 'Harmonizing exposure…', 'Finalizing…'],
+  renovation: ['Mapping surfaces to renovate…', 'Selecting new materials…', 'Rendering surfaces + reflections…', 'Finalizing…'],
+  twilight:   ['Analyzing exterior lighting…', 'Compositing golden hour sky…', 'Blending window glow…', 'Finalizing…'],
+  sky:        ['Masking roofline…', 'Matching perspective…', 'Compositing sky layer…', 'Finalizing…'],
+  lawn:       ['Detecting lawn area…', 'Applying seasonal correction…', 'Blending edges…', 'Finalizing…'],
 };
 
-const TOOL_COST: Record<string, number> = { staging: 2, declutter: 1, whiten: 0.5, twilight: 2, sky: 1, lawn: 1 };
+const TOOL_COST: Record<string, number> = { staging: 2, declutter: 1, whiten: 0.5, renovation: 2, twilight: 2, sky: 1, lawn: 1 };
 
 const ROOM_TYPES = [
   'Living Room', 'Dining Room', 'Kitchen', 'Bedroom', 'Bathroom',
@@ -277,6 +280,15 @@ DO NOT:
       const result = await reveEdit(imageBase64, prompt, true, signal);
       return result.resultBase64;
     }
+    case 'renovation': {
+      // preset is a JSON-encoded {cabinets, countertops, flooring, walls}.
+      let details: { cabinets?: string; countertops?: string; flooring?: string; walls?: string } = {};
+      try { details = JSON.parse(preset); } catch { /* empty payload */ }
+      const hasAny = !!(details.cabinets || details.countertops || details.flooring || details.walls);
+      if (!hasAny) throw new Error('Specify at least one renovation change (cabinets, counters, flooring, or walls).');
+      const result = await fluxRenovation(imageBase64, details, signal);
+      return result.resultBase64;
+    }
     default:
       return imageBase64;
   }
@@ -361,6 +373,10 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
   const [stylePreset, setStylePreset] = useState('contemporary');
   const [twilightTime, setTwilightTime] = useState<TwilightTime>('sunset');
   const [customRemoval, setCustomRemoval] = useState('');
+  const [renovCabinets, setRenovCabinets] = useState('');
+  const [renovCountertops, setRenovCountertops] = useState('');
+  const [renovFlooring, setRenovFlooring] = useState('');
+  const [renovWalls, setRenovWalls] = useState('');
   const [selectedPhoto, setSelectedPhoto] = useState(0);
 
   const setActiveTool = (tool: string) => {
@@ -578,7 +594,16 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
     if (!photo || isPhotoGenerating(photo.id)) return;
 
     const frozenTool = activeTool;
-    const frozenPreset = activeTool === 'twilight' ? `${stylePreset}|${twilightTime}` : stylePreset;
+    const frozenPreset = activeTool === 'twilight'
+      ? `${stylePreset}|${twilightTime}`
+      : activeTool === 'renovation'
+      ? JSON.stringify({
+          cabinets: renovCabinets.trim() || undefined,
+          countertops: renovCountertops.trim() || undefined,
+          flooring: renovFlooring.trim() || undefined,
+          walls: renovWalls.trim() || undefined,
+        })
+      : stylePreset;
     const frozenCustom = customRemoval;
 
     requestSpend(TOOL_COST[activeTool], () => {
@@ -602,7 +627,16 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
     const totalCost = TOOL_COST[activeTool] * targets.length;
 
     const frozenTool = activeTool;
-    const frozenPreset = activeTool === 'twilight' ? `${stylePreset}|${twilightTime}` : stylePreset;
+    const frozenPreset = activeTool === 'twilight'
+      ? `${stylePreset}|${twilightTime}`
+      : activeTool === 'renovation'
+      ? JSON.stringify({
+          cabinets: renovCabinets.trim() || undefined,
+          countertops: renovCountertops.trim() || undefined,
+          flooring: renovFlooring.trim() || undefined,
+          walls: renovWalls.trim() || undefined,
+        })
+      : stylePreset;
     const frozenCustom = customRemoval;
 
     requestSpend(totalCost, async () => {
@@ -1165,7 +1199,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
           if (!('id' in t)) return null;
           const tool = t as { id: string; icon: string; name: string; desc: string; cost: string };
           const exteriorOnly = ['twilight', 'sky', 'lawn'].includes(tool.id);
-          const interiorOnly = ['staging', 'whiten'].includes(tool.id);
+          const interiorOnly = ['staging', 'whiten', 'renovation'].includes(tool.id);
           const photoIsExterior = currentPhoto ? isExteriorRoom(currentPhoto.label) : false;
           const disabled = (exteriorOnly && !photoIsExterior) || (interiorOnly && photoIsExterior);
           return (
@@ -1270,6 +1304,52 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
                     })}
                   </div>
                 </div>
+              </>
+            ) : activeTool === 'renovation' ? (
+              <>
+                <div className="v-field">
+                  <span className="v-field-label">Cabinets</span>
+                  <input
+                    className="v-set-input"
+                    placeholder="e.g. white shaker with brushed nickel hardware"
+                    value={renovCabinets}
+                    onChange={(e) => setRenovCabinets(e.target.value)}
+                    style={{ width: '100%', fontSize: 12 }}
+                  />
+                </div>
+                <div className="v-field" style={{ marginTop: 4 }}>
+                  <span className="v-field-label">Countertops</span>
+                  <input
+                    className="v-set-input"
+                    placeholder="e.g. Calacatta marble waterfall"
+                    value={renovCountertops}
+                    onChange={(e) => setRenovCountertops(e.target.value)}
+                    style={{ width: '100%', fontSize: 12 }}
+                  />
+                </div>
+                <div className="v-field" style={{ marginTop: 4 }}>
+                  <span className="v-field-label">Flooring</span>
+                  <input
+                    className="v-set-input"
+                    placeholder="e.g. wide-plank oak hardwood"
+                    value={renovFlooring}
+                    onChange={(e) => setRenovFlooring(e.target.value)}
+                    style={{ width: '100%', fontSize: 12 }}
+                  />
+                </div>
+                <div className="v-field" style={{ marginTop: 4 }}>
+                  <span className="v-field-label">Wall color</span>
+                  <input
+                    className="v-set-input"
+                    placeholder="e.g. soft sage green paint"
+                    value={renovWalls}
+                    onChange={(e) => setRenovWalls(e.target.value)}
+                    style={{ width: '100%', fontSize: 12 }}
+                  />
+                </div>
+                <p className="v-muted" style={{ fontSize: 11, marginTop: 6 }}>
+                  Leave any field blank to keep that surface unchanged. At least one is required.
+                </p>
               </>
             ) : (
               <div className="v-field">

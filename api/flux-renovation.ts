@@ -123,13 +123,42 @@ export default async function handler(req: any, res: any) {
   const t0 = Date.now();
 
   try {
-    console.log(`[flux-renovation] Starting Flux 2 Pro renovation with anti-drift prompt`);
+    // Detect aspect ratio from base64 image dimensions
+    const dims = await new Promise<{w: number; h: number}>((resolve) => {
+      const raw = userDataUrl.split(',')[1] || '';
+      const buf = Buffer.from(raw, 'base64');
+      const isPng = buf[0] === 0x89 && buf[1] === 0x50;
+      if (isPng && buf.length > 24) {
+        resolve({ w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) });
+      } else {
+        for (let i = 0; i < buf.length - 9; i++) {
+          if (buf[i] === 0xFF && (buf[i+1] === 0xC0 || buf[i+1] === 0xC2)) {
+            resolve({ w: buf.readUInt16BE(i + 7), h: buf.readUInt16BE(i + 5) });
+            return;
+          }
+        }
+        resolve({ w: 4, h: 3 });
+      }
+    });
+
+    const VALID_RATIOS = [
+      { label: '1:1', v: 1 }, { label: '4:3', v: 4/3 }, { label: '3:2', v: 3/2 },
+      { label: '16:9', v: 16/9 }, { label: '21:9', v: 21/9 },
+      { label: '3:4', v: 3/4 }, { label: '2:3', v: 2/3 },
+      { label: '9:16', v: 9/16 }, { label: '9:21', v: 9/21 },
+    ];
+    const imgRatio = dims.w / dims.h;
+    const bestRatio = VALID_RATIOS.reduce((best, r) =>
+      Math.abs(r.v - imgRatio) < Math.abs(best.v - imgRatio) ? r : best
+    );
+
+    console.log(`[flux-renovation] Starting Flux 2 Pro renovation (${dims.w}x${dims.h} → ${bestRatio.label})`);
     const fluxOutput = await replicate.run('black-forest-labs/flux-2-pro', {
       input: {
         input_images: [userDataUrl],
         prompt: buildRenovationPrompt(details),
         output_format: 'jpg',
-        aspect_ratio: 'match_input_image',
+        aspect_ratio: bestRatio.label,
       },
     });
 

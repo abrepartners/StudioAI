@@ -82,7 +82,7 @@ const ROOM_TYPES = [
   'Living Room', 'Dining Room', 'Kitchen', 'Bedroom', 'Bathroom',
   'Office', 'Laundry Room', 'Garage', 'Bonus Room', 'Nursery',
   'Basement', 'Foyer', 'Hallway', 'Closet', 'Sunroom',
-  'Exterior', 'Patio', 'Pool', 'Backyard', 'Front Yard',
+  'Patio', 'Pool', 'Backyard', 'Front Yard',
 ];
 
 const BATCH_CONCURRENCY = 3;

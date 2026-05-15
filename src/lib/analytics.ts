@@ -8,7 +8,9 @@ export type StudioAIEvent =
   | 'pricing_viewed'
   | 'checkout_started'
   | 'cleanup_risk_high'
-  | 'cleanup_retried';
+  | 'cleanup_retried'
+  | 'landing_viewed'
+  | 'signup_completed';
 
 type AnalyticsPayload = Record<string, string | number | boolean | null | undefined>;
 

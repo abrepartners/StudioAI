@@ -1427,3 +1427,339 @@ img.v-ba-img-dimmed { opacity: 0.35; filter: grayscale(0.3); }
   .v-filter-bar { flex-direction: column; align-items: stretch; }
   .v-search-input { min-width: 0; }
 }
+
+/* =======================================================================
+   LANDING PAGE — VellumLanding.tsx
+   Dark-mode editorial landing. Inverted from the Vellum ivory app shell.
+   ======================================================================= */
+
+.vl-root {
+  --vl-bg: #0D0D0D;
+  --vl-surface: #161616;
+  --vl-border: rgba(255,255,255,0.06);
+  --vl-text: #F7F6F2;
+  --vl-muted: #888580;
+  --vl-gold: #D8C79A;
+  --vl-gold-dim: rgba(216,199,154,0.15);
+  --vl-serif: 'Cormorant Garamond', 'Times New Roman', serif;
+  --vl-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  font-family: var(--vl-sans);
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--vl-text);
+  background: var(--vl-bg);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'cv11', 'ss01';
+
+  /* Override index.css overflow:hidden on html/body — make this the scroll container */
+  position: fixed;
+  inset: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  z-index: 1;
+}
+
+/* ── Nav ─────────────────────────────────────────────────────────────── */
+.vl-nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+  background: rgba(13,13,13,0.82);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--vl-border);
+}
+.vl-nav-inner {
+  max-width: 1200px; margin: 0 auto;
+  padding: 0 32px; height: 64px;
+  display: flex; align-items: center; gap: 32px;
+}
+.vl-wordmark {
+  font-family: var(--vl-serif);
+  font-size: 26px; font-weight: 500;
+  letter-spacing: -0.02em; color: var(--vl-text);
+}
+.vl-nav-links {
+  display: flex; gap: 6px; margin-left: 24px;
+}
+.vl-nav-links a {
+  font-size: 13px; font-weight: 500; color: var(--vl-muted);
+  padding: 6px 12px; border-radius: 6px;
+  transition: all 180ms ease; text-decoration: none;
+}
+.vl-nav-links a:hover { color: var(--vl-text); background: rgba(255,255,255,0.04); }
+.vl-nav-cta { margin-left: auto; }
+
+/* ── Shared button classes ───────────────────────────────────────────── */
+.vl-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 9px 20px; border-radius: 8px;
+  font-size: 13px; font-weight: 600;
+  text-decoration: none; cursor: pointer;
+  transition: all 200ms ease; border: none;
+}
+.vl-btn--gold {
+  background: var(--vl-gold); color: #0D0D0D;
+}
+.vl-btn--gold:hover { background: #C4B485; }
+.vl-btn--outline {
+  background: transparent; color: var(--vl-text);
+  border: 1px solid rgba(255,255,255,0.12);
+}
+.vl-btn--outline:hover { border-color: rgba(255,255,255,0.3); }
+
+/* ── Shared section typography ───────────────────────────────────────── */
+.vl-section-inner {
+  max-width: 1100px; margin: 0 auto; padding: 0 32px;
+}
+.vl-eyebrow {
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--vl-gold); margin-bottom: 12px;
+}
+.vl-section-title {
+  font-family: var(--vl-serif);
+  font-size: clamp(32px, 5vw, 48px); font-weight: 500;
+  letter-spacing: -0.01em; line-height: 1.1; margin: 0 0 14px;
+}
+.vl-section-title em { font-style: italic; color: var(--vl-muted); }
+.vl-section-sub {
+  font-size: 15px; color: var(--vl-muted); max-width: 560px; line-height: 1.6; margin: 0;
+}
+
+/* ── Hero ────────────────────────────────────────────────────────────── */
+.vl-hero {
+  padding: 160px 32px 100px;
+  text-align: center;
+  background: radial-gradient(ellipse 70% 50% at 50% 0%, rgba(216,199,154,0.06) 0%, transparent 100%);
+}
+.vl-hero-inner { max-width: 720px; margin: 0 auto; }
+.vl-hero-eyebrow {
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.25em; text-transform: uppercase;
+  color: var(--vl-gold); margin-bottom: 20px;
+}
+.vl-hero-title {
+  font-family: var(--vl-serif);
+  font-size: clamp(40px, 7vw, 68px); font-weight: 500;
+  letter-spacing: -0.02em; line-height: 1.05; margin: 0 0 20px;
+}
+.vl-hero-title em { font-style: italic; color: var(--vl-muted); }
+.vl-hero-sub {
+  font-size: 16px; color: var(--vl-muted); max-width: 540px;
+  margin: 0 auto 36px; line-height: 1.7;
+}
+.vl-hero-cta {
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+}
+.vl-hero-note {
+  font-size: 12px; color: var(--vl-muted);
+}
+.vl-hero-metrics {
+  display: flex; align-items: center; justify-content: center; gap: 24px;
+  margin-top: 56px; padding-top: 32px;
+  border-top: 1px solid var(--vl-border);
+}
+.vl-metric { text-align: center; }
+.vl-metric-val {
+  font-family: var(--vl-serif);
+  font-size: 36px; font-weight: 400;
+  display: block; letter-spacing: -0.02em;
+}
+.vl-metric-lbl { font-size: 12px; color: var(--vl-muted); }
+.vl-metric-divider {
+  width: 1px; height: 40px; background: var(--vl-border);
+}
+
+/* ── Showcase (before/after) ─────────────────────────────────────────── */
+.vl-showcase {
+  padding: 100px 0;
+  background: var(--vl-surface);
+  border-top: 1px solid var(--vl-border);
+  border-bottom: 1px solid var(--vl-border);
+}
+.vl-showcase-tabs {
+  display: flex; gap: 6px; margin: 32px 0 24px;
+  flex-wrap: wrap;
+}
+.vl-showcase-tab {
+  padding: 7px 16px; border-radius: 6px;
+  font-size: 12px; font-weight: 500;
+  background: transparent; border: 1px solid var(--vl-border);
+  color: var(--vl-muted); cursor: pointer;
+  transition: all 180ms ease;
+}
+.vl-showcase-tab:hover { border-color: rgba(255,255,255,0.16); color: var(--vl-text); }
+.vl-showcase-tab.active {
+  background: var(--vl-text); color: var(--vl-bg);
+  border-color: var(--vl-text);
+}
+
+/* Before/After slider */
+.vl-ba {
+  position: relative; border-radius: 12px; overflow: hidden;
+  aspect-ratio: 16/10; user-select: none;
+  background: #111; border: 1px solid var(--vl-border);
+}
+.vl-ba-img {
+  position: absolute; top: 0; left: 0;
+  width: 100%; height: 100%;
+  object-fit: cover; object-position: center;
+  pointer-events: none; display: block;
+}
+.vl-ba-clip {
+  position: absolute; inset: 0;
+}
+.vl-ba-handle {
+  position: absolute; top: 0; bottom: 0; width: 2px;
+  background: var(--vl-text);
+  box-shadow: 0 0 16px rgba(0,0,0,0.5);
+  cursor: ew-resize; z-index: 2;
+  transform: translateX(-50%);
+}
+.vl-ba-knob {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--vl-text); color: var(--vl-bg);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+  font-size: 10px; gap: 2px;
+}
+.vl-ba-tag {
+  position: absolute; top: 14px;
+  padding: 5px 12px; border-radius: 4px;
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  z-index: 3;
+}
+.vl-ba-tag.before {
+  left: 14px;
+  background: rgba(13,13,13,0.8); color: var(--vl-muted);
+  backdrop-filter: blur(6px);
+}
+.vl-ba-tag.after {
+  right: 14px;
+  background: rgba(216,199,154,0.9); color: #0D0D0D;
+}
+
+/* ── Features ────────────────────────────────────────────────────────── */
+.vl-features { padding: 100px 0; }
+.vl-feature-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 16px; margin-top: 40px;
+}
+.vl-feature-card {
+  padding: 28px; border-radius: 12px;
+  background: var(--vl-surface);
+  border: 1px solid var(--vl-border);
+  transition: all 240ms ease;
+}
+.vl-feature-card:hover {
+  border-color: rgba(255,255,255,0.12);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px -12px rgba(0,0,0,0.4);
+}
+.vl-feature-icon {
+  width: 40px; height: 40px; border-radius: 10px;
+  background: var(--vl-gold-dim);
+  color: var(--vl-gold);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 16px;
+}
+.vl-feature-card h3 {
+  font-size: 15px; font-weight: 600; margin: 0 0 8px;
+  color: var(--vl-text);
+}
+.vl-feature-card p {
+  font-size: 13px; color: var(--vl-muted); margin: 0; line-height: 1.6;
+}
+
+/* ── How It Works ────────────────────────────────────────────────────── */
+.vl-how {
+  padding: 100px 0;
+  background: var(--vl-surface);
+  border-top: 1px solid var(--vl-border);
+  border-bottom: 1px solid var(--vl-border);
+}
+.vl-steps {
+  display: flex; align-items: flex-start; gap: 16px;
+  margin-top: 40px;
+}
+.vl-step {
+  flex: 1; padding: 28px; border-radius: 12px;
+  background: var(--vl-bg);
+  border: 1px solid var(--vl-border);
+}
+.vl-step-num {
+  font-family: var(--vl-serif);
+  font-size: 36px; font-weight: 400;
+  color: var(--vl-gold); margin-bottom: 12px;
+  letter-spacing: -0.02em;
+}
+.vl-step h3 {
+  font-size: 16px; font-weight: 600; margin: 0 0 8px;
+}
+.vl-step p {
+  font-size: 13px; color: var(--vl-muted); margin: 0; line-height: 1.6;
+}
+.vl-step-arrow {
+  display: flex; align-items: center;
+  color: var(--vl-gold); opacity: 0.3;
+  padding-top: 48px;
+  flex-shrink: 0;
+}
+
+/* ── Pricing section wrapper ─────────────────────────────────────────── */
+.vl-pricing {
+  padding: 20px 0 0;
+}
+
+/* ── Final CTA ───────────────────────────────────────────────────────── */
+.vl-final-cta {
+  padding: 100px 0;
+  background: radial-gradient(ellipse 60% 50% at 50% 100%, rgba(216,199,154,0.06) 0%, transparent 100%);
+  border-top: 1px solid var(--vl-border);
+}
+
+/* ── Footer ──────────────────────────────────────────────────────────── */
+.vl-footer {
+  padding: 32px 0;
+  border-top: 1px solid var(--vl-border);
+}
+.vl-footer-inner {
+  max-width: 1100px; margin: 0 auto; padding: 0 32px;
+  display: flex; align-items: center; gap: 24px;
+}
+.vl-footer-links {
+  display: flex; gap: 16px; margin-left: 24px;
+}
+.vl-footer-links a {
+  font-size: 12px; color: var(--vl-muted); text-decoration: none;
+  transition: color 180ms;
+}
+.vl-footer-links a:hover { color: var(--vl-text); }
+.vl-footer-copy {
+  margin-left: auto; font-size: 12px; color: var(--vl-muted);
+}
+
+/* ── Landing responsive ──────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .vl-nav-links { display: none; }
+  .vl-hero { padding: 120px 20px 60px; }
+  .vl-hero-title { font-size: 38px; }
+  .vl-hero-metrics { gap: 16px; }
+  .vl-metric-val { font-size: 28px; }
+  .vl-section-inner { padding: 0 20px; }
+  .vl-feature-grid { grid-template-columns: 1fr; }
+  .vl-steps { flex-direction: column; }
+  .vl-step-arrow { display: none; }
+  .vl-ba { aspect-ratio: 4/3; }
+  .vl-footer-inner { flex-direction: column; text-align: center; gap: 12px; }
+  .vl-footer-links { margin-left: 0; }
+  .vl-footer-copy { margin-left: 0; }
+  .vl-showcase-tabs { justify-content: center; }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .vl-feature-grid { grid-template-columns: repeat(2, 1fr); }
+}

@@ -31,11 +31,12 @@ import AdminApiDashboardRoute from './AdminApiDashboardRoute';
 import { readGoogleUser } from './authStorage';
 
 const VellumApp = lazy(() => import('../vellum/VellumApp'));
+const VellumLanding = lazy(() => import('../vellum/VellumLanding'));
 
 const AuthedRoot: React.FC = () => {
   const user = useMemo(() => readGoogleUser(), []);
   if (user) return <Navigate to="/vellum" replace />;
-  return <MarketingRoute anchor="pricing" />;
+  return <VellumLanding />;
 };
 
 const RouteFallback: React.FC = () => (

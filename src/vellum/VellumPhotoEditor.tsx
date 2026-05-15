@@ -57,7 +57,7 @@ const PRESETS: Record<string, string[]> = {
   twilight_style: ['Pink', 'Golden', 'Purple', 'Natural'],
   twilight_time: ['Early evening', 'Sunset', 'Twilight'],
   sky: ['Clear blue', 'Golden hour', 'Soft overcast', 'Dramatic'],
-  lawn: ['Manicured', 'Natural', 'Drought-resistant'],
+  lawn: ['Natural', 'Manicured', 'Drought-resistant'],
 };
 
 const DECLUTTER_FILTER_MAP: Record<string, string | undefined> = {
@@ -238,12 +238,12 @@ DO NOT:
     }
     case 'lawn': {
       const lawnSpecs: Record<string, string> = {
-        'manicured': `TARGET: Professionally maintained residential lawn — the "just mowed for the listing shoot" look.
-- Grass color: rich, consistent green with natural micro-variation — NOT flat neon green. Real grass has 3-4 shades from light yellow-green (sun exposed) to deep green (shaded). Include this variation.
-- Grass texture: visible individual blade definition at close range. Slight height variation (0.5-1 inch). Natural thatch layer at base visible in foreground. Blade direction consistent with a mow pattern.
-- Edges: crisp, clean borders where grass meets concrete, mulch, or garden beds. Natural feathering — not a hard pixel line.
-- Shadows: micro-shadows between blades matching the scene's sun angle and direction. Shadow density consistent with the rest of the photo.
-- Bare spots or brown patches: fill with matching green grass at the same texture density as surrounding areas.`,
+        'manicured': `TARGET: Light grass enhancement on an already-healthy lawn. SUBTLE — not a complete re-render.
+- Match the input lawn's existing color temperature, saturation, and overall green tone within ±5%. DO NOT make it brighter, more saturated, or more uniform than the input.
+- Preserve all existing color variation in the grass — patches of slightly-different-green, sun-bleached areas, and shadow areas must all remain visible and varied.
+- Fill in ONLY actual dead patches, brown spots, or bare dirt with matching green that BLENDS with neighboring grass at the same saturation.
+- Keep visible texture and grain. Real grass photographs have noise. DO NOT smooth or blur the lawn surface.
+- The result should look like the SAME photograph with patches filled in, not a different lawn or an enhanced look.`,
         'natural': `TARGET: Healthy, lived-in lawn — lush and organic, not manicured.
 - Grass color: multi-tonal green with natural variation. Some areas slightly longer, some slightly shorter. Clover or ground cover patches acceptable.
 - Grass texture: mixed heights (1-3 inches), natural growth patterns, some seed heads in taller areas. Organic and realistic, not uniform.
@@ -255,7 +255,7 @@ DO NOT:
 - Natural, intentional spacing between plants. Not overgrown, not barren.
 - Gravel/stone should have natural color variation and shadow detail.`,
       };
-      const spec = lawnSpecs[preset] || lawnSpecs['manicured'];
+      const spec = lawnSpecs[preset] || lawnSpecs['natural'];
       const prompt = `LANDSCAPING ENHANCEMENT — EXTERIOR PHOTO EDIT.
 
 ${spec}
@@ -276,7 +276,10 @@ DO NOT:
 - Add new trees, structures, or landscape features not specified.
 - Change the season or time of day.
 - Smooth or denoise any non-lawn area.
-- Modify the house, driveway, or any built structure.`;
+- Modify the house, driveway, or any built structure.
+- BOOST saturation, lift exposure on the lawn, or flatten color variation.
+- Replace the existing grass with brighter / more uniform / more saturated grass.
+- Add a glossy or HDR look. The lawn should not appear "enhanced" — it should appear corrected.`;
       const result = await reveEdit(imageBase64, prompt, true, signal);
       return result.resultBase64;
     }

@@ -99,15 +99,24 @@ const VellumRefillModal: React.FC<RefillModalProps> = ({ open, needed, balance, 
           </div>
         </div>
 
-        {/* Upgrade CTA for free users */}
+        {/* Upgrade CTAs for free users */}
         {isFreePlan && (
-          <button
-            className="v-btn v-btn--primary"
-            style={{ width: '100%', marginBottom: 20 }}
-            onClick={handleUpgrade}
-          >
-            Upgrade to Pro — $49/mo unlimited
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+            <button
+              className="v-btn v-btn--primary"
+              style={{ width: '100%' }}
+              onClick={handleUpgrade}
+            >
+              Upgrade to Pro — $49/mo unlimited
+            </button>
+            <button
+              className="v-btn v-btn--ghost"
+              style={{ width: '100%' }}
+              onClick={() => userId && subscription?.startCheckout(userId, { plan: 'starter', interval: 'month' })}
+            >
+              Start with Starter — $19/mo · 40 edits
+            </button>
+          </div>
         )}
 
         <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--graphite)', marginBottom: 12 }}>

@@ -22,6 +22,8 @@ export interface VellumProfile {
   name: string;
   email: string;
   brokerage: string;
+  phone: string;
+  website: string;
 }
 
 interface StoreData {
@@ -30,7 +32,7 @@ interface StoreData {
 }
 
 const DEFAULT_STORE: StoreData = {
-  profile: { name: '', email: '', brokerage: '' },
+  profile: { name: '', email: '', brokerage: '', phone: '', website: '' },
   projects: [],
 };
 

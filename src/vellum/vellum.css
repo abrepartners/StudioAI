@@ -667,7 +667,7 @@ img.v-ba-img-dimmed { opacity: 0.35; filter: grayscale(0.3); }
 .v-export-btn.gold:hover { background: #2A2D30; }
 
 /* ============ BILLING PLANS ============ */
-.v-plans { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 24px 0 48px; }
+.v-plans { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin: 24px 0 48px; }
 .v-plan {
   background: var(--background-elevated);
   border: 1px solid var(--soft-stone); border-radius: 14px;
@@ -1404,7 +1404,7 @@ img.v-ba-img-dimmed { opacity: 0.35; filter: grayscale(0.3); }
   .v-main { padding: 32px 32px 48px; }
   .v-split-2 { grid-template-columns: 1fr; }
   .v-kpi-row { grid-template-columns: 1fr 1fr; }
-  .v-plans { grid-template-columns: 1fr; max-width: 480px; }
+  .v-plans { grid-template-columns: repeat(2, 1fr); max-width: 720px; }
   .v-video-grid { grid-template-columns: 1fr; }
 }
 

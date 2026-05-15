@@ -120,6 +120,16 @@ const VellumApp: React.FC = () => {
 
   // ─── Store + state ──────────────────────────────────────────────────
   const store = useVellumStore();
+
+  useEffect(() => {
+    if (!googleUser) return;
+    const p = store.profile;
+    const updates: Partial<typeof p> = {};
+    if (!p.name && googleUser.name) updates.name = googleUser.name;
+    if (!p.email && googleUser.email) updates.email = googleUser.email;
+    if (Object.keys(updates).length) store.updateProfile(updates);
+  }, [googleUser]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const [refill, setRefill] = useState<RefillState>({ open: false, needed: 0, onAfter: null });
   const [newListingOpen, setNewListingOpen] = useState(false);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);

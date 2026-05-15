@@ -4,6 +4,7 @@ import type { SubscriptionState } from '../../hooks/useSubscription';
 import {
   PLAN_PRICING_USD,
   STARTER_MONTHLY_LIMIT,
+  DISPLAY_COPY,
   getPlanDisplayName,
 } from '../../shared/monetization';
 
@@ -77,10 +78,10 @@ const VellumBilling: React.FC<BillingProps> = ({ setPage, credits, subscription,
           <div className="v-plan-price">$0</div>
           <div className="v-plan-tag">5 edits to start, then 1 per day.</div>
           <ul>
-            <li>5 lifetime free generations</li>
-            <li>1/day after that</li>
-            <li>Staging + Cleanup</li>
+            <li>{DISPLAY_COPY.freeTierShort}</li>
             <li>No credit card required</li>
+            <li>Staging + Cleanup</li>
+            <li>"Virtually Staged" watermark</li>
           </ul>
           {plan === 'free' && <div className="v-plan-cta" style={{ opacity: 0.5 }}>Current plan</div>}
         </div>
@@ -97,10 +98,10 @@ const VellumBilling: React.FC<BillingProps> = ({ setPage, credits, subscription,
             {interval === 'year' && ` ${annualSaving(PLAN_PRICING_USD.starter.month, PLAN_PRICING_USD.starter.year)}`}
           </div>
           <ul>
-            <li>{STARTER_MONTHLY_LIMIT} AI generations/month</li>
+            <li>{STARTER_MONTHLY_LIMIT} generations / month</li>
             <li>Staging + Cleanup + MLS Export</li>
-            <li>Listing Copy</li>
-            <li>Email support</li>
+            <li>Listing Copy (1 Pro AI Tool)</li>
+            <li>Text watermark only</li>
           </ul>
           {plan === 'starter'
             ? <button className="v-plan-cta" onClick={handleManage}>Manage plan</button>
@@ -123,11 +124,12 @@ const VellumBilling: React.FC<BillingProps> = ({ setPage, credits, subscription,
             {interval === 'year' && ` ${annualSaving(PLAN_PRICING_USD.pro.month, PLAN_PRICING_USD.pro.year)}`}
           </div>
           <ul>
-            <li>Unlimited AI staging & cleanup</li>
-            <li>Twilight & sky replace</li>
-            <li>Renovation visualization</li>
-            <li>Full marketing toolkit</li>
-            <li>Priority processing</li>
+            <li>Unlimited generations</li>
+            <li>All Pro AI Tools (day-to-dusk, sky, reno)</li>
+            <li>Batch processing</li>
+            <li>Custom-logo watermark</li>
+            <li>Priority rendering</li>
+            <li>Community showcase access</li>
           </ul>
           {plan === 'pro'
             ? <button className="v-plan-cta" onClick={handleManage}>Manage plan</button>
@@ -150,10 +152,10 @@ const VellumBilling: React.FC<BillingProps> = ({ setPage, credits, subscription,
           </div>
           <ul>
             <li>Everything in Pro</li>
-            <li>Up to {PLAN_PRICING_USD.team.seats} team members</li>
-            <li>Brokerage-wide branding</li>
+            <li>{PLAN_PRICING_USD.team.seats} team seats included</li>
+            <li>Shared Brand Kits</li>
             <li>Admin dashboard</li>
-            <li>Dedicated support</li>
+            <li>Priority support</li>
           </ul>
           {plan === 'team'
             ? <button className="v-plan-cta" onClick={handleManage}>Manage plan</button>
@@ -198,6 +200,37 @@ const VellumBilling: React.FC<BillingProps> = ({ setPage, credits, subscription,
             <div className="delta">From purchased credit packs</div>
           </div>
         )}
+      </div>
+
+      {/* Credit packs */}
+      <div className="v-section-head" style={{ marginTop: 0 }}>
+        <div>
+          <div className="eyebrow">Top up</div>
+          <h2 className="title">Credit packs</h2>
+          <p className="v-muted" style={{ fontSize: 13 }}>Need a few more edits? Packs never expire and work on any plan.</p>
+        </div>
+      </div>
+
+      <div className="v-plans" style={{ gridTemplateColumns: 'repeat(3, 1fr)', maxWidth: 640 }}>
+        {([
+          { id: 'starter' as const, cr: 10, price: 15, rate: '$1.50 / edit' },
+          { id: 'pro_pack' as const, cr: 25, price: 29, rate: '$1.16 / edit', best: true },
+          { id: 'agency' as const, cr: 75, price: 69, rate: '$0.92 / edit' },
+        ]).map(p => (
+          <div key={p.id} className="v-plan" style={{ textAlign: 'center', gap: 10 }}>
+            {p.best && <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--pale-gold)' }}>Best value</div>}
+            <div className="v-plan-price" style={{ fontSize: 28 }}>{p.cr}<em style={{ fontSize: 14, fontWeight: 400 }}> edits</em></div>
+            <div className="v-plan-name">${p.price}</div>
+            <div className="v-plan-tag">{p.rate}</div>
+            <button
+              className="v-plan-cta"
+              onClick={() => userId && subscription?.buyCredits(p.id, userId)}
+              style={{ marginTop: 8 }}
+            >
+              Buy {p.cr} edits
+            </button>
+          </div>
+        ))}
       </div>
 
       {/* Manage billing */}

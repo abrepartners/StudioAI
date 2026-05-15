@@ -82,9 +82,14 @@ const VellumSettings: React.FC<SettingsProps> = ({ setPage, profile, updateProfi
               <span>Default style preset</span>
               <select value={defaults.style} onChange={(e) => setDefaults({ ...defaults, style: e.target.value })}>
                 <option value="contemporary">Contemporary</option>
-                <option value="midcentury">Mid-century</option>
-                <option value="coastal">Coastal</option>
+                <option value="mid-century">Mid-Century Modern</option>
+                <option value="coastal">Coastal Modern</option>
                 <option value="farmhouse">Farmhouse</option>
+                <option value="scandinavian">Scandinavian</option>
+                <option value="minimalist">Minimalist</option>
+                <option value="urban-loft">Urban Loft</option>
+                <option value="farmhouse-chic">Farmhouse Chic</option>
+                <option value="bohemian">Bohemian</option>
               </select>
             </div>
             <div className="v-set-row">
@@ -193,6 +198,24 @@ const VellumSettings: React.FC<SettingsProps> = ({ setPage, profile, updateProfi
                 placeholder="Your brokerage name"
               />
             </div>
+            <div className="v-set-row">
+              <span>Phone</span>
+              <input
+                className="v-set-input"
+                value={profile.phone}
+                onChange={e => updateProfile({ phone: e.target.value })}
+                placeholder="(555) 123-4567"
+              />
+            </div>
+            <div className="v-set-row">
+              <span>Website</span>
+              <input
+                className="v-set-input"
+                value={profile.website}
+                onChange={e => updateProfile({ website: e.target.value })}
+                placeholder="yoursite.com"
+              />
+            </div>
           </div>
         </div>
       )}
@@ -292,7 +315,7 @@ const VellumSettings: React.FC<SettingsProps> = ({ setPage, profile, updateProfi
                     className={`v-wm-mark v-wm-${wm.position} v-wm-color-${wm.color}`}
                     style={{ opacity: wm.opacity }}
                   >
-                    <span className="v-wm-rule" /><span className="v-wm-text">VELLUM</span><span className="v-wm-rule" />
+                    <span className="v-wm-rule" /><span className="v-wm-text">{profile.brokerage || 'Your Brand'}</span><span className="v-wm-rule" />
                     <span className="v-wm-sub">{profile.name || 'Your name'} · {profile.brokerage || 'Your brokerage'}</span>
                   </div>
                 )}
@@ -311,21 +334,20 @@ const VellumSettings: React.FC<SettingsProps> = ({ setPage, profile, updateProfi
           <h3>Default export destinations</h3>
           <p className="v-muted" style={{ fontSize: 13, marginBottom: 20 }}>Each project will pre-tick the destinations below. You can change per export.</p>
           {[
-            { id: 'mls', name: 'MLS upload', sub: 'JPG · sRGB · 1920×1280', on: false, badge: 'Connect →' },
-            { id: 'dropbox', name: 'Dropbox', sub: '/Listings/{address}', on: false, badge: 'Connect →' },
-            { id: 'drive', name: 'Google Drive', sub: 'Shared with brokerage', on: false, badge: 'Connect →' },
-            { id: 'social', name: 'Social pack (IG · FB · TikTok)', sub: 'Auto-resized for each platform', on: true, badge: '' },
-            { id: 'zip', name: 'Direct download', sub: '.zip · grouped by room', on: true, badge: '' },
+            { id: 'social', name: 'Social pack (IG · FB · TikTok)', sub: 'Auto-resized for each platform', on: true },
+            { id: 'zip', name: 'Direct download', sub: '.zip · grouped by room', on: true },
           ].map(d => (
             <div key={d.id} className="v-dest-row">
               <div className="v-dest-meta">
                 <div className="v-dest-name">{d.name}</div>
                 <div className="v-muted" style={{ fontSize: 12 }}>{d.sub}</div>
               </div>
-              {d.badge && <span className={'v-pill ' + (d.badge.startsWith('Connected') ? 'v-pill--ready' : 'v-pill--ghost')}>{d.badge}</span>}
               <button className={'v-switch' + (d.on ? ' on' : '')}><span /></button>
             </div>
           ))}
+          <div className="v-muted" style={{ fontSize: 12, marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--soft-stone)' }}>
+            MLS upload, Dropbox, and Google Drive integrations are coming soon.
+          </div>
         </div>
       )}
     </div>

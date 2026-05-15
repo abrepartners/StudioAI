@@ -96,10 +96,6 @@ export const VellumTopbar: React.FC<TopbarProps> = ({ page, setPage, credits, pr
               <button onClick={() => { setMenuOpen(false); setPage('settings'); }}>
                 <Icon name="settings" size={14} /> Settings
               </button>
-              <button onClick={() => { window.location.assign('/legacy'); }}>
-                <Icon name="refresh" size={14} /> Classic editor
-              </button>
-              <div className="v-avatar-menu-divider" />
               <button onClick={handleSignOut}>
                 <Icon name="logout" size={14} /> Sign out
               </button>

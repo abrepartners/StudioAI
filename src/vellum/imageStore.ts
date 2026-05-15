@@ -101,13 +101,21 @@ export interface LoadedPhoto {
   fileName: string;
 }
 
+// Migrate legacy room labels on load. 'Exterior' was dropped from the picker
+// May 2026 in favor of specific options (Front Yard / Backyard / Patio / Pool).
+// Old IndexedDB rows still have it — remap so the dropdown shows a valid value.
+function migrateLabel(label: string): string {
+  if (label === 'Exterior') return 'Front Yard';
+  return label;
+}
+
 export async function loadPhotos(projectId: string): Promise<LoadedPhoto[]> {
   const db = await getDb();
   const all: StoredPhoto[] = await db.getAllFromIndex(PHOTOS_STORE, 'projectId', projectId);
   const results = await Promise.all(all.map(async (record) => ({
     photoId: record.photoId,
     dataUrl: await blobToDataUrl(record.blob),
-    label: record.label,
+    label: migrateLabel(record.label),
     fileName: record.fileName,
   })));
   return results.sort((a, b) => a.photoId - b.photoId);

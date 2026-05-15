@@ -22,7 +22,8 @@ export interface StylePack {
 }
 
 const FALLBACK_ROOM = 'Living Room';
-const NON_STAGEABLE = new Set(['Patio', 'Pool', 'Backyard', 'Front Yard', 'Garage']);
+// 'Exterior' kept for backwards compat with photos labeled before May 2026.
+const NON_STAGEABLE = new Set(['Exterior', 'Patio', 'Pool', 'Backyard', 'Front Yard', 'Garage']);
 
 export function getFurnitureSpec(pack: StylePack, roomType: string): string {
   if (NON_STAGEABLE.has(roomType)) return '';

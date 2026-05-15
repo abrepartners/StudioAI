@@ -22,13 +22,6 @@ import { json, setCors, handleOptions, rejectMethod, parseBody } from './utils.j
 export const config = { runtime: 'nodejs', maxDuration: 120 };
 
 const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN || '';
-const CLARITY_SAFE_BYTES = 400 * 1024;
-
-function isOomError(msg: string | undefined): boolean {
-  if (!msg) return false;
-  const m = msg.toLowerCase();
-  return m.includes('cuda out of memory') || m.includes('oom') || m.includes('out of memory');
-}
 
 async function extractUrl(output: unknown): Promise<string | null> {
   if (!output) return null;
@@ -108,69 +101,18 @@ export default async function handler(req: any, res: any) {
     }
     console.log(`[reve-edit] reve done in ${Date.now() - t0}ms`);
 
+    // Pruna 2x with enhance_realism:false for both interior and exterior.
+    // (See flux-cleanup.ts for the rationale on dropping Clarity from exteriors.)
     let finalUrl = editUrl;
     let upscalerUsed = 'none';
 
     if (!skipUpscale) {
-      let editedBytes = 0;
-      try {
-        const head = await fetch(editUrl, { method: 'HEAD' });
-        const len = head.headers.get('content-length');
-        if (len) editedBytes = parseInt(len, 10) || 0;
-      } catch { /* non-fatal */ }
-
       const tUp = Date.now();
-      if (isExterior) {
-        const safeScale = editedBytes > CLARITY_SAFE_BYTES ? 1.5 : 2;
-        let clarityError: string | undefined;
-        try {
-          const clarityOutput = await replicate.run('philz1337x/clarity-upscaler', {
-            input: {
-              image: editUrl,
-              scale_factor: safeScale,
-              num_inference_steps: 18,
-              dynamic: 6,
-              creativity: 0.35,
-              resemblance: 2,
-              prompt: 'masterpiece, best quality, highres, <lora:more_details:0.5> <lora:SDXLrender_v2.0:1>',
-              negative_prompt: '(worst quality, low quality, normal quality:2) JuggernautNegative-neg',
-              scheduler: 'DPM++ 3M SDE Karras',
-              sd_model: 'juggernaut_reborn.safetensors [338b85bc4f]',
-              tiling_width: 112,
-              tiling_height: 144,
-              output_format: 'jpg',
-              sharpen: 0,
-              handfix: 'disabled',
-            },
-          });
-          const upUrl = await extractUrl(clarityOutput);
-          if (upUrl) {
-            finalUrl = upUrl;
-            upscalerUsed = 'Clarity';
-            console.log(`[reve-edit] Clarity upscaled in ${Date.now() - tUp}ms (scale ${safeScale}x)`);
-          } else {
-            clarityError = 'no URL returned';
-          }
-        } catch (upErr: any) {
-          clarityError = upErr?.message || 'unknown';
-        }
-
-        if (clarityError) {
-          const wasOom = isOomError(clarityError);
-          console.warn(`[reve-edit] Clarity ${wasOom ? 'OOM' : 'failed'}: ${clarityError} — retrying via Pruna`);
-          const fallbackUrl = await runPruna(replicate, editUrl);
-          if (fallbackUrl) {
-            finalUrl = fallbackUrl;
-            upscalerUsed = wasOom ? 'Pruna (Clarity OOM fallback)' : 'Pruna';
-          }
-        }
-      } else {
-        const upUrl = await runPruna(replicate, editUrl);
-        if (upUrl) {
-          finalUrl = upUrl;
-          upscalerUsed = 'Pruna';
-          console.log(`[reve-edit] Pruna upscaled in ${Date.now() - tUp}ms`);
-        }
+      const upUrl = await runPruna(replicate, editUrl);
+      if (upUrl) {
+        finalUrl = upUrl;
+        upscalerUsed = 'Pruna';
+        console.log(`[reve-edit] Pruna upscaled in ${Date.now() - tUp}ms (${isExterior ? 'exterior' : 'interior'})`);
       }
     }
 

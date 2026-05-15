@@ -9,11 +9,9 @@
  *        preserves furniture and fixtures. Best for standard declutter.
  *      - "reve"  →  reve/edit. Total room clearing — removes ALL items
  *        including furniture. Used for "Full Clean" preset.
- *   2. Upscaler, branched by isExterior flag from client:
- *      - Exterior / Patio  →  philz1337x/clarity-upscaler (SD + ControlNet
- *        tile + 4x-UltraSharp, ~14s, ~$0.05).
- *      - Interior          →  prunaai/p-image-upscale (~1s, ~$0.005).
- *   3. If Clarity OOMs on Replicate's T4 we auto-retry through Pruna.
+ *   2. Upscale via prunaai/p-image-upscale (~1s, ~$0.005), both interior
+ *      and exterior. Pruna with enhance_realism:false produces natural
+ *      textures on every surface — no HDR over-processing.
  *
  * Input (POST JSON):
  *   { imageBase64, prompt, engine?: 'bria'|'reve', isExterior?, skipUpscale? }
@@ -36,25 +34,6 @@ import { json, setCors, handleOptions, rejectMethod, parseBody } from './utils.j
 export const config = { runtime: 'nodejs', maxDuration: 120 };
 
 const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN || '';
-
-// Rough proxy: Nano Banana outputs over 400KB tend to be > 2048px longest
-// side, which pushes Clarity's SD + ControlNet pipeline past T4 VRAM.
-// We don't want to round-trip through sharp just for dimensions, so we
-// use the fetched byte length as a cheap heuristic and downgrade
-// scale_factor accordingly.
-const CLARITY_SAFE_BYTES = 400 * 1024;
-
-function isOomError(msg: string | undefined): boolean {
-  if (!msg) return false;
-  const m = msg.toLowerCase();
-  return (
-    m.includes('cuda out of memory') ||
-    m.includes('outofmemoryerror') ||
-    m.includes('out of memory') ||
-    m.includes('cudaerrorcudnn') ||
-    m.includes('cuda_error_out_of_memory')
-  );
-}
 
 async function extractUrl(output: unknown): Promise<string | null> {
   if (!output) return null;
@@ -219,80 +198,24 @@ export default async function handler(req: any, res: any) {
       }
     }
 
-    // Probe cleaned image size to decide on safe Clarity scale_factor.
-    // HEAD first; fall back to GET if the host doesn't honor HEAD.
-    let cleanedBytes = 0;
-    try {
-      const head = await fetch(cleanUrl, { method: 'HEAD' });
-      const len = head.headers.get('content-length');
-      if (len) cleanedBytes = parseInt(len, 10) || 0;
-    } catch { /* non-fatal */ }
-
     // --- Step 2 (optional): Upscale branch -----------------------------
+    // Pruna 2x with enhance_realism:false for both interior and exterior.
+    // Clarity was previously used on exteriors for "detail-adding" upscale, but
+    // its more_details + SDXLrender LoRAs + creativity:0.35 added that HDR
+    // over-processed glossy look (over-sharp brick, fake-lush lawns, wet-look
+    // driveways). Pruna with realism:false produces natural exterior textures.
     let finalUrl = cleanUrl;
-    let upscalerUsed: 'none' | 'Clarity' | 'Pruna' | 'Pruna (Clarity OOM fallback)' = 'none';
+    let upscalerUsed: 'none' | 'Pruna' = 'none';
 
     if (!skipUpscale) {
       const tUp = Date.now();
-      if (isExterior) {
-        // Clarity Upscaler for exteriors — full config from tested params.
-        const safeScale = cleanedBytes > CLARITY_SAFE_BYTES ? 1.5 : 2;
-        let clarityError: string | undefined;
-        try {
-          const clarityOutput = await replicate.run('philz1337x/clarity-upscaler', {
-            input: {
-              image: cleanUrl,
-              scale_factor: safeScale,
-              num_inference_steps: 18,
-              dynamic: 6,
-              creativity: 0.35,
-              resemblance: 2,
-              prompt: 'masterpiece, best quality, highres, <lora:more_details:0.5> <lora:SDXLrender_v2.0:1>',
-              negative_prompt: '(worst quality, low quality, normal quality:2) JuggernautNegative-neg',
-              scheduler: 'DPM++ 3M SDE Karras',
-              sd_model: 'juggernaut_reborn.safetensors [338b85bc4f]',
-              tiling_width: 112,
-              tiling_height: 144,
-              output_format: 'jpg',
-              sharpen: 0,
-              handfix: 'disabled',
-            },
-          });
-          const upscaledUrl = await extractUrl(clarityOutput);
-          if (upscaledUrl) {
-            finalUrl = upscaledUrl;
-            upscalerUsed = 'Clarity';
-            console.log(`[flux-cleanup] Clarity upscaled in ${Date.now() - tUp}ms (scale ${safeScale}x, ${cleanedBytes} bytes in)`);
-          } else {
-            clarityError = 'no URL returned';
-          }
-        } catch (upErr: any) {
-          clarityError = upErr?.message || 'unknown';
-        }
-
-        // OOM fallback → Pruna. Also covers generic Clarity failure.
-        if (clarityError) {
-          const wasOom = isOomError(clarityError);
-          console.warn(`[flux-cleanup] Clarity ${wasOom ? 'OOM' : 'failed'}: ${clarityError} — retrying via Pruna`);
-          const fallbackUrl = await runPruna(replicate, cleanUrl);
-          if (fallbackUrl) {
-            finalUrl = fallbackUrl;
-            upscalerUsed = wasOom ? 'Pruna (Clarity OOM fallback)' : 'Pruna';
-            console.log(`[flux-cleanup] Fallback Pruna upscaled in ${Date.now() - tUp}ms total`);
-          } else {
-            console.warn('[flux-cleanup] Both Clarity and Pruna failed — returning un-upscaled');
-          }
-        }
+      const upscaledUrl = await runPruna(replicate, cleanUrl);
+      if (upscaledUrl) {
+        finalUrl = upscaledUrl;
+        upscalerUsed = 'Pruna';
+        console.log(`[flux-cleanup] Pruna upscaled in ${Date.now() - tUp}ms (${isExterior ? 'exterior' : 'interior'})`);
       } else {
-        // Interior path — Pruna (fast <1s, $0.005, good realism).
-        const upscaledUrl = await runPruna(replicate, cleanUrl);
-        if (upscaledUrl) {
-          finalUrl = upscaledUrl;
-          upscalerUsed = 'Pruna';
-          console.log(`[flux-cleanup] Pruna upscaled in ${Date.now() - tUp}ms (interior path)`);
-        } else {
-          console.warn('[flux-cleanup] Pruna returned no URL — using un-upscaled');
-        }
+        console.warn('[flux-cleanup] Pruna returned no URL — using un-upscaled');
       }
     }
 

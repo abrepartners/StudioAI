@@ -2,10 +2,9 @@
  * api/upscale.ts — Standalone upscale endpoint
  *
  * Deferred upscale step, called on export instead of inline during editing.
- * Routes to the appropriate upscaler based on isExterior flag:
- *   - Interior  →  prunaai/p-image-upscale  (<1s, $0.005)
- *   - Exterior  →  philz1337x/clarity-upscaler (~14s, ~$0.012)
- *   - Clarity OOM fallback → Pruna
+ * Both interior and exterior use Pruna 2x with enhance_realism:false.
+ * Clarity was dropped because its more_details/SDXLrender LoRAs added an
+ * HDR over-processed glossy look on exteriors.
  *
  * Input (POST JSON):
  *   { imageBase64: string, isExterior?: boolean }
@@ -20,17 +19,6 @@ import { json, setCors, handleOptions, rejectMethod, parseBody } from './utils.j
 export const config = { runtime: 'nodejs', maxDuration: 120 };
 
 const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN || '';
-
-function isOomError(msg: string | undefined): boolean {
-  if (!msg) return false;
-  const m = msg.toLowerCase();
-  return (
-    m.includes('cuda out of memory') ||
-    m.includes('outofmemoryerror') ||
-    m.includes('out of memory') ||
-    m.includes('cuda_error_out_of_memory')
-  );
-}
 
 async function extractUrl(output: unknown): Promise<string | null> {
   if (!output) return null;
@@ -67,32 +55,6 @@ async function runPruna(replicate: Replicate, imageUrl: string): Promise<string 
   }
 }
 
-const CLARITY_SAFE_BYTES = 400 * 1024;
-
-async function runClarity(replicate: Replicate, imageUrl: string, inputBytes: number): Promise<string | null> {
-  const safeScale = inputBytes > CLARITY_SAFE_BYTES ? 1.5 : 2;
-  const out = await replicate.run('philz1337x/clarity-upscaler', {
-    input: {
-      image: imageUrl,
-      scale_factor: safeScale,
-      num_inference_steps: 18,
-      dynamic: 6,
-      creativity: 0.35,
-      resemblance: 2,
-      prompt: 'masterpiece, best quality, highres, <lora:more_details:0.5> <lora:SDXLrender_v2.0:1>',
-      negative_prompt: '(worst quality, low quality, normal quality:2) JuggernautNegative-neg',
-      scheduler: 'DPM++ 3M SDE Karras',
-      sd_model: 'juggernaut_reborn.safetensors [338b85bc4f]',
-      tiling_width: 112,
-      tiling_height: 144,
-      output_format: 'jpg',
-      sharpen: 0,
-      handfix: 'disabled',
-    },
-  });
-  return await extractUrl(out);
-}
-
 export default async function handler(req: any, res: any) {
   setCors(res, 'POST,OPTIONS');
   if (handleOptions(req, res)) return;
@@ -117,38 +79,11 @@ export default async function handler(req: any, res: any) {
   const t0 = Date.now();
 
   try {
-    // Probe input size for Clarity scale_factor decision
-    let inputBytes = 0;
-    try {
-      inputBytes = Math.round(dataUrl.length * 0.75);
-    } catch { /* non-fatal */ }
-
-    let finalUrl: string | null = null;
-    let upscalerUsed = 'none';
-
-    if (isExterior) {
-      let clarityError: string | undefined;
-      try {
-        finalUrl = await runClarity(replicate, dataUrl, inputBytes);
-        if (finalUrl) {
-          upscalerUsed = 'Clarity';
-        } else {
-          clarityError = 'no URL returned';
-        }
-      } catch (err: any) {
-        clarityError = err?.message || 'unknown';
-      }
-
-      if (clarityError) {
-        const wasOom = isOomError(clarityError);
-        console.warn(`[upscale] Clarity ${wasOom ? 'OOM' : 'failed'}: ${clarityError} — falling back to Pruna`);
-        finalUrl = await runPruna(replicate, dataUrl);
-        if (finalUrl) upscalerUsed = 'Pruna (fallback)';
-      }
-    } else {
-      finalUrl = await runPruna(replicate, dataUrl);
-      if (finalUrl) upscalerUsed = 'Pruna';
-    }
+    // Pruna 2x with enhance_realism:false for both interior and exterior.
+    // (Clarity dropped — its more_details/SDXLrender LoRAs + creativity:0.35
+    // produced an HDR over-processed look on exteriors.)
+    const finalUrl = await runPruna(replicate, dataUrl);
+    const upscalerUsed = finalUrl ? 'Pruna' : 'none';
 
     if (!finalUrl) {
       json(res, 200, { ok: false, error: 'All upscalers failed' });

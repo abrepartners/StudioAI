@@ -146,6 +146,8 @@ export interface FluxCleanupOptions {
   filter?: string;
   /** User-typed specific items to remove (appended to room prompt). */
   customRemoval?: string;
+  /** Optional SAM2 mask (data URL or raw base64). When provided, Bria only edits masked pixels. */
+  maskBase64?: string;
 }
 
 export async function fluxCleanup(
@@ -168,6 +170,7 @@ export async function fluxCleanup(
       engine,
       skipUpscale: Boolean(options.skipUpscale),
       isExterior,
+      maskBase64: options.maskBase64 || undefined,
     }),
     signal: abortSignal,
   });

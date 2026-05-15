@@ -8,6 +8,8 @@ import { isExteriorRoom } from '../../services/fluxService';
 import { fluxStaging } from '../../services/stagingService';
 import { reveEdit } from '../../services/reveEditService';
 import { STYLE_PACKS, buildStagingAssignment } from '../prompts/stylePacks';
+import { detectClutterMasks, combineSelectedMasks } from '../../services/samService';
+import ClutterMaskSelector from '../../components/ClutterMaskSelector';
 import JSZip from 'jszip';
 import { savePhoto as idbSavePhoto, saveResult as idbSaveResult, loadPhotos as idbLoadPhotos, loadResults as idbLoadResults } from './imageStore';
 
@@ -47,7 +49,7 @@ const TOOLS = [
 
 const PRESETS: Record<string, string[]> = {
   staging: ['Contemporary', 'Mid-century', 'Coastal', 'Farmhouse', 'Scandinavian', 'Minimalist', 'Urban loft', 'Bohemian'],
-  declutter: ['Full clean', 'Personal items only', 'Surface clutter only'],
+  declutter: ['Full clean', 'Personal items only', 'Surface clutter only', 'Precision select'],
   declutter_ext: ['Yard clutter', 'Vehicles & bins', 'Signs & temp items'],
   whiten: ['Bright & airy', 'Warm editorial', 'Neutral'],
   twilight_style: ['Pink', 'Golden', 'Purple', 'Natural'],
@@ -124,6 +126,8 @@ const triggerDownload = (blob: Blob, filename: string) => {
   }, 200);
 };
 
+type SamModalController = (image: string, masks: string[]) => Promise<number[] | null>;
+
 const callApiDirect = async (
   imageBase64: string,
   roomLabel: string,
@@ -131,6 +135,7 @@ const callApiDirect = async (
   preset: string,
   customRemovalVal: string,
   signal: AbortSignal,
+  requestSamMaskSelection?: SamModalController,
 ): Promise<string> => {
   const presetMap: Record<string, Record<string, string>> = {
     sky: { 'clear blue': 'blue', 'golden hour': 'golden', 'soft overcast': 'overcast', 'dramatic': 'dramatic' },
@@ -147,10 +152,33 @@ const callApiDirect = async (
       return result.resultBase64;
     }
     case 'declutter': {
-      const filter = DECLUTTER_FILTER_MAP[preset] || undefined;
+      const isPrecision = preset.toLowerCase() === 'precision select';
+      const filter = isPrecision ? undefined : (DECLUTTER_FILTER_MAP[preset] || undefined);
       const custom = customRemovalVal || undefined;
+
+      let maskBase64: string | undefined;
+      let customPrompt: string | undefined;
+
+      if (isPrecision) {
+        if (!requestSamMaskSelection) {
+          throw new Error('Precision select requires the mask picker — internal wiring error.');
+        }
+        const samResult = await detectClutterMasks(imageBase64);
+        if (!samResult || samResult.individualMasksBase64.length === 0) {
+          throw new Error('Could not detect any objects. Try a different preset.');
+        }
+        const selectedIndices = await requestSamMaskSelection(imageBase64, samResult.individualMasksBase64);
+        if (!selectedIndices || selectedIndices.length === 0) {
+          throw new Error('Cleanup cancelled');
+        }
+        const selectedMasks = selectedIndices.map((i) => samResult.individualMasksBase64[i]);
+        maskBase64 = await combineSelectedMasks(selectedMasks);
+        customPrompt = `Remove all objects in the masked area from this ${roomLabel.toLowerCase()}. Reconstruct the revealed surfaces by matching the surrounding texture, color, and lighting exactly. Do not add any new items. Leave all unmasked pixels identical to the input.`;
+      }
+
       const result = await fluxCleanup(imageBase64, roomLabel, signal, {
         filter, customRemoval: custom, skipUpscale: true,
+        maskBase64, customPrompt,
       });
       return result.resultBase64;
     }
@@ -350,6 +378,11 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
   const [singlePhoto, setSinglePhoto] = useState<number | null>(null);
   const [editingLabel, setEditingLabel] = useState(false);
   const [showRoomPicker, setShowRoomPicker] = useState(false);
+  const [samModal, setSamModal] = useState<{
+    image: string;
+    masks: string[];
+    resolver: (indices: number[] | null) => void;
+  } | null>(null);
 
   const [splitPos, setSplitPos] = useState(50);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -470,7 +503,12 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
 
     try {
       const inputImage = processedResultsRef.current[photo.id] || photo.dataUrl;
-      const resultDataUrl = await callApiDirect(inputImage, photo.label, tool, preset, customRemovalVal, controller.signal);
+      const resultDataUrl = await callApiDirect(
+        inputImage, photo.label, tool, preset, customRemovalVal, controller.signal,
+        (image, masks) => new Promise<number[] | null>((resolve) => {
+          setSamModal({ image, masks, resolver: resolve });
+        }),
+      );
 
       setGenMap(prev => {
         const entry = prev[photoId];
@@ -1582,6 +1620,21 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
             </div>
           </div>
         </div>
+      )}
+
+      {samModal && (
+        <ClutterMaskSelector
+          imageBase64={samModal.image}
+          individualMasks={samModal.masks}
+          onConfirm={(indices) => {
+            samModal.resolver(indices);
+            setSamModal(null);
+          }}
+          onCancel={() => {
+            samModal.resolver(null);
+            setSamModal(null);
+          }}
+        />
       )}
     </div>
   );

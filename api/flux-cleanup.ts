@@ -108,6 +108,7 @@ export default async function handler(req: any, res: any) {
   const skipUpscale = Boolean(body.skipUpscale);
   const isExterior = Boolean(body.isExterior);
   const engine = String(body.engine || 'bria');
+  const maskBase64 = String(body.maskBase64 || '');
 
   if (!imageBase64) { json(res, 400, { ok: false, error: 'imageBase64 is required' }); return; }
   if (!prompt) { json(res, 400, { ok: false, error: 'prompt is required' }); return; }
@@ -115,6 +116,10 @@ export default async function handler(req: any, res: any) {
   const dataUrl = imageBase64.startsWith('data:')
     ? imageBase64
     : `data:image/jpeg;base64,${imageBase64}`;
+
+  const maskDataUrl = maskBase64
+    ? (maskBase64.startsWith('data:') ? maskBase64 : `data:image/png;base64,${maskBase64}`)
+    : null;
 
   const replicate = new Replicate({ auth: REPLICATE_TOKEN });
   const t0 = Date.now();
@@ -133,13 +138,18 @@ export default async function handler(req: any, res: any) {
       });
       cleanUrl = await extractUrl(output);
     } else {
-      const output = await replicate.run('bria/fibo-edit', {
-        input: {
-          image: dataUrl,
-          instruction: prompt,
-          negative_prompt: 'Do not add any new objects, furniture, decor, or items. Do not change room architecture, wall colors, wall texture, flooring, ceiling, or fixtures. Do not alter lighting, shadows, or color grading. Only remove specified items and fill with matching surface texture.',
-        },
-      });
+      // Pass mask when available — Bria edits only masked areas, leaving the
+      // rest of the image pixel-identical. Best path for Precision Select mode.
+      const briaInput: Record<string, unknown> = {
+        image: dataUrl,
+        instruction: prompt,
+        negative_prompt: 'Do not add any new objects, furniture, decor, or items. Do not change room architecture, wall colors, wall texture, flooring, ceiling, or fixtures. Do not alter lighting, shadows, or color grading. Only remove specified items and fill with matching surface texture.',
+      };
+      if (maskDataUrl) {
+        briaInput.mask = maskDataUrl;
+        console.log(`[flux-cleanup] Using SAM mask for precision edit`);
+      }
+      const output = await replicate.run('bria/fibo-edit', { input: briaInput });
       cleanUrl = await extractUrl(output);
     }
 

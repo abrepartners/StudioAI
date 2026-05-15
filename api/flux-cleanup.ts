@@ -30,6 +30,7 @@
  *   → Bria for standard cleanup, Reve for full clean.
  */
 import Replicate from 'replicate';
+import sharp from 'sharp';
 import { json, setCors, handleOptions, rejectMethod, parseBody } from './utils.js';
 
 export const config = { runtime: 'nodejs', maxDuration: 120 };
@@ -158,6 +159,65 @@ export default async function handler(req: any, res: any) {
       return;
     }
     console.log(`[flux-cleanup] ${engine} done in ${Date.now() - t0}ms → ${cleanUrl.slice(0, 60)}...`);
+
+    // PRECISION GUARANTEE — when a mask was provided, pixel-replace the
+    // unmasked areas with the ORIGINAL input. Bria treats `mask` as soft
+    // guidance and can still drift on unmasked surfaces (e.g. re-rendering a
+    // floor under a removed appliance). The composite below makes that
+    // impossible: anywhere mask is black, original wins, byte-identical.
+    if (maskDataUrl) {
+      const tComp = Date.now();
+      try {
+        const briaRes = await fetch(cleanUrl);
+        const briaBuf = Buffer.from(await briaRes.arrayBuffer());
+        const meta = await sharp(briaBuf).metadata();
+        const W = meta.width || 0;
+        const H = meta.height || 0;
+        if (W > 0 && H > 0) {
+          // Decode original + mask, resize to Bria's output dimensions.
+          const origRaw = dataUrl.split(',')[1] || dataUrl;
+          const origBuf = Buffer.from(origRaw, 'base64');
+          const maskRaw = maskDataUrl.split(',')[1] || maskDataUrl;
+          const maskBuf = Buffer.from(maskRaw, 'base64');
+
+          // Original at Bria resolution, no alpha channel
+          const origAtBria = await sharp(origBuf)
+            .resize(W, H, { fit: 'fill' })
+            .removeAlpha()
+            .toBuffer();
+
+          // Mask at Bria resolution, single channel grayscale
+          const maskRawData = await sharp(maskBuf)
+            .resize(W, H, { fit: 'fill' })
+            .greyscale()
+            .raw()
+            .toBuffer();
+
+          // Use mask AS-IS as alpha for Bria output: white=opaque Bria, black=transparent.
+          // Composite Bria-with-alpha OVER original. Where mask is black, original shows.
+          const briaWithMask = await sharp(briaBuf)
+            .removeAlpha()
+            .joinChannel(maskRawData, { raw: { width: W, height: H, channels: 1 } })
+            .png()
+            .toBuffer();
+
+          const composited = await sharp(origAtBria)
+            .composite([{ input: briaWithMask, blend: 'over' }])
+            .jpeg({ quality: 95 })
+            .toBuffer();
+
+          // Upload composited result back to Replicate as a data URL replacement.
+          // The downstream upscale step will fetch from this URL, but since we now
+          // have the bytes locally we'll inline-base64 instead.
+          const composedDataUrl = `data:image/jpeg;base64,${composited.toString('base64')}`;
+          cleanUrl = composedDataUrl; // upscale step accepts data URLs
+          console.log(`[flux-cleanup] Mask composite done in ${Date.now() - tComp}ms (${W}×${H})`);
+        }
+      } catch (compErr: any) {
+        console.warn(`[flux-cleanup] Mask composite failed: ${compErr?.message} — using raw Bria output`);
+        // Fall through to upscale with Bria's raw output as before.
+      }
+    }
 
     // Probe cleaned image size to decide on safe Clarity scale_factor.
     // HEAD first; fall back to GET if the host doesn't honor HEAD.

@@ -44,7 +44,7 @@ async function runPruna(replicate: Replicate, imageUrl: string): Promise<string 
         upscale_mode: 'factor',
         output_format: 'jpg',
         output_quality: 95,
-        enhance_details: false,
+        enhance_details: true,
         enhance_realism: false,
       },
     });

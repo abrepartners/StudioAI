@@ -18,7 +18,7 @@
  * retire the mode-based rendering inside App.tsx.
  */
 
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useMemo } from 'react';
 import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom';
 import App from '../../App';
 import MarketingRoute from './MarketingRoute';
@@ -28,8 +28,15 @@ import SettingsRoute from './SettingsRoute';
 import AdminPackMatrixRoute from './AdminPackMatrixRoute';
 import ModelLabRoute from './ModelLabRoute';
 import AdminApiDashboardRoute from './AdminApiDashboardRoute';
+import { readGoogleUser } from './authStorage';
 
 const VellumApp = lazy(() => import('../vellum/VellumApp'));
+
+const AuthedRoot: React.FC = () => {
+  const user = useMemo(() => readGoogleUser(), []);
+  if (user) return <Navigate to="/vellum" replace />;
+  return <MarketingRoute anchor="pricing" />;
+};
 
 const RouteFallback: React.FC = () => (
   <div className="min-h-screen grid place-items-center bg-black text-zinc-400 text-sm">
@@ -42,8 +49,8 @@ const AppRouter: React.FC = () => {
     <BrowserRouter>
       <Suspense fallback={<RouteFallback />}>
         <Routes>
-          {/* Vellum is the primary editor — redirect root to it */}
-          <Route path="/" element={<Navigate to="/vellum" replace />} />
+          {/* Root: authed users → Vellum editor, unauthed → marketing/pricing */}
+          <Route path="/" element={<AuthedRoot />} />
 
           {/* Legacy editor shell (Gemini-dependent, preserved for reference) */}
           <Route path="/legacy" element={<App />} />

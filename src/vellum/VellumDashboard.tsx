@@ -1,6 +1,7 @@
 import React from 'react';
 import { Icon } from './icons';
 import type { VellumProject, VellumProfile } from './useVellumStore';
+import { getPlanDisplayName, type PlanId } from '../../shared/monetization';
 
 interface DashboardProps {
   setPage: (p: string) => void;
@@ -9,6 +10,7 @@ interface DashboardProps {
   profile: VellumProfile;
   onNewListing: () => void;
   onSelectProject: (id: string) => void;
+  subscription?: { plan: PlanId; subscribed: boolean; generationsUsed: number; generationsLimit: number; loading: boolean };
 }
 
 const timeAgo = (iso: string) => {
@@ -23,11 +25,15 @@ const timeAgo = (iso: string) => {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
-const VellumDashboard: React.FC<DashboardProps> = ({ setPage, credits, projects, profile, onNewListing, onSelectProject }) => {
+const VellumDashboard: React.FC<DashboardProps> = ({ setPage, credits, projects, profile, onNewListing, onSelectProject, subscription }) => {
   const firstName = profile.name ? profile.name.split(' ')[0] : '';
   const totalPhotos = projects.reduce((s, p) => s + p.refinedCount, 0);
   const totalReels = projects.filter(p => p.hasVideo).length;
   const recent = projects.slice(0, 4);
+  const plan = subscription?.plan || 'free';
+  const isUnlimited = subscription?.generationsLimit === -1;
+  const limit = subscription?.generationsLimit ?? 5;
+  const used = subscription?.generationsUsed ?? 0;
 
   return (
     <div className="v-main">
@@ -39,7 +45,7 @@ const VellumDashboard: React.FC<DashboardProps> = ({ setPage, credits, projects,
           </h1>
           <p className="v-page-sub">
             {projects.length
-              ? `${projects.length} listing${projects.length !== 1 ? 's' : ''} · ${credits} of 200 credits remaining this month.`
+              ? `${projects.length} listing${projects.length !== 1 ? 's' : ''} · ${isUnlimited ? 'Unlimited edits' : `${credits} edits remaining`}.`
               : 'Create your first listing to get started.'}
           </p>
         </div>
@@ -152,14 +158,21 @@ const VellumDashboard: React.FC<DashboardProps> = ({ setPage, credits, projects,
           <div className="v-gold-rule" />
           <div className="label">Plan</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 12 }}>
-            <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 32, fontWeight: 500 }}>Studio</div>
-            <div className="v-muted" style={{ fontSize: 13 }}>· $89/mo</div>
+            <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 32, fontWeight: 500 }}>{getPlanDisplayName(plan)}</div>
           </div>
-          <div className="v-muted" style={{ fontSize: 13, marginTop: 4 }}>{credits} of 200 credits remaining</div>
-          <div style={{ height: 4, background: 'var(--soft-stone)', borderRadius: 2, marginTop: 14, overflow: 'hidden' }}>
-            <div style={{ width: `${(credits / 200) * 100}%`, height: '100%', background: 'var(--deep-charcoal)' }} />
-          </div>
-          <button className="v-btn v-btn--secondary v-btn--sm" style={{ marginTop: 18 }} onClick={() => setPage('billing')}>Manage plan</button>
+          {isUnlimited ? (
+            <div className="v-muted" style={{ fontSize: 13, marginTop: 4 }}>Unlimited edits</div>
+          ) : (
+            <>
+              <div className="v-muted" style={{ fontSize: 13, marginTop: 4 }}>{Math.max(0, limit - used)} of {limit} edits remaining</div>
+              <div style={{ height: 4, background: 'var(--soft-stone)', borderRadius: 2, marginTop: 14, overflow: 'hidden' }}>
+                <div style={{ width: `${Math.min(100, (used / Math.max(limit, 1)) * 100)}%`, height: '100%', background: 'var(--deep-charcoal)' }} />
+              </div>
+            </>
+          )}
+          <button className="v-btn v-btn--secondary v-btn--sm" style={{ marginTop: 18 }} onClick={() => setPage('billing')}>
+            {subscription?.subscribed ? 'Manage plan' : 'Upgrade'}
+          </button>
         </div>
       </div>
     </div>

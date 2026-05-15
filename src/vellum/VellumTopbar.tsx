@@ -9,11 +9,16 @@ interface TopbarProps {
   profile: VellumProfile;
   onRefill: () => void;
   onUploadFiles: () => void;
+  googleUser?: { name: string; picture: string } | null;
+  subscription?: { plan: string; generationsLimit: number; subscribed: boolean };
 }
 
-export const VellumTopbar: React.FC<TopbarProps> = ({ page, setPage, credits, profile, onRefill, onUploadFiles }) => {
-  const low = credits < 20;
-  const initial = profile.name ? profile.name.charAt(0).toUpperCase() : 'V';
+export const VellumTopbar: React.FC<TopbarProps> = ({ page, setPage, credits, profile, onRefill, onUploadFiles, googleUser, subscription }) => {
+  const isUnlimited = subscription?.generationsLimit === -1;
+  const low = !isUnlimited && credits < 5;
+  const displayName = googleUser?.name || profile.name || '';
+  const initial = displayName ? displayName.charAt(0).toUpperCase() : 'V';
+  const avatarPic = googleUser?.picture || '';
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -56,15 +61,22 @@ export const VellumTopbar: React.FC<TopbarProps> = ({ page, setPage, credits, pr
       </nav>
       <div className="spacer" />
       <div className="right">
-        <button
-          className={'v-credits-chip' + (low ? ' low' : '')}
-          onClick={onRefill}
-          title="Credits remaining this month"
-        >
-          <span className="dot" />
-          <span>{credits} credits</span>
-          {low && <span className="chip-cta">Refill →</span>}
-        </button>
+        {isUnlimited ? (
+          <span className="v-credits-chip" title="Unlimited on your plan">
+            <span className="dot" />
+            <span>Unlimited</span>
+          </span>
+        ) : (
+          <button
+            className={'v-credits-chip' + (low ? ' low' : '')}
+            onClick={onRefill}
+            title="Edits remaining"
+          >
+            <span className="dot" />
+            <span>{credits} edits</span>
+            {low && <span className="chip-cta">Upgrade →</span>}
+          </button>
+        )}
         <button className="v-btn v-btn--ghost v-btn--sm" onClick={onUploadFiles}>
           <Icon name="upload" size={13} /> Upload
         </button>
@@ -74,7 +86,10 @@ export const VellumTopbar: React.FC<TopbarProps> = ({ page, setPage, credits, pr
             onClick={() => setMenuOpen(v => !v)}
             title="Account menu"
           >
-            {initial}
+            {avatarPic
+              ? <img src={avatarPic} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} referrerPolicy="no-referrer" />
+              : initial
+            }
           </div>
           {menuOpen && (
             <div className="v-avatar-menu">

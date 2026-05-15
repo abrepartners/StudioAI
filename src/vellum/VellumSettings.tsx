@@ -39,9 +39,11 @@ interface SettingsProps {
   setPage: (p: string) => void;
   profile: VellumProfile;
   updateProfile: (partial: Partial<VellumProfile>) => void;
+  googleUser?: { name: string; email: string; picture: string } | null;
+  onSignOut?: () => void;
 }
 
-const VellumSettings: React.FC<SettingsProps> = ({ setPage, profile, updateProfile }) => {
+const VellumSettings: React.FC<SettingsProps> = ({ setPage, profile, updateProfile, googleUser, onSignOut }) => {
   const [tab, setTab] = useState('workspace');
   const saved = useRef(loadSettings(profile.brokerage || ''));
   const [logo, setLogo] = useState<string | null>(saved.current.logo);
@@ -140,36 +142,57 @@ const VellumSettings: React.FC<SettingsProps> = ({ setPage, profile, updateProfi
       )}
 
       {tab === 'profile' && (
-        <div className="v-settings-card" style={{ maxWidth: 560 }}>
-          <div className="v-gold-rule" />
-          <h3>Your profile</h3>
-          <p className="v-muted" style={{ fontSize: 13, marginBottom: 20 }}>This information appears in exports, end cards, and team views.</p>
-          <div className="v-set-row">
-            <span>Full name</span>
-            <input
-              className="v-set-input"
-              value={profile.name}
-              onChange={e => updateProfile({ name: e.target.value })}
-              placeholder="Your name"
-            />
-          </div>
-          <div className="v-set-row">
-            <span>Email</span>
-            <input
-              className="v-set-input"
-              value={profile.email}
-              onChange={e => updateProfile({ email: e.target.value })}
-              placeholder="you@company.com"
-            />
-          </div>
-          <div className="v-set-row">
-            <span>Brokerage / company</span>
-            <input
-              className="v-set-input"
-              value={profile.brokerage}
-              onChange={e => updateProfile({ brokerage: e.target.value })}
-              placeholder="Your brokerage name"
-            />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 560 }}>
+          {googleUser && (
+            <div className="v-settings-card">
+              <div className="v-gold-rule" />
+              <h3>Account</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 0' }}>
+                {googleUser.picture && (
+                  <img src={googleUser.picture} alt="" style={{ width: 40, height: 40, borderRadius: '50%' }} referrerPolicy="no-referrer" />
+                )}
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 500 }}>{googleUser.name}</div>
+                  <div className="v-muted" style={{ fontSize: 12 }}>{googleUser.email}</div>
+                </div>
+                {onSignOut && (
+                  <button className="v-btn v-btn--ghost v-btn--sm" onClick={onSignOut}>Sign out</button>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="v-settings-card">
+            <div className="v-gold-rule" />
+            <h3>Your profile</h3>
+            <p className="v-muted" style={{ fontSize: 13, marginBottom: 20 }}>This information appears in exports, end cards, and team views.</p>
+            <div className="v-set-row">
+              <span>Full name</span>
+              <input
+                className="v-set-input"
+                value={profile.name}
+                onChange={e => updateProfile({ name: e.target.value })}
+                placeholder="Your name"
+              />
+            </div>
+            <div className="v-set-row">
+              <span>Email</span>
+              <input
+                className="v-set-input"
+                value={profile.email}
+                onChange={e => updateProfile({ email: e.target.value })}
+                placeholder="you@company.com"
+              />
+            </div>
+            <div className="v-set-row">
+              <span>Brokerage / company</span>
+              <input
+                className="v-set-input"
+                value={profile.brokerage}
+                onChange={e => updateProfile({ brokerage: e.target.value })}
+                placeholder="Your brokerage name"
+              />
+            </div>
           </div>
         </div>
       )}

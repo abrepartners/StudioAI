@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Icon } from './icons';
+import type { SubscriptionState } from '../../hooks/useSubscription';
 
 interface RefillModalProps {
   open: boolean;
@@ -7,21 +8,41 @@ interface RefillModalProps {
   balance: number;
   onClose: () => void;
   onConfirm: (added: number) => void;
+  subscription?: SubscriptionState & {
+    startCheckout: (userId: string, opts?: { plan?: 'starter' | 'pro' | 'team'; interval?: 'month' | 'year' }) => void;
+    buyCredits: (pack: 'starter' | 'pro_pack' | 'agency', userId: string) => void;
+  };
+  userEmail?: string;
+  userId?: string;
 }
 
-const PACKS = [
-  { id: 'pack-25', cr: 25, price: 19, rate: '$0.76 / credit' },
-  { id: 'pack-50', cr: 50, price: 35, rate: '$0.70 / credit', best: true },
-  { id: 'pack-150', cr: 150, price: 89, rate: '$0.59 / credit' },
+const PACKS: { id: 'starter' | 'pro_pack' | 'agency'; cr: number; price: number; rate: string; best?: boolean }[] = [
+  { id: 'starter', cr: 10, price: 15, rate: '$1.50 / edit' },
+  { id: 'pro_pack', cr: 25, price: 29, rate: '$1.16 / edit', best: true },
+  { id: 'agency', cr: 75, price: 69, rate: '$0.92 / edit' },
 ];
 
-const VellumRefillModal: React.FC<RefillModalProps> = ({ open, needed, balance, onClose, onConfirm }) => {
-  const [pack, setPack] = useState('pack-50');
+const VellumRefillModal: React.FC<RefillModalProps> = ({ open, needed, balance, onClose, onConfirm, subscription, userEmail, userId }) => {
+  const [pack, setPack] = useState<'starter' | 'pro_pack' | 'agency'>('pro_pack');
 
   if (!open) return null;
 
   const short = Math.max(0, needed - balance);
   const maxVal = Math.max(needed, balance, 1);
+  const isFreePlan = !subscription?.subscribed;
+  const planName = subscription?.plan === 'starter' ? 'Starter' : subscription?.plan === 'pro' ? 'Pro' : subscription?.plan === 'team' ? 'Team' : 'Free';
+
+  const handleBuyCredits = () => {
+    if (subscription && userId) {
+      subscription.buyCredits(pack, userId);
+    }
+  };
+
+  const handleUpgrade = () => {
+    if (subscription && userId) {
+      subscription.startCheckout(userId, { plan: 'pro', interval: 'month' });
+    }
+  };
 
   return (
     <div className="v-modal-shade" onClick={onClose}>
@@ -30,20 +51,34 @@ const VellumRefillModal: React.FC<RefillModalProps> = ({ open, needed, balance, 
           <Icon name="close" size={14} />
         </button>
 
-        <div className="v-modal-eyebrow">Credits required</div>
-        <h2 className="v-modal-title">A few more credits to <em>finish this export.</em></h2>
-        <p style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--graphite)', margin: '0 0 24px' }}>
-          You're <strong>{short} credits short</strong> for this render. Add a top-up below — packs never expire,
-          and credits draw from packs first before your monthly allowance.
-        </p>
+        <div className="v-modal-eyebrow">
+          {isFreePlan ? 'Limit reached' : 'Credits required'}
+        </div>
+        <h2 className="v-modal-title">
+          {isFreePlan
+            ? <>Upgrade to keep <em>creating.</em></>
+            : <>A few more credits to <em>finish this edit.</em></>
+          }
+        </h2>
+
+        {isFreePlan ? (
+          <p style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--graphite)', margin: '0 0 24px' }}>
+            You've used your free generations. Upgrade to Pro for unlimited edits, or buy a credit pack to keep going.
+          </p>
+        ) : (
+          <p style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--graphite)', margin: '0 0 24px' }}>
+            You're <strong>{short} edit{short !== 1 ? 's' : ''} short</strong> for this render.
+            Add a credit pack below — packs never expire.
+          </p>
+        )}
 
         <div style={{
           background: 'var(--background-primary)', border: '1px solid var(--soft-stone)',
           borderRadius: 6, padding: '14px 16px', marginBottom: 24
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0' }}>
-            <span>Studio plan balance</span>
-            <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{balance} cr</span>
+            <span>{planName} plan balance</span>
+            <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{balance} remaining</span>
           </div>
           <div style={{
             position: 'relative', height: 4, margin: '8px 0',
@@ -62,12 +97,21 @@ const VellumRefillModal: React.FC<RefillModalProps> = ({ open, needed, balance, 
               }} title={`Needed: ${needed}`} />
             )}
           </div>
-          {needed > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0', color: 'var(--graphite)' }}>
-              <span>This export</span>
-              <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{needed} cr</span>
-            </div>
-          )}
+        </div>
+
+        {/* Upgrade CTA for free users */}
+        {isFreePlan && (
+          <button
+            className="v-btn v-btn--primary"
+            style={{ width: '100%', marginBottom: 20 }}
+            onClick={handleUpgrade}
+          >
+            Upgrade to Pro — $49/mo unlimited
+          </button>
+        )}
+
+        <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--graphite)', marginBottom: 12 }}>
+          {isFreePlan ? 'Or buy a credit pack' : 'Credit packs'}
         </div>
 
         <div className="v-pack-list">
@@ -77,10 +121,10 @@ const VellumRefillModal: React.FC<RefillModalProps> = ({ open, needed, balance, 
               className={'v-pack' + (pack === p.id ? ' on' : '')}
               onClick={() => setPack(p.id)}
             >
-              {'best' in p && p.best && <span className="v-pack-flag">Most chosen</span>}
+              {'best' in p && p.best && <span className="v-pack-flag">Best value</span>}
               <div className="v-pack-cr">
                 <span className="cr">{p.cr}</span>
-                <span className="lbl">credits</span>
+                <span className="lbl">edits</span>
               </div>
               <div className="v-pack-price">${p.price}</div>
               <div className="v-pack-rate">{p.rate}</div>
@@ -89,33 +133,14 @@ const VellumRefillModal: React.FC<RefillModalProps> = ({ open, needed, balance, 
         </div>
 
         <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          gap: 16, flexWrap: 'wrap', paddingTop: 16,
+          display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
+          gap: 10, paddingTop: 16,
           borderTop: '1px solid var(--soft-stone)'
         }}>
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, cursor: 'pointer' }}>
-            <span style={{
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              width: 14, height: 14, borderRadius: 3,
-              background: 'var(--deep-charcoal)', border: '1px solid var(--deep-charcoal)', color: 'var(--warm-ivory)'
-            }}>
-              <Icon name="check" size={10} />
-            </span>
-            Auto-refill when balance drops below 10
-          </label>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button className="v-btn v-btn--ghost v-btn--sm" onClick={onClose}>Cancel</button>
-            <button
-              className="v-btn v-btn--primary v-btn--sm"
-              onClick={() => {
-                const selected = PACKS.find(p => p.id === pack);
-                if (selected) onConfirm(selected.cr);
-                onClose();
-              }}
-            >
-              Add credits & continue
-            </button>
-          </div>
+          <button className="v-btn v-btn--ghost v-btn--sm" onClick={onClose}>Cancel</button>
+          <button className="v-btn v-btn--primary v-btn--sm" onClick={handleBuyCredits}>
+            Buy {PACKS.find(p => p.id === pack)?.cr} edits — ${PACKS.find(p => p.id === pack)?.price}
+          </button>
         </div>
       </div>
     </div>

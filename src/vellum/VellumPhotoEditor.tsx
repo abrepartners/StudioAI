@@ -590,6 +590,15 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({ setPage, credits, reque
     if (!photos.length) return;
     const targets = photos.filter(p => !isPhotoGenerating(p.id));
     if (!targets.length) return;
+
+    // Precision Select needs per-photo object picking — can't batch a modal.
+    // Without this guard, 3 parallel photos all setSamModal() and overwrite
+    // each other's resolver, leaving 2 of them stuck waiting forever.
+    if (activeTool === 'declutter' && stylePreset === 'precision select') {
+      alert('Precision Select picks objects per photo. Apply one at a time, or pick another preset for batch.');
+      return;
+    }
+
     const totalCost = TOOL_COST[activeTool] * targets.length;
 
     const frozenTool = activeTool;

@@ -120,20 +120,31 @@ export default async function handler(req: any, res: any) {
     }
     console.log(`[sky-replace] Nano Banana done in ${Date.now() - t0}ms`);
 
-    // Real-ESRGAN 4x upscale for final resolution
+    // Pruna 2x upscale for final resolution (consistent with cleanup/staging/upscale).
+    // Sky replace is always exterior, but Clarity OOMs on large input images and
+    // Pruna's enhance_realism:false keeps the sky natural-looking.
     let finalUrl = cleanUrl;
-    const tEsr = Date.now();
+    const tUp = Date.now();
     try {
-      const esrOutput = await replicate.run('nightmareai/real-esrgan', {
-        input: { image: cleanUrl, scale: 4, face_enhance: false },
+      const upOutput = await replicate.run('prunaai/p-image-upscale', {
+        input: {
+          image: cleanUrl,
+          factor: 2,
+          target: 5,
+          upscale_mode: 'factor',
+          output_format: 'jpg',
+          output_quality: 95,
+          enhance_details: false,
+          enhance_realism: false,
+        },
       });
-      const upscaledUrl = await extractUrl(esrOutput);
+      const upscaledUrl = await extractUrl(upOutput);
       if (upscaledUrl) {
         finalUrl = upscaledUrl;
-        console.log(`[sky-replace] Upscaled in ${Date.now() - tEsr}ms`);
+        console.log(`[sky-replace] Pruna upscaled in ${Date.now() - tUp}ms`);
       }
-    } catch (esrErr: any) {
-      console.warn(`[sky-replace] ESRGAN failed: ${esrErr?.message} — using un-upscaled`);
+    } catch (upErr: any) {
+      console.warn(`[sky-replace] Pruna failed: ${upErr?.message} — using un-upscaled`);
     }
 
     const imgRes = await fetch(finalUrl);

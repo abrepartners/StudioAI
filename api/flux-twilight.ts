@@ -206,19 +206,29 @@ export default async function handler(req: any, res: any) {
     }
     console.log(`[flux-twilight] Flux done in ${Date.now() - t0}ms`);
 
+    // Pruna 2x upscale (consistent with cleanup/staging/sky/upscale endpoints).
     let finalUrl = cleanUrl;
-    const tEsr = Date.now();
+    const tUp = Date.now();
     try {
-      const esrOutput = await replicate.run('nightmareai/real-esrgan', {
-        input: { image: cleanUrl, scale: 4, face_enhance: false },
+      const upOutput = await replicate.run('prunaai/p-image-upscale', {
+        input: {
+          image: cleanUrl,
+          factor: 2,
+          target: 5,
+          upscale_mode: 'factor',
+          output_format: 'jpg',
+          output_quality: 95,
+          enhance_details: false,
+          enhance_realism: false,
+        },
       });
-      const upscaledUrl = await extractUrl(esrOutput);
+      const upscaledUrl = await extractUrl(upOutput);
       if (upscaledUrl) {
         finalUrl = upscaledUrl;
-        console.log(`[flux-twilight] Upscaled in ${Date.now() - tEsr}ms`);
+        console.log(`[flux-twilight] Pruna upscaled in ${Date.now() - tUp}ms`);
       }
-    } catch (esrErr: any) {
-      console.warn(`[flux-twilight] ESRGAN failed: ${esrErr?.message} — using un-upscaled`);
+    } catch (upErr: any) {
+      console.warn(`[flux-twilight] Pruna failed: ${upErr?.message} — using un-upscaled`);
     }
 
     const imgRes = await fetch(finalUrl);

@@ -60,7 +60,7 @@ const IconSVG: React.FC<{ name: string }> = ({ name }) => {
   );
 };
 
-const BeforeAfterSlider: React.FC<{ before: string; after: string; label: string }> = ({ before, after, label }) => {
+const BeforeAfterSlider: React.FC<{ before: string; after: string; label: string; onInteract?: () => void }> = ({ before, after, label, onInteract }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState(50);
   const dragging = useRef(false);
@@ -72,7 +72,11 @@ const BeforeAfterSlider: React.FC<{ before: string; after: string; label: string
     setPos((x / rect.width) * 100);
   }, []);
 
-  const onMouseDown = useCallback(() => { dragging.current = true; }, []);
+  const onMouseDown = useCallback(() => {
+    dragging.current = true;
+    onInteract?.();
+  }, [onInteract]);
+
   useEffect(() => {
     const onUp = () => { dragging.current = false; };
     const onMove = (e: MouseEvent) => { if (dragging.current) handleMove(e.clientX); };
@@ -113,6 +117,14 @@ const VellumLanding: React.FC = () => {
   const heroGoogleRef = useRef<HTMLDivElement>(null);
   const ctaGoogleRef = useRef<HTMLDivElement>(null);
   const [activeShowcase, setActiveShowcase] = useState(0);
+  const showcasePaused = useRef(false);
+  const resumeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const pauseShowcase = useCallback(() => {
+    showcasePaused.current = true;
+    if (resumeTimer.current) clearTimeout(resumeTimer.current);
+    resumeTimer.current = setTimeout(() => { showcasePaused.current = false; }, 8000);
+  }, []);
 
   const handleGoogleCredential = useCallback((response: any) => {
     const user = decodeJwtPayload(response.credential);
@@ -165,7 +177,9 @@ const VellumLanding: React.FC = () => {
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setActiveShowcase(prev => (prev + 1) % SHOWCASE_PAIRS.length);
+      if (!showcasePaused.current) {
+        setActiveShowcase(prev => (prev + 1) % SHOWCASE_PAIRS.length);
+      }
     }, 5000);
     return () => clearInterval(timer);
   }, []);
@@ -256,7 +270,7 @@ const VellumLanding: React.FC = () => {
               <button
                 key={pair.label}
                 className={'vl-showcase-tab' + (activeShowcase === i ? ' active' : '')}
-                onClick={() => setActiveShowcase(i)}
+                onClick={() => { setActiveShowcase(i); pauseShowcase(); }}
               >
                 {pair.label}
               </button>
@@ -267,6 +281,7 @@ const VellumLanding: React.FC = () => {
             before={SHOWCASE_PAIRS[activeShowcase].before}
             after={SHOWCASE_PAIRS[activeShowcase].after}
             label={SHOWCASE_PAIRS[activeShowcase].label}
+            onInteract={pauseShowcase}
           />
         </div>
       </section>

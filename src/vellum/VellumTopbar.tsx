@@ -33,6 +33,7 @@ export const VellumTopbar: React.FC<TopbarProps> = ({ page, setPage, credits, pr
 
   const handleSignOut = () => {
     try { localStorage.removeItem('studioai_google_user'); } catch {}
+    try { (window as any).google?.accounts?.id?.disableAutoSelect(); } catch {}
     window.location.assign('/');
   };
 
@@ -96,6 +97,10 @@ export const VellumTopbar: React.FC<TopbarProps> = ({ page, setPage, credits, pr
               <button onClick={() => { setMenuOpen(false); setPage('settings'); }}>
                 <Icon name="settings" size={14} /> Settings
               </button>
+              <button onClick={() => { setMenuOpen(false); setPage('billing'); }}>
+                <Icon name="card" size={14} /> Billing
+              </button>
+              <div className="v-avatar-menu-divider" />
               <button onClick={handleSignOut}>
                 <Icon name="logout" size={14} /> Sign out
               </button>

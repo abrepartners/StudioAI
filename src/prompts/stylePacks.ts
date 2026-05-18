@@ -50,7 +50,12 @@ HARD PRESERVATION RULES:
 - DO NOT modify windows, doors, trim, baseboards, crown molding, flooring, floor color, wall color, or ceiling.
 - DO NOT change the camera framing, crop, angle, or field of view.
 - Stage based on what the image actually shows, not what the room label suggests.
-- If the room is narrow or small, use fewer/smaller pieces — do NOT extend walls or rearrange architecture.`;
+- If the room is narrow or small, use fewer/smaller pieces — do NOT extend walls or rearrange architecture.
+
+PHOTOGRAPHY DNA — MATCH THE INPUT:
+- Staged furniture must exhibit the same photographic noise, grain, and compression as the original photo. Phone snap with noise = furniture has noise. Clean DSLR = furniture is clean.
+- Shadows on placed furniture must match the scene's existing light direction, angle, and softness.
+- Color temperature of new items must match the room's ambient lighting exactly.`;
 }
 
 export const STYLE_PACKS: Record<string, StylePack> = {

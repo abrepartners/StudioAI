@@ -176,7 +176,7 @@ const callApiDirect = async (
         }
         const selectedMasks = selectedIndices.map((i) => samResult.individualMasksBase64[i]);
         maskBase64 = await combineSelectedMasks(selectedMasks);
-        customPrompt = `Remove all objects in the masked area from this ${roomLabel.toLowerCase()}. Reconstruct the revealed surfaces by matching the surrounding texture, color, and lighting exactly. Do not add any new items. Leave all unmasked pixels identical to the input.`;
+        customPrompt = `Remove all objects in the masked area from this ${roomLabel.toLowerCase()}. Reconstruct the revealed surfaces using ONLY the material visible at the mask boundary edges — match the exact texture, color, grain, and surface type. If the surrounding area is dirt, fill with dirt. If concrete, fill with concrete. If grass, fill with grass at the same color and density. Do not add any material not already present in the surrounding area. Do not add any new items. Leave all unmasked pixels identical to the input.`;
       }
 
       const result = await fluxCleanup(imageBase64, roomLabel, signal, {

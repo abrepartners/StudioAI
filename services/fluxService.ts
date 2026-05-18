@@ -84,13 +84,13 @@ const INTERIOR_CLEANUP_PROMPT = (room: string, filter?: string, custom?: string)
 
   let prompt: string;
   if (filter === 'fullclean') {
-    prompt = `Remove all furniture, decor, rugs, curtains, wall art, and personal items from this ${room}. Leave only the bare empty room: walls, floor, ceiling, windows, doors, built-in fixtures (cabinets, counters, appliances), and light fixtures. Reconstruct revealed surfaces naturally by matching the texture, color, and pattern of surrounding visible areas. Do not add any new items.`;
+    prompt = `Remove all furniture, decor, rugs, curtains, wall art, and personal items from this ${room}. Leave only the bare empty room: walls, floor, ceiling, windows, doors, built-in fixtures (cabinets, counters, appliances), and light fixtures. Reconstruct revealed surfaces by extending the SAME material visible at the edges of each removed area — match the grain, color, pattern, and reflectivity. If the floor is hardwood, fill with hardwood at the same plank angle. If tile, continue the tile pattern and grout lines. Do not add any new items.`;
   } else if (filter === 'personal') {
-    prompt = `Remove only personal and identifying items from this ${room}: family photos, toiletries, medication, mail with names, phone chargers, and personal belongings. Keep all furniture, decor, and general clutter in place. Reconstruct revealed surfaces by matching the surrounding texture exactly.`;
+    prompt = `Remove only personal and identifying items from this ${room}: family photos, toiletries, medication, mail with names, phone chargers, and personal belongings. Keep all furniture, decor, and general clutter in place. Reconstruct revealed surfaces by extending the SAME material visible at the edges of each removed area — match the exact texture, color, and pattern.`;
   } else if (filter === 'surfaces') {
-    prompt = `Remove all items sitting on counters, tables, shelves, and other flat surfaces in this ${room}. Leave floor items and furniture as-is. Reconstruct revealed surfaces by matching the surrounding texture exactly.`;
+    prompt = `Remove all items sitting on counters, tables, shelves, and other flat surfaces in this ${room}. Leave floor items and furniture as-is. Reconstruct revealed surfaces by extending the SAME material visible at the edges of each removed area. If a countertop is granite, fill with granite. If wood, fill with wood at the same grain angle.`;
   } else {
-    prompt = `Remove the following from this ${room}: ${clutterList}. Also remove any item that clearly does not belong in a ${room}. Keep all furniture, built-in fixtures, and architecture exactly as-is. Reconstruct revealed surfaces by matching the surrounding texture exactly.`;
+    prompt = `Remove the following from this ${room}: ${clutterList}. Also remove any item that clearly does not belong in a ${room}. Keep all furniture, built-in fixtures, and architecture exactly as-is. Reconstruct revealed surfaces by extending the SAME material visible at the edges of each removed area — match the grain, color, pattern, and reflectivity exactly.`;
   }
 
   if (custom) {
@@ -117,7 +117,13 @@ const EXTERIOR_CLEANUP_PROMPT = (room: string, filter?: string, custom?: string)
     prompt += `\n\nADDITIONALLY, specifically remove: ${custom}.`;
   }
 
-  prompt += `\n\nDo not change the house, roof, siding, windows, doors, landscaping, grass, trees, driveway, walkways, fences, or sky. Reconstruct revealed areas by matching the surrounding surface texture exactly.`;
+  prompt += `\n\nGROUND SURFACE PRESERVATION (CRITICAL):
+- Identify the EXISTING ground material in this photo: dirt, gravel, concrete, mulch, dead grass, patchy lawn, bare soil, or healthy grass. Whatever is there, KEEP IT.
+- Fill revealed areas with the SAME material visible in surrounding ground — match color, texture, and grain exactly.
+- If the ground is dirt, fill with dirt. If gravel, fill with gravel. If patchy, keep it patchy.
+- NEVER replace existing ground with grass, turf, or landscaping that does not already exist in the photo.
+
+Do not change the house, roof, siding, windows, doors, driveway, walkways, fences, or sky. Do not add, improve, or enhance any landscaping. Do not make the yard look "better" — only remove the specified clutter and reconstruct with the same surface material.`;
 
   return prompt;
 };

@@ -120,10 +120,13 @@ export default async function handler(req: any, res: any) {
     } else {
       // Pass mask when available — Bria edits only masked areas, leaving the
       // rest of the image pixel-identical. Best path for Precision Select mode.
+      const negativePrompt = isExterior
+        ? 'Do not add any new objects, plants, grass, landscaping, or greenery. Do not change ground surface material — if dirt, keep dirt; if gravel, keep gravel; if bare soil, keep bare soil. Do not change house architecture, siding, roof, windows, doors, or sky. Do not alter lighting, shadows, or color grading. Only remove specified items and fill with the existing ground surface material.'
+        : 'Do not add any new objects, furniture, decor, or items. Do not change room architecture, wall colors, wall texture, flooring, ceiling, or fixtures. Do not alter lighting, shadows, or color grading. Only remove specified items and fill with matching surface texture.';
       const briaInput: Record<string, unknown> = {
         image: dataUrl,
         instruction: prompt,
-        negative_prompt: 'Do not add any new objects, furniture, decor, or items. Do not change room architecture, wall colors, wall texture, flooring, ceiling, or fixtures. Do not alter lighting, shadows, or color grading. Only remove specified items and fill with matching surface texture.',
+        negative_prompt: negativePrompt,
       };
       if (maskDataUrl) {
         briaInput.mask = maskDataUrl;

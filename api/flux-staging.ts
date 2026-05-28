@@ -1,9 +1,12 @@
 /**
- * api/flux-staging.ts  —  Virtual staging via Flux 2 Pro
+ * api/flux-staging.ts  —  Virtual staging via reve/edit
  *
- * Replaces the previous Gemini-based staging path. Uses flux-2-pro
- * for image-to-image generation with rich style DNA prompts, then
- * upscales via the same Clarity/Pruna pipeline as cleanup.
+ * Uses reve/edit (the same faithful in-place editor as whiten/lawn/cleanup)
+ * so staging preserves the room's perspective, walls, windows, and flooring
+ * and only ADDS the furniture described in the style-DNA prompt. The previous
+ * flux-2-pro path treated the photo as a style reference and regenerated the
+ * whole scene, which shifted the camera angle and architecture. Output is
+ * upscaled via the same Pruna pipeline as cleanup.
  *
  * Input (POST JSON):
  *   { imageBase64: string, prompt: string, isExterior?: boolean }
@@ -79,51 +82,24 @@ export default async function handler(req: any, res: any) {
   const t0 = Date.now();
 
   try {
-    // Detect aspect ratio from base64 image dimensions
-    const dims = await new Promise<{w: number; h: number}>((resolve) => {
-      const raw = dataUrl.split(',')[1] || '';
-      const buf = Buffer.from(raw, 'base64');
-      const isPng = buf[0] === 0x89 && buf[1] === 0x50;
-      if (isPng && buf.length > 24) {
-        resolve({ w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) });
-      } else {
-        for (let i = 0; i < buf.length - 9; i++) {
-          if (buf[i] === 0xFF && (buf[i+1] === 0xC0 || buf[i+1] === 0xC2)) {
-            resolve({ w: buf.readUInt16BE(i + 7), h: buf.readUInt16BE(i + 5) });
-            return;
-          }
-        }
-        resolve({ w: 4, h: 3 });
-      }
-    });
-
-    const VALID_RATIOS = [
-      { label: '1:1', v: 1 }, { label: '4:3', v: 4/3 }, { label: '3:2', v: 3/2 },
-      { label: '16:9', v: 16/9 }, { label: '21:9', v: 21/9 },
-      { label: '3:4', v: 3/4 }, { label: '2:3', v: 2/3 },
-      { label: '9:16', v: 9/16 }, { label: '9:21', v: 9/21 },
-    ];
-    const imgRatio = dims.w / dims.h;
-    const bestRatio = VALID_RATIOS.reduce((best, r) =>
-      Math.abs(r.v - imgRatio) < Math.abs(best.v - imgRatio) ? r : best
-    );
-
-    console.log(`[flux-staging] Starting Flux 2 Pro staging... (${dims.w}x${dims.h} → ${bestRatio.label})`);
-    const fluxOutput = await replicate.run('black-forest-labs/flux-2-pro', {
+    // reve/edit edits the supplied image in place, so it preserves the input's
+    // dimensions, perspective, and architecture natively — no aspect-ratio
+    // detection or style-reference regeneration needed (same path as whiten/lawn).
+    console.log('[flux-staging] Starting reve/edit staging...');
+    const output = await replicate.run('reve/edit', {
       input: {
-        input_images: [dataUrl],
+        image: dataUrl,
         prompt,
         output_format: 'jpg',
-        aspect_ratio: bestRatio.label,
       },
     });
 
-    const genUrl = await extractUrl(fluxOutput);
+    const genUrl = await extractUrl(output);
     if (!genUrl) {
-      json(res, 200, { ok: false, error: 'Flux returned no image URL' });
+      json(res, 200, { ok: false, error: 'reve/edit returned no image URL' });
       return;
     }
-    console.log(`[flux-staging] Flux done in ${Date.now() - t0}ms`);
+    console.log(`[flux-staging] reve/edit done in ${Date.now() - t0}ms`);
 
     // Upscale via Pruna (interior default for staging)
     let finalUrl = genUrl;

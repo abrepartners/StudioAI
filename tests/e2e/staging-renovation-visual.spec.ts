@@ -46,6 +46,9 @@ const STAGING_IMAGE = process.env.SMOKE_STAGING_IMAGE || path.resolve(process.cw
 const RENO_IMAGE = process.env.SMOKE_RENO_IMAGE || path.resolve(process.cwd(), 'public/showcase-reno-before.jpg');
 const ARTIFACTS = process.env.SMOKE_ARTIFACTS || path.resolve(process.cwd(), 'test-artifacts');
 const SKIP_RENO = process.env.SMOKE_SKIP_RENO === '1';
+// Optional Vercel Deployment-Protection bypass URL (contains ?_vercel_share=…).
+// Visited once before the app loads so a protected preview is reachable.
+const SMOKE_BYPASS_URL = process.env.SMOKE_BYPASS_URL || '';
 
 // Generations + Pruna upscale can take a while; give them room.
 const GEN_TIMEOUT = 180_000;
@@ -74,6 +77,13 @@ async function signInViaLocalStorage(context: import('@playwright/test').Browser
 
 /** Open the photo editor and confirm the auth wall is gone. */
 async function openPhotoEditor(page: import('@playwright/test').Page) {
+  // When BASE_URL is a Vercel preview behind Deployment Protection, visiting
+  // the _vercel_share bypass URL first sets the _vercel_jwt cookie on the
+  // context so the app itself loads (otherwise every request 401s). Optional;
+  // unused for prod runs. Get a link via the Vercel "share" feature.
+  if (SMOKE_BYPASS_URL) {
+    await page.goto(SMOKE_BYPASS_URL, { waitUntil: 'domcontentloaded' }).catch(() => {});
+  }
   await page.goto(`${BASE_URL}/vellum#photo`, { waitUntil: 'domcontentloaded' });
   // If the app landed on the dashboard, click into the editor.
   const editorNav = page.getByText('Photo editor', { exact: false }).first();
@@ -108,9 +118,11 @@ async function dismissRoomTypeModal(page: import('@playwright/test').Page) {
 /** Click Apply and wait for the refined result to appear. */
 async function applyAndWait(page: import('@playwright/test').Page) {
   await page.getByRole('button', { name: /^Apply ·/i }).first().click();
-  // Completion: the refined-photo download button appears, or AFTER label shows.
+  // Completion: the refined-photo download button appears, or an AFTER label
+  // shows. On success BOTH render (download button + "After · <room>" tag), so
+  // .first() avoids a strict-mode match-of-two failure.
   await expect(
-    page.getByText(/Download refined photo/i).or(page.getByText(/^AFTER/i)),
+    page.getByText(/Download refined photo/i).or(page.getByText(/^AFTER/i)).first(),
   ).toBeVisible({ timeout: GEN_TIMEOUT });
 }
 
@@ -148,12 +160,16 @@ test('renovation — swaps a surface, preserves the rest of the room', async ({ 
   await page.getByText('Virtual renovation', { exact: false }).first().click();
   await page.screenshot({ path: path.join(ARTIFACTS, 'renovation-00-before.png') });
 
-  // Fill at least one renovation field. The renovation panel exposes
-  // cabinets / countertops / flooring / walls inputs; set countertops.
-  const counters = page.getByLabel(/countertop/i).or(page.getByPlaceholder(/countertop/i)).first();
-  if (await counters.isVisible().catch(() => false)) {
-    await counters.fill('white quartz with subtle veining');
-  }
+  // Fill at least one renovation field. The panel's cabinets/countertops/
+  // flooring/walls inputs aren't associated with their text labels and their
+  // placeholders are example values ("e.g. Calacatta marble waterfall"), so we
+  // target them by that shared "e.g." placeholder prefix. The countertops
+  // field is the second one; fall back to the first if the order changes.
+  // Fields render in order: cabinets, countertops, flooring, walls — so the
+  // countertops input is nth(1).
+  const counters = page.getByPlaceholder(/^e\.g\./i).nth(1);
+  await expect(counters).toBeVisible({ timeout: 15_000 });
+  await counters.fill('honed white quartz with subtle grey veining');
   await applyAndWait(page);
   await page.screenshot({ path: path.join(ARTIFACTS, 'renovation-after.png') });
 });

@@ -16,7 +16,7 @@
  *   { ok: false, error: string }
  */
 import Replicate from 'replicate';
-import { json, setCors, handleOptions, rejectMethod, parseBody } from './utils.js';
+import { json, setCors, handleOptions, rejectMethod, parseBody, clampInstruction } from './utils.js';
 
 export const config = { runtime: 'nodejs', maxDuration: 120 };
 
@@ -89,7 +89,7 @@ export default async function handler(req: any, res: any) {
     const output = await replicate.run('reve/edit', {
       input: {
         image: dataUrl,
-        prompt,
+        prompt: clampInstruction(prompt, 'flux-staging'),
         output_format: 'jpg',
       },
     });

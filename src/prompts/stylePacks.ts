@@ -30,38 +30,53 @@ export function getFurnitureSpec(pack: StylePack, roomType: string): string {
   return pack.rooms[roomType] || pack.rooms[FALLBACK_ROOM] || '';
 }
 
+// reve/edit rejects any edit_instruction longer than 2560 chars
+// (INVALID_PARAMETER_VALUE). We render the staging prompt to a slightly lower
+// budget so there is always headroom; the fixed rules below are concise, and
+// when a pack's furniture list is long enough to blow the budget we trim only
+// the furniture text (the most compressible part) rather than dropping the
+// preservation/photography rules. clampInstruction() in api/utils.ts is the
+// final server-side backstop.
+const STAGING_PROMPT_BUDGET = 2500;
+
+/** Trim text to at most `max` chars, backing off to the last sentence/clause
+ *  boundary so we never cut mid-word. */
+function trimToBoundary(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const slice = text.slice(0, max);
+  const cut = Math.max(slice.lastIndexOf('. '), slice.lastIndexOf(', '), slice.lastIndexOf(' '));
+  return (cut > max * 0.6 ? slice.slice(0, cut) : slice).trimEnd();
+}
+
 export function buildStagingAssignment(pack: StylePack, roomType: string): string {
   const furniture = getFurnitureSpec(pack, roomType);
 
-  const furnitureBlock = furniture
-    ? `\nFURNITURE TO ADD:\n${furniture}\n`
-    : `\nThis is an outdoor/utility space — add only appropriate outdoor furniture and decor for the style. No indoor furniture.\n`;
-
-  return `Add furniture and decor to this ${roomType.toLowerCase()} to virtually stage it in ${pack.label} style. This is an ADDITIVE edit: the room itself stays exactly as photographed and you only place new furnishings into the existing space. Do not redesign, re-render, or reinterpret the room.
+  const render = (furn: string): string => {
+    const furnitureBlock = furn
+      ? `\nFURNITURE TO ADD:\n${furn}\n`
+      : `\nThis is an outdoor/utility space — add only appropriate outdoor furniture and decor for the style. No indoor furniture.\n`;
+    return `Virtually stage this ${roomType.toLowerCase()} in ${pack.label} style. ADDITIVE edit only: keep the room exactly as photographed and place new furnishings into the existing space — do not redesign, re-render, or reinterpret it.
 ${furnitureBlock}
 STYLE DNA:
 - Materials: ${pack.materials}
-- Color palette: ${pack.palette}
+- Palette: ${pack.palette}
 - Arrangement: ${pack.antiPatterns}
 
-HARD PRESERVATION RULES:
-- DO NOT modify, replace, or restyle any cabinets, vanities, built-ins, countertops, backsplashes, or millwork.
-- DO NOT modify any appliances. Every appliance stays pixel-identical.
-- DO NOT modify windows, doors, trim, baseboards, crown molding, flooring, floor color, wall color, or ceiling.
-- DO NOT remove, cover, replace, or restyle any fireplace, mantel, hearth, fireplace surround, accent/feature wall (stone, tile, marble, brick, wood, or paneled), or built-in niche or shelving. These are permanent features of the property — keep them fully visible and pixel-identical.
-- DO NOT change the camera framing, crop, angle, or field of view.
-- Stage based on what the image actually shows, not what the room label suggests.
-- If the room is narrow or small, use fewer/smaller pieces — do NOT extend walls or rearrange architecture.
+PRESERVE PIXEL-IDENTICAL (do not modify, replace, or restyle):
+- All architecture and fixtures: cabinets, vanities, built-ins, countertops, backsplashes, millwork, appliances, windows, doors, trim, baseboards, molding, flooring, and floor/wall/ceiling color.
+- Every fireplace, mantel, hearth, surround, accent/feature wall (stone, tile, marble, brick, wood, paneled), and built-in niche/shelving — keep fully visible.
+- Camera framing, crop, angle, and field of view. Stage to what the image actually shows, not the room label. If the room is small or narrow, use fewer/smaller pieces — never extend walls or rearrange architecture.
 
-WALL-MOUNTED & AGAINST-WALL PIECES (consoles, media units, credenzas, sideboards, artwork, mirrors, wall clocks):
-- The furniture list above may describe placing these on a "focal wall" or "main wall." Only do this on a genuinely BLANK wall.
-- If the natural focal wall already has a fireplace, feature/accent finish, built-in, or window, leave it completely unobstructed. Do NOT hang art over it or stand a console/credenza against it. Move those pieces to another open wall, or omit them entirely if no suitable blank wall exists.
-- Free-standing floor furniture (sofas, chairs, coffee tables, rugs, plants, floor lamps) MAY sit in front of a feature wall, as long as the wall behind them stays fully visible and unchanged.
+WALL & AGAINST-WALL PIECES (consoles, media units, credenzas, sideboards, artwork, mirrors): place only on a genuinely BLANK wall. If the focal wall already has a fireplace, feature finish, built-in, or window, leave it completely unobstructed — move those pieces to an open wall or omit them. Free-standing floor pieces (sofas, chairs, tables, rugs, plants, lamps) may sit in front of a feature wall as long as the wall behind stays fully visible and unchanged.
 
-PHOTOGRAPHY DNA — MATCH THE INPUT:
-- Staged furniture must exhibit the same photographic noise, grain, and compression as the original photo. Phone snap with noise = furniture has noise. Clean DSLR = furniture is clean.
-- Shadows on placed furniture must match the scene's existing light direction, angle, and softness.
-- Color temperature of new items must match the room's ambient lighting exactly.`;
+MATCH THE INPUT PHOTO: new furniture must share the photo's noise, grain, and compression (noisy phone snap = noisy furniture; clean DSLR = clean furniture); shadows on placed pieces must follow the scene's existing light direction, angle, and softness; color temperature of new items must match the room's ambient lighting exactly.`;
+  };
+
+  const full = render(furniture);
+  if (full.length <= STAGING_PROMPT_BUDGET || !furniture) return full;
+  // Over budget: keep every fixed rule and shrink only the furniture list.
+  const overhead = full.length - furniture.length;
+  return render(trimToBoundary(furniture, Math.max(0, STAGING_PROMPT_BUDGET - overhead)));
 }
 
 export const STYLE_PACKS: Record<string, StylePack> = {

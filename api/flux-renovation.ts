@@ -22,7 +22,7 @@
  *   { ok: false, error: string }
  */
 import Replicate from 'replicate';
-import { json, setCors, handleOptions, rejectMethod, parseBody } from './utils.js';
+import { json, setCors, handleOptions, rejectMethod, parseBody, clampInstruction } from './utils.js';
 
 export const config = { runtime: 'nodejs', maxDuration: 120 };
 
@@ -44,38 +44,29 @@ function buildRenovationPrompt(d: RenovationDetails): string {
 
   const changeList = changes.length > 0 ? changes.join('\n') : '- (none specified)';
 
-  return `PHOTOSHOP-IN-PLACE EDIT. This is a surgical material replacement task, not a full re-render.
+  // NOTE: reve/edit caps edit_instruction at 2560 chars and rejects anything
+  // longer (INVALID_PARAMETER_VALUE). Kept tight so all four change lines plus
+  // this scaffolding stay under the limit; clampInstruction() in api/utils.ts
+  // is the backstop. Don't re-expand without re-checking the worst-case length.
+  return `PHOTOSHOP-IN-PLACE EDIT — surgical material replacement, not a re-render.
 
 CHANGES TO APPLY (only these, nothing else):
 ${changeList}
 
-==============================
-LOOK DRIFT — DO NOT DO THESE:
-==============================
-- DO NOT WARM THE IMAGE. Do not shift color temperature toward amber, orange, or gold. If the input is neutral or cool, the output must also be neutral or cool. Match the exact Kelvin value of the input.
-- DO NOT DEEPEN SHADOWS. Do not add darkness, add contrast in the shadow range, or crush blacks. The shadow density, black point, and darkest pixel values must be IDENTICAL to the input.
-- DO NOT STYLIZE, DRAMATIZE, OR MOODY-UP THE IMAGE. This is not a look development pass. The output should NOT look moodier, more dramatic, more cinematic, or more "professionally graded" than the input.
-- DO NOT apply any global tonal curve, LUT, color grade, or saturation adjustment.
+NO LOOK DRIFT:
+- Do NOT warm the image or shift color temperature toward amber/orange/gold — match the input's exact Kelvin. If the input is neutral or cool, the output stays neutral or cool.
+- Do NOT deepen shadows, add contrast in the shadow range, or crush blacks — shadow density, black point, and darkest pixels stay IDENTICAL to the input.
+- Do NOT stylize, dramatize, or "moody-up" the image. No global tonal curve, LUT, color grade, or saturation/vibrance adjustment. This is not a look-development pass.
 
-==============================
-CRITICAL PRESERVATION RULES:
-==============================
-- Match the INPUT IMAGE's exposure, white balance, contrast, saturation, shadow depth, highlight rolloff, color temperature, and overall rendering exactly. Every non-edited pixel should read as the same photograph.
-- All NON-EDITED regions (appliances, fixtures, windows, ceilings, light switches, outlets, furniture, decor, perspective, reflections, room geometry) must look PIXEL-IDENTICAL to the input.
-- Camera angle, focal length, perspective, lens distortion, and framing must be identical.
-- Lighting direction, intensity, and color temperature on every non-edited surface must stay the same.
-- If a surface is NOT listed in the CHANGES, it must be the same pixels as the input.
+PRESERVE PIXEL-IDENTICAL:
+- The input's exposure, white balance, contrast, saturation, shadow depth, highlight rolloff, color temperature, and overall rendering — every non-edited pixel reads as the same photograph.
+- All non-edited regions (appliances, fixtures, windows, ceilings, switches, outlets, furniture, decor, reflections, room geometry) and lighting direction/intensity/temperature on every non-edited surface.
+- Camera angle, focal length, perspective, lens distortion, crop, and framing.
+- Any surface NOT listed in CHANGES must be the exact same pixels as the input.
 
-==============================
-STRICT RULES:
-==============================
-- DO NOT add, remove, or reposition any physical object.
-- DO NOT change the perspective or crop.
-- DO NOT sharpen, soften, denoise, or smooth the image.
-- DO NOT re-render the whole image — only replace the specified surfaces.
-- DO NOT adjust overall image brightness, contrast, saturation, or vibrance.
+STRICT: do NOT add, remove, or reposition any object; do NOT sharpen, soften, denoise, or smooth; do NOT re-render the whole image — replace only the specified surfaces.
 
-Think of this as a Photoshop clone-stamp / material-replace edit where the replaced pixels are the ONLY new information. Everything else must come from the source image untouched. The output should look like the EXACT same photograph with just the listed materials swapped — same look, same warmth, same shadows, same mood. No new "look," no new edit style, no re-colorization, no enhancement.`;
+Think Photoshop clone-stamp / material-replace: the replaced pixels are the ONLY new information; everything else comes from the source untouched. Output = the EXACT same photograph with just the listed materials swapped — same look, warmth, shadows, and mood. No new look, no re-colorization, no enhancement.`;
 }
 
 async function extractUrl(output: unknown): Promise<string | null> {
@@ -131,7 +122,7 @@ export default async function handler(req: any, res: any) {
     const output = await replicate.run('reve/edit', {
       input: {
         image: userDataUrl,
-        prompt: buildRenovationPrompt(details),
+        prompt: clampInstruction(buildRenovationPrompt(details), 'flux-renovation'),
         output_format: 'jpg',
       },
     });

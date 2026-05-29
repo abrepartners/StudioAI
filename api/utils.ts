@@ -54,3 +54,19 @@ export const parseBody = (rawBody: unknown): any => {
   if (typeof rawBody === 'object') return rawBody;
   return {};
 };
+
+/**
+ * reve/edit rejects any `edit_instruction` longer than 2560 characters
+ * (INVALID_PARAMETER_VALUE). Prompt builders are kept well under this, but
+ * this is a last-resort guard so an over-long prompt degrades the edit
+ * instead of failing the whole generation. `label` is for the warning log.
+ */
+export const REVE_EDIT_MAX_INSTRUCTION = 2560;
+
+export const clampInstruction = (prompt: string, label = 'reve/edit'): string => {
+  if (prompt.length <= REVE_EDIT_MAX_INSTRUCTION) return prompt;
+  console.warn(
+    `[${label}] prompt ${prompt.length} chars exceeds ${REVE_EDIT_MAX_INSTRUCTION}; truncating.`,
+  );
+  return prompt.slice(0, REVE_EDIT_MAX_INSTRUCTION);
+};

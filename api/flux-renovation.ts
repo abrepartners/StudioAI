@@ -1,17 +1,17 @@
 /**
  * api/flux-renovation.ts
  *
- * Virtual Renovation via Flux 2 Pro on Replicate. Flux 2 Pro was chosen
- * over Gemini/Kontext for the cleanest material swaps. Known Flux drift
- * pattern: the model bakes in its preferred photographic "look" on top
- * of the requested edit — specifically warming the image and adding
- * shadow depth. Prompt below explicitly forbids both.
+ * Virtual Renovation via reve/edit on Replicate. Previously ran on
+ * flux-2-pro, but — like virtual staging — flux-2-pro treats the photo as
+ * a style reference and re-renders the whole scene (and bakes in its
+ * preferred "look": warming the image and deepening shadows). reve/edit is
+ * the faithful in-place editor the rest of the app standardizes on
+ * (whiten, lawn, cleanup, staging): it changes only the surfaces named in
+ * the prompt and leaves composition, lighting, and color untouched.
  *
- * Mitigation (two-layer):
- *   1. This prompt forbids warmth shift and shadow addition by name.
- *   2. Frontend runs RENOVATION_COMPOSITE in postProcessToolOutput which
- *      pixel-matches the result against the original and keeps unchanged
- *      regions byte-identical.
+ * Defense in depth still applies: the frontend runs RENOVATION_COMPOSITE in
+ * postProcessToolOutput, pixel-matching the result against the original so
+ * unchanged regions stay byte-identical.
  *
  * Input (POST JSON):
  *   { imageBase64: string, cabinets?: string, countertops?: string,
@@ -50,7 +50,7 @@ CHANGES TO APPLY (only these, nothing else):
 ${changeList}
 
 ==============================
-FLUX DRIFT — DO NOT DO THESE:
+LOOK DRIFT — DO NOT DO THESE:
 ==============================
 - DO NOT WARM THE IMAGE. Do not shift color temperature toward amber, orange, or gold. If the input is neutral or cool, the output must also be neutral or cool. Match the exact Kelvin value of the input.
 - DO NOT DEEPEN SHADOWS. Do not add darkness, add contrast in the shadow range, or crush blacks. The shadow density, black point, and darkest pixel values must be IDENTICAL to the input.
@@ -123,51 +123,25 @@ export default async function handler(req: any, res: any) {
   const t0 = Date.now();
 
   try {
-    // Detect aspect ratio from base64 image dimensions
-    const dims = await new Promise<{w: number; h: number}>((resolve) => {
-      const raw = userDataUrl.split(',')[1] || '';
-      const buf = Buffer.from(raw, 'base64');
-      const isPng = buf[0] === 0x89 && buf[1] === 0x50;
-      if (isPng && buf.length > 24) {
-        resolve({ w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) });
-      } else {
-        for (let i = 0; i < buf.length - 9; i++) {
-          if (buf[i] === 0xFF && (buf[i+1] === 0xC0 || buf[i+1] === 0xC2)) {
-            resolve({ w: buf.readUInt16BE(i + 7), h: buf.readUInt16BE(i + 5) });
-            return;
-          }
-        }
-        resolve({ w: 4, h: 3 });
-      }
-    });
-
-    const VALID_RATIOS = [
-      { label: '1:1', v: 1 }, { label: '4:3', v: 4/3 }, { label: '3:2', v: 3/2 },
-      { label: '16:9', v: 16/9 }, { label: '21:9', v: 21/9 },
-      { label: '3:4', v: 3/4 }, { label: '2:3', v: 2/3 },
-      { label: '9:16', v: 9/16 }, { label: '9:21', v: 9/21 },
-    ];
-    const imgRatio = dims.w / dims.h;
-    const bestRatio = VALID_RATIOS.reduce((best, r) =>
-      Math.abs(r.v - imgRatio) < Math.abs(best.v - imgRatio) ? r : best
-    );
-
-    console.log(`[flux-renovation] Starting Flux 2 Pro renovation (${dims.w}x${dims.h} → ${bestRatio.label})`);
-    const fluxOutput = await replicate.run('black-forest-labs/flux-2-pro', {
+    // reve/edit edits the supplied image in place — it preserves the input's
+    // dimensions, perspective, lighting, and color, and changes only the
+    // surfaces named in the prompt. No aspect-ratio detection or style-
+    // reference regeneration needed (same faithful path as staging/whiten/lawn).
+    console.log('[flux-renovation] Starting reve/edit renovation...');
+    const output = await replicate.run('reve/edit', {
       input: {
-        input_images: [userDataUrl],
+        image: userDataUrl,
         prompt: buildRenovationPrompt(details),
         output_format: 'jpg',
-        aspect_ratio: bestRatio.label,
       },
     });
 
-    const cleanUrl = await extractUrl(fluxOutput);
+    const cleanUrl = await extractUrl(output);
     if (!cleanUrl) {
-      json(res, 200, { ok: false, error: 'Flux returned no image URL' });
+      json(res, 200, { ok: false, error: 'reve/edit returned no image URL' });
       return;
     }
-    console.log(`[flux-renovation] Flux done in ${Date.now() - t0}ms`);
+    console.log(`[flux-renovation] reve/edit done in ${Date.now() - t0}ms`);
 
     const imgRes = await fetch(cleanUrl);
     if (!imgRes.ok) {

@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd /Users/camillebrown/StudioAI && npx tsc --noEmit --pretty 2>&1 | head -25"
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && npx tsc --noEmit --pretty 2>&1 | head -25"
           }
         ]
       },
@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd /Users/camillebrown/StudioAI && npx eslint --no-error-on-unmatched-pattern $(git diff --name-only --diff-filter=ACMR HEAD -- '*.ts' '*.tsx' 2>/dev/null | head -5) 2>&1 | tail -20"
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && npx eslint --no-error-on-unmatched-pattern $(git diff --name-only --diff-filter=ACMR HEAD -- '*.ts' '*.tsx' 2>/dev/null | head -5) 2>&1 | tail -20"
           }
         ]
       }

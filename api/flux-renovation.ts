@@ -35,19 +35,58 @@ interface RenovationDetails {
   walls?: string;
 }
 
+// reve/edit caps edit_instruction at 2560 chars. The change VALUES are
+// free-text user input (no maxLength on the inputs) and sit at the TOP of the
+// prompt, while the preservation rules sit at the bottom — so a blind
+// end-truncation would amputate exactly those rules. Instead we render to a
+// budget and trim only the user values, sharing the value budget across the
+// fields actually present, so the fixed rules always survive. clampInstruction
+// in api/utils.ts remains the final backstop.
+const RENO_PROMPT_BUDGET = 2450;
+const MAX_RENO_VALUE = 280; // per-field ceiling even when budget allows more
+
+/** Trim to at most `max` chars, backing off to the last clause/word boundary. */
+function trimToBoundary(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const slice = text.slice(0, max);
+  const cut = Math.max(slice.lastIndexOf(', '), slice.lastIndexOf(' '));
+  return (cut > max * 0.6 ? slice.slice(0, cut) : slice).trimEnd();
+}
+
 function buildRenovationPrompt(d: RenovationDetails): string {
-  const changes: string[] = [];
-  if (d.cabinets)    changes.push(`- CABINETS: replace with "${d.cabinets}". Keep cabinet size, position, door count, and hardware layout identical — only the material/color/finish changes.`);
-  if (d.countertops) changes.push(`- COUNTERTOPS: replace with "${d.countertops}". Keep counter shape, thickness, and overhang identical — only the material changes.`);
-  if (d.flooring)    changes.push(`- FLOORING: replace with "${d.flooring}". Keep floor layout, plank direction, and grout lines identical where applicable — only the material/pattern changes.`);
-  if (d.walls)       changes.push(`- WALL COLOR: repaint walls with "${d.walls}". Keep wall geometry, trim, outlets, switches, and any hanging items identical — only the wall paint color changes.`);
+  // Each present field keeps its own line template so we can re-render with
+  // trimmed values without duplicating the prose.
+  const present: { value: string; line: (v: string) => string }[] = [];
+  const cabinets = (d.cabinets || '').trim();
+  const countertops = (d.countertops || '').trim();
+  const flooring = (d.flooring || '').trim();
+  const walls = (d.walls || '').trim();
+  if (cabinets)    present.push({ value: cabinets, line: v => `- CABINETS: replace with "${v}". Keep cabinet size, position, door count, and hardware layout identical — only the material/color/finish changes.` });
+  if (countertops) present.push({ value: countertops, line: v => `- COUNTERTOPS: replace with "${v}". Keep counter shape, thickness, and overhang identical — only the material changes.` });
+  if (flooring)    present.push({ value: flooring, line: v => `- FLOORING: replace with "${v}". Keep floor layout, plank direction, and grout lines identical where applicable — only the material/pattern changes.` });
+  if (walls)       present.push({ value: walls, line: v => `- WALL COLOR: repaint walls with "${v}". Keep wall geometry, trim, outlets, switches, and any hanging items identical — only the wall paint color changes.` });
 
-  const changeList = changes.length > 0 ? changes.join('\n') : '- (none specified)';
+  const assemble = (values: string[]): string => {
+    const changeList = present.length > 0
+      ? present.map((p, i) => p.line(values[i])).join('\n')
+      : '- (none specified)';
+    return renderRenovation(changeList);
+  };
 
-  // NOTE: reve/edit caps edit_instruction at 2560 chars and rejects anything
-  // longer (INVALID_PARAMETER_VALUE). Kept tight so all four change lines plus
-  // this scaffolding stay under the limit; clampInstruction() in api/utils.ts
-  // is the backstop. Don't re-expand without re-checking the worst-case length.
+  // Fixed length = everything except the user values (measure with blanks, but
+  // keep every present line). Share the remaining budget across those fields.
+  const fixedLen = assemble(present.map(() => '')).length;
+  const perField = present.length > 0
+    ? Math.max(0, Math.floor((RENO_PROMPT_BUDGET - fixedLen) / present.length))
+    : 0;
+  const cap = Math.min(MAX_RENO_VALUE, perField);
+  return assemble(present.map(p => trimToBoundary(p.value, cap)));
+}
+
+// Fixed scaffolding for the renovation prompt. Kept concise so that, after
+// buildRenovationPrompt budgets the user values, the result fits reve/edit's
+// 2560-char cap. Don't re-expand without re-checking RENO_PROMPT_BUDGET.
+function renderRenovation(changeList: string): string {
   return `PHOTOSHOP-IN-PLACE EDIT — surgical material replacement, not a re-render.
 
 CHANGES TO APPLY (only these, nothing else):

@@ -50,9 +50,14 @@ function trimToBoundary(text: string, max: number): string {
 
 export function buildStagingAssignment(pack: StylePack, roomType: string): string {
   const furniture = getFurnitureSpec(pack, roomType);
+  // Indoor vs outdoor is decided by whether the room is stageable at all, NOT
+  // by the (possibly budget-trimmed) furniture string — otherwise trimming a
+  // long indoor list to empty would flip an indoor room into the "outdoor
+  // only, no indoor furniture" branch.
+  const stageable = furniture.length > 0;
 
   const render = (furn: string): string => {
-    const furnitureBlock = furn
+    const furnitureBlock = stageable
       ? `\nFURNITURE TO ADD:\n${furn}\n`
       : `\nThis is an outdoor/utility space — add only appropriate outdoor furniture and decor for the style. No indoor furniture.\n`;
     return `Virtually stage this ${roomType.toLowerCase()} in ${pack.label} style. ADDITIVE edit only: keep the room exactly as photographed and place new furnishings into the existing space — do not redesign, re-render, or reinterpret it.

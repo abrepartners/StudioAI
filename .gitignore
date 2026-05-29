@@ -37,3 +37,5 @@ tests/composite-sandbox/output/
 # Playwright per-run artifacts
 test-results/
 playwright-report/
+# Smoke-test screenshots (SMOKE_ARTIFACTS) — ephemeral, for human review only
+test-artifacts/

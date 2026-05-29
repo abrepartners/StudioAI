@@ -43,6 +43,11 @@ export default defineConfig({
     actionTimeout: 15_000,
     // Reduce nondeterminism between runs (motion + caret).
     reducedMotion: 'reduce',
+    // Opt-in escape hatch for running behind a TLS-inspecting egress proxy
+    // (e.g. a sandbox/CI environment that re-signs HTTPS with its own CA the
+    // bundled Chromium doesn't trust). Off by default so real runs still
+    // verify certs; enable with PW_IGNORE_HTTPS_ERRORS=1.
+    ignoreHTTPSErrors: process.env.PW_IGNORE_HTTPS_ERRORS === '1',
   },
   projects: IS_VISUAL
     ? [

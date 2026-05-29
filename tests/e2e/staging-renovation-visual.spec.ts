@@ -89,6 +89,20 @@ async function uploadPhoto(page: import('@playwright/test').Page, imagePath: str
   await input.setInputFiles(imagePath);
   // Wait for the uploaded thumbnail / tool panel to render.
   await expect(page.getByText(/Apply ·/i).first()).toBeVisible({ timeout: 30_000 });
+  // After upload the app pops a "Tag room type" modal whose overlay intercepts
+  // pointer events on the tool panel below it. Accept the default room type and
+  // dismiss it so the staging/renovation controls become clickable.
+  await dismissRoomTypeModal(page);
+}
+
+/** Close the post-upload "Tag room type" dialog if it is showing. */
+async function dismissRoomTypeModal(page: import('@playwright/test').Page) {
+  const done = page.getByRole('button', { name: /^Done$/i }).first();
+  if (await done.isVisible().catch(() => false)) {
+    await done.click().catch(() => {});
+    // Wait for the overlay to detach before continuing.
+    await expect(done).toHaveCount(0, { timeout: 10_000 }).catch(() => {});
+  }
 }
 
 /** Click Apply and wait for the refined result to appear. */
@@ -102,6 +116,9 @@ async function applyAndWait(page: import('@playwright/test').Page) {
 
 test('staging — adds furniture, preserves room + fireplace/feature wall', async ({ page, context }) => {
   test.skip(!USER_EMAIL, 'SMOKE_USER_EMAIL not set');
+  // Each style runs a real (slow) paid generation + upscale; the global 60s
+  // per-test cap is far too short. Budget one GEN_TIMEOUT per style plus setup.
+  test.setTimeout(STYLES.length * GEN_TIMEOUT + 60_000);
   await signInViaLocalStorage(context);
   await openPhotoEditor(page);
   await uploadPhoto(page, STAGING_IMAGE);
@@ -122,6 +139,8 @@ test('staging — adds furniture, preserves room + fireplace/feature wall', asyn
 
 test('renovation — swaps a surface, preserves the rest of the room', async ({ page, context }) => {
   test.skip(!USER_EMAIL || SKIP_RENO, 'SMOKE_USER_EMAIL not set or renovation skipped');
+  // One real paid generation; the global 60s per-test cap is too short.
+  test.setTimeout(GEN_TIMEOUT + 60_000);
   await signInViaLocalStorage(context);
   await openPhotoEditor(page);
   await uploadPhoto(page, RENO_IMAGE);

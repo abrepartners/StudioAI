@@ -1,29 +1,26 @@
 /* Liquid glass utility layer — drop-in Apple-style glass surfaces */
-@import './design-system/liquid-glass.css';
-
-/* Liquid glass utility layer */
-@import './design-system/liquid-glass.css';
+@import "./design-system/liquid-glass.css";
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --color-primary: #0A84FF;          /* Apple Blue */
-  --color-primary-light: #409CFF;
-  --color-primary-dark: #0066CC;
-  --color-accent: #FF375F;           /* Apple Red-Pink */
-  --color-accent-light: #FF6482;
-  --color-accent-dark: #CC2C4C;
-  --color-error: #FF375F;            /* Apple systemRed */
-  --color-success: #30D158;          /* Apple systemGreen */
-  --color-warning: #FFD60A;          /* Apple systemYellow */
-  --color-bg: #000000;               /* True Black (OLED) */
+  --color-primary: #0a84ff; /* Apple Blue */
+  --color-primary-light: #409cff;
+  --color-primary-dark: #0066cc;
+  --color-accent: #ff375f; /* Apple Red-Pink */
+  --color-accent-light: #ff6482;
+  --color-accent-dark: #cc2c4c;
+  --color-error: #ff375f; /* Apple systemRed */
+  --color-success: #30d158; /* Apple systemGreen */
+  --color-warning: #ffd60a; /* Apple systemYellow */
+  --color-bg: #000000; /* True Black (OLED) */
   --color-bg-deep: #000000;
-  --color-text: #98989D;             /* Apple secondary label */
-  --color-ink: #F5F5F7;              /* Apple near-white */
-  --color-surface: #1C1C1E;          /* Apple elevated surface */
-  --color-surface-elevated: #2C2C2E; /* Apple secondary elevated */
+  --color-text: #98989d; /* Apple secondary label */
+  --color-ink: #f5f5f7; /* Apple near-white */
+  --color-surface: #1c1c1e; /* Apple elevated surface */
+  --color-surface-elevated: #2c2c2e; /* Apple secondary elevated */
   --color-border: rgba(255, 255, 255, 0.08);
   --color-border-strong: rgba(255, 255, 255, 0.15);
 
@@ -41,9 +38,13 @@
   --radius-2xl: 1.25rem;
   --radius-3xl: 1.5rem;
 
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
-  --font-display: 'DM Serif Display', Georgia, serif;
-  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
+  --font-sans:
+    "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI",
+    Roboto, sans-serif;
+  --font-display: "DM Serif Display", Georgia, serif;
+  --font-body:
+    "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
+    Roboto, sans-serif;
 
   --focus-ring: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-primary);
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -51,8 +52,14 @@
   --transition-smooth: 400ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-* { box-sizing: border-box; }
-html, body, #root { height: 100%; }
+* {
+  box-sizing: border-box;
+}
+html,
+body,
+#root {
+  height: 100%;
+}
 
 html {
   overflow: hidden;
@@ -74,13 +81,22 @@ body {
   touch-action: manipulation;
 }
 
-h1, h2, h3, h4, .font-display {
+h1,
+h2,
+h3,
+h4,
+.font-display {
   font-family: var(--font-display);
   color: var(--color-ink);
   letter-spacing: -0.02em;
 }
 
-button, input, textarea, select { font: inherit; }
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
 
 button:focus-visible,
 input:focus-visible,
@@ -132,7 +148,7 @@ a:focus-visible {
 /* ─── Buttons ──────────────────────────────────────────────────── */
 .cta-primary {
   background: var(--color-primary);
-  color: #FFFFFF;
+  color: #ffffff;
   border: none;
   /* WCAG AA: bold + 14px min ensures 4.5:1 contrast on primary blue */
   font-size: 14px;
@@ -149,7 +165,7 @@ a:focus-visible {
 .cta-primary:hover {
   /* Darken on hover (not lighten) to preserve contrast ratio */
   background-color: var(--color-primary-dark);
-  color: #FFFFFF;
+  color: #ffffff;
   box-shadow: 0 4px 16px rgba(10, 132, 255, 0.35);
   transform: translateY(-1px);
 }
@@ -200,7 +216,9 @@ a:focus-visible {
 }
 
 /* ─── Dividers ─────────────────────────────────────────────────── */
-.panel-divider { border-color: var(--color-border); }
+.panel-divider {
+  border-color: var(--color-border);
+}
 
 /* ─── Progress Meter ───────────────────────────────────────────── */
 .mission-meter {
@@ -214,7 +232,11 @@ a:focus-visible {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--color-primary), var(--color-primary-light));
+  background: linear-gradient(
+    90deg,
+    var(--color-primary),
+    var(--color-primary-light)
+  );
 }
 
 /* ─── Mobile Bottom Sheet ──────────────────────────────────────── */
@@ -267,28 +289,45 @@ a:focus-visible {
     transform: translateY(calc(100% - 40px));
     transition: transform var(--transition-smooth);
   }
-  .mobile-control-sheet.open { transform: translateY(0%); }
+  .mobile-control-sheet.open {
+    transform: translateY(0%);
+  }
 }
 
 @media (min-width: 1024px) {
-  .mobile-sheet-toggle { display: none; }
-  .mobile-sheet-scroll { max-height: none; }
+  .mobile-sheet-toggle {
+    display: none;
+  }
+  .mobile-sheet-scroll {
+    max-height: none;
+  }
 }
 
-.scrollbar-hide::-webkit-scrollbar { display: none; }
-.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
 
 /* ─── iOS zoom fix: enforce 16px input font-size on touch devices ─ */
 @media (hover: none) and (pointer: coarse) {
-  textarea, input[type="text"], input[type="email"], input[type="search"],
-  input[type="tel"], input[type="url"], input[type="number"], input[type="password"] {
+  textarea,
+  input[type="text"],
+  input[type="email"],
+  input[type="search"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="number"],
+  input[type="password"] {
     font-size: 16px;
   }
 }
 
 /* ─── Login Screen ─────────────────────────────────────────────── */
 .login-bg {
-  background-image: url('/showcase-staging-after.jpg');
+  background-image: url("/showcase-staging-after.jpg");
   background-size: cover;
   background-position: center;
 }
@@ -302,7 +341,11 @@ a:focus-visible {
 
 /* ─── Gradient Text ────────────────────────────────────────────── */
 .text-gradient {
-  background: linear-gradient(135deg, var(--color-ink) 0%, var(--color-text) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--color-ink) 0%,
+    var(--color-text) 100%
+  );
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -310,38 +353,73 @@ a:focus-visible {
 
 /* ─── Animations ───────────────────────────────────────────────── */
 @keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slide-up {
-  from { opacity: 0; transform: translateY(16px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes slide-down {
-  from { opacity: 0; transform: translateY(-8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes scale-in {
-  from { opacity: 0; transform: scale(0.97); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @keyframes shimmer {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 @keyframes pulse-soft {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Scanline / CRT stubs — classes kept so JSX doesn't break, but effects removed */
@@ -350,39 +428,75 @@ a:focus-visible {
 }
 
 .terminal-text {
-  font-family: 'SF Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family:
+    "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 .crt-effect {
   /* Removed — no CRT flicker */
 }
 
-.animate-fade-in { animation: fade-in 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
-.animate-slide-up { animation: slide-up 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
-.animate-slide-down { animation: slide-down 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
-.animate-scale-in { animation: scale-in 0.4s cubic-bezier(0.2, 0.9, 0.3, 1.05) both; }
+.animate-fade-in {
+  animation: fade-in 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.animate-slide-up {
+  animation: slide-up 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.animate-slide-down {
+  animation: slide-down 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.animate-scale-in {
+  animation: scale-in 0.4s cubic-bezier(0.2, 0.9, 0.3, 1.05) both;
+}
 
 .animate-shimmer {
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.06),
+    transparent
+  );
   background-size: 200% 100%;
   animation: shimmer 2s infinite linear;
 }
 
-.animate-pulse-soft { animation: pulse-soft 2s ease-in-out infinite; }
+.animate-pulse-soft {
+  animation: pulse-soft 2s ease-in-out infinite;
+}
 
 /* data-stream stub */
 @keyframes data-stream {
-  0% { transform: translateY(-100%); opacity: 0; }
-  10% { opacity: 1; }
-  90% { opacity: 1; }
-  100% { transform: translateY(100%); opacity: 0; }
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100%);
+    opacity: 0;
+  }
 }
-.animate-data-stream { animation: data-stream 2s infinite linear; }
+.animate-data-stream {
+  animation: data-stream 2s infinite linear;
+}
 
-.stagger-1 { animation-delay: 0.1s; }
-.stagger-2 { animation-delay: 0.2s; }
-.stagger-3 { animation-delay: 0.3s; }
-.stagger-4 { animation-delay: 0.4s; }
+.stagger-1 {
+  animation-delay: 0.1s;
+}
+.stagger-2 {
+  animation-delay: 0.2s;
+}
+.stagger-3 {
+  animation-delay: 0.3s;
+}
+.stagger-4 {
+  animation-delay: 0.4s;
+}
 
 .typing-effect {
   overflow: hidden;
@@ -491,12 +605,15 @@ a:focus-visible {
 
 .nav-item.active {
   background: var(--color-primary);
-  color: #FFFFFF;
+  color: #ffffff;
   border-color: transparent;
   box-shadow: 0 4px 12px rgba(10, 132, 255, 0.25);
 }
 
-.nav-item:disabled { opacity: 0.4; cursor: not-allowed; }
+.nav-item:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 
 /* ─── Status Indicator ─────────────────────────────────────────── */
 .status-dot {
@@ -507,12 +624,12 @@ a:focus-visible {
 }
 
 .status-dot-live {
-  background: #30D158;
+  background: #30d158;
   box-shadow: 0 0 6px rgba(48, 209, 88, 0.4);
 }
 
 .status-dot-rendering {
-  background: #FFD60A;
+  background: #ffd60a;
   animation: pulse-soft 1s ease-in-out infinite;
 }
 
@@ -551,8 +668,14 @@ a:focus-visible {
   pointer-events: auto;
 }
 
-.toast-icon { display: flex; align-items: center; opacity: 0.85; }
-.toast-label { white-space: nowrap; }
+.toast-icon {
+  display: flex;
+  align-items: center;
+  opacity: 0.85;
+}
+.toast-label {
+  white-space: nowrap;
+}
 
 .toast-action {
   margin-left: 0.25rem;
@@ -568,28 +691,58 @@ a:focus-visible {
   transition: opacity 0.15s ease-out;
   pointer-events: auto;
 }
-.toast-action:hover { opacity: 0.85; }
+.toast-action:hover {
+  opacity: 0.85;
+}
 .toast-action:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
 
 @keyframes toast-in-out {
-  0% { opacity: 0; transform: translateY(-12px); }
-  12% { opacity: 1; transform: translateY(0); }
-  85% { opacity: 1; transform: translateY(0); }
-  100% { opacity: 0; transform: translateY(-8px); }
+  0% {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  12% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  85% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
 }
 
 @keyframes toast-in-out-long {
-  0% { opacity: 0; transform: translateY(-12px); }
-  5% { opacity: 1; transform: translateY(0); }
-  93% { opacity: 1; transform: translateY(0); }
-  100% { opacity: 0; transform: translateY(-8px); }
+  0% {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  5% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  93% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
 }
 
-.animate-toast { animation: toast-in-out 2.5s ease-out forwards; }
-.animate-toast-long { animation: toast-in-out-long 6s ease-out forwards; }
+.animate-toast {
+  animation: toast-in-out 2.5s ease-out forwards;
+}
+.animate-toast-long {
+  animation: toast-in-out-long 6s ease-out forwards;
+}
 
 /* ─── Right Panel Transitions ─────────────────────────────────── */
 .mobile-sheet-scroll > div > * {
@@ -614,23 +767,41 @@ a:focus-visible {
 .reveal {
   opacity: 0;
   transform: translateY(24px);
-  transition: opacity 0.7s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.7s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition:
+    opacity 0.7s cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 0.7s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .reveal.visible {
   opacity: 1;
   transform: translateY(0);
 }
-.reveal-delay-1 { transition-delay: 0.1s; }
-.reveal-delay-2 { transition-delay: 0.2s; }
-.reveal-delay-3 { transition-delay: 0.3s; }
-.reveal-delay-4 { transition-delay: 0.4s; }
+.reveal-delay-1 {
+  transition-delay: 0.1s;
+}
+.reveal-delay-2 {
+  transition-delay: 0.2s;
+}
+.reveal-delay-3 {
+  transition-delay: 0.3s;
+}
+.reveal-delay-4 {
+  transition-delay: 0.4s;
+}
 
 /* ─── Counter Animation ───────────────────────────────────────── */
 @keyframes count-up {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
-.animate-count-up { animation: count-up 0.6s ease-out both; }
+.animate-count-up {
+  animation: count-up 0.6s ease-out both;
+}
 
 /* ─── Feature Card Hover States ───────────────────────────────── */
 .feature-card-interactive {
@@ -657,30 +828,69 @@ a:focus-visible {
 
 /* ─── Cost Comparison Pulse ───────────────────────────────────── */
 @keyframes savings-glow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(48, 209, 88, 0); }
-  50% { box-shadow: 0 0 20px 4px rgba(48, 209, 88, 0.15); }
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(48, 209, 88, 0);
+  }
+  50% {
+    box-shadow: 0 0 20px 4px rgba(48, 209, 88, 0.15);
+  }
 }
-.savings-glow { animation: savings-glow 3s ease-in-out infinite; }
+.savings-glow {
+  animation: savings-glow 3s ease-in-out infinite;
+}
 
 /* ─── App Mockup Animation ────────────────────────────────────── */
 @keyframes mockup-upload {
-  0% { opacity: 0; transform: scale(0.95); }
-  15% { opacity: 1; transform: scale(1); }
-  100% { opacity: 1; transform: scale(1); }
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  15% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 @keyframes mockup-process {
-  0%, 30% { width: 0%; }
-  70% { width: 100%; }
-  100% { width: 100%; }
+  0%,
+  30% {
+    width: 0%;
+  }
+  70% {
+    width: 100%;
+  }
+  100% {
+    width: 100%;
+  }
 }
 @keyframes mockup-result {
-  0%, 65% { opacity: 0; transform: scale(0.97); }
-  80% { opacity: 1; transform: scale(1); }
-  100% { opacity: 1; transform: scale(1); }
+  0%,
+  65% {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  80% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
-.mockup-step-upload { animation: mockup-upload 6s ease-out infinite; }
-.mockup-step-bar { animation: mockup-process 6s ease-in-out infinite; }
-.mockup-step-result { animation: mockup-result 6s ease-out infinite; }
+.mockup-step-upload {
+  animation: mockup-upload 6s ease-out infinite;
+}
+.mockup-step-bar {
+  animation: mockup-process 6s ease-in-out infinite;
+}
+.mockup-step-result {
+  animation: mockup-result 6s ease-out infinite;
+}
 
 /* ─── Cluster N · Community Gallery marquee ──────────────────────
  * Single-row, infinite leftward auto-scroll. The track contains the
@@ -690,13 +900,29 @@ a:focus-visible {
  * selector on the parent.
  */
 @keyframes gallery-scroll {
-  0%   { transform: translate3d(0, 0, 0); }
-  100% { transform: translate3d(-50%, 0, 0); }
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
 }
 .gallery-marquee {
   /* Mask edges so cards fade in/out instead of clipping hard. */
-  -webkit-mask-image: linear-gradient(to right, transparent 0, black 8%, black 92%, transparent 100%);
-          mask-image: linear-gradient(to right, transparent 0, black 8%, black 92%, transparent 100%);
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    black 8%,
+    black 92%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    black 8%,
+    black 92%,
+    transparent 100%
+  );
 }
 .gallery-marquee-track {
   display: flex;
@@ -710,11 +936,16 @@ a:focus-visible {
 
 /* ─── Reduced Motion ───────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-  .reveal { opacity: 1; transform: none; }
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
 }

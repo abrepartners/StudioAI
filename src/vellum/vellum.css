@@ -3,6 +3,8 @@
    Ported from hi-fi prototype for StudioAI parallel build.
    ===================================================================== */
 
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap");
+
 /* ---- Fonts ---- */
 @font-face {
   font-family: "Cormorant Garamond";
@@ -55,43 +57,53 @@
   font-display: swap;
 }
 
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap");
-
-/* ---- Design Tokens ---- */
+/* ---- Design Tokens ----
+   DARK EDITORIAL — unified with the .vl-root landing palette
+   (near-black #0d0d0d / #161616, gold #d8c79a, Cormorant serif).
+   Token NAMES are retained so the ~470 existing references resolve
+   to their dark-theme role. Raw tokens map to their DOMINANT role:
+     --deep-charcoal / --warm-ivory  = primary/secondary TEXT (light on dark)
+     --soft-stone                    = subtle surface + hairline border
+     --graphite                      = muted text
+   The handful of elements that paired a charcoal SURFACE with ivory
+   text (active/primary/accent chips) are retargeted to the gold accent
+   in the "DARK ACCENT REMAP" block just below this one. ---- */
 .vellum {
-  --warm-ivory: #f7f6f2;
-  --soft-stone: #e6e3de;
-  --muted-sand: #d6c8b2;
-  --graphite: #6b6f72;
-  --deep-charcoal: #1b1d1f;
+  --warm-ivory: #f3f1ec;
+  --soft-stone: #272b30;
+  --muted-sand: #3a3f45;
+  --graphite: #9a968f;
+  --deep-charcoal: #f3f1ec;
   --pale-gold: #d8c79a;
 
-  --background-primary: #f7f6f2;
-  --background-secondary: #e6e3de;
-  --background-tertiary: #f1e8d8;
-  --background-elevated: #ffffff;
+  --background-primary: #0d0d0d;
+  --background-secondary: #161616;
+  --background-tertiary: #1d1b15;
+  --background-elevated: #161616;
 
-  --text-primary: #1b1d1f;
-  --text-secondary: #6b6f72;
-  --text-muted: #9a9690;
+  --text-primary: #f3f1ec;
+  --text-secondary: #a8a49d;
+  --text-muted: #6f6c66;
 
-  --border-light: #e6e3de;
-  --border-medium: #d6c8b2;
+  --border-light: #22252a;
+  --border-medium: #33373d;
 
   --brand-accent: #d8c79a;
-  --brand-accent-dark: #a8874f;
+  --brand-accent-dark: #cdb87f;
 
-  --state-success: #6f8f72;
-  --state-success-soft: #eef4ea;
-  --state-warning: #b58b42;
-  --state-error: #a14a3a;
+  /* accent surface = gold; ink-on-accent = near-black */
+  --accent-surface: #d8c79a;
+  --accent-surface-hover: #e2d4ae;
+  --accent-ink: #161616;
 
-  --shadow-sm:
-    0 1px 2px rgba(27, 29, 31, 0.04), 0 1px 3px rgba(27, 29, 31, 0.04);
-  --shadow-md:
-    0 8px 24px rgba(27, 29, 31, 0.06), 0 2px 6px rgba(27, 29, 31, 0.04);
-  --shadow-lg:
-    0 24px 48px rgba(27, 29, 31, 0.08), 0 4px 12px rgba(27, 29, 31, 0.04);
+  --state-success: #8fb592;
+  --state-success-soft: rgba(111, 143, 114, 0.18);
+  --state-warning: #d8b063;
+  --state-error: #d97a68;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 24px 48px rgba(0, 0, 0, 0.55), 0 4px 12px rgba(0, 0, 0, 0.4);
 
   --ease-vellum: cubic-bezier(0.22, 0.61, 0.36, 1);
 
@@ -102,10 +114,84 @@
   font-family: var(--font-sans);
   font-size: 14px;
   line-height: 1.5;
-  color: var(--deep-charcoal);
-  background: var(--warm-ivory);
+  color: var(--text-primary);
+  background: var(--background-primary);
   -webkit-font-smoothing: antialiased;
   font-feature-settings: "cv11", "ss01";
+}
+
+/* ===== DARK ACCENT REMAP =====
+   In the light theme these elements used a charcoal SURFACE with ivory
+   TEXT to read as "primary/active." On dark editorial that pairing turns
+   near-black-on-near-black (invisible). Retarget them to the gold accent
+   so active/primary states stay legible and premium. Selectors mirror the
+   original surface-pairings exactly. */
+.vellum .v-nav-link.active,
+.vellum .v-btn--primary,
+.vellum .v-filter-chip.active,
+.vellum .v-tool-item.active .icon,
+.vellum .v-tool-item.active .v-tool-icon,
+.vellum .v-preset.active,
+.vellum .v-export-btn.gold,
+.vellum .v-export-row.primary,
+.vellum .v-subtab.active,
+.vellum .v-create-btn.video {
+  background: var(--accent-surface);
+  color: var(--accent-ink);
+  border-color: var(--accent-surface);
+}
+/* Featured/"current plan" card carries gold ACCENTS inside it, so it stays a
+   dark elevated surface with a gold border rather than a gold fill. */
+.vellum .v-plan.featured {
+  background: #1a1a1a;
+  color: var(--text-primary);
+  border-color: var(--pale-gold);
+}
+.vellum .v-nav-link.active svg,
+.vellum .v-create-btn.video svg,
+.vellum .v-tool-item.active .icon svg,
+.vellum .v-export-btn.gold svg {
+  color: var(--accent-ink);
+}
+.vellum .v-btn--primary:hover,
+.vellum .v-create-btn.video:hover,
+.vellum .v-export-btn.gold:hover,
+.vellum .v-plan .plan-cta:hover {
+  background: var(--accent-surface-hover);
+  color: var(--accent-ink);
+}
+/* Nav badge sitting inside an active (gold) link → dark ink chip. */
+.vellum .v-nav-link.active .v-nav-badge {
+  background: rgba(22, 22, 22, 0.18);
+  color: var(--accent-ink);
+}
+/* The avatar pill reads better as a gold disc on dark than a charcoal one. */
+.vellum .v-avatar {
+  background: var(--accent-surface);
+  color: var(--accent-ink);
+}
+/* Switches / fills / scrub heads / sliders = gold on dark. */
+.vellum .v-switch.on,
+.vellum .v-slider-fill,
+.vellum .v-scrub-head,
+.vellum .v-play-btn,
+.vellum .v-dest-avatar {
+  background: var(--accent-surface);
+  color: var(--accent-ink);
+}
+/* Active outline accents → gold border instead of bright-white ink. */
+.vellum .v-filter-chip.active,
+.vellum .v-preset.active,
+.vellum .v-export-row.primary,
+.vellum .v-sb-card.active,
+.vellum .v-aspect-btn.on,
+.vellum .v-music-row.on,
+.vellum .v-pack.on,
+.vellum .v-single-thumb.active,
+.vellum .v-thumb-strip .t.selected,
+.vellum .v-wm-pos-btn.on,
+.vellum .v-search-input:focus-within {
+  border-color: var(--accent-surface);
 }
 
 .vellum *,
@@ -132,7 +218,7 @@
   position: sticky;
   top: 0;
   z-index: 30;
-  background: rgba(247, 246, 242, 0.84);
+  background: rgba(13, 13, 13, 0.82);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--soft-stone);
@@ -531,11 +617,12 @@
 }
 .v-btn--secondary {
   background: transparent;
-  color: var(--deep-charcoal);
-  border-color: var(--deep-charcoal);
+  color: var(--text-primary);
+  border-color: var(--border-medium);
 }
 .v-btn--secondary:hover {
-  background: rgba(247, 246, 242, 0.6);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--pale-gold);
 }
 .v-btn--ghost {
   background: var(--background-elevated);
@@ -572,6 +659,7 @@
 .v-kpi:hover {
   box-shadow: var(--shadow-md);
   transform: translateY(-2px);
+  border-color: rgba(216, 199, 154, 0.45);
 }
 .v-kpi .label {
   font-size: 11px;
@@ -647,14 +735,22 @@
 }
 .v-tbl tr {
   border-bottom: 1px solid var(--soft-stone);
-  transition: background 180ms;
+  transition:
+    background 180ms var(--ease-vellum),
+    box-shadow 180ms var(--ease-vellum);
 }
 .v-tbl tbody tr:last-child {
   border-bottom: 0;
 }
-.v-tbl tbody tr:hover {
-  background: var(--background-primary);
+/* D8 — recent-listing rows read as clickable: cursor + a subtle lighter
+   wash (the table sits on --background-elevated, so we lighten on hover
+   rather than darken) plus an inset gold edge cue. */
+.v-tbl tbody tr {
   cursor: pointer;
+}
+.v-tbl tbody tr:hover {
+  background: rgba(255, 255, 255, 0.035);
+  box-shadow: inset 3px 0 0 var(--pale-gold);
 }
 .v-tbl .project-cell {
   display: flex;
@@ -689,19 +785,19 @@
   color: var(--graphite);
 }
 .v-pill--gold {
-  background: #efe7d6;
-  color: #8a6e3a;
+  background: rgba(216, 199, 154, 0.15);
+  color: var(--pale-gold);
 }
 .v-pill--ready {
-  background: #e6efe7;
-  color: #3d6b47;
+  background: rgba(111, 143, 114, 0.18);
+  color: var(--state-success);
 }
 .v-pill--processing {
-  background: #f1e8d8;
-  color: #8a6e3a;
+  background: rgba(216, 176, 99, 0.16);
+  color: var(--state-warning);
 }
 .v-pill--processing .dot {
-  background: #c09850;
+  background: var(--state-warning);
   animation: v-pulse 1.4s infinite;
 }
 .v-pill--draft {
@@ -871,9 +967,9 @@
   opacity: 1;
 }
 .v-panel-toggle:hover {
-  background: var(--deep-charcoal);
-  color: var(--warm-ivory);
-  border-color: var(--deep-charcoal);
+  background: var(--accent-surface);
+  color: var(--accent-ink);
+  border-color: var(--accent-surface);
 }
 .v-panel-toggle--left {
   right: -10px;
@@ -887,7 +983,10 @@
   border-left: 1px solid var(--soft-stone);
 }
 .v-editor-center {
-  background: var(--background-secondary);
+  /* D3 — neutral dark grey photo-judgment surface. Deliberately NOT the
+     shared --background-secondary token: a warm/tinted backdrop biases
+     color/exposure decisions. Matches .v-preview-frame charcoal. */
+  background: #141414;
   overflow-y: auto;
   padding: 28px 32px;
 }
@@ -979,8 +1078,10 @@
   position: relative;
   border-radius: 12px;
   overflow: hidden;
-  background: var(--soft-stone);
-  border: 1px solid var(--soft-stone);
+  /* D3 — neutral dark grey photo stage (not warm stone) so the eye judges
+     the image, not the frame. */
+  background: #1b1d1f;
+  border: 1px solid var(--border-light);
   aspect-ratio: 16/10;
   user-select: none;
 }
@@ -1018,9 +1119,11 @@ img.v-ba-img-dimmed {
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--graphite);
+  color: var(--text-secondary);
   padding: 6px 14px;
-  background: rgba(247, 246, 242, 0.85);
+  background: rgba(13, 13, 13, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border-radius: 4px;
 }
 .v-ba-clip {
@@ -1059,8 +1162,10 @@ img.v-ba-img-dimmed {
   position: absolute;
   top: 14px;
   padding: 6px 12px;
-  background: rgba(247, 246, 242, 0.92);
-  color: var(--deep-charcoal);
+  background: rgba(13, 13, 13, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: var(--text-primary);
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.18em;
@@ -1446,7 +1551,7 @@ img.v-ba-img-dimmed {
   font-family: var(--font-sans);
 }
 .v-plan.featured .plan-price em {
-  color: rgba(247, 246, 242, 0.55);
+  color: rgba(243, 241, 236, 0.6);
 }
 .v-plan .plan-tag {
   font-size: 12px;
@@ -1454,7 +1559,7 @@ img.v-ba-img-dimmed {
   margin-bottom: 16px;
 }
 .v-plan.featured .plan-tag {
-  color: rgba(247, 246, 242, 0.65);
+  color: rgba(243, 241, 236, 0.7);
 }
 .v-plan ul {
   list-style: none;
@@ -1526,11 +1631,12 @@ img.v-ba-img-dimmed {
 .v-modal {
   position: relative;
   background: var(--background-elevated);
+  border: 1px solid var(--border-light);
   border-radius: 8px;
   width: 640px;
   max-width: 100%;
   padding: 36px 36px 28px;
-  box-shadow: 0 30px 80px -20px rgba(27, 29, 31, 0.4);
+  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.65);
   animation: v-rise 240ms var(--ease-vellum);
 }
 @keyframes v-rise {
@@ -1749,12 +1855,15 @@ img.v-ba-img-dimmed {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--background-elevated);
+  background: var(--warm-ivory);
   transition: transform 200ms var(--ease-vellum);
-  box-shadow: 0 1px 2px rgba(27, 29, 31, 0.2);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 .v-switch.on {
   background: var(--deep-charcoal);
+}
+.v-switch.on span {
+  background: var(--accent-ink);
 }
 .v-switch.on span {
   transform: translateX(14px);
@@ -1833,11 +1942,14 @@ img.v-ba-img-dimmed {
   flex-direction: column;
   align-items: center;
   gap: 12px;
-  background: rgba(247, 246, 242, 0.96);
+  background: rgba(22, 22, 22, 0.92);
+  border: 1px solid var(--border-light);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border-radius: 8px;
   padding: 28px 36px;
   min-width: 300px;
-  box-shadow: 0 24px 60px -16px rgba(27, 29, 31, 0.45);
+  box-shadow: 0 24px 60px -16px rgba(0, 0, 0, 0.6);
   z-index: 2;
   animation: v-rise 240ms var(--ease-vellum);
 }
@@ -2010,10 +2122,12 @@ img.v-ba-img-dimmed {
   position: relative;
   margin: 0 auto;
   width: 100%;
-  background: var(--deep-charcoal);
+  /* Neutral charcoal video frame (the D3 reference) — keep it literal so the
+     token re-map to light text never turns this surface white. */
+  background: #1b1d1f;
   border-radius: 6px;
   overflow: hidden;
-  box-shadow: 0 30px 60px -30px rgba(27, 29, 31, 0.35);
+  box-shadow: 0 30px 60px -30px rgba(0, 0, 0, 0.55);
 }
 .v-preview-img {
   width: 100%;
@@ -2085,7 +2199,7 @@ img.v-ba-img-dimmed {
     transform 120ms ease;
 }
 .v-play-btn:hover {
-  background: #2a2d30;
+  background: var(--accent-surface-hover);
 }
 .v-play-btn:active {
   transform: scale(0.96);
@@ -2258,10 +2372,45 @@ img.v-ba-img-dimmed {
 .v-aspect-btn:hover {
   border-color: var(--graphite);
 }
+/* Selected format = gold edge + faint gold wash so the active aspect reads
+   clearly on the dark rail (the old charcoal inset remapped to near-black). */
 .v-aspect-btn.on {
-  border-color: var(--deep-charcoal);
-  background: var(--background-elevated);
-  box-shadow: 0 0 0 1px var(--deep-charcoal) inset;
+  border-color: var(--pale-gold);
+  background: rgba(216, 199, 154, 0.07);
+  box-shadow: 0 0 0 1px var(--pale-gold) inset;
+}
+.v-aspect-btn.on .v-aspect-frame {
+  border-color: var(--pale-gold);
+}
+.v-aspect-btn.on .v-aspect-label {
+  color: var(--pale-gold);
+}
+/* Mini aspect-ratio proxy frame inside each format button. */
+.v-aspect-frame {
+  border: 1.5px solid var(--graphite);
+  border-radius: 2px;
+  transition: border-color 180ms ease;
+}
+.v-aspect-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--deep-charcoal);
+  transition: color 180ms ease;
+}
+.v-aspect-sub {
+  font-size: 10px;
+  color: var(--graphite);
+  text-align: center;
+  line-height: 1.2;
+}
+
+/* Pace / end-card segmented controls inside the reel rail carry a subtle gold
+   active state (scoped to .v-video-rail so the Settings .v-seg stays neutral). */
+.v-video-rail .v-seg-btn.on {
+  background: rgba(216, 199, 154, 0.1);
+  color: var(--pale-gold);
+  box-shadow: 0 0 0 1px var(--pale-gold) inset;
 }
 
 .v-music-list {
@@ -2338,7 +2487,329 @@ img.v-ba-img-dimmed {
   border-color: var(--deep-charcoal);
 }
 .v-export-row.primary:hover {
-  background: #2a2d30;
+  background: var(--accent-surface-hover);
+  color: var(--accent-ink);
+}
+/* Export rows hold real work now: disable cleanly while a render is running so
+   the user can't fire a second encode (and so we never charge twice). */
+.v-export-row:disabled,
+.v-export-row[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: progress;
+  pointer-events: none;
+}
+
+/* =====================================================================
+   REEL — REAL PREVIEW + EXPORT
+   The reel is no longer a mockup. The preview is a live <canvas> that plays
+   Ken Burns motion + captions + the branded end card, and export encodes a
+   real MP4 in-browser. These classes layer onto the existing reel chrome
+   (.v-preview-frame, .v-transport, .v-storyboard, .v-video-rail …) and add
+   the canvas surface, a true progress bar, busy/empty states, and the
+   "HD needs Chrome" note. Dark-editorial gold language throughout.
+   ===================================================================== */
+
+/* ---- Live canvas preview ----
+   The canvas itself carries the correct intrinsic resolution (set in JS via
+   width/height attrs); CSS only frames it. It sits inside .v-preview-frame,
+   which already supplies the charcoal stage + aspect-ratio. We center the
+   canvas and let object-fit keep it letterboxed if the canvas pixel ratio and
+   the frame ratio ever diverge mid-encode. */
+.v-reel-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  inset: 0;
+  object-fit: contain;
+  background: #0a0b0c;
+}
+/* When the frame is driving the aspect (9:16 / 1:1 / 16:9) we want the canvas
+   to fill it exactly — the frame's aspect-ratio + overflow:hidden already
+   crop, so cover reads cleaner than contain for a full-bleed reel. */
+.v-preview-frame.v-reel-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0a0b0c;
+}
+.v-preview-frame.v-reel-stage .v-reel-canvas {
+  object-fit: cover;
+}
+/* Aspect framing helpers — apply alongside the JS aspectStyle so the framing
+   intent is explicit and class-driven, not only inline. */
+.v-reel-stage--9_16 {
+  aspect-ratio: 9 / 16;
+  max-width: 340px;
+}
+.v-reel-stage--1_1 {
+  aspect-ratio: 1 / 1;
+  max-width: 480px;
+}
+.v-reel-stage--16_9 {
+  aspect-ratio: 16 / 9;
+  max-width: 680px;
+}
+
+/* Small floating aspect badge already exists as .v-aspect-badge in JS; ensure
+   it reads as a gold-tinted glass chip on the live canvas. */
+.v-aspect-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 4;
+  padding: 4px 9px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--pale-gold);
+  background: rgba(10, 11, 12, 0.6);
+  border: 1px solid rgba(216, 199, 154, 0.28);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+/* ---- Real export progress ----
+   .v-reel-progress is the live encode bar. It only appears while a real MP4 is
+   being produced; the gold fill is width-driven from JS (0→100). Never shown
+   unless an actual encode is in flight (we never fake progress). */
+.v-reel-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  margin-top: 4px;
+  background: var(--background-primary);
+  border: 1px solid var(--soft-stone);
+  border-radius: 6px;
+}
+.v-reel-progress-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+}
+.v-reel-progress-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  color: var(--deep-charcoal);
+}
+.v-reel-progress-label .v-gen-spinner {
+  width: 11px;
+  height: 11px;
+}
+.v-reel-progress-pct {
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--pale-gold);
+}
+.v-reel-progress-track {
+  position: relative;
+  height: 6px;
+  background: var(--soft-stone);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.v-reel-progress-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+  background: linear-gradient(
+    90deg,
+    var(--brand-accent-dark),
+    var(--pale-gold)
+  );
+  border-radius: 3px;
+  transition: width 160ms linear;
+  box-shadow: 0 0 10px rgba(216, 199, 154, 0.4);
+}
+/* Indeterminate variant (e.g. while frames are still being composited and we
+   have no % yet) — a gold sweep instead of a static fill. */
+.v-reel-progress-fill.indeterminate {
+  width: 36%;
+  animation: v-reel-sweep 1.1s var(--ease-vellum) infinite;
+}
+@keyframes v-reel-sweep {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(380%);
+  }
+}
+.v-reel-progress-sub {
+  font-size: 11px;
+  color: var(--graphite);
+  line-height: 1.45;
+}
+
+/* ---- Export-busy state ----
+   While encoding, dim the rail's interactive bits and surface the work on the
+   canvas with a quiet gold scan. Reuses .v-gen-overlay vocabulary so it feels
+   native to the rest of the editor. */
+.v-export-block.is-busy .v-export-row {
+  opacity: 0.45;
+  pointer-events: none;
+}
+.v-reel-export-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+  padding: 24px;
+  background: rgba(10, 11, 12, 0.72);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border-radius: inherit;
+  animation: v-fadein 200ms ease;
+}
+.v-reel-export-overlay .v-gen-eye {
+  color: var(--pale-gold);
+}
+.v-reel-export-title {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--warm-ivory);
+}
+.v-reel-export-sub {
+  font-size: 12px;
+  color: rgba(247, 246, 242, 0.66);
+  max-width: 220px;
+  line-height: 1.5;
+}
+/* Thin gold scan-line that travels the canvas while encoding — signals real,
+   frame-by-frame work without faking a percentage. */
+.v-reel-export-scan {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--pale-gold),
+    transparent
+  );
+  opacity: 0.7;
+  animation: v-reel-scan 1.8s var(--ease-vellum) infinite;
+}
+@keyframes v-reel-scan {
+  0% {
+    top: 0;
+  }
+  100% {
+    top: 100%;
+  }
+}
+
+/* Completed pill — shown briefly after a real MP4 lands. */
+.v-reel-done {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--state-success);
+  background: var(--state-success-soft);
+  border: 1px solid rgba(143, 181, 146, 0.4);
+}
+.v-reel-done svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* ---- Empty state (no photos) ----
+   Reuses .v-empty-state vocabulary but tuned to sit inside the reel stage
+   column so the call-to-action to add staged photos is unmissable. */
+.v-reel-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 14px;
+  min-height: 420px;
+  padding: 56px 32px;
+  border: 1.5px dashed var(--soft-stone);
+  border-radius: 12px;
+  background: #141414;
+}
+.v-reel-empty .v-empty-icon {
+  margin-bottom: 4px;
+  color: var(--pale-gold);
+}
+.v-reel-empty h3 {
+  font-family: var(--font-serif);
+  font-size: 24px;
+  font-weight: 500;
+  margin: 0;
+  color: var(--deep-charcoal);
+}
+.v-reel-empty p {
+  font-size: 13px;
+  color: var(--graphite);
+  max-width: 360px;
+  line-height: 1.6;
+  margin: 0;
+}
+.v-reel-empty .v-reel-empty-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* ---- "HD export needs Chrome" note ----
+   Tasteful, low-key advisory. Gold hairline rule on the left, muted copy.
+   Not an error — a heads-up. The .strong variant is for true unsupported
+   (no MediaRecorder/VideoEncoder) where HD export is unavailable. */
+.v-reel-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 13px;
+  margin-top: 10px;
+  border-radius: 6px;
+  background: rgba(216, 199, 154, 0.05);
+  border: 1px solid rgba(216, 199, 154, 0.18);
+  border-left: 2px solid var(--pale-gold);
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--graphite);
+}
+.v-reel-note svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--pale-gold);
+}
+.v-reel-note strong {
+  color: var(--deep-charcoal);
+  font-weight: 600;
+}
+.v-reel-note.strong {
+  background: rgba(216, 176, 99, 0.08);
+  border-color: rgba(216, 176, 99, 0.28);
+  border-left-color: var(--state-warning);
+  color: var(--text-secondary);
+}
+.v-reel-note.strong svg {
+  color: var(--state-warning);
 }
 
 /* ============ PHOTO EDITOR — UPLOAD ZONE ============ */
@@ -2814,10 +3285,12 @@ img.v-ba-img-dimmed {
   background: var(--pale-gold);
 }
 .v-wm-color-charcoal {
-  color: var(--deep-charcoal);
+  /* literal watermark color preview — must stay charcoal, not the
+     re-mapped light-text value */
+  color: #1b1d1f;
 }
 .v-wm-color-charcoal .v-wm-rule {
-  background: var(--deep-charcoal);
+  background: #1b1d1f;
 }
 .v-wm-pos {
   display: flex;
@@ -2837,9 +3310,9 @@ img.v-ba-img-dimmed {
   border-color: var(--graphite);
 }
 .v-wm-pos-btn.on {
-  background: var(--deep-charcoal);
-  color: var(--warm-ivory);
-  border-color: var(--deep-charcoal);
+  background: var(--accent-surface);
+  color: var(--accent-ink);
+  border-color: var(--accent-surface);
 }
 
 .v-logo-placeholder {
@@ -3036,10 +3509,63 @@ img.v-ba-img-dimmed {
   }
   .v-editor {
     grid-template-columns: 1fr;
-    height: auto;
+    height: calc(100dvh - 64px);
   }
+  /* MOBILE editor — panels are no longer dead. They collapse out of the grid
+     and become fixed bottom sheets, summoned by the .v-mobile-tabbar. They are
+     hidden by default and only revealed when JS adds .is-mobile-open. */
   .v-editor-left,
   .v-editor-right {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    z-index: 60;
+    width: 100%;
+    max-height: 72dvh;
+    padding: 20px 18px calc(20px + env(safe-area-inset-bottom));
+    border: 0;
+    border-top: 1px solid var(--border-medium);
+    border-radius: 18px 18px 0 0;
+    background: rgba(18, 18, 18, 0.94);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: 0 -24px 60px -20px rgba(0, 0, 0, 0.7);
+    transform: translateY(102%);
+    transition: transform 320ms var(--ease-vellum);
+    pointer-events: none;
+    overflow-y: auto;
+  }
+  /* Grab-handle affordance at the top of each sheet. */
+  .v-editor-left::before,
+  .v-editor-right::before {
+    content: "";
+    position: sticky;
+    top: 0;
+    display: block;
+    width: 40px;
+    height: 4px;
+    margin: -6px auto 14px;
+    border-radius: 99px;
+    background: var(--border-medium);
+  }
+  .v-editor-left.is-mobile-open,
+  .v-editor-right.is-mobile-open {
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+  /* Neutralize desktop collapse/toggle chrome inside the sheets. */
+  .v-editor-left.collapsed,
+  .v-editor-right.collapsed {
+    padding: 20px 18px calc(20px + env(safe-area-inset-bottom));
+  }
+  .v-editor-left.collapsed > *:not(.v-panel-toggle),
+  .v-editor-right.collapsed > *:not(.v-panel-toggle) {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .v-panel-toggle {
     display: none;
   }
   .v-tbl {
@@ -3055,6 +3581,67 @@ img.v-ba-img-dimmed {
   }
   .v-search-input {
     min-width: 0;
+  }
+}
+
+/* ============ MOBILE EDITOR TABBAR ============
+   Premium glass dock that drives the two editor bottom-sheets on small
+   screens. Hidden from 900px up (desktop uses the side panels directly).
+   React (VellumPhotoEditor) renders this with two buttons — "Tools"
+   (toggles the left panel) and "Adjust" (toggles the right panel) — and
+   marks the active one with .is-active while applying .is-mobile-open to
+   the matching panel. */
+.v-mobile-tabbar {
+  position: fixed;
+  left: 50%;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 70;
+  display: flex;
+  gap: 4px;
+  padding: 5px;
+  border-radius: 14px;
+  border: 1px solid var(--border-medium);
+  background: rgba(18, 18, 18, 0.82);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 18px 44px -16px rgba(0, 0, 0, 0.75);
+}
+.v-mobile-tabbar button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition:
+    background 180ms var(--ease-vellum),
+    color 180ms var(--ease-vellum);
+}
+.v-mobile-tabbar button svg {
+  width: 16px;
+  height: 16px;
+}
+.v-mobile-tabbar button:hover {
+  color: var(--text-primary);
+}
+.v-mobile-tabbar button.is-active {
+  background: var(--accent-surface);
+  color: var(--accent-ink);
+}
+.v-mobile-tabbar button.is-active svg {
+  color: var(--accent-ink);
+}
+@media (min-width: 900px) {
+  .v-mobile-tabbar {
+    display: none;
   }
 }
 

@@ -1,5 +1,29 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  lazy,
+  Suspense,
+} from "react";
 import { Icon } from "./icons";
+import { useBrandKit } from "../../hooks/useBrandKit";
+
+// ── Output generators — lazy-loaded so they never bloat the editor chunk.
+// These were stranded on the dead /legacy route; surfacing them here is the
+// single highest-leverage win. All operate on ALREADY-processed images or
+// live endpoints (MLS/Social/Print are client-side; SocialPack hits the live
+// /api/render-template; ListingDescription uses the live Gemini copy helpers).
+const MLSExport = lazy(() => import("../../components/MLSExport"));
+const SocialPack = lazy(() => import("../../components/SocialPack"));
+const ListingDescription = lazy(
+  () => import("../../components/ListingDescription"),
+);
+const PrintCollateral = lazy(() => import("../../components/PrintCollateral"));
+const ListingKitPipeline = lazy(
+  () => import("../../components/ListingKitPipeline"),
+);
+const ExportModal = lazy(() => import("../../components/ExportModal"));
 import { fluxCleanup } from "../../services/fluxService";
 import {
   fluxTwilight,
@@ -32,8 +56,30 @@ import {
   buildCleanupSignal,
   type CleanupQualitySignal,
 } from "../types/cleanupQuality.ts";
+import { useVellumStore } from "./useVellumStore";
+import { sharpenImage } from "../../utils/sharpen";
+import { compositeStackedEdit } from "../../utils/stackComposite";
+import { generateThumbnail } from "../../utils/thumbnail";
 
 const SCRATCH_KEY = "__quick_edit__";
+
+// ── Per-tool composite drift-fix presets (C3) ───────────────────────────────
+// Renovation makes LOW-contrast whole-plane material swaps (wall color, floors,
+// backsplash) that a cleanup-tuned threshold silently filters out, so it needs
+// a far more permissive threshold to let those large diffs survive the mask.
+const RENOVATION_COMPOSITE = {
+  threshold: 0.03,
+  dilatePx: 8,
+  featherPx: 12,
+} as const;
+// Whiten / sky / twilight repaint broad regions with subtle, global tonal
+// shifts. A lighter, wide-feather preset preserves untouched texture without
+// the double-exposure overlay that an aggressive mask would produce.
+const LIGHT_COMPOSITE = {
+  threshold: 0.1,
+  dilatePx: 4,
+  featherPx: 18,
+} as const;
 
 interface UploadedPhoto {
   id: number;
@@ -229,7 +275,7 @@ interface PhotoEditorProps {
   setPage: (p: string) => void;
   credits: number;
   requestSpend: (amount: number, after?: (res: any) => void) => boolean;
-  refundCredits: (amount: number) => void;
+  recordGeneration: (amount?: number) => void;
   activeProject?: {
     id: string;
     address: string;
@@ -306,7 +352,9 @@ const callApiDirect = async (
       const prompt = pack
         ? buildStagingAssignment(pack, roomLabel)
         : `Virtually stage this ${roomLabel.toLowerCase()} with ${preset} style furnishings. Use premium furniture materials. Match the room's existing lighting on all new pieces. Professional real estate photography composition.`;
-      const result = await fluxStaging(imageBase64, prompt, signal);
+      const result = await fluxStaging(imageBase64, prompt, signal, {
+        skipUpscale: true,
+      });
       return { resultBase64: result.resultBase64 };
     }
     case "declutter": {
@@ -399,7 +447,9 @@ DO NOT:
 - Change the color of any object — only ambient light temperature changes.
 - Apply any tonal curve, LUT, or color grade beyond the specified target.
 - Make the photo "better" in any way not specified. This is a surgical white balance correction, not a retouch.`;
-      const result = await reveEdit(imageBase64, prompt, false, signal);
+      const result = await reveEdit(imageBase64, prompt, false, signal, {
+        skipUpscale: true,
+      });
       return { resultBase64: result.resultBase64 };
     }
     case "twilight": {
@@ -412,12 +462,15 @@ DO NOT:
         colorStyle || "golden",
         timeOfDay || "sunset",
         signal,
+        { skipUpscale: true },
       );
       return { resultBase64: result.resultBase64 };
     }
     case "sky": {
       const mapped = presetMap.sky[preset] || "blue";
-      const result = await nanoSky(imageBase64, mapped as SkyStyle, signal);
+      const result = await nanoSky(imageBase64, mapped as SkyStyle, signal, {
+        skipUpscale: true,
+      });
       return { resultBase64: result.resultBase64 };
     }
     case "lawn": {
@@ -464,7 +517,9 @@ DO NOT:
 - BOOST saturation, lift exposure on the lawn, or flatten color variation.
 - Replace the existing grass with brighter / more uniform / more saturated grass.
 - Add a glossy or HDR look. The lawn should not appear "enhanced" — it should appear corrected.`;
-      const result = await reveEdit(imageBase64, prompt, true, signal);
+      const result = await reveEdit(imageBase64, prompt, true, signal, {
+        skipUpscale: true,
+      });
       return { resultBase64: result.resultBase64 };
     }
     case "renovation": {
@@ -490,7 +545,9 @@ DO NOT:
         throw new Error(
           "Specify at least one renovation change (cabinets, counters, flooring, or walls).",
         );
-      const result = await fluxRenovation(imageBase64, details, signal);
+      const result = await fluxRenovation(imageBase64, details, signal, {
+        skipUpscale: true,
+      });
       return { resultBase64: result.resultBase64 };
     }
     default:
@@ -502,10 +559,11 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
   setPage,
   credits,
   requestSpend,
-  refundCredits,
+  recordGeneration,
   activeProject,
   updateProject,
 }) => {
+  const { pendingUploadOpen, setPendingUploadOpen } = useVellumStore();
   const [photos, setPhotos] = useState<UploadedPhoto[]>([]);
   const [activity, setActivity] = useState<
     { who: string; what: string; cost: number; when: string }[]
@@ -525,6 +583,11 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
     setProcessedResults({});
     setProcessedSet(new Set());
     setPhotoHistory({});
+    // B6-shell — reset selection/view so the header label and single-view
+    // index don't point at a photo from the previously open project.
+    setSelectedPhoto(0);
+    setSinglePhoto(null);
+    setView("compare");
     nextId.current = 0;
 
     (async () => {
@@ -691,12 +754,15 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
     };
   }, [onMoveRaw, onUp]);
 
+  // B4-shell — upload race fix. When an upload action navigated here, the store
+  // flag (not a window event) tells us to open the native file picker on mount.
+  // Clear it immediately so a later remount doesn't re-trigger the picker.
   useEffect(() => {
-    const onUploadEvent = () => fileInputRef.current?.click();
-    window.addEventListener("vellum:upload-files", onUploadEvent);
-    return () =>
-      window.removeEventListener("vellum:upload-files", onUploadEvent);
-  }, []);
+    if (pendingUploadOpen) {
+      fileInputRef.current?.click();
+      setPendingUploadOpen(false);
+    }
+  }, [pendingUploadOpen, setPendingUploadOpen]);
 
   // --- Per-photo generation state ---
   const [genMap, setGenMap] = useState<Record<number, PhotoGenState>>({});
@@ -812,7 +878,41 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
             setSamModal({ image, masks, resolver: resolve });
           }),
       );
-      const resultDataUrl = apiResult.resultBase64;
+      let resultDataUrl = apiResult.resultBase64;
+
+      // C3 — per-tool composite drift-fix. callApiDirect returns RAW model
+      // output for these tools, and Flux/Reve/Nano globally re-render the
+      // frame, drifting untouched textures. Sharpen the soft diffusion output,
+      // then composite so unchanged regions come byte-identical from the input
+      // buffer. Declutter/cleanup are scoped server-side via masks and staging
+      // is composited upstream, so neither gets a global composite here.
+      if (
+        tool === "renovation" ||
+        tool === "whiten" ||
+        tool === "sky" ||
+        tool === "twilight"
+      ) {
+        try {
+          const chainEnabled =
+            typeof window !== "undefined"
+              ? new URLSearchParams(window.location.search).get("chain") !== "0"
+              : true;
+          const fmt: "png" | "jpeg" = chainEnabled ? "png" : "jpeg";
+          const sharpened = await sharpenImage(resultDataUrl, 0.4, 1, fmt);
+          const compositeOpts =
+            tool === "renovation" ? RENOVATION_COMPOSITE : LIGHT_COMPOSITE;
+          resultDataUrl = await compositeStackedEdit(inputImage, sharpened, {
+            format: fmt,
+            ...compositeOpts,
+          });
+        } catch (compErr) {
+          console.warn(
+            "[Vellum] composite drift-fix failed, using raw model output:",
+            compErr,
+          );
+          resultDataUrl = apiResult.resultBase64;
+        }
+      }
 
       if (tool === "declutter") {
         try {
@@ -859,6 +959,10 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
         resultDataUrl,
       ).catch(() => {});
 
+      // Billing — charge ONCE per successful photo (requestSpend is now a gate
+      // only; it no longer deducts). Partial batch failures never overcharge.
+      recordGeneration(TOOL_COST[tool]);
+
       // Flash "Updated" indicator
       setJustUpdated((prev) => new Set([...prev, photo!.id]));
       setTimeout(
@@ -900,13 +1004,13 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
         return next;
       });
 
-      refundCredits(TOOL_COST[tool]);
-
+      // No charge on failure/cancel — recordGeneration only fires on success,
+      // so there is nothing to refund.
       if (err.name === "AbortError") {
         setActivity((a) => [
           {
             who: "Vellum",
-            what: `Cancelled ${photo.label} — ${TOOL_COST[tool]} cr refunded`,
+            what: `Cancelled ${photo.label}`,
             cost: 0,
             when: "just now",
           },
@@ -918,7 +1022,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
       setActivity((a) => [
         {
           who: "Vellum",
-          what: `Failed on ${photo.label} — ${TOOL_COST[tool]} cr refunded`,
+          what: `Failed on ${photo.label}`,
           cost: 0,
           when: "just now",
         },
@@ -1108,8 +1212,60 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
   const isRefined = (photo: UploadedPhoto) => processedSet.has(photo.id);
   const refinedCount = photos.filter((p) => processedSet.has(p.id)).length;
 
+  // B1-shell — persist project metadata so the dashboard reflects real counts,
+  // a thumbnail, and status instead of always showing "0 photos / Draft".
+  // Scoped to real projects only — SCRATCH_KEY/quick-edit sessions have no id.
+  useEffect(() => {
+    if (!activeProject?.id || !updateProject) return;
+    const projectId = activeProject.id;
+    const firstRefined = photos.find((p) => processedResults[p.id]);
+    const source =
+      (firstRefined && processedResults[firstRefined.id]) ||
+      photos[0]?.dataUrl ||
+      null;
+    const status: "draft" | "processing" | "ready" = refinedCount
+      ? refinedCount < photoCount
+        ? "processing"
+        : "ready"
+      : "draft";
+    let cancelled = false;
+    (async () => {
+      // Store a SMALL (256px) thumbnail — NEVER a full-res dataURL. A full
+      // image is multiple MB and would blow the ~5MB localStorage quota in
+      // useVellumStore, throwing QuotaExceededError and blanking the app.
+      const thumbnail = source ? await generateThumbnail(source, 256) : null;
+      if (cancelled) return;
+      updateProject(projectId, { photoCount, refinedCount, thumbnail, status });
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [photoCount, refinedCount, activeProject?.id]);
+
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
+
+  // [MOBILE contract] Under 900px both side panels are display:none. This state
+  // drives the .v-mobile-tabbar buttons that toggle .is-mobile-open on the
+  // matching panel so the editor is actually usable at 375px.
+  const [mobilePanel, setMobilePanel] = useState<"left" | "right" | null>(null);
+
+  // Export & Create — which output generator overlay is mounted (if any).
+  type OverlayKind =
+    | "reveal"
+    | "mls"
+    | "social"
+    | "description"
+    | "print"
+    | "listingkit";
+  const [activeOverlay, setActiveOverlay] = useState<OverlayKind | null>(null);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+
+  // Brand kit feeds the reveal-video brand bar + (internally) the surfaced
+  // generators that call useBrandKit() themselves.
+  const { brandKit } = useBrandKit();
+
   const [exporting, setExporting] = useState(false);
   const [exportLabel, setExportLabel] = useState("");
   const [exportError, setExportError] = useState("");
@@ -1132,6 +1288,48 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
   const currentPhoto = photos[currentPhotoIdx] || photos[0] || null;
   const currentPhotoRef = useRef(currentPhoto);
   currentPhotoRef.current = currentPhoto;
+
+  // ── Generator data ([GEN-PROPS]) ───────────────────────────────────────────
+  // Build the images array the surfaced generators consume: prefer each photo's
+  // loaded refined result, fall back to its original. We pass BOTH the
+  // [GEN-PROPS] shape (id/dataUrl/label/isRefined) and the legacy field names
+  // the current components destructure (source) so a generator compiles whether
+  // it has been migrated to the contract yet or not. Extra props are ignored by
+  // components that don't read them.
+  const overlayImages = photos.map((p) => {
+    const refined = processedResults[p.id];
+    const dataUrl = refined || p.dataUrl;
+    return {
+      id: String(p.id),
+      dataUrl,
+      source: dataUrl, // legacy field name (MLSExport / SocialPack)
+      label: p.label,
+      roomType: p.label,
+      isRefined: !!refined,
+    };
+  });
+
+  const overlayProjectName = activeProject?.address || "Quick edit";
+
+  const overlayListingMeta = activeProject
+    ? {
+        address: activeProject.address,
+        beds: activeProject.beds ?? undefined,
+        baths: activeProject.baths ?? undefined,
+      }
+    : undefined;
+
+  const openOverlay = (kind: OverlayKind) => {
+    setExportMenuOpen(false);
+    setActiveOverlay(kind);
+  };
+  const closeOverlay = useCallback(() => setActiveOverlay(null), []);
+
+  // Reveal video (ExportModal) operates on the SELECTED photo's before/after.
+  const revealAfter = currentPhoto
+    ? processedResults[currentPhoto.id] || null
+    : null;
+  const revealBefore = currentPhoto ? currentPhoto.dataUrl : null;
 
   const upscaleForExport = async (
     base64: string,
@@ -1951,7 +2149,13 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
         }}
       />
 
-      <div className={"v-editor-left" + (leftCollapsed ? " collapsed" : "")}>
+      <div
+        className={
+          "v-editor-left" +
+          (leftCollapsed ? " collapsed" : "") +
+          (mobilePanel === "left" ? " is-mobile-open" : "")
+        }
+      >
         <button
           className="v-panel-toggle v-panel-toggle--left"
           onClick={() => setLeftCollapsed((c) => !c)}
@@ -2136,6 +2340,161 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
                 Apply to all ({applyAllCount}) · {applyAllCost} cr
               </button>
             )}
+
+            {/* Export & Create — surfaces the output generators that were
+                previously stranded on the dead /legacy route. */}
+            <div style={{ position: "relative" }}>
+              <button
+                className="v-btn v-btn--secondary v-btn--sm"
+                onClick={() => setExportMenuOpen((o) => !o)}
+                aria-haspopup="menu"
+                aria-expanded={exportMenuOpen}
+              >
+                <Icon name="sparkles" size={12} /> Export &amp; Create{" "}
+                <Icon name="chevron_down" size={11} />
+              </button>
+              {exportMenuOpen && (
+                <>
+                  {/* click-away catcher */}
+                  <div
+                    style={{ position: "fixed", inset: 0, zIndex: 49 }}
+                    onClick={() => setExportMenuOpen(false)}
+                  />
+                  <div
+                    role="menu"
+                    style={{
+                      position: "absolute",
+                      top: "calc(100% + 6px)",
+                      right: 0,
+                      zIndex: 50,
+                      minWidth: 224,
+                      background: "var(--background-elevated)",
+                      border: "1px solid var(--border-light)",
+                      borderRadius: 10,
+                      boxShadow: "var(--shadow-lg)",
+                      padding: 6,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 2,
+                    }}
+                  >
+                    {(
+                      [
+                        {
+                          kind: "reveal" as const,
+                          icon: "video",
+                          label: "Reveal video",
+                          desc: "Before / after wipe for IG & TikTok",
+                          disabled: !revealAfter,
+                        },
+                        {
+                          kind: "mls" as const,
+                          icon: "mls",
+                          label: "MLS export",
+                          desc: "Resize, strip EXIF, watermark, zip",
+                          disabled: overlayImages.length === 0,
+                        },
+                        {
+                          kind: "social" as const,
+                          icon: "image",
+                          label: "Social pack",
+                          desc: "Branded IG / story templates",
+                          disabled: overlayImages.length === 0,
+                        },
+                        {
+                          kind: "description" as const,
+                          icon: "text",
+                          label: "Listing description",
+                          desc: "AI copy in 3 tones",
+                          disabled: false,
+                        },
+                        {
+                          kind: "print" as const,
+                          icon: "folder",
+                          label: "Print collateral",
+                          desc: "Flyer, open house, postcard PDFs",
+                          disabled: overlayImages.length === 0,
+                        },
+                        {
+                          kind: "listingkit" as const,
+                          icon: "sparkles",
+                          label: "Listing Kit",
+                          desc: "One-click MLS + social + copy bundle",
+                          disabled: overlayImages.length === 0,
+                        },
+                      ] as const
+                    ).map((item) => (
+                      <button
+                        key={item.kind}
+                        role="menuitem"
+                        disabled={item.disabled}
+                        onClick={() => openOverlay(item.kind)}
+                        className="v-export-menu-item"
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
+                          width: "100%",
+                          textAlign: "left",
+                          padding: "8px 10px",
+                          borderRadius: 7,
+                          border: "none",
+                          background: "transparent",
+                          cursor: item.disabled ? "not-allowed" : "pointer",
+                          opacity: item.disabled ? 0.4 : 1,
+                          color: "var(--text-primary)",
+                          fontFamily: "var(--font-sans)",
+                        }}
+                        title={
+                          item.disabled
+                            ? item.kind === "reveal"
+                              ? "Refine the selected photo first"
+                              : "Upload photos first"
+                            : undefined
+                        }
+                      >
+                        <span
+                          style={{
+                            width: 26,
+                            height: 26,
+                            borderRadius: 6,
+                            background: "rgba(216,199,154,0.12)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            flexShrink: 0,
+                          }}
+                        >
+                          <Icon
+                            name={item.icon}
+                            size={14}
+                            color="var(--pale-gold)"
+                          />
+                        </span>
+                        <span style={{ minWidth: 0 }}>
+                          <span
+                            style={{
+                              display: "block",
+                              fontSize: 12.5,
+                              fontWeight: 600,
+                            }}
+                          >
+                            {item.label}
+                          </span>
+                          <span
+                            className="v-muted"
+                            style={{ display: "block", fontSize: 10.5 }}
+                          >
+                            {item.desc}
+                          </span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
             <button
               className="v-btn v-btn--primary v-btn--sm"
               onClick={handleApply}
@@ -2360,7 +2719,13 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
         )}
       </div>
 
-      <div className={"v-editor-right" + (rightCollapsed ? " collapsed" : "")}>
+      <div
+        className={
+          "v-editor-right" +
+          (rightCollapsed ? " collapsed" : "") +
+          (mobilePanel === "right" ? " is-mobile-open" : "")
+        }
+      >
         <button
           className="v-panel-toggle v-panel-toggle--right"
           onClick={() => setRightCollapsed((c) => !c)}
@@ -2844,6 +3209,189 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
           ))}
         </div>
       </div>
+
+      {/* [MOBILE contract] Bottom tab bar — only visible under 900px (CSS
+          hides .v-mobile-tabbar at >=900px). The two buttons toggle the
+          .is-mobile-open bottom-sheet on the left (Tools) / right (Adjust)
+          panels so the editor is reachable at 375px. Selecting one closes the
+          other so they never stack. */}
+      <div className="v-mobile-tabbar">
+        <button
+          type="button"
+          className={mobilePanel === "left" ? "is-active" : ""}
+          aria-pressed={mobilePanel === "left"}
+          onClick={() => setMobilePanel((p) => (p === "left" ? null : "left"))}
+        >
+          <Icon name="armchair" size={14} /> Tools
+        </button>
+        <button
+          type="button"
+          className={mobilePanel === "right" ? "is-active" : ""}
+          aria-pressed={mobilePanel === "right"}
+          onClick={() =>
+            setMobilePanel((p) => (p === "right" ? null : "right"))
+          }
+        >
+          <Icon name="settings" size={14} /> Adjust
+        </button>
+      </div>
+
+      {/* ── Output generator overlays ──────────────────────────────────────
+          Each is lazy-loaded and mounted inside a dark-editorial overlay shell.
+          The MLS / Social / Description / Print panels are bare panels with no
+          modal chrome of their own, so we provide the overlay + close button
+          here and pass [GEN-PROPS] data (images built from refined results,
+          falling back to originals; project name + listing meta). The reveal
+          video (ExportModal) ships its own modal shell, so it is rendered
+          directly. */}
+      {activeOverlay === "reveal" && revealAfter && (
+        <Suspense fallback={null}>
+          <ExportModal
+            imageBase64={revealAfter}
+            originalImage={revealBefore || undefined}
+            editHistory={
+              currentPhoto
+                ? (photoHistory[currentPhoto.id] || []).map((h) => h.tool)
+                : []
+            }
+            brandKit={brandKit}
+            onClose={closeOverlay}
+          />
+        </Suspense>
+      )}
+
+      {activeOverlay &&
+        activeOverlay !== "reveal" &&
+        (() => {
+          const titles: Record<string, string> = {
+            mls: "MLS Export",
+            social: "Social Pack",
+            description: "Listing Description",
+            print: "Print Collateral",
+            listingkit: "Listing Kit",
+          };
+          return (
+            <div
+              className="v-gen-overlay"
+              style={{
+                position: "fixed",
+                inset: 0,
+                zIndex: 200,
+                background: "rgba(13,13,13,0.72)",
+                backdropFilter: "blur(6px)",
+                display: "grid",
+                placeItems: "center",
+                padding: 16,
+              }}
+              onClick={closeOverlay}
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  background: "var(--background-elevated)",
+                  borderRadius: 16,
+                  border: "1px solid var(--border-light)",
+                  boxShadow: "var(--shadow-lg)",
+                  width: "100%",
+                  maxWidth: 920,
+                  maxHeight: "90vh",
+                  overflow: "hidden",
+                  display: "flex",
+                  flexDirection: "column",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "16px 20px",
+                    borderBottom: "1px solid var(--border-light)",
+                    flexShrink: 0,
+                  }}
+                >
+                  <h3
+                    style={{
+                      margin: 0,
+                      fontFamily: "'Cormorant Garamond', serif",
+                      fontSize: 22,
+                      fontWeight: 500,
+                      color: "var(--text-primary)",
+                    }}
+                  >
+                    {titles[activeOverlay]}
+                  </h3>
+                  <button
+                    className="v-btn v-btn--ghost v-btn--sm"
+                    onClick={closeOverlay}
+                    aria-label="Close"
+                    style={{ padding: "6px 8px" }}
+                  >
+                    <Icon name="close" size={14} />
+                  </button>
+                </div>
+                <div style={{ overflowY: "auto", padding: 20 }}>
+                  <Suspense
+                    fallback={
+                      <div
+                        className="v-muted"
+                        style={{ padding: "32px 0", textAlign: "center" }}
+                      >
+                        Loading…
+                      </div>
+                    }
+                  >
+                    {activeOverlay === "mls" && (
+                      <MLSExport
+                        open
+                        onClose={closeOverlay}
+                        images={overlayImages}
+                        projectName={overlayProjectName}
+                        listingMeta={overlayListingMeta}
+                      />
+                    )}
+                    {activeOverlay === "social" && (
+                      <SocialPack
+                        open
+                        onClose={closeOverlay}
+                        images={overlayImages}
+                        projectName={overlayProjectName}
+                        listingMeta={overlayListingMeta}
+                      />
+                    )}
+                    {activeOverlay === "description" && (
+                      <ListingDescription
+                        open
+                        onClose={closeOverlay}
+                        images={overlayImages}
+                        projectName={overlayProjectName}
+                        listingMeta={overlayListingMeta}
+                      />
+                    )}
+                    {activeOverlay === "print" && (
+                      <PrintCollateral
+                        open
+                        onClose={closeOverlay}
+                        images={overlayImages}
+                        projectName={overlayProjectName}
+                        listingMeta={overlayListingMeta}
+                      />
+                    )}
+                    {activeOverlay === "listingkit" && (
+                      <ListingKitPipeline
+                        open
+                        onClose={closeOverlay}
+                        images={overlayImages}
+                        projectName={overlayProjectName}
+                        listingMeta={overlayListingMeta}
+                      />
+                    )}
+                  </Suspense>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
       {/* Room type picker modal — shown after uploading photos */}
       {showRoomPicker && (

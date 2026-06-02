@@ -1,27 +1,35 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Download, X, Type, Image as ImageIcon, Check, Share2, Heart, Video, Loader2 } from 'lucide-react';
-import { compositePreserve } from '../utils/compositePreserve';
-import { shouldPreserveOriginalPixelsOnExport } from '../utils/exportImagePolicy';
-import type { BrandKit } from '../hooks/useBrandKit';
-import { useModal } from '../hooks/useModal';
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import {
+  Download,
+  X,
+  Type,
+  Image as ImageIcon,
+  Check,
+  Share2,
+  Heart,
+  Video,
+  Loader2,
+} from "lucide-react";
+import type { BrandKit } from "../hooks/useBrandKit";
+import { useModal } from "../hooks/useModal";
 
-const STORAGE_KEY = 'studioai_export_settings';
+const STORAGE_KEY = "studioai_export_settings";
 
 interface ExportSettings {
   disclaimerEnabled: boolean;
-  disclaimerType: 'text' | 'icon';
+  disclaimerType: "text" | "icon";
   disclaimerText: string;
   disclaimerIcon: string | null; // base64
-  position: 'bottom-left' | 'bottom-right' | 'bottom-center';
+  position: "bottom-left" | "bottom-right" | "bottom-center";
   opacity: number;
 }
 
 const DEFAULT_SETTINGS: ExportSettings = {
   disclaimerEnabled: false,
-  disclaimerType: 'text',
-  disclaimerText: 'Virtually Staged',
+  disclaimerType: "text",
+  disclaimerText: "Virtually Staged",
   disclaimerIcon: null,
-  position: 'bottom-left',
+  position: "bottom-left",
   opacity: 0.7,
 };
 
@@ -34,11 +42,20 @@ interface ExportModalProps {
   brandKit?: BrandKit;
 }
 
-const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, editHistory = [], onClose, onShare, brandKit }) => {
+const ExportModal: React.FC<ExportModalProps> = ({
+  imageBase64,
+  originalImage,
+  editHistory = [],
+  onClose,
+  onShare,
+  brandKit,
+}) => {
   const [settings, setSettings] = useState<ExportSettings>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      return saved ? { ...DEFAULT_SETTINGS, ...JSON.parse(saved) } : DEFAULT_SETTINGS;
+      return saved
+        ? { ...DEFAULT_SETTINGS, ...JSON.parse(saved) }
+        : DEFAULT_SETTINGS;
     } catch {
       return DEFAULT_SETTINGS;
     }
@@ -49,7 +66,9 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
   const [shared, setShared] = useState(false);
   const [videoGenerating, setVideoGenerating] = useState(false);
   const [videoProgress, setVideoProgress] = useState(0);
-  const [videoAspect, setVideoAspect] = useState<'original' | '1:1' | '4:5' | '9:16'>('original');
+  const [videoAspect, setVideoAspect] = useState<
+    "original" | "1:1" | "4:5" | "9:16"
+  >("original");
   const iconInputRef = useRef<HTMLInputElement>(null);
   const videoCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -58,7 +77,10 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
     try {
       const toSave = { ...settings };
       // Don't save icon base64 to localStorage (too large) — save flag only
-      const saveObj = { ...toSave, disclaimerIcon: toSave.disclaimerIcon ? '__saved__' : null };
+      const saveObj = {
+        ...toSave,
+        disclaimerIcon: toSave.disclaimerIcon ? "__saved__" : null,
+      };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(saveObj));
     } catch {}
   }, [settings]);
@@ -77,51 +99,70 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
     if (!file) return;
     const reader = new FileReader();
     reader.onloadend = () => {
-      setSettings(prev => ({ ...prev, disclaimerIcon: reader.result as string, disclaimerType: 'icon' }));
+      setSettings((prev) => ({
+        ...prev,
+        disclaimerIcon: reader.result as string,
+        disclaimerType: "icon",
+      }));
     };
     reader.readAsDataURL(file);
-    e.target.value = '';
+    e.target.value = "";
   };
 
   const handleExport = async () => {
     setExporting(true);
     try {
-      // Composite: preserve original sharpness in unchanged areas
-      let finalImage = imageBase64;
-      if (originalImage && shouldPreserveOriginalPixelsOnExport(editHistory)) {
-        finalImage = await compositePreserve(originalImage, imageBase64);
-      }
+      // Single-pass export. The generatedImage (imageBase64) is ALREADY
+      // composited over the original at generation time, so we do NOT
+      // re-composite here. A second compositePreserve pass only re-softens
+      // every edited seam (cruder box-blur blend) — that was the root cause of
+      // exports "looking like shit." One clean canvas: draw the final image,
+      // draw the disclaimer onto the SAME canvas (no extra decode/encode
+      // round-trip), then encode ONCE.
+      //
+      // JPEG 0.95 is visually identical to the lossless in-app PNG but keeps
+      // export size materially close to the original input JPEG (lossless PNG
+      // exports run 20-30MB for a full-res staged photo).
+      const exportJpeg: string = await new Promise<string>(
+        (resolve, reject) => {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.onload = () => {
+            const canvas = document.createElement("canvas");
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) return reject(new Error("canvas context unavailable"));
+            ctx.drawImage(img, 0, 0);
 
-      // Apply disclaimer if enabled
-      if (settings.disclaimerEnabled) {
-        const rendered = await renderWithDisclaimer(finalImage, settings);
-        if (rendered) finalImage = rendered;
-      }
+            const encode = () => resolve(canvas.toDataURL("image/jpeg", 0.95));
 
-      // Re-encode to high-quality JPEG (0.95) for export. Our in-app pipeline
-      // keeps PNG between stacks (chain mode, lossless) but exported PNGs run
-      // 20-30MB for a full-res staged photo. JPEG 0.95 is visually identical
-      // and keeps export size materially close to the original input JPEG.
-      const exportJpeg: string = await new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          canvas.width = img.naturalWidth;
-          canvas.height = img.naturalHeight;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) return reject(new Error('canvas context unavailable'));
-          ctx.drawImage(img, 0, 0);
-          resolve(canvas.toDataURL('image/jpeg', 0.95));
-        };
-        img.onerror = reject;
-        img.src = finalImage;
-      }).catch(() => finalImage); // fallback to PNG if re-encode fails
+            // Draw the disclaimer onto the SAME canvas (avoids re-decoding the
+            // already-drawn image). Icon disclaimers load async, so encode in
+            // the callback once drawing is complete.
+            if (settings.disclaimerEnabled) {
+              drawDisclaimerOnCanvas(
+                ctx,
+                img.naturalWidth,
+                img.naturalHeight,
+                settings,
+                encode,
+              );
+            } else {
+              encode();
+            }
+          };
+          img.onerror = reject;
+          img.src = imageBase64.startsWith("data:")
+            ? imageBase64
+            : `data:image/jpeg;base64,${imageBase64}`;
+        },
+      ).catch(() => imageBase64); // fallback to source if encode fails
 
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = exportJpeg;
-      const toolSlug = editHistory.length > 0
-        ? `_${[...new Set(editHistory)].join('+')}`
-        : '';
+      const toolSlug =
+        editHistory.length > 0 ? `_${[...new Set(editHistory)].join("+")}` : "";
       link.download = `studioai${toolSlug}_${Date.now()}.jpg`;
       document.body.appendChild(link);
       link.click();
@@ -149,10 +190,12 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
       const loadImg = (src: string): Promise<HTMLImageElement> =>
         new Promise((resolve, reject) => {
           const img = new Image();
-          img.crossOrigin = 'anonymous';
+          img.crossOrigin = "anonymous";
           img.onload = () => resolve(img);
           img.onerror = reject;
-          img.src = src.startsWith('data:') ? src : `data:image/jpeg;base64,${src}`;
+          img.src = src.startsWith("data:")
+            ? src
+            : `data:image/jpeg;base64,${src}`;
         });
 
       const [beforeImg, afterImg] = await Promise.all([
@@ -163,12 +206,13 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
       // Canvas dimensions — 'original' matches the photo's native ratio
       let canvasWidth = 1080;
       let canvasHeight: number;
-      if (videoAspect === 'original') {
+      if (videoAspect === "original") {
         const ratio = beforeImg.naturalHeight / beforeImg.naturalWidth;
         canvasWidth = Math.min(beforeImg.naturalWidth, 1920); // cap at 1920 wide
         canvasHeight = Math.round(canvasWidth * ratio);
       } else {
-        canvasHeight = videoAspect === '1:1' ? 1080 : videoAspect === '4:5' ? 1350 : 1920;
+        canvasHeight =
+          videoAspect === "1:1" ? 1080 : videoAspect === "4:5" ? 1350 : 1920;
       }
 
       // Determine if we have a usable brand kit
@@ -180,7 +224,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
       if (hasBrand && brandKit?.logo) {
         brandLogoImg = await new Promise<HTMLImageElement | null>((resolve) => {
           const img = new Image();
-          img.crossOrigin = 'anonymous';
+          img.crossOrigin = "anonymous";
           img.onload = () => resolve(img);
           img.onerror = () => resolve(null);
           img.src = brandKit.logo!;
@@ -188,17 +232,20 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
       }
 
       // Create offscreen canvas
-      const canvas = document.createElement('canvas');
+      const canvas = document.createElement("canvas");
       canvas.width = canvasWidth;
       canvas.height = canvasHeight;
       videoCanvasRef.current = canvas;
-      const ctx = canvas.getContext('2d')!;
+      const ctx = canvas.getContext("2d")!;
 
       // Helper: draw image covering canvas (cover fit)
       const drawCover = (img: HTMLImageElement) => {
         const imgAspect = img.naturalWidth / img.naturalHeight;
         const canvasAspect = canvasWidth / canvasHeight;
-        let sx = 0, sy = 0, sw = img.naturalWidth, sh = img.naturalHeight;
+        let sx = 0,
+          sy = 0,
+          sw = img.naturalWidth,
+          sh = img.naturalHeight;
         if (imgAspect > canvasAspect) {
           sw = img.naturalHeight * canvasAspect;
           sx = (img.naturalWidth - sw) / 2;
@@ -216,7 +263,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
         const barY = canvasHeight - brandBarHeight;
 
         // Semi-transparent dark bar
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
         ctx.fillRect(0, barY, canvasWidth, brandBarHeight);
 
         const padX = 20;
@@ -231,24 +278,36 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
         }
 
         // Agent name (bold, 16px) + brokerage name below (12px, lighter)
-        ctx.fillStyle = 'white';
-        ctx.textBaseline = 'middle';
+        ctx.fillStyle = "white";
+        ctx.textBaseline = "middle";
         ctx.font = `700 16px Inter, -apple-system, sans-serif`;
-        ctx.textAlign = 'left';
-        ctx.fillText(brandKit.agentName, textStartX, barY + brandBarHeight / 2 - (brandKit.brokerageName ? 8 : 0));
+        ctx.textAlign = "left";
+        ctx.fillText(
+          brandKit.agentName,
+          textStartX,
+          barY + brandBarHeight / 2 - (brandKit.brokerageName ? 8 : 0),
+        );
 
         if (brandKit.brokerageName) {
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+          ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
           ctx.font = `400 12px Inter, -apple-system, sans-serif`;
-          ctx.fillText(brandKit.brokerageName, textStartX, barY + brandBarHeight / 2 + 12);
+          ctx.fillText(
+            brandKit.brokerageName,
+            textStartX,
+            barY + brandBarHeight / 2 + 12,
+          );
         }
 
         // Phone on right side
         if (brandKit.phone) {
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+          ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
           ctx.font = `400 12px Inter, -apple-system, sans-serif`;
-          ctx.textAlign = 'right';
-          ctx.fillText(brandKit.phone, canvasWidth - padX, barY + brandBarHeight / 2);
+          ctx.textAlign = "right";
+          ctx.fillText(
+            brandKit.phone,
+            canvasWidth - padX,
+            barY + brandBarHeight / 2,
+          );
         }
 
         ctx.restore();
@@ -260,13 +319,20 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
         ctx.save();
         ctx.globalAlpha = 0.5;
         ctx.font = `600 ${fontSize}px Inter, -apple-system, sans-serif`;
-        const lastTool = editHistory.length > 0 ? editHistory[editHistory.length - 1] : 'staging';
+        const lastTool =
+          editHistory.length > 0
+            ? editHistory[editHistory.length - 1]
+            : "staging";
         const toolLabel =
-          lastTool === 'cleanup' ? 'Cleaned up' :
-          lastTool === 'twilight' ? 'Twilight by' :
-          lastTool === 'sky' ? 'Sky replaced by' :
-          lastTool === 'renovation' ? 'Renovated by' :
-          'Staged with';
+          lastTool === "cleanup"
+            ? "Cleaned up"
+            : lastTool === "twilight"
+              ? "Twilight by"
+              : lastTool === "sky"
+                ? "Sky replaced by"
+                : lastTool === "renovation"
+                  ? "Renovated by"
+                  : "Staged with";
         const text = `${toolLabel} StudioAI`;
         const metrics = ctx.measureText(text);
         const padX = 12;
@@ -278,12 +344,12 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
         const y = hasBrand
           ? canvasHeight - brandBarHeight - 12 - pillH
           : canvasHeight - 24 - pillH;
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+        ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
         ctx.beginPath();
         ctx.roundRect(x, y, pillW, pillH, pillH / 2);
         ctx.fill();
-        ctx.fillStyle = 'white';
-        ctx.textBaseline = 'middle';
+        ctx.fillStyle = "white";
+        ctx.textBaseline = "middle";
         ctx.fillText(text, x + padX, y + pillH / 2);
         ctx.restore();
       };
@@ -292,45 +358,51 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
       const drawDivider = (xPos: number) => {
         ctx.save();
         // White line
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
         ctx.lineWidth = 3;
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+        ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
         ctx.shadowBlur = 8;
         ctx.beginPath();
         ctx.moveTo(xPos, 0);
         ctx.lineTo(xPos, canvasHeight);
         ctx.stroke();
 
-        // Before/After labels near the line
+        // Labels MUST match the pixels: the clipped region left of the line
+        // shows the AFTER (staged) image; the region right of the line is the
+        // BEFORE (original). So AFTER labels the left, BEFORE the right.
         const labelY = canvasHeight / 2;
         ctx.font = `700 13px Inter, -apple-system, sans-serif`;
-        ctx.textBaseline = 'middle';
+        ctx.textBaseline = "middle";
         ctx.shadowBlur = 0;
 
-        // "BEFORE" label left of line
+        // "AFTER" label left of line (left region shows the staged result)
         if (xPos > 80) {
           ctx.globalAlpha = 0.85;
-          ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-          const bw = 62, bh = 24, br = 12;
+          ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+          const aw = 52,
+            ah = 24,
+            ar = 12;
           ctx.beginPath();
-          ctx.roundRect(xPos - bw - 12, labelY - bh / 2, bw, bh, br);
+          ctx.roundRect(xPos - aw - 12, labelY - ah / 2, aw, ah, ar);
           ctx.fill();
-          ctx.fillStyle = 'white';
-          ctx.textAlign = 'center';
-          ctx.fillText('BEFORE', xPos - bw / 2 - 12, labelY);
+          ctx.fillStyle = "white";
+          ctx.textAlign = "center";
+          ctx.fillText("AFTER", xPos - aw / 2 - 12, labelY);
         }
 
-        // "AFTER" label right of line
+        // "BEFORE" label right of line (right region shows the original)
         if (xPos < canvasWidth - 80) {
           ctx.globalAlpha = 0.85;
-          ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-          const aw = 52, ah = 24, ar = 12;
+          ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+          const bw = 62,
+            bh = 24,
+            br = 12;
           ctx.beginPath();
-          ctx.roundRect(xPos + 12, labelY - ah / 2, aw, ah, ar);
+          ctx.roundRect(xPos + 12, labelY - bh / 2, bw, bh, br);
           ctx.fill();
-          ctx.fillStyle = 'white';
-          ctx.textAlign = 'center';
-          ctx.fillText('AFTER', xPos + aw / 2 + 12, labelY);
+          ctx.fillStyle = "white";
+          ctx.textAlign = "center";
+          ctx.fillText("BEFORE", xPos + bw / 2 + 12, labelY);
         }
 
         ctx.restore();
@@ -338,17 +410,27 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
 
       // Set up MediaRecorder with MP4 preference
       const stream = canvas.captureStream(30);
-      const mimeType = MediaRecorder.isTypeSupported('video/mp4;codecs=avc1.42E01E')
-        ? 'video/mp4;codecs=avc1.42E01E'
-        : MediaRecorder.isTypeSupported('video/mp4')
-          ? 'video/mp4'
-          : MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
-            ? 'video/webm;codecs=vp9'
-            : 'video/webm';
-      const fileExt = mimeType.startsWith('video/mp4') ? 'mp4' : 'webm';
+      const mimeType = MediaRecorder.isTypeSupported(
+        "video/mp4;codecs=avc1.42E01E",
+      )
+        ? "video/mp4;codecs=avc1.42E01E"
+        : MediaRecorder.isTypeSupported("video/mp4")
+          ? "video/mp4"
+          : MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
+            ? "video/webm;codecs=vp9"
+            : "video/webm";
+      const fileExt = mimeType.startsWith("video/mp4") ? "mp4" : "webm";
+      // Scale bitrate with the frame's pixel count so detailed 1080p interiors
+      // aren't mushy: ~0.1 bits/pixel/frame at 30fps, clamped to a sane range.
+      const videoBitsPerSecond = Math.round(
+        Math.min(
+          12_000_000,
+          Math.max(4_000_000, canvasWidth * canvasHeight * 0.1 * 30),
+        ),
+      );
       const recorder = new MediaRecorder(stream, {
         mimeType,
-        videoBitsPerSecond: 5_000_000,
+        videoBitsPerSecond,
       });
       const chunks: Blob[] = [];
       recorder.ondataavailable = (e) => {
@@ -359,7 +441,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
         recorder.onstop = () => {
           const blob = new Blob(chunks, { type: mimeType });
           const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
+          const link = document.createElement("a");
           link.href = url;
           link.download = `studioai_reveal_${Date.now()}.${fileExt}`;
           document.body.appendChild(link);
@@ -370,47 +452,49 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
         };
       });
 
-      // Smooth reveal animation:
-      // Starts on BEFORE → wipe to 80% (after) → ease back to 25% → all the way across to 100% → hold AFTER
-      // Total: 7 seconds
+      // Smooth reveal animation. Convention: wipeAmount 0 = BEFORE (original),
+      // 1 = AFTER (staged result). The wipe reveals AFTER from the left.
+      // Starts on BEFORE → reveal AFTER to 80% → ease back to 25% → finish the
+      // wipe all the way to 100% → hold AFTER (the selling shot). Total: 7s.
       const durationMs = 7000;
 
       // Timeline — wipeAmount: 0 = BEFORE (original), 1 = AFTER (result)
       // 0-600:       hold BEFORE
-      // 600-2100:    wipe forward to 80% (reveal after)
+      // 600-2100:    wipe forward to 80% (reveal AFTER)
       // 2100-3400:   ease back to 25%
       // 3400-5800:   continue all the way across to 100%
-      // 5800-7000:   hold AFTER (full result revealed)
+      // 5800-7000:   hold AFTER (full staged result revealed)
 
       // Start recording with timeslice to force data collection every 100ms
       recorder.start(100);
 
       // Easing function (cubic ease in-out)
-      const easeInOut = (p: number) => p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+      const easeInOut = (p: number) =>
+        p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
 
       // Draw a frame based on elapsed time
       const drawFrame = (elapsed: number) => {
         ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
-        let wipeAmount = 0; // 0 = AFTER (result), 1 = BEFORE (original)
+        let wipeAmount = 0; // 0 = BEFORE (original), 1 = AFTER (result)
 
         if (elapsed < 600) {
-          // Hold AFTER
+          // Hold BEFORE
           wipeAmount = 0;
         } else if (elapsed < 2100) {
-          // Wipe forward to 80%
+          // Wipe forward to 80% (reveal AFTER)
           const p = (elapsed - 600) / 1500;
-          wipeAmount = easeInOut(p) * 0.80;
+          wipeAmount = easeInOut(p) * 0.8;
         } else if (elapsed < 3400) {
           // Ease back to 25%
           const p = (elapsed - 2100) / 1300;
-          wipeAmount = 0.80 - easeInOut(p) * 0.55;
+          wipeAmount = 0.8 - easeInOut(p) * 0.55;
         } else if (elapsed < 5800) {
           // Continue all the way across — 25% → 100%
           const p = (elapsed - 3400) / 2400;
           wipeAmount = 0.25 + easeInOut(p) * 0.75;
         } else {
-          // Hold BEFORE (full original revealed)
+          // Hold AFTER (full staged result revealed — the selling shot)
           wipeAmount = 1;
         }
 
@@ -464,7 +548,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
       await animateAndRecord();
       await downloadPromise;
     } catch (err) {
-      console.error('Reveal video generation failed:', err);
+      console.error("Reveal video generation failed:", err);
     } finally {
       setVideoGenerating(false);
       setVideoProgress(0);
@@ -472,7 +556,8 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
     }
   }, [originalImage, imageBase64, videoAspect, brandKit, editHistory]);
 
-  const update = (partial: Partial<ExportSettings>) => setSettings(prev => ({ ...prev, ...partial }));
+  const update = (partial: Partial<ExportSettings>) =>
+    setSettings((prev) => ({ ...prev, ...partial }));
 
   // F6: wire up accessible-dialog semantics (role, aria, Escape, focus trap, scroll lock).
   const { dialogProps, titleId } = useModal({ isOpen: true, onClose });
@@ -490,10 +575,20 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-[var(--color-border)] shrink-0">
           <div className="flex items-center gap-2">
-            <Download size={18} className="text-[var(--color-primary)]" />
-            <h3 id={titleId} className="font-display text-lg font-bold text-white">Export Image</h3>
+            <Download size={18} className="text-[#d8c79a]" />
+            <h3
+              id={titleId}
+              className="font-display text-lg font-bold text-white"
+            >
+              Export Image
+            </h3>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close export dialog" className="rounded-lg p-1.5 text-zinc-400 hover:text-white hover:bg-white/10 transition">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close export dialog"
+            className="rounded-lg p-1.5 text-zinc-400 hover:text-white hover:bg-white/10 transition"
+          >
             <X size={16} />
           </button>
         </div>
@@ -512,14 +607,20 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-semibold text-white">Add Disclaimer</p>
-              <p className="text-xs text-zinc-500">Watermark or badge on exported image</p>
+              <p className="text-xs text-zinc-500">
+                Watermark or badge on exported image
+              </p>
             </div>
             <button
               type="button"
-              onClick={() => update({ disclaimerEnabled: !settings.disclaimerEnabled })}
-              className={`relative w-11 h-6 rounded-full transition-all ${settings.disclaimerEnabled ? 'bg-[var(--color-primary)]' : 'bg-zinc-700'}`}
+              onClick={() =>
+                update({ disclaimerEnabled: !settings.disclaimerEnabled })
+              }
+              className={`relative w-11 h-6 rounded-full transition-all ${settings.disclaimerEnabled ? "bg-[#d8c79a]" : "bg-white/[0.10]"}`}
             >
-              <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${settings.disclaimerEnabled ? 'left-6' : 'left-1'}`} />
+              <div
+                className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${settings.disclaimerEnabled ? "left-6" : "left-1"}`}
+              />
             </button>
           </div>
 
@@ -529,22 +630,22 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => update({ disclaimerType: 'text' })}
+                  onClick={() => update({ disclaimerType: "text" })}
                   className={`flex-1 rounded-lg px-3 py-2.5 text-xs font-semibold inline-flex items-center justify-center gap-2 transition-all border ${
-                    settings.disclaimerType === 'text'
-                      ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]'
-                      : 'border-[var(--color-border-strong)] text-zinc-400 hover:text-white'
+                    settings.disclaimerType === "text"
+                      ? "border-[#d8c79a]/40 bg-[#d8c79a]/10 text-[#d8c79a]"
+                      : "border-white/[0.14] text-[#888580] hover:text-[#f3f1ec]"
                   }`}
                 >
                   <Type size={14} /> Text
                 </button>
                 <button
                   type="button"
-                  onClick={() => update({ disclaimerType: 'icon' })}
+                  onClick={() => update({ disclaimerType: "icon" })}
                   className={`flex-1 rounded-lg px-3 py-2.5 text-xs font-semibold inline-flex items-center justify-center gap-2 transition-all border ${
-                    settings.disclaimerType === 'icon'
-                      ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]'
-                      : 'border-[var(--color-border-strong)] text-zinc-400 hover:text-white'
+                    settings.disclaimerType === "icon"
+                      ? "border-[#d8c79a]/40 bg-[#d8c79a]/10 text-[#d8c79a]"
+                      : "border-white/[0.14] text-[#888580] hover:text-[#f3f1ec]"
                   }`}
                 >
                   <ImageIcon size={14} /> Logo / Icon
@@ -552,21 +653,25 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
               </div>
 
               {/* Text input */}
-              {settings.disclaimerType === 'text' && (
+              {settings.disclaimerType === "text" && (
                 <input
                   value={settings.disclaimerText}
                   onChange={(e) => update({ disclaimerText: e.target.value })}
                   placeholder="Virtually Staged"
-                  className="w-full rounded-lg border border-[var(--color-border-strong)] bg-black/60 px-3 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] transition-all"
+                  className="w-full rounded-lg border border-white/[0.14] bg-black/60 px-3 py-2.5 text-sm text-[#f3f1ec] placeholder:text-[#888580] focus:border-[#d8c79a] focus:ring-1 focus:ring-[#d8c79a] transition-all"
                 />
               )}
 
               {/* Icon upload */}
-              {settings.disclaimerType === 'icon' && (
+              {settings.disclaimerType === "icon" && (
                 <div className="flex items-center gap-3">
                   {settings.disclaimerIcon ? (
                     <div className="h-10 w-10 rounded-lg border border-[var(--color-border)] overflow-hidden bg-white/5">
-                      <img src={settings.disclaimerIcon} alt="Disclaimer icon" className="h-full w-full object-contain" />
+                      <img
+                        src={settings.disclaimerIcon}
+                        alt="Disclaimer icon"
+                        className="h-full w-full object-contain"
+                      />
                     </div>
                   ) : (
                     <div className="h-10 w-10 rounded-lg border border-dashed border-zinc-600 flex items-center justify-center text-zinc-600">
@@ -576,27 +681,41 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
                   <button
                     type="button"
                     onClick={() => iconInputRef.current?.click()}
-                    className="text-xs font-semibold text-[var(--color-primary)] hover:underline"
+                    className="text-xs font-semibold text-[#d8c79a] hover:text-[#c4b485] hover:underline"
                   >
-                    {settings.disclaimerIcon ? 'Change' : 'Upload'} icon or logo
+                    {settings.disclaimerIcon ? "Change" : "Upload"} icon or logo
                   </button>
-                  <input ref={iconInputRef} type="file" accept="image/*" onChange={handleIconUpload} className="hidden" />
+                  <input
+                    ref={iconInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleIconUpload}
+                    className="hidden"
+                  />
                 </div>
               )}
 
               {/* Position */}
               <div>
-                <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Position</p>
+                <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+                  Position
+                </p>
                 <div className="flex gap-2">
-                  {([['bottom-left', 'Left'], ['bottom-center', 'Center'], ['bottom-right', 'Right']] as const).map(([pos, label]) => (
+                  {(
+                    [
+                      ["bottom-left", "Left"],
+                      ["bottom-center", "Center"],
+                      ["bottom-right", "Right"],
+                    ] as const
+                  ).map(([pos, label]) => (
                     <button
                       key={pos}
                       type="button"
                       onClick={() => update({ position: pos })}
                       className={`flex-1 rounded-lg px-2 py-1.5 text-xs font-semibold transition-all border ${
                         settings.position === pos
-                          ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]'
-                          : 'border-[var(--color-border)] text-zinc-500 hover:text-white'
+                          ? "border-[#d8c79a]/40 bg-[#d8c79a]/10 text-[#d8c79a]"
+                          : "border-white/[0.10] text-[#888580] hover:text-[#f3f1ec]"
                       }`}
                     >
                       {label}
@@ -608,8 +727,12 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
               {/* Opacity */}
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Opacity</p>
-                  <span className="text-xs text-zinc-500">{Math.round(settings.opacity * 100)}%</span>
+                  <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+                    Opacity
+                  </p>
+                  <span className="text-xs text-zinc-500">
+                    {Math.round(settings.opacity * 100)}%
+                  </span>
                 </div>
                 <input
                   type="range"
@@ -617,8 +740,10 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
                   max="1"
                   step="0.1"
                   value={settings.opacity}
-                  onChange={(e) => update({ opacity: parseFloat(e.target.value) })}
-                  className="w-full accent-[var(--color-primary)]"
+                  onChange={(e) =>
+                    update({ opacity: parseFloat(e.target.value) })
+                  }
+                  className="w-full accent-[#d8c79a]"
                 />
               </div>
             </>
@@ -630,12 +755,16 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
           <div className="px-5 pb-3">
             <div className="rounded-xl border border-[var(--color-border)] bg-white/[0.02] p-4 space-y-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-[var(--color-primary)]/10 flex items-center justify-center">
-                  <Video size={16} className="text-[var(--color-primary)]" />
+                <div className="w-8 h-8 rounded-lg bg-[#d8c79a]/10 flex items-center justify-center">
+                  <Video size={16} className="text-[#d8c79a]" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-white">Create Reveal Video</p>
-                  <p className="text-xs text-zinc-500">Before/after wipe for Instagram & TikTok</p>
+                  <p className="text-sm font-semibold text-white">
+                    Create Reveal Video
+                  </p>
+                  <p className="text-xs text-zinc-500">
+                    Before/after wipe for Instagram & TikTok
+                  </p>
                 </div>
               </div>
 
@@ -643,44 +772,44 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => setVideoAspect('original')}
+                  onClick={() => setVideoAspect("original")}
                   className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-all border ${
-                    videoAspect === 'original'
-                      ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]'
-                      : 'border-[var(--color-border-strong)] text-zinc-400 hover:text-white'
+                    videoAspect === "original"
+                      ? "border-[#d8c79a]/40 bg-[#d8c79a]/10 text-[#d8c79a]"
+                      : "border-white/[0.14] text-[#888580] hover:text-[#f3f1ec]"
                   }`}
                 >
                   Original
                 </button>
                 <button
                   type="button"
-                  onClick={() => setVideoAspect('1:1')}
+                  onClick={() => setVideoAspect("1:1")}
                   className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-all border ${
-                    videoAspect === '1:1'
-                      ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]'
-                      : 'border-[var(--color-border-strong)] text-zinc-400 hover:text-white'
+                    videoAspect === "1:1"
+                      ? "border-[#d8c79a]/40 bg-[#d8c79a]/10 text-[#d8c79a]"
+                      : "border-white/[0.14] text-[#888580] hover:text-[#f3f1ec]"
                   }`}
                 >
                   1:1
                 </button>
                 <button
                   type="button"
-                  onClick={() => setVideoAspect('4:5')}
+                  onClick={() => setVideoAspect("4:5")}
                   className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-all border ${
-                    videoAspect === '4:5'
-                      ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]'
-                      : 'border-[var(--color-border-strong)] text-zinc-400 hover:text-white'
+                    videoAspect === "4:5"
+                      ? "border-[#d8c79a]/40 bg-[#d8c79a]/10 text-[#d8c79a]"
+                      : "border-white/[0.14] text-[#888580] hover:text-[#f3f1ec]"
                   }`}
                 >
                   4:5 Portrait
                 </button>
                 <button
                   type="button"
-                  onClick={() => setVideoAspect('9:16')}
+                  onClick={() => setVideoAspect("9:16")}
                   className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-all border ${
-                    videoAspect === '9:16'
-                      ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]'
-                      : 'border-[var(--color-border-strong)] text-zinc-400 hover:text-white'
+                    videoAspect === "9:16"
+                      ? "border-[#d8c79a]/40 bg-[#d8c79a]/10 text-[#d8c79a]"
+                      : "border-white/[0.14] text-[#888580] hover:text-[#f3f1ec]"
                   }`}
                 >
                   9:16 Reels
@@ -692,7 +821,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
                 type="button"
                 onClick={generateRevealVideo}
                 disabled={videoGenerating}
-                className="w-full rounded-xl py-3 text-sm font-bold inline-flex items-center justify-center gap-2 transition-all bg-gradient-to-r from-[var(--color-primary)] to-[#0066CC] text-white hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="w-full rounded-xl py-3 text-sm font-bold inline-flex items-center justify-center gap-2 transition-all bg-[#d8c79a] text-[#161616] hover:bg-[#c4b485] disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {videoGenerating ? (
                   <>
@@ -709,9 +838,9 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
 
               {/* Progress bar */}
               {videoGenerating && (
-                <div className="w-full h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+                <div className="w-full h-1.5 rounded-full bg-white/[0.08] overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-[var(--color-primary)] transition-all duration-150"
+                    className="h-full rounded-full bg-[#d8c79a] transition-all duration-150"
                     style={{ width: `${videoProgress}%` }}
                   />
                 </div>
@@ -728,38 +857,59 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
               onClick={() => setShareToGallery(!shareToGallery)}
               className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all ${
                 shareToGallery
-                  ? 'border-[var(--color-primary)]/30 bg-[var(--color-primary)]/5'
-                  : 'border-[var(--color-border)] bg-white/[0.02] hover:border-white/[0.10]'
+                  ? "border-[#d8c79a]/30 bg-[#d8c79a]/5"
+                  : "border-white/[0.08] bg-white/[0.02] hover:border-white/[0.14]"
               }`}
             >
-              <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
-                shareToGallery
-                  ? 'bg-[var(--color-primary)] border-[var(--color-primary)]'
-                  : 'border-zinc-600'
-              }`}>
-                {shareToGallery && <Check size={12} className="text-white" />}
+              <div
+                className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
+                  shareToGallery
+                    ? "bg-[#d8c79a] border-[#d8c79a]"
+                    : "border-white/[0.20]"
+                }`}
+              >
+                {shareToGallery && (
+                  <Check size={12} className="text-[#161616]" />
+                )}
               </div>
               <div className="flex-1 text-left">
-                <p className="text-xs font-semibold text-white">Share to community gallery</p>
-                <p className="text-xs text-zinc-500">Help other agents see what's possible</p>
+                <p className="text-xs font-semibold text-white">
+                  Share to community gallery
+                </p>
+                <p className="text-xs text-zinc-500">
+                  Help other agents see what's possible
+                </p>
               </div>
-              <Heart size={14} className={shareToGallery ? 'text-[var(--color-primary)]' : 'text-zinc-600'} />
+              <Heart
+                size={14}
+                className={shareToGallery ? "text-[#d8c79a]" : "text-[#888580]"}
+              />
             </button>
           </div>
         )}
 
         {/* Footer */}
         <div className="p-5 border-t border-[var(--color-border)] flex gap-3">
-          <button type="button" onClick={onClose} className="flex-1 cta-secondary rounded-xl py-3 text-sm font-semibold">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 cta-secondary rounded-xl py-3 text-sm font-semibold"
+          >
             Cancel
           </button>
           <button
             type="button"
             onClick={handleExport}
             disabled={exporting}
-            className="flex-1 cta-primary rounded-xl py-3 text-sm font-bold inline-flex items-center justify-center gap-2"
+            className="flex-1 rounded-xl py-3 text-sm font-bold inline-flex items-center justify-center gap-2 bg-[#d8c79a] text-[#161616] transition-all hover:bg-[#c4b485] disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {exporting ? 'Exporting...' : <><Download size={14} /> Export</>}
+            {exporting ? (
+              "Exporting..."
+            ) : (
+              <>
+                <Download size={14} /> Export
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -767,84 +917,118 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageBase64, originalImage, e
   );
 };
 
-/** Render the image with disclaimer overlay using Canvas */
-async function renderWithDisclaimer(imageBase64: string, settings: ExportSettings): Promise<string> {
+/**
+ * Draw the disclaimer (text pill or icon) onto an existing canvas context.
+ * The image must already be drawn at (0,0). `done` fires once drawing is
+ * complete — synchronously for text, async for icons (which must load first).
+ * Shared by the single-pass export and the preview renderer so there is one
+ * disclaimer-drawing convention and no redundant decode/encode round-trips.
+ */
+function drawDisclaimerOnCanvas(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  settings: ExportSettings,
+  done: () => void,
+): void {
+  const padding = Math.max(width * 0.02, 16);
+  const fontSize = Math.max(width * 0.018, 14);
+
+  if (settings.disclaimerType === "text" && settings.disclaimerText) {
+    ctx.font = `bold ${fontSize}px Inter, -apple-system, sans-serif`;
+    ctx.globalAlpha = settings.opacity;
+
+    const text = settings.disclaimerText;
+    const metrics = ctx.measureText(text);
+    const textWidth = metrics.width;
+    const textHeight = fontSize;
+
+    // Background pill
+    const pillPadX = fontSize * 0.6;
+    const pillPadY = fontSize * 0.35;
+    const pillW = textWidth + pillPadX * 2;
+    const pillH = textHeight + pillPadY * 2;
+
+    let x: number;
+    const y = height - padding - pillH;
+
+    if (settings.position === "bottom-left") x = padding;
+    else if (settings.position === "bottom-right") x = width - padding - pillW;
+    else x = (width - pillW) / 2;
+
+    // Draw pill background
+    const radius = pillH / 2;
+    ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+    ctx.beginPath();
+    ctx.roundRect(x, y, pillW, pillH, radius);
+    ctx.fill();
+
+    // Draw text
+    ctx.fillStyle = "white";
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, x + pillPadX, y + pillH / 2);
+
+    ctx.globalAlpha = 1;
+    done();
+  } else if (settings.disclaimerType === "icon" && settings.disclaimerIcon) {
+    const icon = new Image();
+    icon.onload = () => {
+      ctx.globalAlpha = settings.opacity;
+      const iconH = Math.max(height * 0.06, 32);
+      const iconW = (icon.naturalWidth / icon.naturalHeight) * iconH;
+
+      let x: number;
+      const y = height - padding - iconH;
+
+      if (settings.position === "bottom-left") x = padding;
+      else if (settings.position === "bottom-right")
+        x = width - padding - iconW;
+      else x = (width - iconW) / 2;
+
+      ctx.drawImage(icon, x, y, iconW, iconH);
+      ctx.globalAlpha = 1;
+      done();
+    };
+    icon.onerror = () => {
+      ctx.globalAlpha = 1;
+      done();
+    };
+    icon.src = settings.disclaimerIcon;
+  } else {
+    // Nothing to draw (e.g. text mode with empty text).
+    ctx.globalAlpha = 1;
+    done();
+  }
+}
+
+/** Render the image with disclaimer overlay using Canvas (preview only) */
+async function renderWithDisclaimer(
+  imageBase64: string,
+  settings: ExportSettings,
+): Promise<string> {
   return new Promise((resolve) => {
     const img = new Image();
-    img.crossOrigin = 'anonymous';
+    img.crossOrigin = "anonymous";
     img.onload = () => {
-      const canvas = document.createElement('canvas');
+      const canvas = document.createElement("canvas");
       canvas.width = img.naturalWidth;
       canvas.height = img.naturalHeight;
-      const ctx = canvas.getContext('2d')!;
+      const ctx = canvas.getContext("2d")!;
 
-      // Draw original image
+      // Draw original image, then overlay the disclaimer on the same canvas.
       ctx.drawImage(img, 0, 0);
-
-      const padding = Math.max(img.naturalWidth * 0.02, 16);
-      const fontSize = Math.max(img.naturalWidth * 0.018, 14);
-
-      if (settings.disclaimerType === 'text' && settings.disclaimerText) {
-        ctx.font = `bold ${fontSize}px Inter, -apple-system, sans-serif`;
-        ctx.globalAlpha = settings.opacity;
-
-        const text = settings.disclaimerText;
-        const metrics = ctx.measureText(text);
-        const textWidth = metrics.width;
-        const textHeight = fontSize;
-
-        // Background pill
-        const pillPadX = fontSize * 0.6;
-        const pillPadY = fontSize * 0.35;
-        const pillW = textWidth + pillPadX * 2;
-        const pillH = textHeight + pillPadY * 2;
-
-        let x: number;
-        const y = img.naturalHeight - padding - pillH;
-
-        if (settings.position === 'bottom-left') x = padding;
-        else if (settings.position === 'bottom-right') x = img.naturalWidth - padding - pillW;
-        else x = (img.naturalWidth - pillW) / 2;
-
-        // Draw pill background
-        const radius = pillH / 2;
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-        ctx.beginPath();
-        ctx.roundRect(x, y, pillW, pillH, radius);
-        ctx.fill();
-
-        // Draw text
-        ctx.fillStyle = 'white';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(text, x + pillPadX, y + pillH / 2);
-      } else if (settings.disclaimerType === 'icon' && settings.disclaimerIcon) {
-        const icon = new Image();
-        icon.onload = () => {
-          ctx.globalAlpha = settings.opacity;
-          const iconH = Math.max(img.naturalHeight * 0.06, 32);
-          const iconW = (icon.naturalWidth / icon.naturalHeight) * iconH;
-
-          let x: number;
-          const y = img.naturalHeight - padding - iconH;
-
-          if (settings.position === 'bottom-left') x = padding;
-          else if (settings.position === 'bottom-right') x = img.naturalWidth - padding - iconW;
-          else x = (img.naturalWidth - iconW) / 2;
-
-          ctx.drawImage(icon, x, y, iconW, iconH);
-          ctx.globalAlpha = 1;
-          resolve(canvas.toDataURL('image/png'));
-        };
-        icon.onerror = () => resolve(canvas.toDataURL('image/png'));
-        icon.src = settings.disclaimerIcon;
-        return; // wait for icon load
-      }
-
-      ctx.globalAlpha = 1;
-      resolve(canvas.toDataURL('image/png'));
+      drawDisclaimerOnCanvas(
+        ctx,
+        img.naturalWidth,
+        img.naturalHeight,
+        settings,
+        () => resolve(canvas.toDataURL("image/png")),
+      );
     };
     img.onerror = () => resolve(imageBase64);
-    img.src = imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`;
+    img.src = imageBase64.startsWith("data:")
+      ? imageBase64
+      : `data:image/jpeg;base64,${imageBase64}`;
   });
 }
 

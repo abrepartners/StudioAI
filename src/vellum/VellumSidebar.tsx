@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Icon } from './icons';
+import React, { useState, useEffect, useRef } from "react";
+import { Icon } from "./icons";
 
 interface SidebarProps {
   page: string;
@@ -8,7 +8,12 @@ interface SidebarProps {
   onUploadFiles?: () => void;
 }
 
-export const VellumSidebar: React.FC<SidebarProps> = ({ page, setPage, onNewListing, onUploadFiles }) => {
+export const VellumSidebar: React.FC<SidebarProps> = ({
+  page,
+  setPage,
+  onNewListing,
+  onUploadFiles,
+}) => {
   const [importOpen, setImportOpen] = useState(false);
   const importRef = useRef<HTMLDivElement>(null);
 
@@ -18,13 +23,23 @@ export const VellumSidebar: React.FC<SidebarProps> = ({ page, setPage, onNewList
         setImportOpen(false);
       }
     };
-    document.addEventListener('click', onClick);
-    return () => document.removeEventListener('click', onClick);
+    document.addEventListener("click", onClick);
+    return () => document.removeEventListener("click", onClick);
   }, []);
 
-  const NavItem = ({ id, icon, label, badge }: { id: string; icon: string; label: string; badge?: string }) => (
+  const NavItem = ({
+    id,
+    icon,
+    label,
+    badge,
+  }: {
+    id: string;
+    icon: string;
+    label: string;
+    badge?: string;
+  }) => (
     <button
-      className={'v-nav-link' + (page === id ? ' active' : '')}
+      className={"v-nav-link" + (page === id ? " active" : "")}
       onClick={() => setPage(id)}
     >
       <Icon name={icon} size={15} />
@@ -39,32 +54,50 @@ export const VellumSidebar: React.FC<SidebarProps> = ({ page, setPage, onNewList
       <NavItem id="dashboard" icon="home" label="Dashboard" />
       <NavItem id="projects" icon="folder" label="Projects" />
       <NavItem id="photo" icon="image" label="Photo editor" />
-      <NavItem id="video" icon="video" label="Video reels" badge="Soon" />
+      <NavItem id="video" icon="video" label="Video reels" />
 
       <div className="v-create-card">
         <span className="label">Create new</span>
         <button className="v-create-btn" onClick={onNewListing}>
           <Icon name="image" size={13} /> New listing
         </button>
-        <button className="v-create-btn video" onClick={() => setPage('video')}>
+        <button className="v-create-btn video" onClick={() => setPage("video")}>
           <Icon name="play" size={13} /> Listing reel
         </button>
         <div className="v-import-row" ref={importRef}>
           <button
             className="v-import-trigger"
-            onClick={(e) => { e.stopPropagation(); setImportOpen(o => !o); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setImportOpen((o) => !o);
+            }}
           >
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <span
+              style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
+            >
               <Icon name="upload" size={13} /> Import from…
             </span>
             <Icon name="chevron_down" size={12} />
           </button>
           {importOpen && (
             <div className="v-import-menu" onClick={(e) => e.stopPropagation()}>
-              <button><Icon name="mls" /> MLS listing</button>
-              <button><Icon name="folder" /> Dropbox</button>
-              <button><Icon name="image" /> Google Drive</button>
-              <button onClick={() => { setImportOpen(false); onUploadFiles?.(); }}><Icon name="upload" /> Upload files</button>
+              <button>
+                <Icon name="mls" /> MLS listing
+              </button>
+              <button>
+                <Icon name="folder" /> Dropbox
+              </button>
+              <button>
+                <Icon name="image" /> Google Drive
+              </button>
+              <button
+                onClick={() => {
+                  setImportOpen(false);
+                  onUploadFiles?.();
+                }}
+              >
+                <Icon name="upload" /> Upload files
+              </button>
             </div>
           )}
         </div>

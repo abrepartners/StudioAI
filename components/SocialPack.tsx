@@ -6,10 +6,9 @@
  * info from the brand kit; user fills listing details inline.
  */
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from "react";
 import {
   Download,
-  Check,
   Loader2,
   Sparkles,
   Home,
@@ -18,8 +17,8 @@ import {
   Lightbulb,
   BookOpen,
   Image as ImageIcon,
-} from 'lucide-react';
-import { useBrandKit } from '../hooks/useBrandKit';
+} from "lucide-react";
+import { useBrandKit } from "../hooks/useBrandKit";
 
 interface StagedImage {
   id: string;
@@ -27,19 +26,35 @@ interface StagedImage {
   label: string;
 }
 
+/** Shared [GEN-PROPS] contract — the image shape the Vellum editor passes in. */
+interface GenImage {
+  id: string;
+  dataUrl: string;
+  label?: string;
+  isRefined?: boolean;
+}
+
 interface SocialPackProps {
-  images: StagedImage[];
-  propertyDetails?: {
-    address: string;
-    beds: number;
-    baths: number;
-    sqft: number;
-    price: number;
+  open: boolean;
+  onClose: () => void;
+  images: GenImage[];
+  projectName?: string;
+  listingMeta?: {
+    address?: string;
+    beds?: number;
+    baths?: number;
+    sqft?: number;
+    price?: number;
   };
 }
 
-type TemplateId = 'just-listed' | 'before-after' | 'open-house' | 'tip-card' | 'carousel-cover';
-type FormatId = 'ig-post' | 'ig-portrait' | 'ig-story';
+type TemplateId =
+  | "just-listed"
+  | "before-after"
+  | "open-house"
+  | "tip-card"
+  | "carousel-cover";
+type FormatId = "ig-post" | "ig-portrait" | "ig-story";
 
 const TEMPLATES: Array<{
   id: TemplateId;
@@ -47,30 +62,58 @@ const TEMPLATES: Array<{
   icon: React.ElementType;
   description: string;
 }> = [
-  { id: 'just-listed', label: 'Just Listed', icon: Home, description: 'Editorial hero + typographic price' },
-  { id: 'before-after', label: 'Before / After', icon: ArrowRightLeft, description: 'Plate I / Plate II transformation' },
-  { id: 'open-house', label: 'Open House', icon: CalendarDays, description: 'Invitation-grade event card' },
-  { id: 'tip-card', label: 'Field Note', icon: Lightbulb, description: 'Pull-quote authority piece' },
-  { id: 'carousel-cover', label: 'Carousel Cover', icon: BookOpen, description: 'Hook slide / reel cover' },
+  {
+    id: "just-listed",
+    label: "Just Listed",
+    icon: Home,
+    description: "Editorial hero + typographic price",
+  },
+  {
+    id: "before-after",
+    label: "Before / After",
+    icon: ArrowRightLeft,
+    description: "Plate I / Plate II transformation",
+  },
+  {
+    id: "open-house",
+    label: "Open House",
+    icon: CalendarDays,
+    description: "Invitation-grade event card",
+  },
+  {
+    id: "tip-card",
+    label: "Field Note",
+    icon: Lightbulb,
+    description: "Pull-quote authority piece",
+  },
+  {
+    id: "carousel-cover",
+    label: "Carousel Cover",
+    icon: BookOpen,
+    description: "Hook slide / reel cover",
+  },
 ];
 
 const FORMATS: Array<{ id: FormatId; label: string; dims: string }> = [
-  { id: 'ig-post', label: 'IG Post', dims: '1080×1080' },
-  { id: 'ig-portrait', label: 'IG Carousel', dims: '1080×1350' },
-  { id: 'ig-story', label: 'IG Story / Reel', dims: '1080×1920' },
+  { id: "ig-post", label: "IG Post", dims: "1080×1080" },
+  { id: "ig-portrait", label: "IG Carousel", dims: "1080×1350" },
+  { id: "ig-story", label: "IG Story / Reel", dims: "1080×1920" },
 ];
 
 function formatPrice(n?: number): string {
-  if (!n) return '';
+  if (!n) return "";
   return `$${n.toLocaleString()}`;
 }
 
 function titleCase(s: string): string {
-  return s.trim().toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+  return s
+    .trim()
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 async function toDataURL(source: string): Promise<string> {
-  if (source.startsWith('data:')) return source;
+  if (source.startsWith("data:")) return source;
   const res = await fetch(source);
   const blob = await res.blob();
   return new Promise((resolve, reject) => {
@@ -81,41 +124,77 @@ async function toDataURL(source: string): Promise<string> {
   });
 }
 
-const SocialPack: React.FC<SocialPackProps> = ({ images, propertyDetails }) => {
+const SocialPack: React.FC<SocialPackProps> = ({
+  open,
+  images: genImages,
+  projectName,
+  listingMeta,
+}) => {
   const { brandKit } = useBrandKit();
 
-  const [template, setTemplate] = useState<TemplateId>('just-listed');
-  const [format, setFormat] = useState<FormatId>('ig-post');
-  const [heroId, setHeroId] = useState<string>(images[0]?.id || '');
-  const [beforeId, setBeforeId] = useState<string>(images[0]?.id || '');
-  const [afterId, setAfterId] = useState<string>(images[1]?.id || images[0]?.id || '');
+  // Normalise the [GEN-PROPS] image shape into the internal StagedImage shape.
+  const images = useMemo<StagedImage[]>(
+    () =>
+      (genImages || []).map((img, i) => ({
+        id: img.id,
+        source: img.dataUrl,
+        label: img.label || `Photo ${i + 1}`,
+      })),
+    [genImages],
+  );
+
+  // Listing fields seed from listingMeta (the [GEN-PROPS] contract field).
+  const propertyDetails = listingMeta;
+
+  const [template, setTemplate] = useState<TemplateId>("just-listed");
+  const [format, setFormat] = useState<FormatId>("ig-post");
+  const [heroId, setHeroId] = useState<string>(images[0]?.id || "");
+  const [beforeId, setBeforeId] = useState<string>(images[0]?.id || "");
+  const [afterId, setAfterId] = useState<string>(
+    images[1]?.id || images[0]?.id || "",
+  );
 
   // Editable listing fields (seeded from propertyDetails)
-  const [address, setAddress] = useState(propertyDetails?.address || '');
-  const [city, setCity] = useState('');
-  const [state, setStateField] = useState('');
-  const [zip, setZip] = useState('');
+  const [address, setAddress] = useState(propertyDetails?.address || "");
+  const [city, setCity] = useState("");
+  const [state, setStateField] = useState("");
+  const [zip, setZip] = useState("");
   const [price, setPrice] = useState(formatPrice(propertyDetails?.price));
-  const [beds, setBeds] = useState<string>(propertyDetails?.beds?.toString() || '');
-  const [baths, setBaths] = useState<string>(propertyDetails?.baths?.toString() || '');
-  const [sqft, setSqft] = useState<string>(propertyDetails?.sqft?.toString() || '');
-  const [yearBuilt, setYearBuilt] = useState<string>('');
+  const [beds, setBeds] = useState<string>(
+    propertyDetails?.beds?.toString() || "",
+  );
+  const [baths, setBaths] = useState<string>(
+    propertyDetails?.baths?.toString() || "",
+  );
+  const [sqft, setSqft] = useState<string>(
+    propertyDetails?.sqft?.toString() || "",
+  );
+  const [yearBuilt, setYearBuilt] = useState<string>("");
 
   // Open house specific
-  const [date, setDate] = useState('');
-  const [time, setTime] = useState('');
+  const [date, setDate] = useState("");
+  const [time, setTime] = useState("");
 
   // Tip card specific
-  const [headline, setHeadline] = useState('');
-  const [tagline, setTagline] = useState('');
+  const [headline, setHeadline] = useState("");
+  const [tagline, setTagline] = useState("");
 
   const [isRendering, setIsRendering] = useState(false);
   const [renderedPng, setRenderedPng] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const heroImage = useMemo(() => images.find(i => i.id === heroId), [images, heroId]);
-  const beforeImage = useMemo(() => images.find(i => i.id === beforeId), [images, beforeId]);
-  const afterImage = useMemo(() => images.find(i => i.id === afterId), [images, afterId]);
+  const heroImage = useMemo(
+    () => images.find((i) => i.id === heroId),
+    [images, heroId],
+  );
+  const beforeImage = useMemo(
+    () => images.find((i) => i.id === beforeId),
+    [images, beforeId],
+  );
+  const afterImage = useMemo(
+    () => images.find((i) => i.id === afterId),
+    [images, afterId],
+  );
 
   const handleRender = useCallback(async () => {
     setIsRendering(true);
@@ -133,7 +212,11 @@ const SocialPack: React.FC<SocialPackProps> = ({ images, propertyDetails }) => {
         headshot: brandKit.headshot || undefined,
       };
 
-      if (template === 'just-listed' || template === 'open-house' || template === 'carousel-cover') {
+      if (
+        template === "just-listed" ||
+        template === "open-house" ||
+        template === "carousel-cover"
+      ) {
         if (address) data.address = titleCase(address);
         if (city) data.city = titleCase(city);
         if (state) data.state = state.trim().toUpperCase();
@@ -145,69 +228,99 @@ const SocialPack: React.FC<SocialPackProps> = ({ images, propertyDetails }) => {
         if (yearBuilt) data.yearBuilt = parseInt(yearBuilt, 10);
         if (heroImage) data.heroImage = await toDataURL(heroImage.source);
       }
-      if (template === 'open-house') {
+      if (template === "open-house") {
         if (date) data.date = date;
         if (time) data.time = time;
       }
-      if (template === 'before-after') {
+      if (template === "before-after") {
         if (address) data.address = titleCase(address);
         if (city) data.city = titleCase(city);
         if (state) data.state = state.trim().toUpperCase();
         if (beforeImage) data.beforeImage = await toDataURL(beforeImage.source);
         if (afterImage) data.afterImage = await toDataURL(afterImage.source);
       }
-      if (template === 'tip-card' || template === 'carousel-cover') {
+      if (template === "tip-card" || template === "carousel-cover") {
         if (headline) data.headline = headline;
         if (tagline) data.tagline = tagline;
       }
 
-      const res = await fetch('/api/render-template', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/render-template", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ template, format, data }),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: 'Render failed' }));
+        const err = await res.json().catch(() => ({ error: "Render failed" }));
         throw new Error(err.error || `HTTP ${res.status}`);
       }
       const blob = await res.blob();
       setRenderedPng(URL.createObjectURL(blob));
     } catch (e: any) {
-      console.error('Render failed:', e);
-      setError(e.message || 'Render failed');
+      console.error("Render failed:", e);
+      setError(e.message || "Render failed");
     } finally {
       setIsRendering(false);
     }
   }, [
-    template, format, brandKit, address, city, state, zip, price, beds, baths, sqft, yearBuilt,
-    date, time, headline, tagline, heroImage, beforeImage, afterImage,
+    template,
+    format,
+    brandKit,
+    address,
+    city,
+    state,
+    zip,
+    price,
+    beds,
+    baths,
+    sqft,
+    yearBuilt,
+    date,
+    time,
+    headline,
+    tagline,
+    heroImage,
+    beforeImage,
+    afterImage,
   ]);
 
   const handleDownload = useCallback(() => {
     if (!renderedPng) return;
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = renderedPng;
     a.download = `${template}_${format}.png`;
     a.click();
   }, [renderedPng, template, format]);
 
-  const needsHero = template === 'just-listed' || template === 'open-house' || template === 'carousel-cover';
-  const needsBeforeAfter = template === 'before-after';
-  const needsListingFields = template !== 'tip-card' && template !== 'carousel-cover';
-  const needsHookFields = template === 'tip-card' || template === 'carousel-cover';
+  const needsHero =
+    template === "just-listed" ||
+    template === "open-house" ||
+    template === "carousel-cover";
+  const needsBeforeAfter = template === "before-after";
+  const needsListingFields =
+    template !== "tip-card" && template !== "carousel-cover";
+  const needsHookFields =
+    template === "tip-card" || template === "carousel-cover";
+
+  if (!open) return null;
 
   return (
-    <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-5 space-y-4">
+    <div className="space-y-4">
+      {/* Panel intro (the host .v-gen-overlay supplies the modal shell + title + close) */}
       <div>
-        <h3 className="text-white font-semibold text-lg flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-[#0A84FF]" />
+        <h3
+          className="text-[#f7f6f2] text-xl font-medium flex items-center gap-2"
+          style={{ fontFamily: "'Cormorant Garamond', serif" }}
+        >
+          <Sparkles className="w-5 h-5 text-[#d8c79a]" />
           Social Pack
         </h3>
         <p className="text-zinc-400 text-sm mt-0.5">
-          Branded social templates powered by your brand kit
+          {projectName
+            ? `${projectName} — branded social templates powered by your brand kit`
+            : "Branded social templates powered by your brand kit"}
         </p>
         {!brandKit.agentName && (
-          <p className="text-sm text-amber-400/80 mt-1.5">
+          <p className="text-sm text-[#d8c79a]/80 mt-1.5">
             Tip: set your brand kit in Settings for auto-filled agent info
           </p>
         )}
@@ -215,9 +328,11 @@ const SocialPack: React.FC<SocialPackProps> = ({ images, propertyDetails }) => {
 
       {/* Template picker */}
       <div className="space-y-2">
-        <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Template</label>
+        <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">
+          Template
+        </label>
         <div className="grid grid-cols-2 gap-2">
-          {TEMPLATES.map(t => {
+          {TEMPLATES.map((t) => {
             const Icon = t.icon;
             const selected = template === t.id;
             return (
@@ -226,11 +341,13 @@ const SocialPack: React.FC<SocialPackProps> = ({ images, propertyDetails }) => {
                 onClick={() => setTemplate(t.id)}
                 className={`flex items-start gap-2 p-3 rounded-lg text-left transition-all duration-200 border ${
                   selected
-                    ? 'bg-[#0A84FF]/10 border-[#0A84FF] text-white'
-                    : 'bg-zinc-800/50 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-white'
+                    ? "bg-[#d8c79a]/10 border-[#d8c79a] text-white"
+                    : "bg-zinc-800/50 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-white"
                 }`}
               >
-                <Icon className={`w-4 h-4 mt-0.5 flex-shrink-0 ${selected ? 'text-[#0A84FF]' : ''}`} />
+                <Icon
+                  className={`w-4 h-4 mt-0.5 flex-shrink-0 ${selected ? "text-[#d8c79a]" : ""}`}
+                />
                 <div className="min-w-0">
                   <div className="text-sm font-medium">{t.label}</div>
                   <div className="text-xs opacity-70">{t.description}</div>
@@ -243,16 +360,20 @@ const SocialPack: React.FC<SocialPackProps> = ({ images, propertyDetails }) => {
 
       {/* Format picker */}
       <div className="space-y-2">
-        <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Format</label>
+        <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">
+          Format
+        </label>
         <div className="flex gap-2">
-          {FORMATS.map(f => {
+          {FORMATS.map((f) => {
             const selected = format === f.id;
             return (
               <button
                 key={f.id}
                 onClick={() => setFormat(f.id)}
                 className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
-                  selected ? 'bg-[#0A84FF] text-white' : 'bg-zinc-800 text-zinc-400 hover:text-white'
+                  selected
+                    ? "bg-[#d8c79a] text-black"
+                    : "bg-zinc-800 text-zinc-400 hover:text-white"
                 }`}
               >
                 <div>{f.label}</div>
@@ -266,17 +387,25 @@ const SocialPack: React.FC<SocialPackProps> = ({ images, propertyDetails }) => {
       {/* Image picker(s) */}
       {needsHero && images.length > 0 && (
         <div className="space-y-2">
-          <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Hero Photo</label>
+          <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">
+            Hero Photo
+          </label>
           <div className="grid grid-cols-4 gap-2">
-            {images.map(img => (
+            {images.map((img) => (
               <button
                 key={img.id}
                 onClick={() => setHeroId(img.id)}
                 className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all ${
-                  heroId === img.id ? 'border-[#0A84FF]' : 'border-transparent hover:border-zinc-700'
+                  heroId === img.id
+                    ? "border-[#d8c79a]"
+                    : "border-transparent hover:border-zinc-700"
                 }`}
               >
-                <img src={img.source} alt={img.label} className="w-full h-full object-cover" />
+                <img
+                  src={img.source}
+                  alt={img.label}
+                  className="w-full h-full object-cover"
+                />
               </button>
             ))}
           </div>
@@ -286,33 +415,49 @@ const SocialPack: React.FC<SocialPackProps> = ({ images, propertyDetails }) => {
       {needsBeforeAfter && images.length > 0 && (
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
-            <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Before</label>
+            <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">
+              Before
+            </label>
             <div className="grid grid-cols-2 gap-1.5">
-              {images.map(img => (
+              {images.map((img) => (
                 <button
                   key={img.id}
                   onClick={() => setBeforeId(img.id)}
                   className={`relative aspect-square rounded overflow-hidden border-2 ${
-                    beforeId === img.id ? 'border-[#0A84FF]' : 'border-transparent'
+                    beforeId === img.id
+                      ? "border-[#d8c79a]"
+                      : "border-transparent"
                   }`}
                 >
-                  <img src={img.source} alt={img.label} className="w-full h-full object-cover" />
+                  <img
+                    src={img.source}
+                    alt={img.label}
+                    className="w-full h-full object-cover"
+                  />
                 </button>
               ))}
             </div>
           </div>
           <div className="space-y-2">
-            <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">After</label>
+            <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">
+              After
+            </label>
             <div className="grid grid-cols-2 gap-1.5">
-              {images.map(img => (
+              {images.map((img) => (
                 <button
                   key={img.id}
                   onClick={() => setAfterId(img.id)}
                   className={`relative aspect-square rounded overflow-hidden border-2 ${
-                    afterId === img.id ? 'border-[#0A84FF]' : 'border-transparent'
+                    afterId === img.id
+                      ? "border-[#d8c79a]"
+                      : "border-transparent"
                   }`}
                 >
-                  <img src={img.source} alt={img.label} className="w-full h-full object-cover" />
+                  <img
+                    src={img.source}
+                    alt={img.label}
+                    className="w-full h-full object-cover"
+                  />
                 </button>
               ))}
             </div>
@@ -323,48 +468,135 @@ const SocialPack: React.FC<SocialPackProps> = ({ images, propertyDetails }) => {
       {/* Listing fields */}
       {needsListingFields && (
         <div className="space-y-2">
-          <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Listing Details</label>
+          <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">
+            Listing Details
+          </label>
           <input
             type="text"
             placeholder="Street address (e.g., 123 Main St)"
             value={address}
-            onChange={e => setAddress(e.target.value)}
-            className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#0A84FF] outline-none"
+            onChange={(e) => setAddress(e.target.value)}
+            className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#d8c79a] outline-none"
           />
           <div className="grid grid-cols-[1fr_60px_80px] gap-2">
-            <input type="text" placeholder="City" value={city} onChange={e => setCity(e.target.value)} className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#0A84FF] outline-none" />
-            <input type="text" placeholder="State" maxLength={2} value={state} onChange={e => setStateField(e.target.value)} className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#0A84FF] outline-none" />
-            <input type="text" inputMode="numeric" placeholder="Zip" maxLength={5} value={zip} onChange={e => setZip(e.target.value)} className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#0A84FF] outline-none" />
+            <input
+              type="text"
+              placeholder="City"
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#d8c79a] outline-none"
+            />
+            <input
+              type="text"
+              placeholder="State"
+              maxLength={2}
+              value={state}
+              onChange={(e) => setStateField(e.target.value)}
+              className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#d8c79a] outline-none"
+            />
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="Zip"
+              maxLength={5}
+              value={zip}
+              onChange={(e) => setZip(e.target.value)}
+              className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#d8c79a] outline-none"
+            />
           </div>
           <input
             type="text"
             placeholder="Price (e.g., $425,000)"
             value={price}
-            onChange={e => setPrice(e.target.value)}
-            className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#0A84FF] outline-none"
+            onChange={(e) => setPrice(e.target.value)}
+            className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#d8c79a] outline-none"
           />
           <div className="grid grid-cols-4 gap-2">
-            <input type="text" inputMode="decimal" placeholder="Beds" value={beds} onChange={e => setBeds(e.target.value)} className="px-2 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#0A84FF] outline-none" />
-            <input type="text" inputMode="decimal" placeholder="Baths" value={baths} onChange={e => setBaths(e.target.value)} className="px-2 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#0A84FF] outline-none" />
-            <input type="text" inputMode="numeric" placeholder="Sq Ft" value={sqft} onChange={e => setSqft(e.target.value)} className="px-2 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#0A84FF] outline-none" />
-            <input type="text" inputMode="numeric" placeholder="Year" value={yearBuilt} onChange={e => setYearBuilt(e.target.value)} className="px-2 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#0A84FF] outline-none" />
+            <input
+              type="text"
+              inputMode="decimal"
+              placeholder="Beds"
+              value={beds}
+              onChange={(e) => setBeds(e.target.value)}
+              className="px-2 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#d8c79a] outline-none"
+            />
+            <input
+              type="text"
+              inputMode="decimal"
+              placeholder="Baths"
+              value={baths}
+              onChange={(e) => setBaths(e.target.value)}
+              className="px-2 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#d8c79a] outline-none"
+            />
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="Sq Ft"
+              value={sqft}
+              onChange={(e) => setSqft(e.target.value)}
+              className="px-2 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#d8c79a] outline-none"
+            />
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="Year"
+              value={yearBuilt}
+              onChange={(e) => setYearBuilt(e.target.value)}
+              className="px-2 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#d8c79a] outline-none"
+            />
           </div>
         </div>
       )}
 
       {/* Open house date/time */}
-      {template === 'open-house' && (
+      {template === "open-house" && (
         <div className="grid grid-cols-2 gap-2">
-          <input type="text" placeholder="Date (e.g., Saturday, April 19)" value={date} onChange={e => setDate(e.target.value)} className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#0A84FF] outline-none" />
-          <input type="text" placeholder="Time (e.g., 1–4 PM)" value={time} onChange={e => setTime(e.target.value)} className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#0A84FF] outline-none" />
+          <input
+            type="text"
+            placeholder="Date (e.g., Saturday, April 19)"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#d8c79a] outline-none"
+          />
+          <input
+            type="text"
+            placeholder="Time (e.g., 1–4 PM)"
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+            className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#d8c79a] outline-none"
+          />
         </div>
       )}
 
       {/* Tip card / carousel cover fields */}
       {needsHookFields && (
         <div className="space-y-2">
-          <input type="text" placeholder={template === 'carousel-cover' ? "Eyebrow (optional, e.g., '123 Main St.')" : "Headline label (e.g., 'FIELD NOTE')"} value={template === 'carousel-cover' ? address : headline} onChange={e => template === 'carousel-cover' ? setAddress(e.target.value) : setHeadline(e.target.value)} className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#0A84FF] outline-none" />
-          <textarea placeholder={template === 'carousel-cover' ? "Hook headline (the big serif line)" : "The quote body (the thing people save)"} value={tagline} onChange={e => setTagline(e.target.value)} rows={3} className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#0A84FF] outline-none resize-none" />
+          <input
+            type="text"
+            placeholder={
+              template === "carousel-cover"
+                ? "Eyebrow (optional, e.g., '123 Main St.')"
+                : "Headline label (e.g., 'FIELD NOTE')"
+            }
+            value={template === "carousel-cover" ? address : headline}
+            onChange={(e) =>
+              template === "carousel-cover"
+                ? setAddress(e.target.value)
+                : setHeadline(e.target.value)
+            }
+            className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#d8c79a] outline-none"
+          />
+          <textarea
+            placeholder={
+              template === "carousel-cover"
+                ? "Hook headline (the big serif line)"
+                : "The quote body (the thing people save)"
+            }
+            value={tagline}
+            onChange={(e) => setTagline(e.target.value)}
+            rows={3}
+            className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:border-[#d8c79a] outline-none resize-none"
+          />
         </div>
       )}
 
@@ -383,7 +615,9 @@ const SocialPack: React.FC<SocialPackProps> = ({ images, propertyDetails }) => {
 
       {needsHero && images.length === 0 && (
         <div className="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-lg p-2">
-          No staged photos yet. Generate at least one staged image first — otherwise the template renders with a blank "Property Photo" placeholder.
+          No staged photos yet. Generate at least one staged image first —
+          otherwise the template renders with a blank "Property Photo"
+          placeholder.
         </div>
       )}
 
@@ -395,13 +629,15 @@ const SocialPack: React.FC<SocialPackProps> = ({ images, propertyDetails }) => {
 
       {needsBeforeAfter && images.length < 2 && (
         <div className="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-lg p-2">
-          Need at least 2 generated images for before / after. Generate a staged version of this room first.
+          Need at least 2 generated images for before / after. Generate a staged
+          version of this room first.
         </div>
       )}
 
       {!brandKit.agentName && (
         <div className="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-lg p-2">
-          Your agent name is blank. Fill in Brand Kit (Settings) so your name appears on every render.
+          Your agent name is blank. Fill in Brand Kit (Settings) so your name
+          appears on every render.
         </div>
       )}
 
@@ -411,14 +647,19 @@ const SocialPack: React.FC<SocialPackProps> = ({ images, propertyDetails }) => {
           disabled={isRendering}
           className={`flex-1 py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-200 ${
             isRendering
-              ? 'bg-zinc-700 text-zinc-400 cursor-wait'
-              : 'bg-[#0A84FF] text-white hover:bg-blue-500 active:scale-[0.98]'
+              ? "bg-zinc-700 text-zinc-400 cursor-wait"
+              : "bg-[#d8c79a] text-black hover:bg-[#e3d4ab] active:scale-[0.98]"
           }`}
         >
           {isRendering ? (
-            <><Loader2 className="w-4 h-4 animate-spin" /> Rendering...</>
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" /> Rendering...
+            </>
           ) : (
-            <><ImageIcon className="w-4 h-4" /> {renderedPng ? 'Re-render' : 'Render'}</>
+            <>
+              <ImageIcon className="w-4 h-4" />{" "}
+              {renderedPng ? "Re-render" : "Render"}
+            </>
           )}
         </button>
         {renderedPng && (

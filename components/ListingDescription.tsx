@@ -2,10 +2,14 @@
  * ListingDescription.tsx — AI Listing Description Generator
  * Task 1.4 — 3 tones, char counts, copy button, save to listing
  *
- * Uses existing Gemini API patterns from geminiService.ts
+ * Mountable standalone inside the Vellum editor as a dark-editorial overlay
+ * via the shared [GEN-PROPS] contract:
+ *   <ListingDescription open onClose={…} images={…} listingMeta={…} />
+ *
+ * Output path is unchanged: Gemini copy generation (text) via @google/genai.
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from "react";
 import {
   Sparkles,
   Copy,
@@ -17,20 +21,20 @@ import {
   Gem,
   Coffee,
   TrendingUp,
-} from 'lucide-react';
-import { GoogleGenAI } from '@google/genai';
-import { getActiveApiKey } from '../services/geminiService';
+} from "lucide-react";
+import { GoogleGenAI } from "@google/genai";
+import { getActiveApiKey } from "../services/geminiService";
 import {
   generateLuxuryTonePrompt,
   generateCasualTonePrompt,
   generateInvestmentTonePrompt,
   type ListingDescriptionInput,
   type PropertyDetails,
-} from '../src/prompts/listingDescription';
+} from "../src/prompts/listingDescription";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Tone = 'luxury' | 'casual' | 'investment';
+type Tone = "luxury" | "casual" | "investment";
 
 interface Description {
   tone: Tone;
@@ -39,99 +43,154 @@ interface Description {
 }
 
 const TONE_CONFIG = {
-  luxury: { label: 'Luxury', icon: Gem, description: 'Sophisticated, elevated language for premium properties', color: '#FFD60A' },
-  casual: { label: 'Casual', icon: Coffee, description: 'Warm and approachable for broad buyer appeal', color: '#0A84FF' },
-  investment: { label: 'Investment', icon: TrendingUp, description: 'Data-driven focus on ROI and market position', color: '#30D158' },
+  luxury: {
+    label: "Luxury",
+    icon: Gem,
+    description: "Sophisticated, elevated language for premium properties",
+    color: "#d8c79a",
+  },
+  casual: {
+    label: "Casual",
+    icon: Coffee,
+    description: "Warm and approachable for broad buyer appeal",
+    color: "#d8c79a",
+  },
+  investment: {
+    label: "Investment",
+    icon: TrendingUp,
+    description: "Data-driven focus on ROI and market position",
+    color: "#30D158",
+  },
 } as const;
 
 const MLS_CHAR_LIMITS = [
-  { name: 'Zillow', limit: 5000, color: '#0A84FF' },
-  { name: 'Realtor.com', limit: 4000, color: '#30D158' },
-  { name: 'Generic MLS', limit: 1000, color: '#FFD60A' },
+  { name: "Zillow", limit: 5000, color: "#d8c79a" },
+  { name: "Realtor.com", limit: 4000, color: "#c4b485" },
+  { name: "Generic MLS", limit: 1000, color: "#a99a6f" },
 ];
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
+/** Shared [GEN-PROPS] contract — the image shape the Vellum editor passes in. */
+interface GenImage {
+  id: string;
+  dataUrl: string;
+  label?: string;
+  isRefined?: boolean;
+}
+
 interface ListingDescriptionProps {
-  roomTypes?: string[];
-  initialDetails?: Partial<PropertyDetails>;
+  open: boolean;
+  onClose: () => void;
+  images: GenImage[];
+  projectName?: string;
+  listingMeta?: {
+    address?: string;
+    beds?: number;
+    baths?: number;
+    sqft?: number;
+    price?: number;
+  };
   onSave?: (description: string, tone: Tone) => void;
 }
 
 const ListingDescription: React.FC<ListingDescriptionProps> = ({
-  roomTypes = [],
-  initialDetails,
+  open,
+  images,
+  projectName,
+  listingMeta,
   onSave,
 }) => {
+  // Derive room types from the passed-in image labels (the editor labels each
+  // refined photo with its room). Falls back to sensible defaults at gen time.
+  const roomTypes = useMemo<string[]>(
+    () =>
+      Array.from(
+        new Set(
+          (images || []).map((img) => (img.label || "").trim()).filter(Boolean),
+        ),
+      ),
+    [images],
+  );
+
+  // Seed the property form from the [GEN-PROPS] listingMeta.
+  const initialDetails = listingMeta;
+
   // Property details form
   const [details, setDetails] = useState<PropertyDetails>({
     beds: initialDetails?.beds ?? 3,
     baths: initialDetails?.baths ?? 2,
     sqft: initialDetails?.sqft ?? 2000,
     price: initialDetails?.price ?? 450000,
-    address: initialDetails?.address ?? '',
+    address: initialDetails?.address ?? "",
     yearBuilt: initialDetails?.yearBuilt ?? 2000,
-    propertyType: initialDetails?.propertyType ?? 'Single Family',
+    propertyType: initialDetails?.propertyType ?? "Single Family",
   });
-  const [agentNotes, setAgentNotes] = useState('');
+  const [agentNotes, setAgentNotes] = useState("");
   const [showDetails, setShowDetails] = useState(true);
 
   // Generation state
-  const [activeTone, setActiveTone] = useState<Tone>('luxury');
+  const [activeTone, setActiveTone] = useState<Tone>("luxury");
   const [descriptions, setDescriptions] = useState<Record<Tone, string>>({
-    luxury: '',
-    casual: '',
-    investment: '',
+    luxury: "",
+    casual: "",
+    investment: "",
   });
   const [isGenerating, setIsGenerating] = useState(false);
   const [copiedTone, setCopiedTone] = useState<Tone | null>(null);
 
   // Generate description for a tone
-  const generateDescription = useCallback(async (tone: Tone) => {
-    const apiKey = getActiveApiKey();
-    if (!apiKey) return;
+  const generateDescription = useCallback(
+    async (tone: Tone) => {
+      const apiKey = getActiveApiKey();
+      if (!apiKey) return;
 
-    setIsGenerating(true);
-    setActiveTone(tone);
+      setIsGenerating(true);
+      setActiveTone(tone);
 
-    const input: ListingDescriptionInput = {
-      roomTypes: roomTypes.length > 0 ? roomTypes : ['Living Room', 'Kitchen', 'Primary Bedroom'],
-      propertyDetails: details,
-      agentNotes: agentNotes || undefined,
-    };
+      const input: ListingDescriptionInput = {
+        roomTypes:
+          roomTypes.length > 0
+            ? roomTypes
+            : ["Living Room", "Kitchen", "Primary Bedroom"],
+        propertyDetails: details,
+        agentNotes: agentNotes || undefined,
+      };
 
-    const promptFn = {
-      luxury: generateLuxuryTonePrompt,
-      casual: generateCasualTonePrompt,
-      investment: generateInvestmentTonePrompt,
-    }[tone];
+      const promptFn = {
+        luxury: generateLuxuryTonePrompt,
+        casual: generateCasualTonePrompt,
+        investment: generateInvestmentTonePrompt,
+      }[tone];
 
-    const prompt = promptFn(input);
+      const prompt = promptFn(input);
 
-    try {
-      const ai = new GoogleGenAI({ apiKey });
+      try {
+        const ai = new GoogleGenAI({ apiKey });
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: prompt,
-      });
+        const response = await ai.models.generateContent({
+          model: "gemini-3-flash-preview",
+          contents: prompt,
+        });
 
-      const text = response.text || '';
-      setDescriptions((prev) => ({ ...prev, [tone]: text }));
-    } catch (err) {
-      console.error(`Description generation failed (${tone}):`, err);
-      setDescriptions((prev) => ({
-        ...prev,
-        [tone]: 'Generation failed. Please check your API key and try again.',
-      }));
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [details, agentNotes, roomTypes]);
+        const text = response.text || "";
+        setDescriptions((prev) => ({ ...prev, [tone]: text }));
+      } catch (err) {
+        console.error(`Description generation failed (${tone}):`, err);
+        setDescriptions((prev) => ({
+          ...prev,
+          [tone]: "Generation failed. Please check your API key and try again.",
+        }));
+      } finally {
+        setIsGenerating(false);
+      }
+    },
+    [details, agentNotes, roomTypes],
+  );
 
   // Generate all 3 tones
   const generateAll = useCallback(async () => {
-    for (const tone of ['luxury', 'casual', 'investment'] as Tone[]) {
+    for (const tone of ["luxury", "casual", "investment"] as Tone[]) {
       await generateDescription(tone);
     }
   }, [generateDescription]);
@@ -148,16 +207,23 @@ const ListingDescription: React.FC<ListingDescriptionProps> = ({
   const currentText = descriptions[activeTone];
   const charCount = currentText.length;
 
+  if (!open) return null;
+
   return (
     <div className="space-y-5">
-      {/* Header */}
+      {/* Panel intro (the host .v-gen-overlay supplies the modal shell + title + close) */}
       <div>
-        <h3 className="text-white font-semibold text-lg flex items-center gap-2">
-          <FileText className="w-5 h-5 text-[#0A84FF]" />
+        <h3
+          className="text-[#f7f6f2] text-xl font-medium flex items-center gap-2"
+          style={{ fontFamily: "'Cormorant Garamond', serif" }}
+        >
+          <FileText className="w-5 h-5 text-[#d8c79a]" />
           Listing Description
         </h3>
         <p className="text-zinc-400 text-sm mt-0.5">
-          AI-generated MLS descriptions in three professional tones
+          {projectName
+            ? `${projectName} — AI-generated MLS descriptions in three tones`
+            : "AI-generated MLS descriptions in three professional tones"}
         </p>
       </div>
 
@@ -167,8 +233,12 @@ const ListingDescription: React.FC<ListingDescriptionProps> = ({
           onClick={() => setShowDetails(!showDetails)}
           className="w-full flex items-center justify-between px-4 py-3 text-left"
         >
-          <span className="text-sm font-medium text-zinc-300">Property Details</span>
-          <ChevronDown className={`w-4 h-4 text-zinc-500 transition-transform ${showDetails ? 'rotate-180' : ''}`} />
+          <span className="text-sm font-medium text-zinc-300">
+            Property Details
+          </span>
+          <ChevronDown
+            className={`w-4 h-4 text-zinc-500 transition-transform ${showDetails ? "rotate-180" : ""}`}
+          />
         </button>
 
         {showDetails && (
@@ -177,26 +247,35 @@ const ListingDescription: React.FC<ListingDescriptionProps> = ({
             <input
               type="text"
               value={details.address}
-              onChange={(e) => setDetails((d) => ({ ...d, address: e.target.value }))}
+              onChange={(e) =>
+                setDetails((d) => ({ ...d, address: e.target.value }))
+              }
               placeholder="Property address"
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:border-[#0A84FF] focus:outline-none"
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:border-[#d8c79a] focus:outline-none"
             />
 
             {/* Grid: beds, baths, sqft, price */}
             <div className="grid grid-cols-4 gap-2">
               {[
-                { key: 'beds', label: 'Beds', type: 'number' },
-                { key: 'baths', label: 'Baths', type: 'number' },
-                { key: 'sqft', label: 'Sq Ft', type: 'number' },
-                { key: 'price', label: 'Price', type: 'number' },
+                { key: "beds", label: "Beds", type: "number" },
+                { key: "baths", label: "Baths", type: "number" },
+                { key: "sqft", label: "Sq Ft", type: "number" },
+                { key: "price", label: "Price", type: "number" },
               ].map(({ key, label, type }) => (
                 <div key={key}>
-                  <label className="text-xs text-zinc-500 uppercase tracking-wider">{label}</label>
+                  <label className="text-xs text-zinc-500 uppercase tracking-wider">
+                    {label}
+                  </label>
                   <input
                     type={type}
                     value={details[key as keyof PropertyDetails] as number}
-                    onChange={(e) => setDetails((d) => ({ ...d, [key]: Number(e.target.value) }))}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1.5 text-sm text-white focus:border-[#0A84FF] focus:outline-none"
+                    onChange={(e) =>
+                      setDetails((d) => ({
+                        ...d,
+                        [key]: Number(e.target.value),
+                      }))
+                    }
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1.5 text-sm text-white focus:border-[#d8c79a] focus:outline-none"
                   />
                 </div>
               ))}
@@ -205,23 +284,46 @@ const ListingDescription: React.FC<ListingDescriptionProps> = ({
             {/* Year built + Property type */}
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-xs text-zinc-500 uppercase tracking-wider">Year Built</label>
+                <label className="text-xs text-zinc-500 uppercase tracking-wider">
+                  Year Built
+                </label>
                 <input
                   type="number"
                   value={details.yearBuilt}
-                  onChange={(e) => setDetails((d) => ({ ...d, yearBuilt: Number(e.target.value) }))}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1.5 text-sm text-white focus:border-[#0A84FF] focus:outline-none"
+                  onChange={(e) =>
+                    setDetails((d) => ({
+                      ...d,
+                      yearBuilt: Number(e.target.value),
+                    }))
+                  }
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1.5 text-sm text-white focus:border-[#d8c79a] focus:outline-none"
                 />
               </div>
               <div>
-                <label className="text-xs text-zinc-500 uppercase tracking-wider">Type</label>
+                <label className="text-xs text-zinc-500 uppercase tracking-wider">
+                  Type
+                </label>
                 <select
                   value={details.propertyType}
-                  onChange={(e) => setDetails((d) => ({ ...d, propertyType: e.target.value as PropertyDetails['propertyType'] }))}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1.5 text-sm text-white focus:border-[#0A84FF] focus:outline-none"
+                  onChange={(e) =>
+                    setDetails((d) => ({
+                      ...d,
+                      propertyType: e.target
+                        .value as PropertyDetails["propertyType"],
+                    }))
+                  }
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1.5 text-sm text-white focus:border-[#d8c79a] focus:outline-none"
                 >
-                  {['Single Family', 'Condo', 'Townhouse', 'Multi-Family', 'Land'].map((t) => (
-                    <option key={t} value={t}>{t}</option>
+                  {[
+                    "Single Family",
+                    "Condo",
+                    "Townhouse",
+                    "Multi-Family",
+                    "Land",
+                  ].map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -229,13 +331,15 @@ const ListingDescription: React.FC<ListingDescriptionProps> = ({
 
             {/* Agent Notes */}
             <div>
-              <label className="text-xs text-zinc-500 uppercase tracking-wider">Agent Notes (optional)</label>
+              <label className="text-xs text-zinc-500 uppercase tracking-wider">
+                Agent Notes (optional)
+              </label>
               <textarea
                 value={agentNotes}
                 onChange={(e) => setAgentNotes(e.target.value)}
                 placeholder="Recently renovated kitchen, new HVAC, pool was added in 2023..."
                 rows={2}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:border-[#0A84FF] focus:outline-none resize-none"
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:border-[#d8c79a] focus:outline-none resize-none"
               />
             </div>
           </div>
@@ -244,7 +348,9 @@ const ListingDescription: React.FC<ListingDescriptionProps> = ({
 
       {/* Tone Tabs */}
       <div className="flex gap-2">
-        {(Object.entries(TONE_CONFIG) as [Tone, typeof TONE_CONFIG[Tone]][]).map(([tone, cfg]) => {
+        {(
+          Object.entries(TONE_CONFIG) as [Tone, (typeof TONE_CONFIG)[Tone]][]
+        ).map(([tone, cfg]) => {
           const Icon = cfg.icon;
           const hasContent = descriptions[tone].length > 0;
           return (
@@ -253,13 +359,18 @@ const ListingDescription: React.FC<ListingDescriptionProps> = ({
               onClick={() => setActiveTone(tone)}
               className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-medium flex items-center justify-center gap-1.5 transition-all duration-200 ${
                 activeTone === tone
-                  ? 'bg-zinc-800 text-white border border-zinc-600'
-                  : 'bg-zinc-900 text-zinc-500 border border-zinc-800 hover:text-zinc-300 hover:border-zinc-700'
+                  ? "bg-zinc-800 text-white border border-zinc-600"
+                  : "bg-zinc-900 text-zinc-500 border border-zinc-800 hover:text-zinc-300 hover:border-zinc-700"
               }`}
             >
-              <Icon className="w-3.5 h-3.5" style={activeTone === tone ? { color: cfg.color } : {}} />
+              <Icon
+                className="w-3.5 h-3.5"
+                style={activeTone === tone ? { color: cfg.color } : {}}
+              />
               {cfg.label}
-              {hasContent && <div className="w-1.5 h-1.5 rounded-full bg-[#30D158]" />}
+              {hasContent && (
+                <div className="w-1.5 h-1.5 rounded-full bg-[#30D158]" />
+              )}
             </button>
           );
         })}
@@ -272,16 +383,21 @@ const ListingDescription: React.FC<ListingDescriptionProps> = ({
           disabled={isGenerating || !details.address}
           className={`flex-1 py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-all duration-200 ${
             isGenerating
-              ? 'bg-zinc-700 text-zinc-400 cursor-wait'
+              ? "bg-zinc-700 text-zinc-400 cursor-wait"
               : !details.address
-                ? 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
-                : 'bg-[#0A84FF] text-white hover:bg-blue-500 active:scale-[0.98]'
+                ? "bg-zinc-800 text-zinc-600 cursor-not-allowed"
+                : "bg-[#d8c79a] text-black hover:bg-[#e3d4ab] active:scale-[0.98]"
           }`}
         >
           {isGenerating ? (
-            <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</>
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" /> Generating...
+            </>
           ) : (
-            <><Sparkles className="w-4 h-4" /> Generate {TONE_CONFIG[activeTone].label}</>
+            <>
+              <Sparkles className="w-4 h-4" /> Generate{" "}
+              {TONE_CONFIG[activeTone].label}
+            </>
           )}
         </button>
         <button
@@ -309,17 +425,21 @@ const ListingDescription: React.FC<ListingDescriptionProps> = ({
               const over = charCount > limit;
               return (
                 <div key={name} className="flex items-center gap-2">
-                  <span className="text-xs text-zinc-500 w-20 text-right">{name}</span>
+                  <span className="text-xs text-zinc-500 w-20 text-right">
+                    {name}
+                  </span>
                   <div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all duration-300"
                       style={{
                         width: `${pct}%`,
-                        backgroundColor: over ? '#FF375F' : color,
+                        backgroundColor: over ? "#FF375F" : color,
                       }}
                     />
                   </div>
-                  <span className={`text-xs w-16 ${over ? 'text-[#FF375F] font-medium' : 'text-zinc-500'}`}>
+                  <span
+                    className={`text-xs w-16 ${over ? "text-[#FF375F] font-medium" : "text-zinc-500"}`}
+                  >
                     {charCount.toLocaleString()}/{limit.toLocaleString()}
                   </span>
                 </div>
@@ -333,11 +453,19 @@ const ListingDescription: React.FC<ListingDescriptionProps> = ({
               onClick={() => copyToClipboard(activeTone)}
               className={`flex-1 py-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-all duration-200 ${
                 copiedTone === activeTone
-                  ? 'bg-[#30D158] text-white'
-                  : 'bg-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-700'
+                  ? "bg-[#30D158] text-white"
+                  : "bg-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-700"
               }`}
             >
-              {copiedTone === activeTone ? <><Check className="w-3.5 h-3.5" /> Copied</> : <><Copy className="w-3.5 h-3.5" /> Copy</>}
+              {copiedTone === activeTone ? (
+                <>
+                  <Check className="w-3.5 h-3.5" /> Copied
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5" /> Copy
+                </>
+              )}
             </button>
             {onSave && (
               <button

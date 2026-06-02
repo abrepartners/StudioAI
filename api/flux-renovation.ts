@@ -1,40 +1,32 @@
 /**
  * api/flux-renovation.ts
  *
- * Virtual Renovation via Flux 2 Pro on Replicate. Flux 2 Pro was chosen
- * over Gemini/Kontext for the cleanest material swaps. Known Flux drift
- * pattern: the model bakes in its preferred photographic "look" on top
- * of the requested edit — specifically warming the image and adding
- * shadow depth. Prompt below explicitly forbids both.
+ * Virtual Renovation via reve/edit on Replicate. Previously ran on
+ * flux-2-pro, but — like virtual staging — flux-2-pro treats the photo as
+ * a style reference and re-renders the whole scene (and bakes in its
+ * preferred "look": warming the image and deepening shadows). reve/edit is
+ * the faithful in-place editor the rest of the app standardizes on
+ * (whiten, lawn, cleanup, staging): it changes only the surfaces named in
+ * the prompt and leaves composition, lighting, and color untouched.
  *
- * Mitigation (two-layer):
- *   1. This prompt forbids warmth shift and shadow addition by name.
- *   2. Frontend runs RENOVATION_COMPOSITE in postProcessToolOutput which
- *      pixel-matches the result against the original and keeps unchanged
- *      regions byte-identical.
+ * Defense in depth still applies: the frontend runs RENOVATION_COMPOSITE in
+ * postProcessToolOutput, pixel-matching the result against the original so
+ * unchanged regions stay byte-identical.
  *
  * Input (POST JSON):
  *   { imageBase64: string, cabinets?: string, countertops?: string,
- *     flooring?: string, walls?: string, skipUpscale?: boolean }
- *   (skipUpscale is accepted for request-shape parity; renovation has no
- *    inline upscale step, so it is a no-op here.)
+ *     flooring?: string, walls?: string }
  *
  * Output (200 JSON):
  *   { ok: true, resultBase64: string, latencyMs: number }
  *   { ok: false, error: string }
  */
-import Replicate from "replicate";
-import {
-  json,
-  setCors,
-  handleOptions,
-  rejectMethod,
-  parseBody,
-} from "./utils.js";
+import Replicate from 'replicate';
+import { json, setCors, handleOptions, rejectMethod, parseBody } from './utils.js';
 
-export const config = { runtime: "nodejs", maxDuration: 120 };
+export const config = { runtime: 'nodejs', maxDuration: 120 };
 
-const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN || "";
+const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN || '';
 
 interface RenovationDetails {
   cabinets?: string;
@@ -45,25 +37,12 @@ interface RenovationDetails {
 
 function buildRenovationPrompt(d: RenovationDetails): string {
   const changes: string[] = [];
-  if (d.cabinets)
-    changes.push(
-      `- CABINETS: replace with "${d.cabinets}". Keep cabinet size, position, door count, and hardware layout identical — only the material/color/finish changes.`,
-    );
-  if (d.countertops)
-    changes.push(
-      `- COUNTERTOPS: replace with "${d.countertops}". Keep counter shape, thickness, and overhang identical — only the material changes.`,
-    );
-  if (d.flooring)
-    changes.push(
-      `- FLOORING: replace with "${d.flooring}". Keep floor layout, plank direction, and grout lines identical where applicable — only the material/pattern changes.`,
-    );
-  if (d.walls)
-    changes.push(
-      `- WALL COLOR: repaint walls with "${d.walls}". Keep wall geometry, trim, outlets, switches, and any hanging items identical — only the wall paint color changes.`,
-    );
+  if (d.cabinets)    changes.push(`- CABINETS: replace with "${d.cabinets}". Keep cabinet size, position, door count, and hardware layout identical — only the material/color/finish changes.`);
+  if (d.countertops) changes.push(`- COUNTERTOPS: replace with "${d.countertops}". Keep counter shape, thickness, and overhang identical — only the material changes.`);
+  if (d.flooring)    changes.push(`- FLOORING: replace with "${d.flooring}". Keep floor layout, plank direction, and grout lines identical where applicable — only the material/pattern changes.`);
+  if (d.walls)       changes.push(`- WALL COLOR: repaint walls with "${d.walls}". Keep wall geometry, trim, outlets, switches, and any hanging items identical — only the wall paint color changes.`);
 
-  const changeList =
-    changes.length > 0 ? changes.join("\n") : "- (none specified)";
+  const changeList = changes.length > 0 ? changes.join('\n') : '- (none specified)';
 
   return `PHOTOSHOP-IN-PLACE EDIT. This is a surgical material replacement task, not a full re-render.
 
@@ -71,7 +50,7 @@ CHANGES TO APPLY (only these, nothing else):
 ${changeList}
 
 ==============================
-FLUX DRIFT — DO NOT DO THESE:
+LOOK DRIFT — DO NOT DO THESE:
 ==============================
 - DO NOT WARM THE IMAGE. Do not shift color temperature toward amber, orange, or gold. If the input is neutral or cool, the output must also be neutral or cool. Match the exact Kelvin value of the input.
 - DO NOT DEEPEN SHADOWS. Do not add darkness, add contrast in the shadow range, or crush blacks. The shadow density, black point, and darkest pixel values must be IDENTICAL to the input.
@@ -101,39 +80,30 @@ Think of this as a Photoshop clone-stamp / material-replace edit where the repla
 
 async function extractUrl(output: unknown): Promise<string | null> {
   if (!output) return null;
-  if (typeof output === "string") return output;
+  if (typeof output === 'string') return output;
   if (Array.isArray(output)) return extractUrl(output[0]);
-  if (output && typeof output === "object") {
+  if (output && typeof output === 'object') {
     const o = output as Record<string, unknown>;
-    if (typeof o.url === "function") {
-      try {
-        const u = (o.url as () => unknown)();
-        return typeof u === "string" ? u : String(u);
-      } catch {
-        return null;
-      }
+    if (typeof o.url === 'function') {
+      try { const u = (o.url as () => unknown)(); return typeof u === 'string' ? u : String(u); } catch { return null; }
     }
-    if (typeof o.url === "string") return o.url;
+    if (typeof o.url === 'string') return o.url;
   }
   return null;
 }
 
 export default async function handler(req: any, res: any) {
-  setCors(res, "POST,OPTIONS");
+  setCors(res, 'POST,OPTIONS');
   if (handleOptions(req, res)) return;
-  if (rejectMethod(req, res, "POST")) return;
+  if (rejectMethod(req, res, 'POST')) return;
 
   if (!REPLICATE_TOKEN) {
-    json(res, 200, { ok: false, error: "REPLICATE_API_TOKEN not configured" });
+    json(res, 200, { ok: false, error: 'REPLICATE_API_TOKEN not configured' });
     return;
   }
 
   const body = parseBody(req.body);
-  const imageBase64 = String(body.imageBase64 || "");
-  // Renovation has no inline upscale step (it returns Flux output directly),
-  // so skipUpscale is already effectively always-on here. Parsed only to
-  // honor the shared editing-phase request shape — no-op by design.
-  void Boolean(body.skipUpscale);
+  const imageBase64 = String(body.imageBase64 || '');
   const details: RenovationDetails = {
     cabinets: body.cabinets ? String(body.cabinets) : undefined,
     countertops: body.countertops ? String(body.countertops) : undefined,
@@ -141,25 +111,11 @@ export default async function handler(req: any, res: any) {
     walls: body.walls ? String(body.walls) : undefined,
   };
 
-  if (!imageBase64) {
-    json(res, 400, { ok: false, error: "imageBase64 is required" });
-    return;
-  }
-  const hasAnyChange = !!(
-    details.cabinets ||
-    details.countertops ||
-    details.flooring ||
-    details.walls
-  );
-  if (!hasAnyChange) {
-    json(res, 400, {
-      ok: false,
-      error: "At least one renovation change is required",
-    });
-    return;
-  }
+  if (!imageBase64) { json(res, 400, { ok: false, error: 'imageBase64 is required' }); return; }
+  const hasAnyChange = !!(details.cabinets || details.countertops || details.flooring || details.walls);
+  if (!hasAnyChange) { json(res, 400, { ok: false, error: 'At least one renovation change is required' }); return; }
 
-  const userDataUrl = imageBase64.startsWith("data:")
+  const userDataUrl = imageBase64.startsWith('data:')
     ? imageBase64
     : `data:image/jpeg;base64,${imageBase64}`;
 
@@ -167,58 +123,25 @@ export default async function handler(req: any, res: any) {
   const t0 = Date.now();
 
   try {
-    // Detect aspect ratio from base64 image dimensions
-    const dims = await new Promise<{ w: number; h: number }>((resolve) => {
-      const raw = userDataUrl.split(",")[1] || "";
-      const buf = Buffer.from(raw, "base64");
-      const isPng = buf[0] === 0x89 && buf[1] === 0x50;
-      if (isPng && buf.length > 24) {
-        resolve({ w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) });
-      } else {
-        for (let i = 0; i < buf.length - 9; i++) {
-          if (buf[i] === 0xff && (buf[i + 1] === 0xc0 || buf[i + 1] === 0xc2)) {
-            resolve({ w: buf.readUInt16BE(i + 7), h: buf.readUInt16BE(i + 5) });
-            return;
-          }
-        }
-        resolve({ w: 4, h: 3 });
-      }
-    });
-
-    const VALID_RATIOS = [
-      { label: "1:1", v: 1 },
-      { label: "4:3", v: 4 / 3 },
-      { label: "3:2", v: 3 / 2 },
-      { label: "16:9", v: 16 / 9 },
-      { label: "21:9", v: 21 / 9 },
-      { label: "3:4", v: 3 / 4 },
-      { label: "2:3", v: 2 / 3 },
-      { label: "9:16", v: 9 / 16 },
-      { label: "9:21", v: 9 / 21 },
-    ];
-    const imgRatio = dims.w / dims.h;
-    const bestRatio = VALID_RATIOS.reduce((best, r) =>
-      Math.abs(r.v - imgRatio) < Math.abs(best.v - imgRatio) ? r : best,
-    );
-
-    console.log(
-      `[flux-renovation] Starting Flux 2 Pro renovation (${dims.w}x${dims.h} → ${bestRatio.label})`,
-    );
-    const fluxOutput = await replicate.run("black-forest-labs/flux-2-pro", {
+    // reve/edit edits the supplied image in place — it preserves the input's
+    // dimensions, perspective, lighting, and color, and changes only the
+    // surfaces named in the prompt. No aspect-ratio detection or style-
+    // reference regeneration needed (same faithful path as staging/whiten/lawn).
+    console.log('[flux-renovation] Starting reve/edit renovation...');
+    const output = await replicate.run('reve/edit', {
       input: {
-        input_images: [userDataUrl],
+        image: userDataUrl,
         prompt: buildRenovationPrompt(details),
-        output_format: "jpg",
-        aspect_ratio: bestRatio.label,
+        output_format: 'jpg',
       },
     });
 
-    const cleanUrl = await extractUrl(fluxOutput);
+    const cleanUrl = await extractUrl(output);
     if (!cleanUrl) {
-      json(res, 200, { ok: false, error: "Flux returned no image URL" });
+      json(res, 200, { ok: false, error: 'reve/edit returned no image URL' });
       return;
     }
-    console.log(`[flux-renovation] Flux done in ${Date.now() - t0}ms`);
+    console.log(`[flux-renovation] reve/edit done in ${Date.now() - t0}ms`);
 
     const imgRes = await fetch(cleanUrl);
     if (!imgRes.ok) {
@@ -226,12 +149,13 @@ export default async function handler(req: any, res: any) {
       return;
     }
     const buf = Buffer.from(await imgRes.arrayBuffer());
-    const resultBase64 = `data:image/jpeg;base64,${buf.toString("base64")}`;
+    const resultBase64 = `data:image/jpeg;base64,${buf.toString('base64')}`;
 
     console.log(`[flux-renovation] Total: ${Date.now() - t0}ms`);
     json(res, 200, { ok: true, resultBase64, latencyMs: Date.now() - t0 });
+
   } catch (err: any) {
-    console.error("[flux-renovation] unhandled:", err?.message || err);
-    json(res, 200, { ok: false, error: err?.message || "unknown" });
+    console.error('[flux-renovation] unhandled:', err?.message || err);
+    json(res, 200, { ok: false, error: err?.message || 'unknown' });
   }
 }

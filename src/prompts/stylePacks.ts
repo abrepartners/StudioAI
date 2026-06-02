@@ -34,10 +34,10 @@ export function buildStagingAssignment(pack: StylePack, roomType: string): strin
   const furniture = getFurnitureSpec(pack, roomType);
 
   const furnitureBlock = furniture
-    ? `\nFURNITURE TO PLACE:\n${furniture}\n`
+    ? `\nFURNITURE TO ADD:\n${furniture}\n`
     : `\nThis is an outdoor/utility space — add only appropriate outdoor furniture and decor for the style. No indoor furniture.\n`;
 
-  return `Virtually stage this ${roomType.toLowerCase()} in ${pack.label} style.
+  return `Add furniture and decor to this ${roomType.toLowerCase()} to virtually stage it in ${pack.label} style. This is an ADDITIVE edit: the room itself stays exactly as photographed and you only place new furnishings into the existing space. Do not redesign, re-render, or reinterpret the room.
 ${furnitureBlock}
 STYLE DNA:
 - Materials: ${pack.materials}
@@ -48,9 +48,15 @@ HARD PRESERVATION RULES:
 - DO NOT modify, replace, or restyle any cabinets, vanities, built-ins, countertops, backsplashes, or millwork.
 - DO NOT modify any appliances. Every appliance stays pixel-identical.
 - DO NOT modify windows, doors, trim, baseboards, crown molding, flooring, floor color, wall color, or ceiling.
+- DO NOT remove, cover, replace, or restyle any fireplace, mantel, hearth, fireplace surround, accent/feature wall (stone, tile, marble, brick, wood, or paneled), or built-in niche or shelving. These are permanent features of the property — keep them fully visible and pixel-identical.
 - DO NOT change the camera framing, crop, angle, or field of view.
 - Stage based on what the image actually shows, not what the room label suggests.
 - If the room is narrow or small, use fewer/smaller pieces — do NOT extend walls or rearrange architecture.
+
+WALL-MOUNTED & AGAINST-WALL PIECES (consoles, media units, credenzas, sideboards, artwork, mirrors, wall clocks):
+- The furniture list above may describe placing these on a "focal wall" or "main wall." Only do this on a genuinely BLANK wall.
+- If the natural focal wall already has a fireplace, feature/accent finish, built-in, or window, leave it completely unobstructed. Do NOT hang art over it or stand a console/credenza against it. Move those pieces to another open wall, or omit them entirely if no suitable blank wall exists.
+- Free-standing floor furniture (sofas, chairs, coffee tables, rugs, plants, floor lamps) MAY sit in front of a feature wall, as long as the wall behind them stays fully visible and unchanged.
 
 PHOTOGRAPHY DNA — MATCH THE INPUT:
 - Staged furniture must exhibit the same photographic noise, grain, and compression as the original photo. Phone snap with noise = furniture has noise. Clean DSLR = furniture is clean.

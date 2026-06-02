@@ -1,7 +1,7 @@
 /**
  * services/stagingService.ts
  *
- * Client wrapper for Flux 2 Pro virtual staging (/api/flux-staging).
+ * Client wrapper for reve/edit virtual staging (/api/flux-staging).
  */
 
 import { resizeForUpload } from "../utils/resizeForUpload";

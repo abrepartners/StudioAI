@@ -83,7 +83,10 @@ export default async function handler(req: any, res: any) {
 
   const body = parseBody(req.body);
   const imageBase64 = String(body.imageBase64 || "");
-  const prompt = String(body.prompt || "");
+  // reve/edit caps edit_instruction at 2560 chars — clamp so a long style-DNA
+  // brief never gets rejected (reve/edit preserves the room structurally, so
+  // trimming the verbose tail is low-impact).
+  const prompt = String(body.prompt || "").slice(0, 2560);
   const skipUpscale = Boolean(body.skipUpscale);
 
   if (!imageBase64) {

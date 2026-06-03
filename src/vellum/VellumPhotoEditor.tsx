@@ -59,6 +59,7 @@ import { useVellumStore } from "./useVellumStore";
 import { sharpenImage } from "../../utils/sharpen";
 import { compositeStackedEdit } from "../../utils/stackComposite";
 import { generateThumbnail } from "../../utils/thumbnail";
+import { requestNotifyPermission, notifyDone } from "./notify";
 
 const SCRATCH_KEY = "__quick_edit__";
 
@@ -1051,8 +1052,22 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
           : stylePreset;
     const frozenCustom = customRemoval;
 
-    requestSpend(TOOL_COST[activeTool], () => {
-      processOnePhoto(photo.id, frozenTool, frozenPreset, frozenCustom);
+    requestNotifyPermission();
+    const toolName =
+      (TOOLS.find((t) => "id" in t && t.id === frozenTool) as any)?.name ||
+      "Photo";
+    requestSpend(TOOL_COST[activeTool], async () => {
+      const ok = await processOnePhoto(
+        photo.id,
+        frozenTool,
+        frozenPreset,
+        frozenCustom,
+      );
+      if (ok)
+        notifyDone(
+          `${toolName} — ready`,
+          `${activeProject?.address || "Your photo"} is refined. Switch back to StudioAI to view.`,
+        );
     });
   };
 
@@ -1087,10 +1102,12 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
           : stylePreset;
     const frozenCustom = customRemoval;
 
+    requestNotifyPermission();
     requestSpend(totalCost, async () => {
       setBatchTotal(targets.length);
       setBatchDone(0);
 
+      let okCount = 0;
       const queue = [...targets];
       const runBatch = async () => {
         const chunk = queue.splice(0, BATCH_CONCURRENCY);
@@ -1098,7 +1115,13 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
 
         await Promise.all(
           chunk.map(async (p) => {
-            await processOnePhoto(p.id, frozenTool, frozenPreset, frozenCustom);
+            const ok = await processOnePhoto(
+              p.id,
+              frozenTool,
+              frozenPreset,
+              frozenCustom,
+            );
+            if (ok) okCount += 1;
             setBatchDone((d) => d + 1);
           }),
         );
@@ -1109,6 +1132,10 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
       await runBatch();
       setBatchTotal(0);
       setBatchDone(0);
+      notifyDone(
+        "Photos ready",
+        `${okCount} of ${targets.length} photos refined. Switch back to StudioAI to view.`,
+      );
       setActivity((a) => [
         {
           who: "Vellum",

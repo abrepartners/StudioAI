@@ -73,8 +73,11 @@ export default async function handler(req: any, res: any) {
       body: JSON.stringify({
         version: SAM_VERSION,
         input: {
+          // 16 (not 32) points/side = ~4x fewer mask candidates → SAM finishes
+          // in well under the function timeout while still catching the major
+          // clutter objects. 32 was overkill and 504'd mid-segment on full-res.
           image: dataUrl,
-          points_per_side: 32,
+          points_per_side: 16,
           pred_iou_thresh: 0.92,
         },
       }),

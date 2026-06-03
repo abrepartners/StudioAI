@@ -1,5 +1,5 @@
-export type ApiProvider = 'replicate' | 'gemini' | 'stripe' | 'supabase';
-export type ApiRuntime = 'nodejs' | 'edge' | 'client';
+export type ApiProvider = "replicate" | "gemini" | "stripe" | "supabase";
+export type ApiRuntime = "nodejs" | "edge" | "client";
 
 export interface ApiParam {
   key: string;
@@ -20,7 +20,12 @@ export interface ApiTool {
   maxDuration?: number;
   params: ApiParam[];
   prompt?: string;
-  chainedModels?: { model: string; purpose: string; replicateUrl?: string; params: ApiParam[] }[];
+  chainedModels?: {
+    model: string;
+    purpose: string;
+    replicateUrl?: string;
+    params: ApiParam[];
+  }[];
   costEstimate?: string;
   notes?: string;
 }
@@ -32,7 +37,7 @@ export interface GeminiFunction {
   model: string;
   fallbackModel?: string;
   temperature?: number;
-  runtime: 'client';
+  runtime: "client";
   serviceFile: string;
   isPro?: boolean;
   notes?: string;
@@ -56,197 +61,238 @@ export interface Pipeline {
 
 export const API_TOOLS: ApiTool[] = [
   {
-    id: 'smart-cleanup',
-    name: 'Smart Cleanup',
-    description: 'AI-powered clutter removal using Flux 2 Pro. Preserves architecture and furniture, removes personal items and mess.',
-    provider: 'replicate',
-    model: 'black-forest-labs/flux-2-pro',
-    replicateUrl: 'https://replicate.com/black-forest-labs/flux-2-pro',
-    endpoint: '/api/flux-cleanup',
-    runtime: 'nodejs',
+    id: "smart-cleanup",
+    name: "Smart Cleanup",
+    description:
+      "AI-powered clutter removal using Flux 2 Pro. Preserves architecture and furniture, removes personal items and mess.",
+    provider: "replicate",
+    model: "black-forest-labs/flux-2-pro",
+    replicateUrl: "https://replicate.com/black-forest-labs/flux-2-pro",
+    endpoint: "/api/flux-cleanup",
+    runtime: "nodejs",
     maxDuration: 120,
     params: [
-      { key: 'input_images', value: '[dataUrl]', note: 'Array — SDK auto-uploads data URIs to temp HTTPS URLs' },
-      { key: 'output_format', value: 'jpg' },
-      { key: 'aspect_ratio', value: 'match_input_image' },
+      {
+        key: "input_images",
+        value: "[dataUrl]",
+        note: "Array — SDK auto-uploads data URIs to temp HTTPS URLs",
+      },
+      { key: "output_format", value: "jpg" },
+      { key: "aspect_ratio", value: "match_input_image" },
     ],
-    prompt: 'Remove all clutter, personal items, and temporary objects from this {room}. Keep all furniture and architecture exactly as-is. Do not add anything.',
+    prompt:
+      "Remove all clutter, personal items, and temporary objects from this {room}. Keep all furniture and architecture exactly as-is. Do not add anything.",
     chainedModels: [
       {
-        model: 'nightmareai/real-esrgan',
-        purpose: '4x upscale (optional, skippable)',
-        replicateUrl: 'https://replicate.com/nightmareai/real-esrgan',
+        model: "nightmareai/real-esrgan",
+        purpose: "4x upscale (optional, skippable)",
+        replicateUrl: "https://replicate.com/nightmareai/real-esrgan",
         params: [
-          { key: 'scale', value: 4 },
-          { key: 'face_enhance', value: false },
+          { key: "scale", value: 4 },
+          { key: "face_enhance", value: false },
         ],
       },
     ],
-    costEstimate: '~$0.05/image (Flux) + ~$0.01 (ESRGAN)',
-    notes: 'Custom prompt override supported via Design Direction toggle (useFlux). Client resizes to 1280px max edge before upload.',
+    costEstimate: "~$0.05/image (Flux) + ~$0.01 (ESRGAN)",
+    notes:
+      "Custom prompt override supported via Design Direction toggle (useFlux). Client resizes to 1280px max edge before upload.",
   },
   {
-    id: 'day-to-dusk',
-    name: 'Day to Dusk',
-    description: 'Transforms daytime exterior photos into professional twilight shots using Flux 2 Pro multi-reference style transfer.',
-    provider: 'replicate',
-    model: 'black-forest-labs/flux-2-pro',
-    replicateUrl: 'https://replicate.com/black-forest-labs/flux-2-pro',
-    endpoint: '/api/flux-twilight',
-    runtime: 'nodejs',
+    id: "day-to-dusk",
+    name: "Day to Dusk",
+    description:
+      "Transforms daytime exterior photos into professional twilight shots using Flux 2 Pro multi-reference style transfer.",
+    provider: "replicate",
+    model: "black-forest-labs/flux-2-pro",
+    replicateUrl: "https://replicate.com/black-forest-labs/flux-2-pro",
+    endpoint: "/api/flux-twilight",
+    runtime: "nodejs",
     maxDuration: 120,
     params: [
-      { key: 'input_images', value: '[userPhoto, referencePhoto]', note: 'Image 1 = user photo, Image 2 = curated style reference' },
-      { key: 'output_format', value: 'jpg' },
-      { key: 'aspect_ratio', value: 'match_input_image' },
+      {
+        key: "input_images",
+        value: "[userPhoto, referencePhoto]",
+        note: "Image 1 = user photo, Image 2 = curated style reference",
+      },
+      { key: "output_format", value: "jpg" },
+      { key: "aspect_ratio", value: "match_input_image" },
     ],
-    prompt: 'Transform image 1 into professional twilight matching image 2. JSON-structured style prompt per variant.',
+    prompt:
+      "Transform image 1 into professional twilight matching image 2. JSON-structured style prompt per variant.",
     chainedModels: [
       {
-        model: 'nightmareai/real-esrgan',
-        purpose: '4x upscale (always runs)',
-        replicateUrl: 'https://replicate.com/nightmareai/real-esrgan',
+        model: "nightmareai/real-esrgan",
+        purpose: "4x upscale (always runs)",
+        replicateUrl: "https://replicate.com/nightmareai/real-esrgan",
         params: [
-          { key: 'scale', value: 4 },
-          { key: 'face_enhance', value: false },
+          { key: "scale", value: 4 },
+          { key: "face_enhance", value: false },
         ],
       },
     ],
-    costEstimate: '~$0.05/image (Flux) + ~$0.01 (ESRGAN)',
-    notes: '3 style variants: warm-classic, modern-dramatic, golden-luxury. Each has a JSON prompt with color_palette hex codes. Reference images in public/references/twilight/.',
+    costEstimate: "~$0.05/image (Flux) + ~$0.01 (ESRGAN)",
+    notes:
+      "3 style variants: warm-classic, modern-dramatic, golden-luxury. Each has a JSON prompt with color_palette hex codes. Reference images in public/references/twilight/.",
   },
   {
-    id: 'sam-masks',
-    name: 'SAM 2 Mask Detection',
-    description: 'Automatic object segmentation for Smart Cleanup mask selection. Users toggle individual masks on/off.',
-    provider: 'replicate',
-    model: 'meta/sam-2',
-    modelVersion: 'cbd95fb76192174268b6b303aeeb7a736e8dab0cbc38177f09db79b2299da30b',
-    replicateUrl: 'https://replicate.com/meta/sam-2',
-    endpoint: '/api/sam-detect',
-    runtime: 'nodejs',
+    id: "sam-masks",
+    name: "SAM 2 Mask Detection",
+    description:
+      "Automatic object segmentation for Smart Cleanup mask selection. Users toggle individual masks on/off.",
+    provider: "replicate",
+    model: "meta/sam-2",
+    modelVersion:
+      "cbd95fb76192174268b6b303aeeb7a736e8dab0cbc38177f09db79b2299da30b",
+    replicateUrl: "https://replicate.com/meta/sam-2",
+    endpoint: "/api/sam-detect",
+    runtime: "nodejs",
     maxDuration: 60,
     params: [
-      { key: 'points_per_side', value: 32, note: 'Grid density for automatic mask generation' },
-      { key: 'pred_iou_thresh', value: 0.92, note: 'Confidence threshold — higher = fewer, better masks' },
+      {
+        key: "points_per_side",
+        value: 32,
+        note: "Grid density for automatic mask generation",
+      },
+      {
+        key: "pred_iou_thresh",
+        value: 0.92,
+        note: "Confidence threshold — higher = fewer, better masks",
+      },
     ],
-    costEstimate: '~$0.007/prediction',
-    notes: 'Uses direct Replicate HTTP API (not SDK) with Prefer: wait=55 for long-polling. Capped at 30 individual masks. Client applies ~24px dilation blur for shadow halos.',
+    costEstimate: "~$0.007/prediction",
+    notes:
+      "Uses direct Replicate HTTP API (not SDK) with Prefer: wait=55 for long-polling. Capped at 30 individual masks. Client applies ~24px dilation blur for shadow halos.",
   },
 ];
 
 // ---------------------------------------------------------------------------
-// Gemini client-side functions
+// Gemini client-side functions — DEPRECATED / DISABLED
 // ---------------------------------------------------------------------------
+// Browser-side Gemini is purged. These entries are kept only as a historical
+// catalog of what USED to run client-side. None of them execute anymore — the
+// underlying service functions are now disabled stubs (services/geminiService.ts)
+// and the live refine buttons route to Replicate /api/* endpoints instead
+// (flux-staging / reve-edit / flux-cleanup / flux-renovation / flux-twilight /
+// sky-replace). Treat `provider: gemini` here as "legacy, not callable".
 
 export const GEMINI_FUNCTIONS: GeminiFunction[] = [
   {
-    id: 'detect-room',
-    name: 'Room Detection',
-    description: 'Classifies uploaded photo into room type for style pack selection',
-    model: 'gemini-3-flash-preview',
+    id: "detect-room",
+    name: "Room Detection",
+    description:
+      "Classifies uploaded photo into room type for style pack selection",
+    model: "gemini-3-flash-preview",
     temperature: 0.1,
-    runtime: 'client',
-    serviceFile: 'services/geminiService.ts → detectRoomType()',
+    runtime: "client",
+    serviceFile: "services/geminiService.ts → detectRoomType()",
   },
   {
-    id: 'generate-design',
-    name: 'Virtual Staging',
-    description: 'AI-generates staged room images with selected style pack',
-    model: 'gemini-3-pro-image-preview (Pro) / gemini-3.1-flash-image-preview (Free)',
-    runtime: 'client',
-    serviceFile: 'services/geminiService.ts → generateRoomDesign()',
+    id: "generate-design",
+    name: "Virtual Staging",
+    description: "AI-generates staged room images with selected style pack",
+    model:
+      "gemini-3-pro-image-preview (Pro) / gemini-3.1-flash-image-preview (Free)",
+    runtime: "client",
+    serviceFile: "services/geminiService.ts → generateRoomDesign()",
     isPro: true,
-    notes: 'Model selected via geminiImageModelPolicy.ts. Pro tier gets gemini-3-pro first, falls back to 3.1-flash on 503.',
+    notes:
+      "Model selected via geminiImageModelPolicy.ts. Pro tier gets gemini-3-pro first, falls back to 3.1-flash on 503.",
   },
   {
-    id: 'auto-arrange',
-    name: 'Auto Arrange Layout',
-    description: 'AI analyzes room and recommends furniture placement',
-    model: 'gemini-3-flash-preview',
-    runtime: 'client',
-    serviceFile: 'services/geminiService.ts → autoArrangeLayout()',
+    id: "auto-arrange",
+    name: "Auto Arrange Layout",
+    description: "AI analyzes room and recommends furniture placement",
+    model: "gemini-3-flash-preview",
+    runtime: "client",
+    serviceFile: "services/geminiService.ts → autoArrangeLayout()",
   },
   {
-    id: 'analyze-colors',
-    name: 'Color Analysis',
-    description: 'Extracts dominant color palette from uploaded photo',
-    model: 'gemini-3-flash-preview',
+    id: "analyze-colors",
+    name: "Color Analysis",
+    description: "Extracts dominant color palette from uploaded photo",
+    model: "gemini-3-flash-preview",
     temperature: 0.2,
-    runtime: 'client',
-    serviceFile: 'services/geminiService.ts → analyzeRoomColors()',
+    runtime: "client",
+    serviceFile: "services/geminiService.ts → analyzeRoomColors()",
   },
   {
-    id: 'sky-replace',
-    name: 'Sky Replacement',
-    description: 'Replaces sky in exterior photos with selected style (blue, dramatic, golden, stormy)',
-    model: 'gemini-3-pro-image-preview (Pro) / gemini-3.1-flash-image-preview (Free)',
-    runtime: 'client',
-    serviceFile: 'services/geminiService.ts → replaceSky()',
+    id: "sky-replace",
+    name: "Sky Replacement",
+    description:
+      "Replaces sky in exterior photos with selected style (blue, dramatic, golden, stormy)",
+    model:
+      "gemini-3-pro-image-preview (Pro) / gemini-3.1-flash-image-preview (Free)",
+    runtime: "client",
+    serviceFile: "services/geminiService.ts → replaceSky()",
     isPro: true,
-    notes: 'Still on Gemini — candidate for Flux 2 Pro migration.',
+    notes: "Still on Gemini — candidate for Flux 2 Pro migration.",
   },
   {
-    id: 'instant-declutter',
-    name: 'Instant Declutter (Gemini)',
-    description: 'Quick declutter via Gemini image editing — Design Direction uses this or Flux toggle',
-    model: 'gemini-3-pro-image-preview (Pro) / gemini-3.1-flash-image-preview (Free)',
-    runtime: 'client',
-    serviceFile: 'services/geminiService.ts → instantDeclutter()',
+    id: "instant-declutter",
+    name: "Instant Declutter (Gemini)",
+    description:
+      "Quick declutter via Gemini image editing — Design Direction uses this or Flux toggle",
+    model:
+      "gemini-3-pro-image-preview (Pro) / gemini-3.1-flash-image-preview (Free)",
+    runtime: "client",
+    serviceFile: "services/geminiService.ts → instantDeclutter()",
     isPro: true,
   },
   {
-    id: 'virtual-renovation',
-    name: 'Virtual Renovation',
-    description: 'AI-powered room renovation with text prompts',
-    model: 'gemini-3.1-flash-image-preview',
-    runtime: 'client',
-    serviceFile: 'services/geminiService.ts → virtualRenovation()',
+    id: "virtual-renovation",
+    name: "Virtual Renovation",
+    description: "AI-powered room renovation with text prompts",
+    model: "gemini-3.1-flash-image-preview",
+    runtime: "client",
+    serviceFile: "services/geminiService.ts → virtualRenovation()",
   },
   {
-    id: 'listing-copy',
-    name: 'Listing Copy Generator',
-    description: 'Generates MLS descriptions, social captions, hashtags',
-    model: 'gemini-3-flash-preview',
+    id: "listing-copy",
+    name: "Listing Copy Generator",
+    description: "Generates MLS descriptions, social captions, hashtags",
+    model: "gemini-3-flash-preview",
     temperature: 0.8,
-    runtime: 'client',
-    serviceFile: 'services/geminiService.ts → generateListingCopy()',
+    runtime: "client",
+    serviceFile: "services/geminiService.ts → generateListingCopy()",
   },
   {
-    id: 'style-advisor',
-    name: 'Style Advisor',
-    description: 'Analyzes photo and recommends top 3 staging styles',
-    model: 'gemini-3-flash-preview',
+    id: "style-advisor",
+    name: "Style Advisor",
+    description: "Analyzes photo and recommends top 3 staging styles",
+    model: "gemini-3-flash-preview",
     temperature: 0.4,
-    runtime: 'client',
-    serviceFile: 'services/geminiService.ts → analyzeAndRecommendStyles()',
+    runtime: "client",
+    serviceFile: "services/geminiService.ts → analyzeAndRecommendStyles()",
   },
   {
-    id: 'quality-score',
-    name: 'Quality Score',
-    description: 'Evaluates staged images on architectural integrity, lighting, realism, perspective',
-    model: 'gemini-3-flash-preview',
+    id: "quality-score",
+    name: "Quality Score",
+    description:
+      "Evaluates staged images on architectural integrity, lighting, realism, perspective",
+    model: "gemini-3-flash-preview",
     temperature: 0.2,
-    runtime: 'client',
-    serviceFile: 'services/geminiService.ts → scoreGeneratedImage()',
+    runtime: "client",
+    serviceFile: "services/geminiService.ts → scoreGeneratedImage()",
   },
   {
-    id: 'listing-descriptions',
-    name: 'Listing Descriptions',
-    description: 'Generates full property descriptions in luxury, casual, and investment tones',
-    model: 'gemini-3-flash-preview',
+    id: "listing-descriptions",
+    name: "Listing Descriptions",
+    description:
+      "Generates full property descriptions in luxury, casual, and investment tones",
+    model: "gemini-3-flash-preview",
     temperature: 0.8,
-    runtime: 'client',
-    serviceFile: 'services/geminiService.ts → generateListingDescriptions()',
+    runtime: "client",
+    serviceFile: "services/geminiService.ts → generateListingDescriptions()",
   },
   {
-    id: 'chat-session',
-    name: 'Design Chat',
-    description: 'Interactive design conversation with image context',
-    model: 'gemini-2.5-pro-preview-05-06',
-    runtime: 'client',
-    serviceFile: 'services/geminiService.ts → createChatSession() / sendMessageToChat()',
-    notes: 'Uses Pro model for higher quality conversational responses.',
+    id: "chat-session",
+    name: "Design Chat",
+    description: "Interactive design conversation with image context",
+    model: "gemini-2.5-pro-preview-05-06",
+    runtime: "client",
+    serviceFile:
+      "services/geminiService.ts → createChatSession() / sendMessageToChat()",
+    notes: "Uses Pro model for higher quality conversational responses.",
   },
 ];
 
@@ -256,62 +302,71 @@ export const GEMINI_FUNCTIONS: GeminiFunction[] = [
 
 export const PIPELINES: Pipeline[] = [
   {
-    id: 'smart-cleanup-full',
-    name: 'Smart Cleanup (Full)',
-    description: 'SAM 2 mask detection → user selects masks → Flux 2 Pro cleanup → ESRGAN 4x → sharpen',
+    id: "smart-cleanup-full",
+    name: "Smart Cleanup (Full)",
+    description:
+      "SAM 2 mask detection → user selects masks → Flux 2 Pro cleanup → ESRGAN 4x → sharpen",
     steps: [
-      { tool: 'sam-masks', label: 'Detect object masks' },
-      { tool: 'ui', label: 'User selects clutter masks' },
-      { tool: 'smart-cleanup', label: 'Flux 2 Pro removes selected items' },
-      { tool: 'esrgan', label: 'Real-ESRGAN 4x upscale' },
-      { tool: 'sharpen', label: 'Client-side sharpen (0.4 amount)' },
-      { tool: 'resize', label: 'Resize to match original dimensions' },
+      { tool: "sam-masks", label: "Detect object masks" },
+      { tool: "ui", label: "User selects clutter masks" },
+      { tool: "smart-cleanup", label: "Flux 2 Pro removes selected items" },
+      { tool: "esrgan", label: "Real-ESRGAN 4x upscale" },
+      { tool: "sharpen", label: "Client-side sharpen (0.4 amount)" },
+      { tool: "resize", label: "Resize to match original dimensions" },
     ],
   },
   {
-    id: 'smart-cleanup-prompt',
-    name: 'Smart Cleanup (Prompt-only)',
-    description: 'Flux 2 Pro cleanup without mask selection — used when SAM fails or user skips masks',
+    id: "smart-cleanup-prompt",
+    name: "Smart Cleanup (Prompt-only)",
+    description:
+      "Flux 2 Pro cleanup without mask selection — used when SAM fails or user skips masks",
     steps: [
-      { tool: 'smart-cleanup', label: 'Flux 2 Pro removes clutter by prompt' },
-      { tool: 'esrgan', label: 'Real-ESRGAN 4x upscale' },
-      { tool: 'sharpen', label: 'Client-side sharpen' },
-      { tool: 'resize', label: 'Resize to match original' },
+      { tool: "smart-cleanup", label: "Flux 2 Pro removes clutter by prompt" },
+      { tool: "esrgan", label: "Real-ESRGAN 4x upscale" },
+      { tool: "sharpen", label: "Client-side sharpen" },
+      { tool: "resize", label: "Resize to match original" },
     ],
   },
   {
-    id: 'day-to-dusk-full',
-    name: 'Day to Dusk',
-    description: 'User selects twilight style → Flux 2 Pro relights with reference image → ESRGAN 4x → sharpen',
+    id: "day-to-dusk-full",
+    name: "Day to Dusk",
+    description:
+      "User selects twilight style → Flux 2 Pro relights with reference image → ESRGAN 4x → sharpen",
     steps: [
-      { tool: 'ui', label: 'User picks style (warm-classic / modern-dramatic / golden-luxury)' },
-      { tool: 'day-to-dusk', label: 'Flux 2 Pro relights scene' },
-      { tool: 'esrgan', label: 'Real-ESRGAN 4x upscale' },
-      { tool: 'sharpen', label: 'Client-side sharpen' },
-      { tool: 'resize', label: 'Resize to match original' },
+      {
+        tool: "ui",
+        label:
+          "User picks style (warm-classic / modern-dramatic / golden-luxury)",
+      },
+      { tool: "day-to-dusk", label: "Flux 2 Pro relights scene" },
+      { tool: "esrgan", label: "Real-ESRGAN 4x upscale" },
+      { tool: "sharpen", label: "Client-side sharpen" },
+      { tool: "resize", label: "Resize to match original" },
     ],
   },
   {
-    id: 'virtual-staging-full',
-    name: 'Virtual Staging',
-    description: 'Room detection → style selection → Gemini image generation → composite → sharpen',
+    id: "virtual-staging-full",
+    name: "Virtual Staging",
+    description:
+      "Room detection → style selection → Gemini image generation → composite → sharpen",
     steps: [
-      { tool: 'detect-room', label: 'Detect room type' },
-      { tool: 'ui', label: 'User selects style pack' },
-      { tool: 'generate-design', label: 'Gemini generates staged image' },
-      { tool: 'composite', label: 'stackComposite blends with original' },
-      { tool: 'sharpen', label: 'Client-side sharpen' },
+      { tool: "detect-room", label: "Detect room type" },
+      { tool: "ui", label: "User selects style pack" },
+      { tool: "generate-design", label: "Gemini generates staged image" },
+      { tool: "composite", label: "stackComposite blends with original" },
+      { tool: "sharpen", label: "Client-side sharpen" },
     ],
   },
   {
-    id: 'design-direction-flux',
-    name: 'Design Direction (Flux Engine)',
-    description: 'Text prompt → Flux 2 Pro with custom prompt → sharpen → resize',
+    id: "design-direction-flux",
+    name: "Design Direction (Flux Engine)",
+    description:
+      "Text prompt → Flux 2 Pro with custom prompt → sharpen → resize",
     steps: [
-      { tool: 'ui', label: 'User writes removal/edit prompt' },
-      { tool: 'smart-cleanup', label: 'Flux 2 Pro with custom prompt' },
-      { tool: 'sharpen', label: 'Client-side sharpen' },
-      { tool: 'resize', label: 'Resize to match original' },
+      { tool: "ui", label: "User writes removal/edit prompt" },
+      { tool: "smart-cleanup", label: "Flux 2 Pro with custom prompt" },
+      { tool: "sharpen", label: "Client-side sharpen" },
+      { tool: "resize", label: "Resize to match original" },
     ],
   },
 ];
@@ -322,18 +377,54 @@ export const PIPELINES: Pipeline[] = [
 
 export interface EnvVar {
   key: string;
-  location: 'server' | 'client';
+  location: "server" | "client";
   required: boolean;
   description: string;
 }
 
 export const ENV_VARS: EnvVar[] = [
-  { key: 'REPLICATE_API_TOKEN', location: 'server', required: true, description: 'Replicate API auth — powers Flux, ESRGAN, SAM 2' },
-  { key: 'VITE_GEMINI_API_KEY', location: 'client', required: true, description: 'Google Gemini API key (fallback if user hasn\'t set their own)' },
-  { key: 'VITE_GOOGLE_CLIENT_ID', location: 'client', required: true, description: 'Google OAuth client ID for sign-in' },
-  { key: 'STRIPE_SECRET_KEY', location: 'server', required: true, description: 'Stripe secret key for checkout/billing' },
-  { key: 'SUPABASE_URL', location: 'server', required: true, description: 'Supabase project URL' },
-  { key: 'SUPABASE_SERVICE_KEY', location: 'server', required: true, description: 'Supabase service role key' },
+  {
+    key: "REPLICATE_API_TOKEN",
+    location: "server",
+    required: true,
+    description:
+      "Replicate API auth — powers Flux, reve/edit, ESRGAN, SAM 2, nano-banana sky",
+  },
+  // REMOVED: VITE_GEMINI_API_KEY was a client key that shipped in the bundle and
+  // charged the owner. Browser-side Gemini is fully purged. NOT required, NOT a
+  // client key anymore. Any "Gemini-class" need runs server-side via Replicate
+  // (REPLICATE_API_TOKEN). Do not reintroduce a client-side Gemini key.
+  {
+    key: "VITE_GEMINI_API_KEY",
+    location: "client",
+    required: false,
+    description:
+      "DEPRECATED / REMOVED — browser Gemini purged. Not read by the app. Do not set.",
+  },
+  {
+    key: "VITE_GOOGLE_CLIENT_ID",
+    location: "client",
+    required: true,
+    description: "Google OAuth client ID for sign-in",
+  },
+  {
+    key: "STRIPE_SECRET_KEY",
+    location: "server",
+    required: true,
+    description: "Stripe secret key for checkout/billing",
+  },
+  {
+    key: "SUPABASE_URL",
+    location: "server",
+    required: true,
+    description: "Supabase project URL",
+  },
+  {
+    key: "SUPABASE_SERVICE_KEY",
+    location: "server",
+    required: true,
+    description: "Supabase service role key",
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -342,6 +433,6 @@ export const ENV_VARS: EnvVar[] = [
 
 export const UPLOAD_CONSTRAINTS = {
   maxEdge: 1280,
-  note: 'All images resized to 1280px max edge before upload — Vercel body limit is ~4.5 MB',
-  upscaleOutput: '~5120px (4x via ESRGAN)',
+  note: "All images resized to 1280px max edge before upload — Vercel body limit is ~4.5 MB",
+  upscaleOutput: "~5120px (4x via ESRGAN)",
 };

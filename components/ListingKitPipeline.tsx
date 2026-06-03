@@ -303,25 +303,20 @@ const ListingKitPipeline: React.FC<ListingKitPipelineProps> = ({
       }
       if (signal.aborted) throw new Error("ABORTED");
 
-      // ─── Step 3 — Listing copy (luxury tone default, Gemini copy lane) ──
-      updateStep("copy", { status: "running", stepDetail: tone });
-      try {
-        listingCopy = await generateListingCopy(
-          toDataUrl(heroImage.dataUrl),
-          heroImage.label || "Living Room",
-          { tone, propertyDetails: listingMeta, abortSignal: signal },
-        );
-        updateStep("copy", {
-          status: "done",
-          stepDetail: `${listingCopy.description.length} chars`,
-        });
-      } catch (err: any) {
-        if (isAbort(err)) throw err;
-        updateStep("copy", {
-          status: "error",
-          errorMsg: err?.message || "generation failed",
-        });
-      }
+      // ─── Step 3 — Listing copy ──────────────────────────────────────────
+      // DISABLED: copy generation used a browser-side Gemini call, which is
+      // purged. We skip it cleanly (no stub call, no error spam) so the kit
+      // still ships MLS exports + the social tile. The copy step is marked as a
+      // no-op "coming soon" rather than failed.
+      // TODO: route to a server /api/listing-copy endpoint (Replicate/Claude),
+      // set `listingCopy` from the response, then restore a real running/done
+      // state here. `generateListingCopy` is intentionally left imported as the
+      // future swap-in point.
+      void generateListingCopy; // keep the import live for the re-enable path
+      updateStep("copy", {
+        status: "cancelled",
+        stepDetail: "coming soon — moving to Replicate",
+      });
     } catch (err: any) {
       if (isAbort(err)) {
         // Mark every still-pending/running step as cancelled so the UI tells

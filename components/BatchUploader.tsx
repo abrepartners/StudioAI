@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback } from "react";
 import {
   Upload,
   Camera,
@@ -11,38 +11,70 @@ import {
   Sunset,
   Cloud,
   Download,
-} from 'lucide-react';
-import { detectRoomType } from '../services/geminiService';
-import { FurnitureRoomType } from '../types';
-import Tooltip from './Tooltip';
+} from "lucide-react";
+import { FurnitureRoomType } from "../types";
+import Tooltip from "./Tooltip";
 
-export type BatchAction = 'stage' | 'cleanup' | 'twilight' | 'sky' | 'export';
+// LEGACY surface (dead /legacy route). Auto room-detect used a per-upload
+// browser Gemini call (detectRoomType) — that's purged. Room type now defaults
+// to "Living Room" and is set manually via the per-tile / bulk dropdowns below.
+// No AI call on upload.
 
-const ACTION_CONFIG: Record<BatchAction, { label: string; icon: React.ReactNode; color: string; short: string }> = {
-  stage:   { label: 'Stage',    icon: <Wand2 size={12} />,    color: '#0A84FF', short: 'STG' },
-  cleanup: { label: 'Cleanup',  icon: <Trash2 size={12} />,   color: '#30D158', short: 'CLN' },
-  twilight:{ label: 'Twilight', icon: <Sunset size={12} />,   color: '#FF9F0A', short: 'TWI' },
-  sky:     { label: 'Sky',      icon: <Cloud size={12} />,    color: '#64D2FF', short: 'SKY' },
-  export:  { label: 'Export Only', icon: <Download size={12} />, color: '#BF5AF2', short: 'EXP' },
+export type BatchAction = "stage" | "cleanup" | "twilight" | "sky" | "export";
+
+const ACTION_CONFIG: Record<
+  BatchAction,
+  { label: string; icon: React.ReactNode; color: string; short: string }
+> = {
+  stage: {
+    label: "Stage",
+    icon: <Wand2 size={12} />,
+    color: "#0A84FF",
+    short: "STG",
+  },
+  cleanup: {
+    label: "Cleanup",
+    icon: <Trash2 size={12} />,
+    color: "#30D158",
+    short: "CLN",
+  },
+  twilight: {
+    label: "Twilight",
+    icon: <Sunset size={12} />,
+    color: "#FF9F0A",
+    short: "TWI",
+  },
+  sky: {
+    label: "Sky",
+    icon: <Cloud size={12} />,
+    color: "#64D2FF",
+    short: "SKY",
+  },
+  export: {
+    label: "Export Only",
+    icon: <Download size={12} />,
+    color: "#BF5AF2",
+    short: "EXP",
+  },
 };
 
 // Full FurnitureRoomType palette surfaced in the manual-override UI. Kept in
 // sync with App.tsx. Used by both the per-tile dropdown and the bulk setter.
 const ROOM_TYPES: FurnitureRoomType[] = [
-  'Living Room',
-  'Kitchen',
-  'Bedroom',
-  'Primary Bedroom',
-  'Bathroom',
-  'Dining Room',
-  'Office',
-  'Laundry Room',
-  'Closet',
-  'Nursery',
-  'Garage',
-  'Patio',
-  'Basement',
-  'Exterior',
+  "Living Room",
+  "Kitchen",
+  "Bedroom",
+  "Primary Bedroom",
+  "Bathroom",
+  "Dining Room",
+  "Office",
+  "Laundry Room",
+  "Closet",
+  "Nursery",
+  "Garage",
+  "Patio",
+  "Basement",
+  "Exterior",
 ];
 
 export interface BatchImage {
@@ -84,83 +116,51 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
       reader.readAsDataURL(file);
     });
 
-  const processFiles = useCallback(async (files: File[]) => {
-    const imageFiles = files
-      .filter(f => f.type.startsWith('image/'))
-      .slice(0, maxFiles);
+  const processFiles = useCallback(
+    async (files: File[]) => {
+      const imageFiles = files
+        .filter((f) => f.type.startsWith("image/"))
+        .slice(0, maxFiles);
 
-    if (imageFiles.length === 0) return;
+      if (imageFiles.length === 0) return;
 
-    // Single file -> go straight to existing single-upload flow
-    if (imageFiles.length === 1 && batchImages.length === 0) {
-      const base64 = await readFileAsBase64(imageFiles[0]);
-      onSingleUpload(base64);
-      return;
-    }
+      // Single file -> go straight to existing single-upload flow
+      if (imageFiles.length === 1 && batchImages.length === 0) {
+        const base64 = await readFileAsBase64(imageFiles[0]);
+        onSingleUpload(base64);
+        return;
+      }
 
-    // Multiple files -> batch mode
-    const newImages: BatchImage[] = await Promise.all(
-      imageFiles.map(async (file) => {
-        const base64 = await readFileAsBase64(file);
-        return {
-          id: crypto.randomUUID(),
-          file,
-          base64,
-          roomType: null,
-          detecting: true,
-          selected: true,
-          action: 'stage' as BatchAction,
-        };
-      })
-    );
-
-    setBatchImages(prev => {
-      const combined = [...prev, ...newImages].slice(0, maxFiles);
-      return combined;
-    });
-
-    // Auto-detect room types concurrently (3 at a time). Non-blocking —
-    // user can override any tile's room type via the dropdown while this
-    // still runs. Detection sets detecting:false + roomType; manual
-    // override also sets detecting:false and skips the auto-result.
-    const CONCURRENCY = 3;
-    for (let i = 0; i < newImages.length; i += CONCURRENCY) {
-      const chunk = newImages.slice(i, i + CONCURRENCY);
-      const results = await Promise.allSettled(
-        chunk.map(async (img) => {
-          const roomType = await detectRoomType(img.base64);
-          return { id: img.id, roomType };
-        })
+      // Multiple files -> batch mode. No AI room-detect on upload (browser
+      // Gemini is purged). Default every tile to "Living Room" + "stage"; the
+      // user sets room type / action via the per-tile and bulk dropdowns.
+      const newImages: BatchImage[] = await Promise.all(
+        imageFiles.map(async (file) => {
+          const base64 = await readFileAsBase64(file);
+          return {
+            id: crypto.randomUUID(),
+            file,
+            base64,
+            roomType: "Living Room" as FurnitureRoomType,
+            detecting: false,
+            selected: true,
+            action: "stage" as BatchAction,
+          };
+        }),
       );
 
-      setBatchImages(prev =>
-        prev.map(img => {
-          // If the user already manually picked a room type while detection
-          // was running, respect their choice — don't overwrite.
-          if (!img.detecting) return img;
-
-          const result = results.find(
-            r => r.status === 'fulfilled' && r.value.id === img.id
-          );
-          if (result && result.status === 'fulfilled') {
-            // Auto-assign action based on room type
-            const isExterior = result.value.roomType === 'Exterior';
-            const autoAction: BatchAction = isExterior ? 'twilight' : 'stage';
-            return { ...img, roomType: result.value.roomType, detecting: false, action: autoAction };
-          }
-          if (chunk.some(c => c.id === img.id) && img.detecting) {
-            return { ...img, roomType: 'Living Room' as FurnitureRoomType, detecting: false };
-          }
-          return img;
-        })
-      );
-    }
-  }, [batchImages.length, maxFiles, onSingleUpload]);
+      setBatchImages((prev) => {
+        const combined = [...prev, ...newImages].slice(0, maxFiles);
+        return combined;
+      });
+    },
+    [batchImages.length, maxFiles, onSingleUpload],
+  );
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
     if (files.length > 0) processFiles(files);
-    event.target.value = '';
+    event.target.value = "";
   };
 
   const handleDrop = (event: React.DragEvent) => {
@@ -172,14 +172,16 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
   };
 
   const toggleSelect = (id: string) => {
-    setBatchImages(prev =>
-      prev.map(img => (img.id === id ? { ...img, selected: !img.selected } : img))
+    setBatchImages((prev) =>
+      prev.map((img) =>
+        img.id === id ? { ...img, selected: !img.selected } : img,
+      ),
     );
   };
 
   const setImageAction = (id: string, action: BatchAction) => {
-    setBatchImages(prev =>
-      prev.map(img => (img.id === id ? { ...img, action } : img))
+    setBatchImages((prev) =>
+      prev.map((img) => (img.id === id ? { ...img, action } : img)),
     );
   };
 
@@ -187,31 +189,35 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
       so the auto-detect result (if it arrives later) won't stomp the user's
       choice. */
   const setImageRoomType = (id: string, roomType: FurnitureRoomType) => {
-    setBatchImages(prev =>
-      prev.map(img => (img.id === id ? { ...img, roomType, detecting: false } : img))
+    setBatchImages((prev) =>
+      prev.map((img) =>
+        img.id === id ? { ...img, roomType, detecting: false } : img,
+      ),
     );
   };
 
   const applyActionToSelected = (action: BatchAction) => {
-    setBatchImages(prev =>
-      prev.map(img => (img.selected ? { ...img, action } : img))
+    setBatchImages((prev) =>
+      prev.map((img) => (img.selected ? { ...img, action } : img)),
     );
   };
 
   /** Bulk room-type override for every currently-selected image. Also
       clears `detecting` so the auto-detect results won't clobber. */
   const applyRoomTypeToSelected = (roomType: FurnitureRoomType) => {
-    setBatchImages(prev =>
-      prev.map(img => (img.selected ? { ...img, roomType, detecting: false } : img))
+    setBatchImages((prev) =>
+      prev.map((img) =>
+        img.selected ? { ...img, roomType, detecting: false } : img,
+      ),
     );
   };
 
   const removeImage = (id: string) => {
-    setBatchImages(prev => prev.filter(img => img.id !== id));
+    setBatchImages((prev) => prev.filter((img) => img.id !== id));
   };
 
   const selectAll = () => {
-    setBatchImages(prev => prev.map(img => ({ ...img, selected: true })));
+    setBatchImages((prev) => prev.map((img) => ({ ...img, selected: true })));
   };
 
   const clearAll = () => {
@@ -220,23 +226,34 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
 
   const handleStartBatch = () => {
     const selected = batchImages
-      .filter(img => img.selected)
-      .map(img => img.detecting ? { ...img, detecting: false, roomType: img.roomType || 'Living Room' as FurnitureRoomType } : img);
+      .filter((img) => img.selected)
+      .map((img) =>
+        img.detecting
+          ? {
+              ...img,
+              detecting: false,
+              roomType: img.roomType || ("Living Room" as FurnitureRoomType),
+            }
+          : img,
+      );
     if (selected.length > 0) {
       onBatchReady(selected);
     }
   };
 
-  const selectedCount = batchImages.filter(img => img.selected).length;
-  const detectingCount = batchImages.filter(img => img.detecting).length;
+  const selectedCount = batchImages.filter((img) => img.selected).length;
+  const detectingCount = batchImages.filter((img) => img.detecting).length;
 
   // Action summary for selected images
   const actionCounts = batchImages
-    .filter(img => img.selected)
-    .reduce((acc, img) => {
-      acc[img.action] = (acc[img.action] || 0) + 1;
-      return acc;
-    }, {} as Record<BatchAction, number>);
+    .filter((img) => img.selected)
+    .reduce(
+      (acc, img) => {
+        acc[img.action] = (acc[img.action] || 0) + 1;
+        return acc;
+      },
+      {} as Record<BatchAction, number>,
+    );
 
   // No images queued yet — show upload prompt
   if (batchImages.length === 0) {
@@ -244,21 +261,31 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
       <div
         className={`premium-surface rounded-2xl p-6 text-center transition-all duration-200 ${
           isDragging
-            ? 'ring-2 ring-[var(--color-primary)] bg-[var(--color-primary)]/5'
+            ? "ring-2 ring-[var(--color-primary)] bg-[var(--color-primary)]/5"
             : isAnalyzing
-            ? 'opacity-75 cursor-not-allowed'
-            : 'hover:-translate-y-0.5 hover:shadow-md'
+              ? "opacity-75 cursor-not-allowed"
+              : "hover:-translate-y-0.5 hover:shadow-md"
         }`}
-        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragging(true);
+        }}
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
       >
         {isAnalyzing ? (
           <div className="flex flex-col items-center gap-3 py-2">
-            <Loader2 size={32} className="text-[var(--color-primary)] animate-spin" />
+            <Loader2
+              size={32}
+              className="text-[var(--color-primary)] animate-spin"
+            />
             <div>
-              <h3 className="font-display text-lg font-semibold text-[var(--color-ink)]">Analyzing Space</h3>
-              <p className="mt-1 text-xs text-[var(--color-text)]">Extracting room type and palette...</p>
+              <h3 className="font-display text-lg font-semibold text-[var(--color-ink)]">
+                Analyzing Space
+              </h3>
+              <p className="mt-1 text-xs text-[var(--color-text)]">
+                Extracting room type and palette...
+              </p>
             </div>
           </div>
         ) : (
@@ -267,7 +294,7 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
               <Images size={20} />
             </div>
             <h3 className="font-display text-lg font-semibold text-[var(--color-ink)]">
-              {isDragging ? 'Drop photos here' : 'Drop room photos'}
+              {isDragging ? "Drop photos here" : "Drop room photos"}
             </h3>
             <p className="mx-auto mt-1 text-sm text-[var(--color-text)]">
               Single photo or multiple for batch editing
@@ -320,7 +347,8 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
           </h3>
           <p className="text-xs text-[var(--color-text)]/70">
             {selectedCount} of {batchImages.length} selected
-            {detectingCount > 0 && ` · Detecting ${detectingCount} rooms… (or pick manually)`}
+            {detectingCount > 0 &&
+              ` · Detecting ${detectingCount} rooms… (or pick manually)`}
           </p>
         </div>
         <div className="flex items-center gap-1.5">
@@ -362,8 +390,8 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
             const cfg = ACTION_CONFIG[action];
             // Highlight if all selected images have this action
             const allSelectedHaveThis = batchImages
-              .filter(img => img.selected)
-              .every(img => img.action === action);
+              .filter((img) => img.selected)
+              .every((img) => img.action === action);
             return (
               <button
                 key={action}
@@ -371,8 +399,8 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
                 onClick={() => applyActionToSelected(action)}
                 className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold inline-flex items-center gap-1 transition-all border ${
                   allSelectedHaveThis
-                    ? 'border-current bg-current/15 ring-1 ring-current/30'
-                    : 'border-[var(--color-border-strong)] bg-black/40 hover:border-current hover:bg-current/5'
+                    ? "border-current bg-current/15 ring-1 ring-current/30"
+                    : "border-[var(--color-border-strong)] bg-black/40 hover:border-current hover:bg-current/5"
                 }`}
                 style={{ color: cfg.color }}
               >
@@ -393,7 +421,7 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
             onChange={(e) => {
               if (e.target.value) {
                 applyRoomTypeToSelected(e.target.value as FurnitureRoomType);
-                e.target.value = '';
+                e.target.value = "";
               }
             }}
             defaultValue=""
@@ -401,7 +429,9 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
           >
             <option value="">Set {selectedCount} selected to…</option>
             {ROOM_TYPES.map((rt) => (
-              <option key={rt} value={rt} className="text-black">{rt}</option>
+              <option key={rt} value={rt} className="text-black">
+                {rt}
+              </option>
             ))}
           </select>
           <span className="text-[10.5px] text-[var(--color-text)]/40 ml-1">
@@ -418,11 +448,11 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
             <div
               key={img.id}
               className={`relative rounded-lg overflow-hidden border-2 transition-all cursor-pointer aspect-[4/3] ${
-                img.selected
-                  ? 'shadow-md'
-                  : 'border-transparent opacity-50'
+                img.selected ? "shadow-md" : "border-transparent opacity-50"
               }`}
-              style={img.selected ? { borderColor: actionCfg.color } : undefined}
+              style={
+                img.selected ? { borderColor: actionCfg.color } : undefined
+              }
               onClick={() => toggleSelect(img.id)}
             >
               <img
@@ -438,14 +468,17 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
                 {!img.detecting && (
                   <span
                     className="rounded px-1.5 py-0.5 text-2xs font-bold"
-                    style={{ backgroundColor: actionCfg.color, color: '#000' }}
+                    style={{ backgroundColor: actionCfg.color, color: "#000" }}
                   >
                     {actionCfg.short}
                   </span>
                 )}
                 <button
                   type="button"
-                  onClick={(e) => { e.stopPropagation(); removeImage(img.id); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeImage(img.id);
+                  }}
                   className="rounded-full bg-black/60 p-0.5 text-white/70 hover:text-white transition"
                 >
                   <X size={10} />
@@ -455,23 +488,32 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
               {/* Room type selector — bottom. Clickable dropdown overrides auto-detect. */}
               <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-1.5 flex items-center gap-1">
                 {img.detecting && !img.roomType && (
-                  <Loader2 size={10} className="animate-spin text-[var(--color-primary)] shrink-0" />
+                  <Loader2
+                    size={10}
+                    className="animate-spin text-[var(--color-primary)] shrink-0"
+                  />
                 )}
                 <select
-                  value={img.roomType || ''}
+                  value={img.roomType || ""}
                   onChange={(e) => {
                     e.stopPropagation();
-                    if (e.target.value) setImageRoomType(img.id, e.target.value as FurnitureRoomType);
+                    if (e.target.value)
+                      setImageRoomType(
+                        img.id,
+                        e.target.value as FurnitureRoomType,
+                      );
                   }}
                   onClick={(e) => e.stopPropagation()}
                   className="flex-1 min-w-0 text-xs font-semibold text-white bg-transparent border-0 focus:outline-none cursor-pointer appearance-none truncate"
                   aria-label="Pick room type"
                 >
                   <option value="" disabled className="text-black">
-                    {img.detecting ? 'Detecting… or pick' : 'Pick room'}
+                    {img.detecting ? "Detecting… or pick" : "Pick room"}
                   </option>
                   {ROOM_TYPES.map((rt) => (
-                    <option key={rt} value={rt} className="text-black">{rt}</option>
+                    <option key={rt} value={rt} className="text-black">
+                      {rt}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -479,7 +521,11 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
               {/* Selection indicator */}
               {img.selected && (
                 <div className="absolute top-1 left-1">
-                  <CheckCircle2 size={14} className="drop-shadow-md" style={{ color: actionCfg.color }} />
+                  <CheckCircle2
+                    size={14}
+                    className="drop-shadow-md"
+                    style={{ color: actionCfg.color }}
+                  />
                 </div>
               )}
             </div>
@@ -490,18 +536,23 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
       {/* Action summary */}
       {selectedCount > 0 && (
         <div className="flex flex-wrap gap-1.5">
-          {(Object.entries(actionCounts) as [BatchAction, number][]).map(([action, count]) => {
-            const cfg = ACTION_CONFIG[action];
-            return (
-              <span
-                key={action}
-                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold"
-                style={{ backgroundColor: `${cfg.color}20`, color: cfg.color }}
-              >
-                {cfg.icon} {count} {cfg.label}
-              </span>
-            );
-          })}
+          {(Object.entries(actionCounts) as [BatchAction, number][]).map(
+            ([action, count]) => {
+              const cfg = ACTION_CONFIG[action];
+              return (
+                <span
+                  key={action}
+                  className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold"
+                  style={{
+                    backgroundColor: `${cfg.color}20`,
+                    color: cfg.color,
+                  }}
+                >
+                  {cfg.icon} {count} {cfg.label}
+                </span>
+              );
+            },
+          )}
         </div>
       )}
 
@@ -511,8 +562,15 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
           <button
             type="button"
             onClick={() => {
-              const all = batchImages.map(img =>
-                img.detecting ? { ...img, detecting: false, roomType: img.roomType || 'Living Room' as FurnitureRoomType } : img
+              const all = batchImages.map((img) =>
+                img.detecting
+                  ? {
+                      ...img,
+                      detecting: false,
+                      roomType:
+                        img.roomType || ("Living Room" as FurnitureRoomType),
+                    }
+                  : img,
               );
               onSkipToEditor(all);
             }}
@@ -526,7 +584,7 @@ const BatchUploader: React.FC<BatchUploaderProps> = ({
           type="button"
           onClick={handleStartBatch}
           disabled={selectedCount === 0}
-          className={`rounded-xl px-4 py-3 text-sm font-bold bg-[var(--color-primary)] text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:opacity-90 inline-flex items-center justify-center gap-2 ${onSkipToEditor ? '' : 'col-span-2'}`}
+          className={`rounded-xl px-4 py-3 text-sm font-bold bg-[var(--color-primary)] text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:opacity-90 inline-flex items-center justify-center gap-2 ${onSkipToEditor ? "" : "col-span-2"}`}
         >
           <Images size={16} />
           Batch Process {selectedCount}

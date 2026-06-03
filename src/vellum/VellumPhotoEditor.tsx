@@ -33,7 +33,6 @@ import {
 import { nanoSky, SkyStyle } from "../../services/skyService";
 import { upscaleImage } from "../../services/upscaleService";
 import { isExteriorRoom } from "../../services/fluxService";
-import { classifyScene } from "../../services/classifyScene";
 import { fluxStaging } from "../../services/stagingService";
 import { reveEdit } from "../../services/reveEditService";
 import { fluxRenovation } from "../../services/renovationService";
@@ -392,10 +391,19 @@ const callApiDirect = async (
         maskBase64 = await combineSelectedMasks(selectedMasks);
         customPrompt = `Remove all objects in the masked area from this ${roomLabel.toLowerCase()}. Reconstruct the revealed surfaces using ONLY the material visible at the mask boundary edges — match the exact texture, color, grain, and surface type. If the surrounding area is dirt, fill with dirt. If concrete, fill with concrete. If grass, fill with grass at the same color and density. Do not add any material not already present in the surrounding area. Do not add any new items. Leave all unmasked pixels identical to the input.`;
       } else {
+        // [SAM-CLEANUP] Standard (non-precision) path: union EVERY detected
+        // object into one mask and let flux-cleanup edit only those pixels —
+        // everything outside the mask stays byte-identical. Dilate the union
+        // a bit wider than the per-object default (32px vs 24px) so clutter
+        // SAM only partially segmented, plus its cast shadows, fall inside the
+        // mask instead of being missed at the boundary. If SAM returns nothing
+        // (null / empty), maskBase64 stays undefined and fluxCleanup falls back
+        // to the prompt-only path so Bria can still remove clutter by prompt.
         const samResult = await detectClutterMasks(imageBase64);
         if (samResult && samResult.individualMasksBase64.length > 0) {
           maskBase64 = await combineSelectedMasks(
             samResult.individualMasksBase64,
+            32,
           );
         }
       }
@@ -635,12 +643,16 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
         continue;
       }
       const id = nextId.current++;
+      // [ROOM-TYPE] No AI classify on upload — that was a per-upload browser
+      // Gemini call that silently charged the owner. Default every photo to
+      // "Living Room"; the agent sets the real room via the "Tag room types"
+      // modal (auto-opened below) or the inline room-type dropdown.
       newPhotos.push({
         id,
         file,
         dataUrl,
         label: "Living Room",
-        detecting: true,
+        detecting: false,
       });
     }
 
@@ -660,20 +672,6 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
       idbSavePhoto(storeKey, p.id, p.dataUrl, p.label, p.file.name).catch(
         () => {},
       );
-    }
-
-    for (const p of newPhotos) {
-      classifyScene(p.dataUrl).then((scene) => {
-        const label = scene === "exterior" ? "Front Yard" : "Living Room";
-        setPhotos((prev) =>
-          prev.map((ph) =>
-            ph.id === p.id ? { ...ph, label, detecting: false } : ph,
-          ),
-        );
-        idbSavePhoto(storeKey, p.id, p.dataUrl, label, p.file.name).catch(
-          () => {},
-        );
-      });
     }
 
     if (newPhotos.length > 0) setShowRoomPicker(true);

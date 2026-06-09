@@ -1,9 +1,17 @@
 /**
- * api/reve-edit.ts  —  Generic image editing via reve/edit
+ * api/reve-edit.ts  —  Generic in-place image editing
  *
- * Used for whiten (white balance correction) and lawn (landscaping
- * enhancement). Both are instruction-following edit tasks that don't
- * need full image regeneration — reve/edit preserves the input well.
+ * Powers staging, whiten, lawn, and renovation — instruction-following
+ * edits that must preserve the room/composition rather than regenerate it.
+ *
+ * MODEL: black-forest-labs/flux-kontext-pro (instruction-based in-place
+ * editor). Swapped off reve/edit on 2026-06-08: reve/edit's upstream
+ * backend (Reve) began blocking Replicate's egress IPs with
+ * FORBIDDEN {verb:access, noun:ip_address}, so every staging/whiten/lawn/
+ * renovation generation failed post-prediction. The block is Replicate↔Reve,
+ * above this app — not fixable from our side, so we moved to Kontext (same
+ * provider as flux-2-pro, which is unaffected). Endpoint name kept as
+ * /api/reve-edit so the 4 services need no change.
  *
  * Upscale branch mirrors flux-cleanup:
  *   - isExterior=true  → Clarity (with Pruna OOM fallback)
@@ -84,7 +92,7 @@ export default async function handler(req: any, res: any) {
 
   const body = parseBody(req.body);
   const imageBase64 = String(body.imageBase64 || "");
-  const prompt = String(body.prompt || "").slice(0, 2560); // reve/edit caps edit_instruction at 2560
+  const prompt = String(body.prompt || "").slice(0, 2560); // prompts already tuned ≤2560 (reve-era cap); Kontext has no hard cap
   const isExterior = Boolean(body.isExterior);
   const skipUpscale = Boolean(body.skipUpscale);
 
@@ -106,22 +114,27 @@ export default async function handler(req: any, res: any) {
 
   try {
     console.log(
-      `[reve-edit] Starting reve/edit (${isExterior ? "exterior" : "interior"})...`,
+      `[reve-edit] Starting flux-kontext-pro (${isExterior ? "exterior" : "interior"})...`,
     );
-    const output = await replicate.run("reve/edit", {
+    const output = await replicate.run("black-forest-labs/flux-kontext-pro", {
       input: {
-        image: dataUrl,
+        input_image: dataUrl,
         prompt,
+        aspect_ratio: "match_input_image",
         output_format: "jpg",
+        safety_tolerance: 2,
       },
     });
 
     const editUrl = await extractUrl(output);
     if (!editUrl) {
-      json(res, 200, { ok: false, error: "reve/edit returned no image URL" });
+      json(res, 200, {
+        ok: false,
+        error: "flux-kontext-pro returned no image URL",
+      });
       return;
     }
-    console.log(`[reve-edit] reve done in ${Date.now() - t0}ms`);
+    console.log(`[reve-edit] kontext done in ${Date.now() - t0}ms`);
 
     // Pruna 2x with enhance_realism:false for both interior and exterior.
     // (See flux-cleanup.ts for the rationale on dropping Clarity from exteriors.)

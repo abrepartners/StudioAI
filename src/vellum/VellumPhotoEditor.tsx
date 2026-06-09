@@ -1018,6 +1018,17 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
         return false;
       }
       console.error("[Vellum] Generation failed:", err);
+      // Surface the failure — previously this was swallowed to console + a
+      // faint activity line, so a failed generation looked identical to
+      // "nothing happened" (e.g. the 2026-06-08 reve/edit IP block). Show a
+      // visible banner with a short reason so provider breakage is obvious.
+      const detail = String(err?.message || "")
+        .replace(/\s+/g, " ")
+        .slice(0, 90);
+      setExportError(
+        `Couldn't apply to ${photo.label}${detail ? ` — ${detail}` : " — please try again"}`,
+      );
+      setTimeout(() => setExportError(""), 7000);
       setActivity((a) => [
         {
           who: "Vellum",

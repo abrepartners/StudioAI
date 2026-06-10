@@ -1,13 +1,13 @@
 /**
  * api/flux-renovation.ts
  *
- * Virtual Renovation via reve/edit on Replicate. Previously ran on
- * flux-2-pro, but — like virtual staging — flux-2-pro treats the photo as
- * a style reference and re-renders the whole scene (and bakes in its
- * preferred "look": warming the image and deepening shadows). reve/edit is
- * the faithful in-place editor the rest of the app standardizes on
- * (whiten, lawn, cleanup, staging): it changes only the surfaces named in
- * the prompt and leaves composition, lighting, and color untouched.
+ * Virtual Renovation via flux-kontext-pro on Replicate. History: flux-2-pro
+ * re-rendered the whole scene (warming + deepening shadows) → reve/edit
+ * (faithful in-place) → reve/edit's upstream IP-blocked Replicate's egress
+ * (FORBIDDEN ip_address), silently breaking renovation → now flux-kontext-pro,
+ * the faithful in-place editor whiten/lawn/cleanup standardize on. It changes
+ * only the surfaces named in the prompt and leaves composition, lighting, and
+ * color untouched.
  *
  * Defense in depth still applies: the frontend runs RENOVATION_COMPOSITE in
  * postProcessToolOutput, pixel-matching the result against the original so
@@ -161,25 +161,36 @@ export default async function handler(req: any, res: any) {
   const t0 = Date.now();
 
   try {
-    // reve/edit edits the supplied image in place — it preserves the input's
-    // dimensions, perspective, lighting, and color, and changes only the
-    // surfaces named in the prompt. No aspect-ratio detection or style-
-    // reference regeneration needed (same faithful path as staging/whiten/lawn).
-    console.log("[flux-renovation] Starting reve/edit renovation...");
-    const output = await replicate.run("reve/edit", {
+    // flux-kontext-pro edits the supplied image in place — preserves the
+    // input's perspective, lighting, and color, changing only the surfaces
+    // named in the prompt. Replaces reve/edit, whose upstream IP-blocked
+    // Replicate's egress (FORBIDDEN ip_address), silently breaking renovation.
+    // Kontext renovation was eyeball-verified faithful (navy shaker cabinets +
+    // marble counters applied exactly, everything else pixel-stable) — same
+    // engine now used by whiten/lawn. safety_tolerance 2 is the max with an
+    // input image; aspect_ratio match_input_image holds dimensions.
+    console.log("[flux-renovation] Starting flux-kontext-pro renovation...");
+    const output = await replicate.run("black-forest-labs/flux-kontext-pro", {
       input: {
-        image: userDataUrl,
-        prompt: buildRenovationPrompt(details).slice(0, 2560), // reve/edit caps edit_instruction at 2560
+        prompt: buildRenovationPrompt(details),
+        input_image: userDataUrl,
+        aspect_ratio: "match_input_image",
         output_format: "jpg",
+        safety_tolerance: 2,
       },
     });
 
     const cleanUrl = await extractUrl(output);
     if (!cleanUrl) {
-      json(res, 200, { ok: false, error: "reve/edit returned no image URL" });
+      json(res, 200, {
+        ok: false,
+        error: "flux-kontext-pro returned no image URL",
+      });
       return;
     }
-    console.log(`[flux-renovation] reve/edit done in ${Date.now() - t0}ms`);
+    console.log(
+      `[flux-renovation] flux-kontext-pro done in ${Date.now() - t0}ms`,
+    );
 
     const imgRes = await fetch(cleanUrl);
     if (!imgRes.ok) {

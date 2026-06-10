@@ -7,8 +7,9 @@
  *   1. Cleanup engine (selected by `engine` field from client):
  *      - "bria"  →  bria/fibo-edit (default). Targeted clutter removal,
  *        preserves furniture and fixtures. Best for standard declutter.
- *      - "reve"  →  reve/edit. Total room clearing — removes ALL items
- *        including furniture. Used for "Full Clean" preset.
+ *      - "reve"  →  flux-kontext-pro (was reve/edit, which got IP-blocked
+ *        upstream). Total room clearing — removes ALL items including
+ *        furniture. Used for "Full Clean" preset.
  *   2. Upscale via prunaai/p-image-upscale (~1s, ~$0.005), both interior
  *      and exterior. Pruna with enhance_realism:false produces natural
  *      textures on every surface — no HDR over-processing.
@@ -27,39 +28,54 @@
  *   completely. Qwen matched Bria quality but lower resolution output.
  *   → Bria for standard cleanup, Reve for full clean.
  */
-import Replicate from 'replicate';
-import sharp from 'sharp';
-import { json, setCors, handleOptions, rejectMethod, parseBody } from './utils.js';
+import Replicate from "replicate";
+import sharp from "sharp";
+import {
+  json,
+  setCors,
+  handleOptions,
+  rejectMethod,
+  parseBody,
+} from "./utils.js";
 
-export const config = { runtime: 'nodejs', maxDuration: 120 };
+export const config = { runtime: "nodejs", maxDuration: 120 };
 
-const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN || '';
+const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN || "";
 
 async function extractUrl(output: unknown): Promise<string | null> {
   if (!output) return null;
-  if (typeof output === 'string') return output;
+  if (typeof output === "string") return output;
   if (Array.isArray(output)) return extractUrl(output[0]);
-  if (output && typeof output === 'object') {
+  if (output && typeof output === "object") {
     const o = output as Record<string, unknown>;
-    if (typeof o.url === 'function') {
-      try { const u = (o.url as () => unknown)(); return typeof u === 'string' ? u : String(u); } catch { return null; }
+    if (typeof o.url === "function") {
+      try {
+        const u = (o.url as () => unknown)();
+        return typeof u === "string" ? u : String(u);
+      } catch {
+        return null;
+      }
     }
-    if (typeof o.url === 'string') return o.url;
+    if (typeof o.url === "string") return o.url;
   }
   return null;
 }
 
 // Pruna upscaler — primary for interiors. Fast (<1s), $0.005/run, good
 // realism on interior surfaces. Also used as Clarity-OOM fallback.
-async function runPruna(replicate: Replicate, imageUrl: string): Promise<string | null> {
+async function runPruna(
+  replicate: Replicate,
+  imageUrl: string,
+): Promise<string | null> {
   try {
-    const out = await replicate.run('prunaai/p-image-upscale', {
+    const out = await replicate.run("prunaai/p-image-upscale", {
       input: {
         image: imageUrl,
         factor: 2,
-        target: 5,
-        upscale_mode: 'factor',
-        output_format: 'jpg',
+        // 'factor' mode doubles each side (output capped at 8 MP). The `target`
+        // MP param is only read in 'target' mode, so it's omitted (was a no-op).
+        upscale_mode: "factor",
+        output_format: "jpg",
         output_quality: 95,
         enhance_details: true,
         enhance_realism: false,
@@ -73,32 +89,40 @@ async function runPruna(replicate: Replicate, imageUrl: string): Promise<string 
 }
 
 export default async function handler(req: any, res: any) {
-  setCors(res, 'POST,OPTIONS');
+  setCors(res, "POST,OPTIONS");
   if (handleOptions(req, res)) return;
-  if (rejectMethod(req, res, 'POST')) return;
+  if (rejectMethod(req, res, "POST")) return;
 
   if (!REPLICATE_TOKEN) {
-    json(res, 200, { ok: false, error: 'REPLICATE_API_TOKEN not configured' });
+    json(res, 200, { ok: false, error: "REPLICATE_API_TOKEN not configured" });
     return;
   }
 
   const body = parseBody(req.body);
-  const imageBase64 = String(body.imageBase64 || '');
-  const prompt = String(body.prompt || '');
+  const imageBase64 = String(body.imageBase64 || "");
+  const prompt = String(body.prompt || "");
   const skipUpscale = Boolean(body.skipUpscale);
   const isExterior = Boolean(body.isExterior);
-  const engine = String(body.engine || 'bria');
-  const maskBase64 = String(body.maskBase64 || '');
+  const engine = String(body.engine || "bria");
+  const maskBase64 = String(body.maskBase64 || "");
 
-  if (!imageBase64) { json(res, 400, { ok: false, error: 'imageBase64 is required' }); return; }
-  if (!prompt) { json(res, 400, { ok: false, error: 'prompt is required' }); return; }
+  if (!imageBase64) {
+    json(res, 400, { ok: false, error: "imageBase64 is required" });
+    return;
+  }
+  if (!prompt) {
+    json(res, 400, { ok: false, error: "prompt is required" });
+    return;
+  }
 
-  const dataUrl = imageBase64.startsWith('data:')
+  const dataUrl = imageBase64.startsWith("data:")
     ? imageBase64
     : `data:image/jpeg;base64,${imageBase64}`;
 
   const maskDataUrl = maskBase64
-    ? (maskBase64.startsWith('data:') ? maskBase64 : `data:image/png;base64,${maskBase64}`)
+    ? maskBase64.startsWith("data:")
+      ? maskBase64
+      : `data:image/png;base64,${maskBase64}`
     : null;
 
   const replicate = new Replicate({ auth: REPLICATE_TOKEN });
@@ -106,14 +130,23 @@ export default async function handler(req: any, res: any) {
 
   try {
     // --- Step 1: Cleanup engine (Bria default, Reve for full-clean) ----
-    console.log(`[flux-cleanup] Starting ${engine} engine... (${isExterior ? 'exterior' : 'interior'})`);
+    console.log(
+      `[flux-cleanup] Starting ${engine} engine... (${isExterior ? "exterior" : "interior"})`,
+    );
     let cleanUrl: string | null = null;
 
-    if (engine === 'reve') {
-      const output = await replicate.run('reve/edit', {
+    if (engine === "reve") {
+      // Full-clean path. Was reve/edit, whose upstream IP-blocked Replicate
+      // (FORBIDDEN ip_address) — swapped to flux-kontext-pro (same in-place
+      // editor now used by whiten/lawn/renovation). The masked Bria path below
+      // is the primary route; this runs only for unmasked full-room clears.
+      const output = await replicate.run("black-forest-labs/flux-kontext-pro", {
         input: {
-          image: dataUrl,
           prompt,
+          input_image: dataUrl,
+          aspect_ratio: "match_input_image",
+          output_format: "jpg",
+          safety_tolerance: 2,
         },
       });
       cleanUrl = await extractUrl(output);
@@ -121,8 +154,8 @@ export default async function handler(req: any, res: any) {
       // Pass mask when available — Bria edits only masked areas, leaving the
       // rest of the image pixel-identical. Best path for Precision Select mode.
       const negativePrompt = isExterior
-        ? 'Do not add any new objects, plants, grass, landscaping, or greenery. Do not change ground surface material — if dirt, keep dirt; if gravel, keep gravel; if bare soil, keep bare soil. Do not change house architecture, siding, roof, windows, doors, or sky. Do not alter lighting, shadows, or color grading. Only remove specified items and fill with the existing ground surface material.'
-        : 'Do not add any new objects, furniture, decor, or items. Do not change room architecture, wall colors, wall texture, flooring, ceiling, or fixtures. Do not alter lighting, shadows, or color grading. Only remove specified items and fill with matching surface texture.';
+        ? "Do not add any new objects, plants, grass, landscaping, or greenery. Do not change ground surface material — if dirt, keep dirt; if gravel, keep gravel; if bare soil, keep bare soil. Do not change house architecture, siding, roof, windows, doors, or sky. Do not alter lighting, shadows, or color grading. Only remove specified items and fill with the existing ground surface material."
+        : "Do not add any new objects, furniture, decor, or items. Do not change room architecture, wall colors, wall texture, flooring, ceiling, or fixtures. Do not alter lighting, shadows, or color grading. Only remove specified items and fill with matching surface texture.";
       const briaInput: Record<string, unknown> = {
         image: dataUrl,
         instruction: prompt,
@@ -132,15 +165,22 @@ export default async function handler(req: any, res: any) {
         briaInput.mask = maskDataUrl;
         console.log(`[flux-cleanup] Using SAM mask for precision edit`);
       }
-      const output = await replicate.run('bria/fibo-edit', { input: briaInput });
+      const output = await replicate.run("bria/fibo-edit", {
+        input: briaInput,
+      });
       cleanUrl = await extractUrl(output);
     }
 
     if (!cleanUrl) {
-      json(res, 200, { ok: false, error: `${engine} engine returned no image URL` });
+      json(res, 200, {
+        ok: false,
+        error: `${engine} engine returned no image URL`,
+      });
       return;
     }
-    console.log(`[flux-cleanup] ${engine} done in ${Date.now() - t0}ms → ${cleanUrl.slice(0, 60)}...`);
+    console.log(
+      `[flux-cleanup] ${engine} done in ${Date.now() - t0}ms → ${cleanUrl.slice(0, 60)}...`,
+    );
 
     // PRECISION GUARANTEE — when a mask was provided, pixel-replace the
     // unmasked areas with the ORIGINAL input. Bria treats `mask` as soft
@@ -157,20 +197,20 @@ export default async function handler(req: any, res: any) {
         const H = meta.height || 0;
         if (W > 0 && H > 0) {
           // Decode original + mask, resize to Bria's output dimensions.
-          const origRaw = dataUrl.split(',')[1] || dataUrl;
-          const origBuf = Buffer.from(origRaw, 'base64');
-          const maskRaw = maskDataUrl.split(',')[1] || maskDataUrl;
-          const maskBuf = Buffer.from(maskRaw, 'base64');
+          const origRaw = dataUrl.split(",")[1] || dataUrl;
+          const origBuf = Buffer.from(origRaw, "base64");
+          const maskRaw = maskDataUrl.split(",")[1] || maskDataUrl;
+          const maskBuf = Buffer.from(maskRaw, "base64");
 
           // Original at Bria resolution, no alpha channel
           const origAtBria = await sharp(origBuf)
-            .resize(W, H, { fit: 'fill' })
+            .resize(W, H, { fit: "fill" })
             .removeAlpha()
             .toBuffer();
 
           // Mask at Bria resolution, single channel grayscale
           const maskRawData = await sharp(maskBuf)
-            .resize(W, H, { fit: 'fill' })
+            .resize(W, H, { fit: "fill" })
             .greyscale()
             .raw()
             .toBuffer();
@@ -179,24 +219,30 @@ export default async function handler(req: any, res: any) {
           // Composite Bria-with-alpha OVER original. Where mask is black, original shows.
           const briaWithMask = await sharp(briaBuf)
             .removeAlpha()
-            .joinChannel(maskRawData, { raw: { width: W, height: H, channels: 1 } })
+            .joinChannel(maskRawData, {
+              raw: { width: W, height: H, channels: 1 },
+            })
             .png()
             .toBuffer();
 
           const composited = await sharp(origAtBria)
-            .composite([{ input: briaWithMask, blend: 'over' }])
+            .composite([{ input: briaWithMask, blend: "over" }])
             .jpeg({ quality: 95 })
             .toBuffer();
 
           // Upload composited result back to Replicate as a data URL replacement.
           // The downstream upscale step will fetch from this URL, but since we now
           // have the bytes locally we'll inline-base64 instead.
-          const composedDataUrl = `data:image/jpeg;base64,${composited.toString('base64')}`;
+          const composedDataUrl = `data:image/jpeg;base64,${composited.toString("base64")}`;
           cleanUrl = composedDataUrl; // upscale step accepts data URLs
-          console.log(`[flux-cleanup] Mask composite done in ${Date.now() - tComp}ms (${W}×${H})`);
+          console.log(
+            `[flux-cleanup] Mask composite done in ${Date.now() - tComp}ms (${W}×${H})`,
+          );
         }
       } catch (compErr: any) {
-        console.warn(`[flux-cleanup] Mask composite failed: ${compErr?.message} — using raw Bria output`);
+        console.warn(
+          `[flux-cleanup] Mask composite failed: ${compErr?.message} — using raw Bria output`,
+        );
         // Fall through to upscale with Bria's raw output as before.
       }
     }
@@ -208,17 +254,21 @@ export default async function handler(req: any, res: any) {
     // over-processed glossy look (over-sharp brick, fake-lush lawns, wet-look
     // driveways). Pruna with realism:false produces natural exterior textures.
     let finalUrl = cleanUrl;
-    let upscalerUsed: 'none' | 'Pruna' = 'none';
+    let upscalerUsed: "none" | "Pruna" = "none";
 
     if (!skipUpscale) {
       const tUp = Date.now();
       const upscaledUrl = await runPruna(replicate, cleanUrl);
       if (upscaledUrl) {
         finalUrl = upscaledUrl;
-        upscalerUsed = 'Pruna';
-        console.log(`[flux-cleanup] Pruna upscaled in ${Date.now() - tUp}ms (${isExterior ? 'exterior' : 'interior'})`);
+        upscalerUsed = "Pruna";
+        console.log(
+          `[flux-cleanup] Pruna upscaled in ${Date.now() - tUp}ms (${isExterior ? "exterior" : "interior"})`,
+        );
       } else {
-        console.warn('[flux-cleanup] Pruna returned no URL — using un-upscaled');
+        console.warn(
+          "[flux-cleanup] Pruna returned no URL — using un-upscaled",
+        );
       }
     }
 
@@ -229,13 +279,14 @@ export default async function handler(req: any, res: any) {
       return;
     }
     const buf = Buffer.from(await imgRes.arrayBuffer());
-    const resultBase64 = `data:image/jpeg;base64,${buf.toString('base64')}`;
+    const resultBase64 = `data:image/jpeg;base64,${buf.toString("base64")}`;
 
-    console.log(`[flux-cleanup] Total: ${Date.now() - t0}ms (${engine} + ${upscalerUsed})`);
+    console.log(
+      `[flux-cleanup] Total: ${Date.now() - t0}ms (${engine} + ${upscalerUsed})`,
+    );
     json(res, 200, { ok: true, resultBase64, latencyMs: Date.now() - t0 });
-
   } catch (err: any) {
-    console.error('[flux-cleanup] unhandled:', err?.message || err);
-    json(res, 200, { ok: false, error: err?.message || 'unknown' });
+    console.error("[flux-cleanup] unhandled:", err?.message || err);
+    json(res, 200, { ok: false, error: err?.message || "unknown" });
   }
 }

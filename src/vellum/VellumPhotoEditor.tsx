@@ -34,6 +34,7 @@ import { nanoSky, SkyStyle } from "../../services/skyService";
 import { upscaleImage } from "../../services/upscaleService";
 import { isExteriorRoom } from "../../services/fluxService";
 import { fluxStaging } from "../../services/stagingService";
+import { classifyRoom } from "../../services/classifyRoomService";
 import { reveEdit } from "../../services/reveEditService";
 import { fluxRenovation } from "../../services/renovationService";
 import { STYLE_PACKS, buildStagingAssignment } from "../prompts/stylePacks";
@@ -87,6 +88,9 @@ interface UploadedPhoto {
   dataUrl: string;
   label: string;
   detecting: boolean;
+  /** From /api/classify-room: true = no freestanding furniture. undefined =
+   *  detection unavailable (never blocks tools — gate fails open). */
+  empty?: boolean;
 }
 
 interface HistoryEntry {
@@ -246,6 +250,23 @@ const TOOL_COST: Record<string, number> = {
   sky: 1,
   lawn: 1,
 };
+
+/** Rooms virtual staging is designed for — empty living spaces that take
+ *  freestanding furniture. Kitchens/baths/exteriors are blocked: staging a
+ *  built-out or outdoor space makes the model reinterpret the whole scene
+ *  (the 2026-06-10 "entire room changed" incident — staging ran on a kitchen
+ *  and a backyard because everything defaulted to Living Room). */
+const STAGEABLE_ROOMS = new Set([
+  "Living Room",
+  "Dining Room",
+  "Bedroom",
+  "Office",
+  "Bonus Room",
+  "Nursery",
+  "Basement",
+  "Sunroom",
+  "Foyer",
+]);
 
 const ROOM_TYPES = [
   "Living Room",
@@ -652,16 +673,17 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
         continue;
       }
       const id = nextId.current++;
-      // [ROOM-TYPE] No AI classify on upload — that was a per-upload browser
-      // Gemini call that silently charged the owner. Default every photo to
-      // "Living Room"; the agent sets the real room via the "Tag room types"
-      // modal (auto-opened below) or the inline room-type dropdown.
+      // [ROOM-TYPE] Auto-detect runs AFTER upload via /api/classify-room
+      // (server-side moondream2 — keyless in the browser, unlike the purged
+      // client-Gemini classify that silently billed from the bundle). Until
+      // detection lands, default to Living Room with detecting:true; the
+      // "Tag room types" modal and inline dropdown remain the manual override.
       newPhotos.push({
         id,
         file,
         dataUrl,
         label: "Living Room",
-        detecting: false,
+        detecting: true,
       });
     }
 
@@ -684,6 +706,42 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
     }
 
     if (newPhotos.length > 0) setShowRoomPicker(true);
+
+    // [ROOM-TYPE] Classify each upload (room type + empty/furnished) with
+    // bounded concurrency so a 30-photo batch doesn't burst the API. Failures
+    // fail OPEN: detecting:false, label stays Living Room, empty stays
+    // undefined (gate never blocks on missing data) — the agent can still tag
+    // manually exactly as before.
+    const queue = [...newPhotos];
+    const classifyWorker = async () => {
+      for (;;) {
+        const p = queue.shift();
+        if (!p) return;
+        try {
+          const c = await classifyRoom(p.dataUrl);
+          setPhotos((prev) =>
+            prev.map((x) =>
+              x.id === p.id
+                ? { ...x, label: c.room, empty: c.empty, detecting: false }
+                : x,
+            ),
+          );
+          idbSavePhoto(storeKey, p.id, p.dataUrl, c.room, p.file.name).catch(
+            () => {},
+          );
+        } catch (err: any) {
+          console.warn(
+            `[Vellum] Room detect failed for ${p.file.name}: ${err?.message}`,
+          );
+          setPhotos((prev) =>
+            prev.map((x) => (x.id === p.id ? { ...x, detecting: false } : x)),
+          );
+        }
+      }
+    };
+    void Promise.all(
+      Array.from({ length: Math.min(4, newPhotos.length) }, classifyWorker),
+    );
   };
 
   const onDrop = (e: React.DragEvent) => {
@@ -2284,9 +2342,36 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
           const photoIsExterior = currentPhoto
             ? isExteriorRoom(currentPhoto.label)
             : false;
+          // [STAGING GATE] Staging only on empty, stageable living spaces.
+          // Wrong-room staging makes the model reinterpret the whole scene
+          // (kitchens → restyled, backyards → patio sets). empty===undefined
+          // (detection unavailable) fails OPEN so the tool is never bricked.
+          const stagingWrongRoom =
+            tool.id === "staging" &&
+            !!currentPhoto &&
+            !photoIsExterior &&
+            !STAGEABLE_ROOMS.has(currentPhoto.label);
+          const stagingFurnished =
+            tool.id === "staging" && currentPhoto?.empty === false;
           const disabled =
             (exteriorOnly && !photoIsExterior) ||
-            (interiorOnly && photoIsExterior);
+            (interiorOnly && photoIsExterior) ||
+            stagingWrongRoom ||
+            stagingFurnished;
+          const disabledReason = exteriorOnly
+            ? "Exterior photos only"
+            : stagingWrongRoom
+              ? `Staging isn't designed for a ${currentPhoto?.label || "room"} — it would re-render the space. Change the room type if this is mislabeled.`
+              : stagingFurnished
+                ? "This room already has furniture — staging is for empty rooms. Change the room type if this is mislabeled."
+                : "Interior photos only";
+          const disabledShort = exteriorOnly
+            ? "Exterior only"
+            : stagingWrongRoom
+              ? "Not stageable"
+              : stagingFurnished
+                ? "Room not empty"
+                : "Interior only";
           return (
             <div
               key={tool.id}
@@ -2296,13 +2381,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
                 (disabled ? " disabled" : "")
               }
               onClick={() => !disabled && setActiveTool(tool.id)}
-              title={
-                disabled
-                  ? exteriorOnly
-                    ? "Exterior photos only"
-                    : "Interior photos only"
-                  : undefined
-              }
+              title={disabled ? disabledReason : undefined}
               style={
                 disabled ? { opacity: 0.4, cursor: "not-allowed" } : undefined
               }
@@ -2313,11 +2392,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
               <div className="v-tool-body">
                 <div className="v-tool-name">{tool.name}</div>
                 <div className="v-tool-desc">
-                  {disabled
-                    ? exteriorOnly
-                      ? "Exterior only"
-                      : "Interior only"
-                    : tool.desc}
+                  {disabled ? disabledShort : tool.desc}
                 </div>
               </div>
               <div className="v-tool-cost">{tool.cost}</div>
@@ -2730,10 +2805,17 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
                             ? (photos[singlePhoto ?? selectedPhoto]?.id ??
                               currentPhoto.id)
                             : currentPhoto.id;
+                        // Manual override wins: also clear the detected
+                        // furnished flag so the staging gate trusts the agent.
                         setPhotos((prev) =>
                           prev.map((p) =>
                             p.id === photoId
-                              ? { ...p, label: val, detecting: false }
+                              ? {
+                                  ...p,
+                                  label: val,
+                                  detecting: false,
+                                  empty: undefined,
+                                }
                               : p,
                           ),
                         );
@@ -3530,10 +3612,17 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
                       value={p.label}
                       onChange={(e) => {
                         const val = e.target.value;
+                        // Manual override wins: also clear the detected
+                        // furnished flag so the staging gate trusts the agent.
                         setPhotos((prev) =>
                           prev.map((ph) =>
                             ph.id === p.id
-                              ? { ...ph, label: val, detecting: false }
+                              ? {
+                                  ...ph,
+                                  label: val,
+                                  detecting: false,
+                                  empty: undefined,
+                                }
                               : ph,
                           ),
                         );

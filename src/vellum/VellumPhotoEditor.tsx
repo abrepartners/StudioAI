@@ -1379,6 +1379,13 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
         `[Vellum] Upscale failed for ${label}, exporting preview quality:`,
         err?.message,
       );
+      // Make it loud: a silently-downsized export used to look identical to a
+      // full-res one. Tell the user this file came out at preview resolution
+      // so they can re-export rather than unknowingly send a soft image.
+      setExportError(
+        `${label}: upscale unavailable — exported at preview resolution. Re-export for full size.`,
+      );
+      setTimeout(() => setExportError(""), 8000);
       return base64;
     }
   };

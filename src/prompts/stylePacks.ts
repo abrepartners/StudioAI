@@ -83,9 +83,11 @@ STYLE DNA:
 - Arrangement: ${arrangement}
 
 HARD PRESERVATION RULES:
+- FLOOR — keep the existing floor's exact material, color, pattern, veining, grout lines, and reflections. If it is tile, stone, marble, or polished concrete it MUST stay that exact material — NEVER convert it to wood, laminate, or anything else. Furniture rests on top of the unchanged floor.
+- WHITE BALANCE / TONE — keep the original color temperature and brightness exactly. Do NOT warm, cool, yellow, or tint the image; walls and ceiling keep their original color. A cool/bright white room must stay cool and bright.
 - DO NOT modify, replace, or restyle any cabinets, vanities, built-ins, countertops, backsplashes, or millwork.
 - DO NOT modify any appliances. Every appliance stays pixel-identical.
-- DO NOT modify windows, doors, trim, baseboards, crown molding, flooring, floor/wall/ceiling color.
+- DO NOT modify windows, doors, trim, baseboards, crown molding, or wall finishes.
 - DO NOT remove, cover, or restyle any fireplace, mantel, hearth, surround, accent/feature wall (stone, tile, marble, brick, wood, paneled), or built-in niche/shelving. Keep these permanent features fully visible and pixel-identical.
 - DO NOT change the camera framing, crop, angle, or field of view.
 - Stage based on what the image actually shows, not what the room label suggests. If the room is narrow or small, use fewer/smaller pieces — do NOT extend walls or rearrange architecture.

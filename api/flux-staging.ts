@@ -1,12 +1,13 @@
 /**
- * api/flux-staging.ts  —  Virtual staging via reve/edit
+ * api/flux-staging.ts  —  Virtual staging via Seedream 4
  *
- * Uses reve/edit (the same faithful in-place editor as whiten/lawn/cleanup)
- * so staging preserves the room's perspective, walls, windows, and flooring
- * and only ADDS the furniture described in the style-DNA prompt. The previous
- * flux-2-pro path treated the photo as a style reference and regenerated the
- * whole scene, which shifted the camera angle and architecture. Output is
- * upscaled via the same Pruna pipeline as cleanup.
+ * Uses bytedance/seedream-4 — the strongest scene-preserving editor in the
+ * 2026-06-10 bake. It ADDS the furniture from the style-DNA prompt while
+ * holding the floor material, white balance, architecture, and fixtures (the
+ * exact regions Kontext drifted). History: flux-2-pro regenerated the whole
+ * scene (camera/architecture shifted) → switched to reve/edit (faithful) →
+ * reve/edit's upstream IP-blocked Replicate (FORBIDDEN ip_address), silently
+ * breaking staging → now Seedream 4. Output upscaled via the Pruna pipeline.
  *
  * Input (POST JSON):
  *   { imageBase64: string, prompt: string, isExterior?: boolean }
@@ -56,7 +57,8 @@ async function runPruna(
       input: {
         image: imageUrl,
         factor: 2,
-        target: 5,
+        // upscale_mode 'factor' doubles each side (output capped at 8 MP); the
+        // `target` MP param is only read in 'target' mode, so it's omitted here.
         upscale_mode: "factor",
         output_format: "jpg",
         output_quality: 95,
@@ -83,10 +85,10 @@ export default async function handler(req: any, res: any) {
 
   const body = parseBody(req.body);
   const imageBase64 = String(body.imageBase64 || "");
-  // reve/edit caps edit_instruction at 2560 chars — clamp so a long style-DNA
-  // brief never gets rejected (reve/edit preserves the room structurally, so
-  // trimming the verbose tail is low-impact).
-  const prompt = String(body.prompt || "").slice(0, 2560);
+  // Seedream has no hard instruction cap (reve/edit's was 2560); the staging
+  // prompt builder already self-trims to ~2558, so this clamp is a generous
+  // safety bound, not a binding limit.
+  const prompt = String(body.prompt || "").slice(0, 5000);
   const skipUpscale = Boolean(body.skipUpscale);
 
   if (!imageBase64) {
@@ -106,24 +108,34 @@ export default async function handler(req: any, res: any) {
   const t0 = Date.now();
 
   try {
-    // reve/edit edits the supplied image in place, so it preserves the input's
-    // dimensions, perspective, and architecture natively — no aspect-ratio
-    // detection or style-reference regeneration needed (same path as whiten/lawn).
-    console.log("[flux-staging] Starting reve/edit staging...");
-    const output = await replicate.run("reve/edit", {
+    // Seedream 4 edits the supplied image in place with the strongest scene
+    // preservation of the editors we tested (2026-06-10 bake): on an empty
+    // marble great room it KEPT the marble floor, the cool/bright white tone,
+    // the kitchen niche, and the ceiling fixture, changing only the furniture —
+    // where Kontext drifted the marble to wood and warmed the tone. Critical
+    // params: `enhance_prompt:false` (left true it rewrites our preservation
+    // prompt and reintroduces drift), `aspect_ratio:match_input_image` (locks
+    // framing), `size:4K` (output tracks input resolution — feed the largest
+    // input the body limit allows; see stagingService FLUX_UPLOAD_MAX_EDGE).
+    // Replaces reve/edit, whose upstream IP-blocked Replicate's egress
+    // (FORBIDDEN ip_address) — staging had been silently down on that path.
+    console.log("[flux-staging] Starting seedream-4 staging...");
+    const output = await replicate.run("bytedance/seedream-4", {
       input: {
-        image: dataUrl,
         prompt,
-        output_format: "jpg",
+        image_input: [dataUrl],
+        size: "4K",
+        aspect_ratio: "match_input_image",
+        enhance_prompt: false,
       },
     });
 
     const genUrl = await extractUrl(output);
     if (!genUrl) {
-      json(res, 200, { ok: false, error: "reve/edit returned no image URL" });
+      json(res, 200, { ok: false, error: "seedream-4 returned no image URL" });
       return;
     }
-    console.log(`[flux-staging] reve/edit done in ${Date.now() - t0}ms`);
+    console.log(`[flux-staging] seedream-4 done in ${Date.now() - t0}ms`);
 
     // Upscale via Pruna (interior default for staging).
     // Skipped during the editing phase — export upscales once at the end,

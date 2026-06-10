@@ -1,12 +1,18 @@
 /**
  * services/stagingService.ts
  *
- * Client wrapper for reve/edit virtual staging (/api/flux-staging).
+ * Client wrapper for Seedream 4 virtual staging (/api/flux-staging).
  */
 
 import { resizeForUpload } from "../utils/resizeForUpload";
 
-const FLUX_UPLOAD_MAX_EDGE = 1280;
+// Seedream's output resolution tracks the input (with aspect_ratio
+// match_input_image, size:4K does NOT force 4096 — it follows the input). So
+// the upload edge is now the real resolution lever. 2048px keeps the JSON body
+// well under Vercel's ~4.5 MB limit (a 2048px JPEG base64 lands ~0.8–1.5 MB)
+// while roughly doubling the staged output vs the old 1280 cap. Other tools
+// keep their own 1280 edge; this bump is staging-only.
+const FLUX_UPLOAD_MAX_EDGE = 2048;
 
 export interface StagingResult {
   resultBase64: string;

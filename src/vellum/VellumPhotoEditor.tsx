@@ -347,11 +347,19 @@ const callApiDirect = async (
 
   switch (tool) {
     case "staging": {
-      const packKey = preset.replace(/ /g, "-");
-      const pack = STYLE_PACKS[packKey] || STYLE_PACKS[preset];
+      // STYLE_PACKS keys are lowercase ("contemporary", "urban-loft") but the
+      // UI presets are capitalized ("Contemporary", "Urban loft"). MUST
+      // lowercase before lookup or every pack misses → the bare fallback prompt
+      // below (no preservation rules) is used. reve/edit hid this for months
+      // (faithful in-place regardless of prompt); Seedream takes the bare prompt
+      // literally and regenerates the whole room. Lowercase fixes all 8 presets.
+      const packKey = preset.toLowerCase().replace(/ /g, "-");
+      const pack = STYLE_PACKS[packKey] || STYLE_PACKS[preset.toLowerCase()];
+      // Hardened fallback: even for an unmapped style, frame it as an ADDITIVE
+      // edit with explicit preservation so Seedream never regenerates the room.
       const prompt = pack
         ? buildStagingAssignment(pack, roomLabel)
-        : `Virtually stage this ${roomLabel.toLowerCase()} with ${preset} style furnishings. Use premium furniture materials. Match the room's existing lighting on all new pieces. Professional real estate photography composition.`;
+        : `Take this exact photograph of a ${roomLabel.toLowerCase()} and ADD ${preset} style furniture to it. This is an ADDITIVE edit, NOT image generation: keep every existing pixel — floor material, walls, ceiling, windows, cabinets, lighting, camera angle, and color temperature — identical to the input. Do NOT re-render, restyle, relight, or recolor anything already in the photo. Only place new free-standing furniture and decor into the empty space, with shadows and white balance matched to the room. If the floor is tile, stone, or marble it MUST stay that exact material.`;
       const result = await fluxStaging(imageBase64, prompt, signal, {
         skipUpscale: true,
       });

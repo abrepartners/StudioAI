@@ -84,7 +84,8 @@ function buildInpaintPrompt(stagingPrompt: string): string {
   return (
     `A professionally staged ${style} ${room}: ${furniture} ` +
     `Premium real-estate listing photography. Furniture perfectly scaled to the room and resting naturally on the floor. ` +
-    `Photorealistic, shadows matching the room's existing natural light direction.`
+    `Photorealistic, shadows matching the room's existing natural light direction. ` +
+    `Do NOT add any windows, doors, vents, radiators, or architectural features — only freestanding furniture and decor.`
   ).slice(0, 2500);
 }
 
@@ -96,7 +97,7 @@ async function buildInpaintMask(
   originalBuf: Buffer,
   W: number,
   H: number,
-): Promise<Buffer> {
+): Promise<{ png: Buffer; floorRaw: Buffer }> {
   const out = await replicate.run(LANG_SAM as `${string}/${string}:${string}`, {
     input: {
       image: `data:image/jpeg;base64,${originalBuf.toString("base64")}`,
@@ -140,8 +141,88 @@ async function buildInpaintMask(
     .raw()
     .toBuffer();
   for (let i = 0; i < soft.length; i++) soft[i] = soft[i] > 100 ? 255 : 0;
-  return sharp(soft, { raw: { width: W, height: H, channels: 1 } })
+  const png = await sharp(soft, { raw: { width: W, height: H, channels: 1 } })
     .png()
+    .toBuffer();
+  return { png, floorRaw: floor };
+}
+
+/**
+ * FLOOR-RESTORE composite (inpaint engine only). Outside the inpaint mask the
+ * frame is already original BY CONSTRUCTION, so the only restoration needed:
+ *   restore = (floor ∪ window/door-protect) ∧ NOT furniture
+ * Restoring "everything except furniture" (the Seedream-era lock) punches
+ * holes through furniture wherever the furniture mask under-recalls — the
+ * transparent-bed defect. The protect mask kills hallucinated windows/doors
+ * that survive via furniture-mask false positives ("mirror"/"wall art").
+ */
+async function floorRestoreComposite(
+  originalBuf: Buffer,
+  fillBuf: Buffer,
+  floorRaw: Buffer,
+  furnitureMaskBuf: Buffer,
+  protectMaskBuf: Buffer | null,
+  W: number,
+  H: number,
+): Promise<Buffer> {
+  const toRaw1 = async (buf: Buffer): Promise<Buffer> => {
+    const { data, info } = await sharp(buf)
+      .resize(W, H, { fit: "cover" })
+      .removeAlpha()
+      .greyscale()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    const out = Buffer.alloc(W * H);
+    for (let p = 0; p < W * H; p++)
+      out[p] = data[p * info.channels] > MASK_BINARIZE ? 255 : 0;
+    return out;
+  };
+  const furn0 = await toRaw1(furnitureMaskBuf);
+  // dilate furniture so contact shadows stay with the furniture
+  let furn = await sharp(furn0, { raw: { width: W, height: H, channels: 1 } })
+    .blur(DILATE_PX)
+    .extractChannel(0)
+    .raw()
+    .toBuffer();
+  for (let i = 0; i < furn.length; i++) furn[i] = furn[i] > 20 ? 255 : 0;
+  let cov = 0;
+  for (const v of furn) if (v) cov++;
+  console.log(
+    `[flux-staging] floor-restore: furniture=${((cov / (W * H)) * 100).toFixed(1)}%`,
+  );
+
+  const protect = protectMaskBuf ? await toRaw1(protectMaskBuf) : null;
+
+  const restore = Buffer.alloc(W * H);
+  for (let p = 0; p < W * H; p++) {
+    const want = floorRaw[p] || (protect && protect[p]);
+    restore[p] = want && !furn[p] ? 255 : 0;
+  }
+  const feathered = await sharp(restore, {
+    raw: { width: W, height: H, channels: 1 },
+  })
+    .blur(FEATHER_PX)
+    .extractChannel(0)
+    .raw()
+    .toBuffer();
+
+  const orig = await sharp(originalBuf).ensureAlpha().raw().toBuffer();
+  const fill = await sharp(fillBuf)
+    .resize(W, H, { fit: "cover" })
+    .ensureAlpha()
+    .raw()
+    .toBuffer();
+  const out = Buffer.alloc(W * H * 4);
+  for (let p = 0, i = 0; p < W * H; p++, i += 4) {
+    const a = feathered[p] / 255; // weight of ORIGINAL
+    const inv = 1 - a;
+    out[i] = fill[i] * inv + orig[i] * a;
+    out[i + 1] = fill[i + 1] * inv + orig[i + 1] * a;
+    out[i + 2] = fill[i + 2] * inv + orig[i + 2] * a;
+    out[i + 3] = 255;
+  }
+  return sharp(out, { raw: { width: W, height: H, channels: 4 } })
+    .jpeg({ quality: 95 })
     .toBuffer();
 }
 
@@ -451,13 +532,17 @@ export default async function handler(req: any, res: any) {
     };
 
     let inpaintMaskPng: Buffer | null = null;
+    let floorRawMask: Buffer | null = null;
     const generateInpaint = async (p: string): Promise<Buffer | null> => {
-      if (!inpaintMaskPng)
-        inpaintMaskPng = await buildInpaintMask(replicate, originalBuf, oW, oH);
+      if (!inpaintMaskPng) {
+        const m = await buildInpaintMask(replicate, originalBuf, oW, oH);
+        inpaintMaskPng = m.png;
+        floorRawMask = m.floorRaw;
+      }
       const output = await replicate.run(FLUX_FILL, {
         input: {
           image: dataUrl,
-          mask: `data:image/png;base64,${inpaintMaskPng.toString("base64")}`,
+          mask: `data:image/png;base64,${inpaintMaskPng!.toString("base64")}`,
           prompt: buildInpaintPrompt(p),
           steps: 50,
           guidance: 60,
@@ -536,7 +621,7 @@ export default async function handler(req: any, res: any) {
       }
     }
 
-    // FURNITURE-LOCK COMPOSITE — fails open to the raw staged frame.
+    // COMPOSITE — engine-specific contract, fails open to the raw frame.
     try {
       const tComp = Date.now();
       const stagedDataUrl = `data:image/jpeg;base64,${resultBuf.toString("base64")}`;
@@ -552,10 +637,46 @@ export default async function handler(req: any, res: any) {
       if (!maskRes.ok) throw new Error(`mask fetch ${maskRes.status}`);
       const maskBuf = Buffer.from(await maskRes.arrayBuffer());
 
-      resultBuf = await furnitureLockComposite(originalBuf, resultBuf, maskBuf);
-      console.log(
-        `[flux-staging] furniture-lock composite done in ${Date.now() - tComp}ms`,
-      );
+      if (engine === "flux-fill" && floorRawMask) {
+        // window/door hard-protect (kills hallucinated architecture that the
+        // furniture mask would otherwise keep via "mirror"/"wall art")
+        let protectBuf: Buffer | null = null;
+        try {
+          const pOut = await replicate.run(
+            LANG_SAM as `${string}/${string}:${string}`,
+            {
+              input: {
+                image: `data:image/jpeg;base64,${originalBuf.toString("base64")}`,
+                text_prompt: "window, door, doorway, glass door, french doors",
+              },
+            },
+          );
+          const pUrl = await extractUrl(pOut);
+          if (pUrl) {
+            const pRes = await fetch(pUrl);
+            if (pRes.ok) protectBuf = Buffer.from(await pRes.arrayBuffer());
+          }
+        } catch {
+          /* protect mask optional */
+        }
+        resultBuf = await floorRestoreComposite(
+          originalBuf,
+          resultBuf,
+          floorRawMask,
+          maskBuf,
+          protectBuf,
+          oW,
+          oH,
+        );
+        console.log(
+          `[flux-staging] floor-restore composite done in ${Date.now() - tComp}ms`,
+        );
+      } else {
+        resultBuf = await furnitureLockComposite(originalBuf, resultBuf, maskBuf);
+        console.log(
+          `[flux-staging] furniture-lock composite done in ${Date.now() - tComp}ms`,
+        );
+      }
     } catch (compErr: any) {
       console.warn(
         `[flux-staging] composite failed (${compErr?.message}) — returning raw staged frame`,

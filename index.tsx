@@ -4,13 +4,11 @@ import AppRouter from './src/routes/AppRouter';
 
 // Engine A/B override — captured here, before the router mounts, because the
 // authed redirect at "/" (Navigate to "/vellum") strips the query string.
-// ?engine=nano|seedream sticks for the tab session; ?engine=fill clears it.
+// ?engine=nano|seedream|fill sticks for the tab session (new tab = default).
 try {
   const eng = new URLSearchParams(window.location.search).get('engine');
-  if (eng === 'nano' || eng === 'seedream') {
+  if (eng === 'nano' || eng === 'seedream' || eng === 'fill') {
     sessionStorage.setItem('studioai_engine', eng);
-  } else if (eng === 'fill') {
-    sessionStorage.removeItem('studioai_engine');
   }
 } catch {}
 

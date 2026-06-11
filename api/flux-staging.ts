@@ -766,9 +766,15 @@ export default async function handler(req: any, res: any) {
       return Buffer.from(await r.arrayBuffer());
     };
 
-    const requestedEngine = String(body.engine || "fill").toLowerCase();
-    let engine = "flux-fill";
-    if (requestedEngine === "nano") engine = "nano-banana";
+    // Nano is the PRIMARY engine (promoted 2026-06-11 after the A/B: native
+    // whole-frame staging preserved floors/windows/walls with none of the
+    // composite-boundary defects). The fill inpaint pipeline remains as the
+    // automatic failure fallback and as an explicit ?engine=fill override
+    // while telemetry confirms nano's success rate — the mask/composite
+    // stage gets deleted once that holds.
+    const requestedEngine = String(body.engine || "nano").toLowerCase();
+    let engine = "nano-banana";
+    if (requestedEngine === "fill") engine = "flux-fill";
     else if (requestedEngine === "seedream") engine = "seedream";
 
     const generate = async (p: string = prompt): Promise<Buffer | null> => {

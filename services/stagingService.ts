@@ -59,20 +59,20 @@ export async function fluxStaging(
 }
 
 /**
- * Engine A/B override for staging. The boot script in index.tsx stashes
- * ?engine=nano|seedream into sessionStorage before the authed "/" redirect
- * can strip the query string; ?engine=fill clears the stash. A live param on
- * the current URL always wins so /vellum?engine=nano works directly too.
- * Returns null when the default fill engine should run.
+ * Engine override for staging. The boot script in index.tsx stashes
+ * ?engine=nano|seedream|fill into sessionStorage before the authed "/"
+ * redirect can strip the query string. A live param on the current URL
+ * always wins so /vellum?engine=nano works directly too. Returns null when
+ * the server default (nano, primary since 2026-06-11) should run.
  */
-export function getEngineOverride(): "nano" | "seedream" | null {
+export function getEngineOverride(): "nano" | "seedream" | "fill" | null {
   if (typeof window === "undefined") return null;
   try {
     const live = new URLSearchParams(window.location.search).get("engine");
-    if (live === "nano" || live === "seedream") return live;
-    if (live === "fill") return null;
+    if (live === "nano" || live === "seedream" || live === "fill") return live;
     const stashed = sessionStorage.getItem("studioai_engine");
-    if (stashed === "nano" || stashed === "seedream") return stashed;
+    if (stashed === "nano" || stashed === "seedream" || stashed === "fill")
+      return stashed;
     return null;
   } catch {
     return null;

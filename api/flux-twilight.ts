@@ -254,6 +254,9 @@ export default async function handler(req: any, res: any) {
         prompt: buildTwilightPrompt(style, time),
         output_format: "jpg",
         aspect_ratio: bestRatio.label,
+        // flux-2-pro defaults to 1 MP; 2 MP doubles output pixels for free
+        // (model supports up to 4 MP but BFL recommends ≤2 MP for quality).
+        resolution: "2 MP",
       },
     });
 

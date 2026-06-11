@@ -17,6 +17,8 @@ const FLUX_UPLOAD_MAX_EDGE = 2048;
 export interface StagingResult {
   resultBase64: string;
   latencyMs: number;
+  /** Which server engine produced the frame: "flux-fill" | "seedream". */
+  engine?: string;
 }
 
 export interface StagingOptions {
@@ -44,6 +46,12 @@ export async function fluxStaging(
   if (!res.ok) throw new Error(`flux-staging HTTP ${res.status}`);
   const data = await res.json();
   if (!data.ok) throw new Error(data.error || "flux-staging failed");
-  console.log(`[stagingService] Flux staging done in ${data.latencyMs}ms`);
-  return { resultBase64: data.resultBase64, latencyMs: data.latencyMs };
+  console.log(
+    `[stagingService] staging done in ${data.latencyMs}ms (engine: ${data.engine || "unknown"})`,
+  );
+  return {
+    resultBase64: data.resultBase64,
+    latencyMs: data.latencyMs,
+    engine: data.engine,
+  };
 }

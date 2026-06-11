@@ -36,7 +36,10 @@ import {
   parseBody,
 } from "./utils.js";
 
-export const config = { runtime: "nodejs", maxDuration: 180 };
+// 300s: worst case is mask ladder (2 lang-sam) + fill + 2 verify retries
+// (each = fill + moondream) + 2 composite lang-sams. 180 was tight; repo
+// precedent: sam-detect runs 300 for the same reason.
+export const config = { runtime: "nodejs", maxDuration: 300 };
 
 const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN || "";
 
@@ -89,19 +92,18 @@ function buildInpaintPrompt(stagingPrompt: string): string {
   ).slice(0, 2500);
 }
 
-/** Floor-region inpaint mask: lang-sam floor on the ORIGINAL, expanded upward
- *  for furniture height, edges softened. Returns PNG buffer at original dims.
- *  Throws on failure — caller falls back to the Seedream engine. */
-async function buildInpaintMask(
+/** One lang-sam floor query → binary floor buffer at W×H, with coverage. */
+async function langSamFloor(
   replicate: Replicate,
   originalBuf: Buffer,
   W: number,
   H: number,
-): Promise<{ png: Buffer; floorRaw: Buffer }> {
+  textPrompt: string,
+): Promise<{ floor: Buffer; cov: number }> {
   const out = await replicate.run(LANG_SAM as `${string}/${string}:${string}`, {
     input: {
       image: `data:image/jpeg;base64,${originalBuf.toString("base64")}`,
-      text_prompt: "floor, carpet, rug, tile floor, wood floor",
+      text_prompt: textPrompt,
     },
   });
   const url = await extractUrl(out);
@@ -117,13 +119,116 @@ async function buildInpaintMask(
     .raw()
     .toBuffer({ resolveWithObject: true });
   const floor = Buffer.alloc(W * H);
-  for (let p = 0; p < W * H; p++)
-    floor[p] = data[p * info.channels] > 8 ? 255 : 0;
+  let on = 0;
+  for (let p = 0; p < W * H; p++) {
+    if (data[p * info.channels] > 8) {
+      floor[p] = 255;
+      on++;
+    }
+  }
+  return { floor, cov: on / (W * H) };
+}
+
+/** Shave an over-matched floor mask from the top down until coverage ≤ target.
+ *  Floor is bottom-weighted in eye-level listing shots, so excess match (large
+ *  tile walls, shower surrounds) concentrates in upper rows — trimming
+ *  top-down keeps the true floor and discards the over-match. Returns the
+ *  resulting coverage. Mutates `floor` in place. */
+function clampFloorFromTop(
+  floor: Buffer,
+  W: number,
+  H: number,
+  targetCov: number,
+): number {
   let on = 0;
   for (const v of floor) if (v) on++;
-  const cov = on / (W * H);
-  if (cov < 0.08 || cov > 0.85)
-    throw new Error(`floor coverage implausible ${(cov * 100).toFixed(1)}%`);
+  let cov = on / (W * H);
+  for (let y = 0; y < H && cov > targetCov; y++) {
+    for (let x = 0; x < W; x++) {
+      const i = y * W + x;
+      if (floor[i]) {
+        floor[i] = 0;
+        on--;
+      }
+    }
+    cov = on / (W * H);
+  }
+  return cov;
+}
+
+/** Geometric floor of last resort: perspective trapezoid anchored to the
+ *  bottom edge (eye-level listing shots put floor in the bottom band, wider
+ *  toward the camera). ~36% coverage before upward expansion. Never fails. */
+function geometricFloor(W: number, H: number): Buffer {
+  const floor = Buffer.alloc(W * H);
+  const yTop = Math.round(H * 0.55);
+  for (let y = yTop; y < H; y++) {
+    const t = (y - yTop) / Math.max(1, H - yTop); // 0 at trapezoid top → 1 at bottom
+    const half = (0.3 + 0.2 * t) * W; // 60% wide at top → 100% at bottom edge
+    const x0 = Math.max(0, Math.round(W / 2 - half));
+    const x1 = Math.min(W, Math.round(W / 2 + half));
+    floor.fill(255, y * W + x0, y * W + x1);
+  }
+  return floor;
+}
+
+// Floor plausibility window + rescue tuning.
+const FLOOR_COV_MIN = 0.08; // below this lang-sam likely missed the floor
+const FLOOR_COV_MAX = 0.85; // above this lang-sam over-matched
+const FLOOR_COV_JUNK = 0.93; // above this the mask is noise — not salvageable
+const FLOOR_CLAMP_TARGET = 0.8; // over-match shave target
+
+/** Floor-region inpaint mask: lang-sam floor on the ORIGINAL, expanded upward
+ *  for furniture height, edges softened. Returns PNG buffer at original dims.
+ *
+ *  MASK RESCUE LADDER (2026-06-11): the single multi-term lang-sam query was a
+ *  hard point of failure — ~13% of prod runs threw "coverage implausible" and
+ *  silently degraded to the Seedream fallback engine, the exact geometry-drift
+ *  path this rebuild exists to escape. Ladder: multi-term query → bare "floor"
+ *  query → geometric trapezoid. Moderate over-match (≤93%) is clamped from the
+ *  top instead of abandoned. The fill engine no longer dies for mask reasons;
+ *  only true infrastructure errors (sharp failures) still throw to the caller. */
+async function buildInpaintMask(
+  replicate: Replicate,
+  originalBuf: Buffer,
+  W: number,
+  H: number,
+): Promise<{ png: Buffer; floorRaw: Buffer }> {
+  let floor: Buffer | null = null;
+
+  for (const tp of ["floor, carpet, rug, tile floor, wood floor", "floor"]) {
+    try {
+      const r = await langSamFloor(replicate, originalBuf, W, H, tp);
+      if (r.cov >= FLOOR_COV_MIN && r.cov <= FLOOR_COV_MAX) {
+        floor = r.floor;
+        break;
+      }
+      if (r.cov > FLOOR_COV_MAX && r.cov <= FLOOR_COV_JUNK) {
+        const cov = clampFloorFromTop(r.floor, W, H, FLOOR_CLAMP_TARGET);
+        if (cov >= FLOOR_COV_MIN) {
+          console.warn(
+            `[flux-staging] floor mask over-matched ${(r.cov * 100).toFixed(1)}% ("${tp}") — clamped to ${(cov * 100).toFixed(1)}%`,
+          );
+          floor = r.floor;
+          break;
+        }
+      }
+      console.warn(
+        `[flux-staging] floor coverage implausible ${(r.cov * 100).toFixed(1)}% ("${tp}") — trying next mask strategy`,
+      );
+    } catch (e: any) {
+      console.warn(
+        `[flux-staging] floor mask attempt failed ("${tp}"): ${e?.message} — trying next mask strategy`,
+      );
+    }
+  }
+
+  if (!floor) {
+    console.warn(
+      "[flux-staging] floor mask: GEOMETRIC fallback — lang-sam found no plausible floor",
+    );
+    floor = geometricFloor(W, H);
+  }
 
   // Expand upward (shift-union) so beds/headboards/art zones are paintable.
   const grown = Buffer.from(floor);
@@ -753,8 +858,13 @@ export default async function handler(req: any, res: any) {
     }
 
     const resultBase64 = `data:image/jpeg;base64,${resultBuf.toString("base64")}`;
-    console.log(`[flux-staging] Total: ${Date.now() - t0}ms`);
-    json(res, 200, { ok: true, resultBase64, latencyMs: Date.now() - t0 });
+    console.log(`[flux-staging] Total: ${Date.now() - t0}ms (engine: ${engine})`);
+    json(res, 200, {
+      ok: true,
+      resultBase64,
+      latencyMs: Date.now() - t0,
+      engine,
+    });
   } catch (err: any) {
     console.error("[flux-staging] unhandled:", err?.message || err);
     json(res, 200, { ok: false, error: err?.message || "unknown" });

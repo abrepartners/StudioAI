@@ -141,6 +141,10 @@ async function buildInpaintMask(
     .raw()
     .toBuffer();
   for (let i = 0; i < soft.length; i++) soft[i] = soft[i] > 100 ? 255 : 0;
+  // CEILING CLAMP — lang-sam's floor occasionally over-matches high planes;
+  // expanded upward that let Fill repaint the ceiling/fan (gray-band + phantom
+  // blades, v3 eval). No furniture needs the top 22% of frame: hard-zero it.
+  soft.fill(0, 0, Math.round(H * 0.22) * W);
   const png = await sharp(soft, { raw: { width: W, height: H, channels: 1 } })
     .png()
     .toBuffer();
@@ -693,7 +697,7 @@ export default async function handler(req: any, res: any) {
             {
               input: {
                 image: `data:image/jpeg;base64,${originalBuf.toString("base64")}`,
-                text_prompt: "window, door, doorway, glass door, french doors",
+                text_prompt: "window, door, doorway, glass door, french doors, ceiling, ceiling fan, light fixture, chandelier",
               },
             },
           );

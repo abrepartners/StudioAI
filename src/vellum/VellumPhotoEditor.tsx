@@ -361,7 +361,8 @@ type SamModalController = (
 interface ApiDirectResult {
   resultBase64: string;
   maskBase64?: string;
-  /** Staging only: which server engine produced the frame ("flux-fill" | "seedream"). */
+  /** Which server engine produced the frame (staging: nano-banana | flux-fill |
+   *  seedream; declutter: nano | bria | reve). Feeds the usage dashboard. */
   engine?: string;
 }
 
@@ -411,6 +412,11 @@ const callApiDirect = async (
     }
     case "declutter": {
       const isPrecision = preset.toLowerCase() === "precision select";
+      // Engine A/B (same ?engine=nano session override as staging): whole-frame
+      // Nano Banana Pro, prompt-only — skip SAM detection entirely; that's the
+      // hypothesis under test. Precision Select keeps Bria+mask regardless:
+      // the user-picked mask IS the feature there.
+      const nanoCleanup = !isPrecision && getEngineOverride() === "nano";
       const filter = isPrecision
         ? undefined
         : DECLUTTER_FILTER_MAP[preset] || undefined;
@@ -443,7 +449,7 @@ const callApiDirect = async (
         );
         maskBase64 = await combineSelectedMasks(selectedMasks);
         customPrompt = `Remove all objects in the masked area from this ${roomLabel.toLowerCase()}. Reconstruct the revealed surfaces using ONLY the material visible at the mask boundary edges — match the exact texture, color, grain, and surface type. If the surrounding area is dirt, fill with dirt. If concrete, fill with concrete. If grass, fill with grass at the same color and density. Do not add any material not already present in the surrounding area. Do not add any new items. Leave all unmasked pixels identical to the input.`;
-      } else {
+      } else if (!nanoCleanup) {
         // [SAM-CLEANUP] Standard (non-precision) path: union EVERY detected
         // object into one mask and let flux-cleanup edit only those pixels —
         // everything outside the mask stays byte-identical. Dilate the union
@@ -467,8 +473,13 @@ const callApiDirect = async (
         skipUpscale: true,
         maskBase64,
         customPrompt,
+        ...(nanoCleanup ? { engine: "nano" as const } : {}),
       });
-      return { resultBase64: result.resultBase64, maskBase64 };
+      return {
+        resultBase64: result.resultBase64,
+        maskBase64,
+        engine: result.engine,
+      };
     }
     case "whiten": {
       const whitenSpecs: Record<string, string> = {
@@ -2711,7 +2722,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
               <div className="v-control-ttl">
                 <span className="v-gold-rule" />
                 {toolName}
-                {toolName === "Virtual staging" && getEngineOverride() && (
+                {getEngineOverride() && (
                   <span className="v-engine-badge">
                     {getEngineOverride()} engine · A/B
                   </span>

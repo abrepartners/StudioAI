@@ -146,6 +146,8 @@ export function isExteriorRoom(selectedRoom: string): boolean {
 export interface FluxCleanupResult {
   resultBase64: string;
   latencyMs: number;
+  /** Engine that actually produced the result (bria | reve | nano). */
+  engine?: string;
 }
 
 export interface FluxCleanupOptions {
@@ -157,6 +159,8 @@ export interface FluxCleanupOptions {
   customRemoval?: string;
   /** Optional SAM2 mask (data URL or raw base64). When provided, Bria only edits masked pixels. */
   maskBase64?: string;
+  /** Engine override: 'nano' = whole-frame Nano Banana Pro (no mask, A/B). */
+  engine?: 'nano';
 }
 
 export async function fluxCleanup(
@@ -167,7 +171,8 @@ export async function fluxCleanup(
 ): Promise<FluxCleanupResult> {
   const shrunk = await resizeForUpload(imageBase64, FLUX_UPLOAD_MAX_EDGE);
   const isExterior = isExteriorRoom(selectedRoom);
-  const engine = options.filter === 'fullclean' ? 'reve' : 'bria';
+  const engine =
+    options.engine || (options.filter === 'fullclean' ? 'reve' : 'bria');
   const prompt = options.customPrompt
     || buildCleanupPrompt(selectedRoom, options.filter, options.customRemoval);
   const res = await fetch('/api/flux-cleanup', {
@@ -191,5 +196,6 @@ export async function fluxCleanup(
   return {
     resultBase64: data.resultBase64,
     latencyMs: data.latencyMs,
+    engine: data.engine,
   };
 }

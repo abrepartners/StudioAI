@@ -134,8 +134,40 @@ export default async function handler(req: any, res: any) {
       `[flux-cleanup] Starting ${engine} engine... (${isExterior ? "exterior" : "interior"})`,
     );
     let cleanUrl: string | null = null;
+    let ranEngine = engine;
 
-    if (engine === "reve") {
+    if (engine === "nano") {
+      // Nano Banana Pro (google/nano-banana-pro) — whole-frame instruction
+      // editor, same model that won the staging A/B (2026-06-11). No mask,
+      // no composite: the hypothesis is that prompt-only targeted removal
+      // beats SAM+masked-Bria the same way it beat mask+inpaint for staging.
+      // NOTE: the 2026-04-28 bake-off that scored nano <40% removal tested
+      // the OLD nano-banana, not Pro. Opt-in via body.engine="nano"; fails
+      // open to the Bria path below. Caller is expected to omit maskBase64
+      // (whole-frame edit — a mask would be ignored, and the precision
+      // composite is skipped because there is nothing to composite against).
+      try {
+        const output = await replicate.run("google/nano-banana-pro", {
+          input: {
+            prompt,
+            image_input: [dataUrl],
+            resolution: "2K",
+            aspect_ratio: "match_input_image",
+            output_format: "jpg",
+            allow_fallback_model: false,
+          },
+        });
+        cleanUrl = await extractUrl(output);
+        if (!cleanUrl) throw new Error("nano returned no image");
+      } catch (e: any) {
+        console.warn(
+          `[flux-cleanup] nano engine failed (${e?.message}) — falling back to bria`,
+        );
+        ranEngine = "bria";
+      }
+    }
+
+    if (ranEngine === "reve") {
       // Full-clean path. Was reve/edit, whose upstream IP-blocked Replicate
       // (FORBIDDEN ip_address) — swapped to flux-kontext-pro (same in-place
       // editor now used by whiten/lawn/renovation). The masked Bria path below
@@ -150,7 +182,7 @@ export default async function handler(req: any, res: any) {
         },
       });
       cleanUrl = await extractUrl(output);
-    } else {
+    } else if (ranEngine === "bria") {
       // Pass mask when available — Bria edits only masked areas, leaving the
       // rest of the image pixel-identical. Best path for Precision Select mode.
       const negativePrompt = isExterior
@@ -174,12 +206,12 @@ export default async function handler(req: any, res: any) {
     if (!cleanUrl) {
       json(res, 200, {
         ok: false,
-        error: `${engine} engine returned no image URL`,
+        error: `${ranEngine} engine returned no image URL`,
       });
       return;
     }
     console.log(
-      `[flux-cleanup] ${engine} done in ${Date.now() - t0}ms → ${cleanUrl.slice(0, 60)}...`,
+      `[flux-cleanup] ${ranEngine} done in ${Date.now() - t0}ms → ${cleanUrl.slice(0, 60)}...`,
     );
 
     // PRECISION GUARANTEE — when a mask was provided, pixel-replace the
@@ -284,7 +316,12 @@ export default async function handler(req: any, res: any) {
     console.log(
       `[flux-cleanup] Total: ${Date.now() - t0}ms (${engine} + ${upscalerUsed})`,
     );
-    json(res, 200, { ok: true, resultBase64, latencyMs: Date.now() - t0 });
+    json(res, 200, {
+      ok: true,
+      resultBase64,
+      latencyMs: Date.now() - t0,
+      engine: ranEngine,
+    });
   } catch (err: any) {
     console.error("[flux-cleanup] unhandled:", err?.message || err);
     json(res, 200, { ok: false, error: err?.message || "unknown" });

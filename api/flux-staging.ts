@@ -185,6 +185,52 @@ async function floorRestoreComposite(
     .raw()
     .toBuffer();
   for (let i = 0; i < furn.length; i++) furn[i] = furn[i] > 20 ? 255 : 0;
+
+  // INTERIOR-HOLE FILL — a region enclosed by furniture cannot be background.
+  // lang-sam under-recalls low-contrast interiors (white duvet on white bed),
+  // which previously punched see-through holes in furniture. Flood-fill the
+  // background from the frame border; any non-furniture pixel NOT reached is
+  // an enclosed hole → furniture.
+  {
+    const reach = new Uint8Array(W * H);
+    const qx = new Int32Array(W * H);
+    let head = 0,
+      tail = 0;
+    const push = (idx: number) => {
+      if (!reach[idx] && !furn[idx]) {
+        reach[idx] = 1;
+        qx[tail++] = idx;
+      }
+    };
+    for (let x = 0; x < W; x++) {
+      push(x);
+      push((H - 1) * W + x);
+    }
+    for (let y = 0; y < H; y++) {
+      push(y * W);
+      push(y * W + W - 1);
+    }
+    while (head < tail) {
+      const i = qx[head++];
+      const x = i % W,
+        y = (i / W) | 0;
+      if (x > 0) push(i - 1);
+      if (x < W - 1) push(i + 1);
+      if (y > 0) push(i - W);
+      if (y < H - 1) push(i + W);
+    }
+    let filled = 0;
+    for (let i = 0; i < W * H; i++) {
+      if (!furn[i] && !reach[i]) {
+        furn[i] = 255;
+        filled++;
+      }
+    }
+    if (filled > 0)
+      console.log(
+        `[flux-staging] hole-fill closed ${((filled / (W * H)) * 100).toFixed(2)}% enclosed furniture holes`,
+      );
+  }
   let cov = 0;
   for (const v of furn) if (v) cov++;
   console.log(

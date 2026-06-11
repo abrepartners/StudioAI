@@ -131,7 +131,7 @@ export default async function handler(req: any, res: any) {
         let cost = 4;
         if (model.includes("flux-fill")) cost = 10;
         else if (model.includes("seedream")) cost = 6;
-        else if (model.includes("nano")) cost = 10;
+        else if (model.includes("nano")) cost = 14;
         else if (model.includes("flash-preview") && !model.includes("image"))
           cost = 0; // text, effectively free
         else if (model.includes("pro-image")) cost = 10;

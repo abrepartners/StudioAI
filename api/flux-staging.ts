@@ -44,53 +44,38 @@ export const config = { runtime: "nodejs", maxDuration: 300 };
 const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN || "";
 
 // ── NANO BANANA PRO ENGINE (A/B, 2026-06-11) ────────────────────────────────
-// Whole-frame instruction-following editor (Gemini 3 Pro Image). Hypothesis:
-// a faithful-enough whole-frame edit beats inpaint+composite because the
-// model renders furniture WITH the scene (cohesive light/realism) and native
-// preservation removes the composite stage — and every composite-boundary
-// defect with it. Opt-in via body.engine="nano" (?engine=nano in the app).
-// Ships RAW (no composite) so the A/B measures the model's native fidelity.
-// Fails open to the fill engine if the key is missing or the call errors.
-const GEMINI_KEY =
-  process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || "";
-const NANO_MODEL = "gemini-3-pro-image-preview";
+// Whole-frame instruction-following editor (Gemini 3 Pro Image), run through
+// REPLICATE (google/nano-banana-pro) on the same token as every other model in
+// this pipeline — no separate Google key. Hypothesis: a faithful-enough
+// whole-frame edit beats inpaint+composite because the model renders furniture
+// WITH the scene (cohesive light/realism) and native preservation removes the
+// composite stage — and every composite-boundary defect with it. Opt-in via
+// body.engine="nano" (?engine=nano in the app). Ships RAW (no composite) so
+// the A/B measures native fidelity. allow_fallback_model stays FALSE: a silent
+// Seedream-lite substitution upstream would corrupt the A/B; our own chain
+// (nano → fill → seedream) handles capacity errors. ~$0.14/image at 2K.
+const NANO_MODEL = "google/nano-banana-pro";
 
 async function generateNanoBanana(
+  replicate: Replicate,
   imageDataUrl: string,
   prompt: string,
 ): Promise<Buffer | null> {
-  const m = imageDataUrl.match(/^data:(image\/[a-z+]+);base64,(.*)$/i);
-  const mime = m?.[1] || "image/jpeg";
-  const b64 = m?.[2] || imageDataUrl;
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${NANO_MODEL}:generateContent?key=${GEMINI_KEY}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              { inline_data: { mime_type: mime, data: b64 } },
-              { text: prompt },
-            ],
-          },
-        ],
-        generationConfig: { responseModalities: ["IMAGE"] },
-      }),
+  const output = await replicate.run(NANO_MODEL, {
+    input: {
+      prompt,
+      image_input: [imageDataUrl],
+      resolution: "2K",
+      aspect_ratio: "match_input_image",
+      output_format: "jpg",
+      allow_fallback_model: false,
     },
-  );
-  if (!res.ok) {
-    const errText = await res.text().catch(() => "");
-    throw new Error(`nano ${res.status}: ${errText.slice(0, 200)}`);
-  }
-  const data: any = await res.json();
-  const parts = data?.candidates?.[0]?.content?.parts || [];
-  for (const p of parts) {
-    const img = p?.inline_data?.data || p?.inlineData?.data;
-    if (img) return Buffer.from(img, "base64");
-  }
-  return null;
+  });
+  const url = await extractUrl(output);
+  if (!url) return null;
+  const r = await fetch(url);
+  if (!r.ok) return null;
+  return Buffer.from(await r.arrayBuffer());
 }
 
 // Community model — predictions require the pinned version hash.
@@ -783,22 +768,15 @@ export default async function handler(req: any, res: any) {
 
     const requestedEngine = String(body.engine || "fill").toLowerCase();
     let engine = "flux-fill";
-    if (requestedEngine === "nano") {
-      if (GEMINI_KEY) engine = "nano-banana";
-      else
-        console.warn(
-          "[flux-staging] engine=nano requested but GEMINI_API_KEY not set — using fill",
-        );
-    } else if (requestedEngine === "seedream") {
-      engine = "seedream";
-    }
+    if (requestedEngine === "nano") engine = "nano-banana";
+    else if (requestedEngine === "seedream") engine = "seedream";
 
     const generate = async (p: string = prompt): Promise<Buffer | null> => {
       if (engine === "nano-banana") {
         try {
           // Nano gets the FULL staging prompt (it is an instruction-following
           // editor) and ships RAW — the A/B measures native fidelity.
-          const b = await generateNanoBanana(dataUrl, p);
+          const b = await generateNanoBanana(replicate, dataUrl, p);
           if (b) return b;
           throw new Error("nano returned no image");
         } catch (e: any) {

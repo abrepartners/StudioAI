@@ -33,6 +33,12 @@ export async function fluxStaging(
   options: StagingOptions = {},
 ): Promise<StagingResult> {
   const shrunk = await resizeForUpload(imageBase64, FLUX_UPLOAD_MAX_EDGE);
+  // Engine A/B override: open the app with ?engine=nano (or seedream) to route
+  // staging through an alternate engine for this session. No param = fill.
+  const engineOverride =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("engine")
+      : null;
   const res = await fetch("/api/flux-staging", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -40,6 +46,7 @@ export async function fluxStaging(
       imageBase64: shrunk,
       prompt,
       skipUpscale: Boolean(options.skipUpscale),
+      ...(engineOverride ? { engine: engineOverride } : {}),
     }),
     signal: abortSignal,
   });

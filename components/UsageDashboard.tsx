@@ -44,6 +44,7 @@ const TOOL_LABELS: Record<string, string> = {
 const ENGINE_LABELS: Record<string, string> = {
   'flux-fill': 'Fill (primary)',
   seedream: 'Seedream (fallback)',
+  'nano-banana': 'Nano Banana (A/B)',
   unknown: 'Untracked',
 };
 

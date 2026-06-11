@@ -43,6 +43,56 @@ export const config = { runtime: "nodejs", maxDuration: 300 };
 
 const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN || "";
 
+// ── NANO BANANA PRO ENGINE (A/B, 2026-06-11) ────────────────────────────────
+// Whole-frame instruction-following editor (Gemini 3 Pro Image). Hypothesis:
+// a faithful-enough whole-frame edit beats inpaint+composite because the
+// model renders furniture WITH the scene (cohesive light/realism) and native
+// preservation removes the composite stage — and every composite-boundary
+// defect with it. Opt-in via body.engine="nano" (?engine=nano in the app).
+// Ships RAW (no composite) so the A/B measures the model's native fidelity.
+// Fails open to the fill engine if the key is missing or the call errors.
+const GEMINI_KEY =
+  process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || "";
+const NANO_MODEL = "gemini-3-pro-image-preview";
+
+async function generateNanoBanana(
+  imageDataUrl: string,
+  prompt: string,
+): Promise<Buffer | null> {
+  const m = imageDataUrl.match(/^data:(image\/[a-z+]+);base64,(.*)$/i);
+  const mime = m?.[1] || "image/jpeg";
+  const b64 = m?.[2] || imageDataUrl;
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${NANO_MODEL}:generateContent?key=${GEMINI_KEY}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              { inline_data: { mime_type: mime, data: b64 } },
+              { text: prompt },
+            ],
+          },
+        ],
+        generationConfig: { responseModalities: ["IMAGE"] },
+      }),
+    },
+  );
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    throw new Error(`nano ${res.status}: ${errText.slice(0, 200)}`);
+  }
+  const data: any = await res.json();
+  const parts = data?.candidates?.[0]?.content?.parts || [];
+  for (const p of parts) {
+    const img = p?.inline_data?.data || p?.inlineData?.data;
+    if (img) return Buffer.from(img, "base64");
+  }
+  return null;
+}
+
 // Community model — predictions require the pinned version hash.
 const LANG_SAM =
   "tmappdev/lang-segment-anything:891411c38a6ed2d44c004b7b9e44217df7a5b07848f29ddefd2e28bc7cbf93bc";
@@ -74,7 +124,11 @@ const TONE_CLAMP = 0.12; // max ±12% per-channel tone correction
 const FLUX_FILL = "black-forest-labs/flux-fill-pro";
 
 /** Extract room/style/furniture from the app's staging prompt and build the
- *  positive description Fill wants (it needs "what to paint", not rules). */
+ *  positive description Fill wants. v2 (2026-06-11): the v1 builder stripped
+ *  the prompt to a bare furniture list — ALL style DNA (materials, palette,
+ *  arrangement, anti-patterns) and photography matching was discarded, which
+ *  produced catalog-looking, badly arranged furniture. Now the DNA block is
+ *  carried through and arrangement/photography rules are explicit. */
 function buildInpaintPrompt(stagingPrompt: string): string {
   const room =
     stagingPrompt.match(/to this ([a-z &-]+?) to virtually stage/i)?.[1] ||
@@ -84,10 +138,16 @@ function buildInpaintPrompt(stagingPrompt: string): string {
   const furniture = (
     stagingPrompt.split(/FURNITURE TO ADD:\s*/i)[1] || ""
   ).trim();
+  const dna =
+    stagingPrompt
+      .match(/STYLE DNA:\s*([\s\S]*?)\n\s*HARD PRESERVATION/i)?.[1]
+      ?.trim() || "";
   return (
-    `A professionally staged ${style} ${room}: ${furniture} ` +
-    `Premium real-estate listing photography. Furniture perfectly scaled to the room and resting naturally on the floor. ` +
-    `Photorealistic, shadows matching the room's existing natural light direction. ` +
+    `A professionally staged ${style} ${room}.\n` +
+    `FURNITURE: ${furniture}\n` +
+    (dna ? `STYLE DNA:\n${dna}\n` : "") +
+    `ARRANGEMENT: place pieces the way a professional stager would — intentional, asymmetric, conversation-oriented groupings; never catalog symmetry; every piece perfectly scaled to the room and resting naturally on the floor.\n` +
+    `PHOTOGRAPHY: photorealistic; match the photo's existing grain, white balance, and natural light direction exactly; shadows grounded and soft.\n` +
     `Do NOT add any windows, doors, vents, radiators, or architectural features — only freestanding furniture and decor.`
   ).slice(0, 2500);
 }
@@ -287,13 +347,19 @@ async function floorRestoreComposite(
     return out;
   };
   const furn0 = await toRaw1(furnitureMaskBuf);
-  // dilate furniture so contact shadows stay with the furniture
+  // RESTORE KEEP-OUT (2026-06-11): restore previously came within ~8px of the
+  // furniture mask edge; wherever lang-sam under-recalled (thin legs, throw
+  // fringe, low-contrast fabric) original floor pixels feathered THROUGH the
+  // furniture — the "weird fading" defect. The keep-out is now 20px: restored
+  // floor can never touch a furniture boundary, so feathering blends
+  // fill-floor↔original-floor in open floor only.
+  const RESTORE_KEEPOUT_PX = 20;
   let furn = await sharp(furn0, { raw: { width: W, height: H, channels: 1 } })
-    .blur(DILATE_PX)
+    .blur(RESTORE_KEEPOUT_PX)
     .extractChannel(0)
     .raw()
     .toBuffer();
-  for (let i = 0; i < furn.length; i++) furn[i] = furn[i] > 20 ? 255 : 0;
+  for (let i = 0; i < furn.length; i++) furn[i] = furn[i] > 12 ? 255 : 0;
 
   // INTERIOR-HOLE FILL — a region enclosed by furniture cannot be background.
   // lang-sam under-recalls low-contrast interiors (white duvet on white bed),
@@ -700,7 +766,10 @@ export default async function handler(req: any, res: any) {
           mask: `data:image/png;base64,${inpaintMaskPng!.toString("base64")}`,
           prompt: buildInpaintPrompt(p),
           steps: 50,
-          guidance: 60,
+          // 30 = flux-fill-pro's default and realism sweet spot. The previous
+          // 60 over-baked output into a plastic rendered look (user report
+          // 2026-06-11: "not even realistic furniture").
+          guidance: 30,
           output_format: "jpg",
           safety_tolerance: 2,
         },
@@ -712,8 +781,33 @@ export default async function handler(req: any, res: any) {
       return Buffer.from(await r.arrayBuffer());
     };
 
+    const requestedEngine = String(body.engine || "fill").toLowerCase();
     let engine = "flux-fill";
+    if (requestedEngine === "nano") {
+      if (GEMINI_KEY) engine = "nano-banana";
+      else
+        console.warn(
+          "[flux-staging] engine=nano requested but GEMINI_API_KEY not set — using fill",
+        );
+    } else if (requestedEngine === "seedream") {
+      engine = "seedream";
+    }
+
     const generate = async (p: string = prompt): Promise<Buffer | null> => {
+      if (engine === "nano-banana") {
+        try {
+          // Nano gets the FULL staging prompt (it is an instruction-following
+          // editor) and ships RAW — the A/B measures native fidelity.
+          const b = await generateNanoBanana(dataUrl, p);
+          if (b) return b;
+          throw new Error("nano returned no image");
+        } catch (e: any) {
+          console.warn(
+            `[flux-staging] nano engine failed (${e?.message}) — falling back to fill`,
+          );
+          engine = "flux-fill";
+        }
+      }
       if (engine === "flux-fill") {
         try {
           const b = await generateInpaint(p);
@@ -729,7 +823,7 @@ export default async function handler(req: any, res: any) {
       return generateSeedream(p);
     };
 
-    console.log("[flux-staging] Starting staging (engine: flux-fill)...");
+    console.log(`[flux-staging] Starting staging (engine: ${engine})...`);
     let resultBuf = await generate();
     if (!resultBuf) {
       json(res, 200, { ok: false, error: "staging engine returned no image" });
@@ -777,6 +871,9 @@ export default async function handler(req: any, res: any) {
     }
 
     // COMPOSITE — engine-specific contract, fails open to the raw frame.
+    // nano-banana intentionally ships RAW (no composite): the A/B question is
+    // whether its native preservation makes the composite stage unnecessary.
+    if (engine !== "nano-banana") {
     try {
       const tComp = Date.now();
       const stagedDataUrl = `data:image/jpeg;base64,${resultBuf.toString("base64")}`;
@@ -836,6 +933,7 @@ export default async function handler(req: any, res: any) {
       console.warn(
         `[flux-staging] composite failed (${compErr?.message}) — returning raw staged frame`,
       );
+    }
     }
 
     // Upscale via Pruna — on the COMPOSITED frame so the export inherits the

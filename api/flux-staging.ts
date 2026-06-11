@@ -108,9 +108,9 @@ async function buildInpaintMask(
   if (!url) throw new Error("floor mask: no URL");
   const res = await fetch(url);
   if (!res.ok) throw new Error(`floor mask fetch ${res.status}`);
-  const png = Buffer.from(await res.arrayBuffer());
+  const maskPngRaw = Buffer.from(await res.arrayBuffer());
 
-  const { data, info } = await sharp(png)
+  const { data, info } = await sharp(maskPngRaw)
     .resize(W, H, { fit: "cover" })
     .removeAlpha()
     .greyscale()

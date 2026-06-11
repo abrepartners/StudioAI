@@ -4354,3 +4354,34 @@ img.v-ba-img-dimmed {
     font-size: 14px;
   }
 }
+
+/* Engine A/B badge — visible proof of which staging engine is live, so an
+   override session is never mistaken for the default fill pipeline. */
+.v-engine-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 10px;
+  padding: 3px 9px;
+  border: 1px solid var(--accent-surface);
+  border-radius: 99px;
+  color: var(--accent-surface);
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  /* Badge takes its own line under the panel title — the header row is too
+     tight on phones for title + badge + photo meta. */
+  .v-control-ttl {
+    flex-wrap: wrap;
+  }
+  .v-control-ttl .v-engine-badge {
+    flex: 0 1 100%;
+    max-width: max-content;
+    margin: 6px 0 0 0;
+  }
+}

@@ -33,7 +33,10 @@ import {
 import { nanoSky, SkyStyle } from "../../services/skyService";
 import { upscaleImage } from "../../services/upscaleService";
 import { isExteriorRoom } from "../../services/fluxService";
-import { fluxStaging } from "../../services/stagingService";
+import {
+  fluxStaging,
+  getEngineOverride,
+} from "../../services/stagingService";
 import { classifyRoom } from "../../services/classifyRoomService";
 import { reveEdit } from "../../services/reveEditService";
 import { fluxRenovation } from "../../services/renovationService";
@@ -2681,6 +2684,11 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
               <div className="v-control-ttl">
                 <span className="v-gold-rule" />
                 {toolName}
+                {toolName === "Virtual staging" && getEngineOverride() && (
+                  <span className="v-engine-badge">
+                    {getEngineOverride()} engine · A/B
+                  </span>
+                )}
               </div>
               <span className="v-muted" style={{ fontSize: 12 }}>
                 {view === "single"

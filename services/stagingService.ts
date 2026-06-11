@@ -33,12 +33,7 @@ export async function fluxStaging(
   options: StagingOptions = {},
 ): Promise<StagingResult> {
   const shrunk = await resizeForUpload(imageBase64, FLUX_UPLOAD_MAX_EDGE);
-  // Engine A/B override: open the app with ?engine=nano (or seedream) to route
-  // staging through an alternate engine for this session. No param = fill.
-  const engineOverride =
-    typeof window !== "undefined"
-      ? new URLSearchParams(window.location.search).get("engine")
-      : null;
+  const engineOverride = getEngineOverride();
   const res = await fetch("/api/flux-staging", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -61,4 +56,25 @@ export async function fluxStaging(
     latencyMs: data.latencyMs,
     engine: data.engine,
   };
+}
+
+/**
+ * Engine A/B override for staging. The boot script in index.tsx stashes
+ * ?engine=nano|seedream into sessionStorage before the authed "/" redirect
+ * can strip the query string; ?engine=fill clears the stash. A live param on
+ * the current URL always wins so /vellum?engine=nano works directly too.
+ * Returns null when the default fill engine should run.
+ */
+export function getEngineOverride(): "nano" | "seedream" | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const live = new URLSearchParams(window.location.search).get("engine");
+    if (live === "nano" || live === "seedream") return live;
+    if (live === "fill") return null;
+    const stashed = sessionStorage.getItem("studioai_engine");
+    if (stashed === "nano" || stashed === "seedream") return stashed;
+    return null;
+  } catch {
+    return null;
+  }
 }

@@ -47,7 +47,10 @@ const LANG_SAM =
 const FURNITURE_MASK_PROMPT =
   "furniture, sofa, sectional, couch, bed, headboard, pillow, blanket, nightstand, dresser, " +
   "coffee table, side table, dining table, chair, bench, stool, lamp, rug, artwork, " +
-  "picture frame, wall art, mirror, plant, tree, planter, vase, decor, media console, bookshelf, curtains";
+  // NOTE: "curtains" deliberately excluded — it matches existing blinds/window
+  // treatments, keeping Seedream's re-render of them (verified on the dining
+  // room preview test). Existing window treatments are room, not furniture.
+  "picture frame, wall art, mirror, plant, tree, planter, vase, decor, media console, bookshelf";
 
 // Composite tuning — validated 2026-06-11 on bedroom + two marble great rooms.
 const MASK_BINARIZE = 8; // lang-sam instance grays → any non-black is furniture

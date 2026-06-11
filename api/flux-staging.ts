@@ -58,6 +58,62 @@ const DILATE_PX = 8; // grow mask to catch contact shadows
 const FEATHER_PX = 10; // soft blend boundary
 const TONE_CLAMP = 0.12; // max ±12% per-channel tone correction
 
+// ── Primary-furniture verify-and-retry gate ─────────────────────────────────
+// QA batch 2026-06-11 (12 prod runs): Seedream occasionally IGNORES most of
+// the furniture list — 3/12 runs delivered a bedroom with no bed / living
+// room with no sofa. A staged room missing its primary piece is a failed
+// result, so after generation we ask moondream (sub-second VQA, same model as
+// classify-room) whether the primary item is present; if not, regenerate once.
+const MOONDREAM =
+  "lucataco/moondream2:72ccb656353c348c1385df54b237eeb7bfa874bf11486cf0b9473e691b662d31";
+
+/** Room type → the primary furniture that MUST be present after staging. */
+function primaryFurnitureFor(prompt: string): string | null {
+  // The staging prompt opens "Add furniture and decor to this {room} to
+  // virtually stage it…" — extract the room from the prompt itself so the
+  // endpoint contract stays unchanged.
+  const m = prompt.match(/to this ([a-z &-]+?) to virtually stage/i);
+  const room = (m?.[1] || "").toLowerCase();
+  if (!room) return null;
+  if (room.includes("bedroom")) return "a bed";
+  if (room.includes("nursery")) return "a crib";
+  if (room.includes("dining")) return "a dining table";
+  if (room.includes("office")) return "a desk";
+  if (
+    room.includes("living") ||
+    room.includes("bonus") ||
+    room.includes("sunroom") ||
+    room.includes("basement")
+  )
+    return "a sofa or couch";
+  return null; // foyer/hallway/etc — no single mandatory piece
+}
+
+/** True if moondream sees the primary item in the staged frame. Fails open. */
+async function hasPrimaryFurniture(
+  replicate: Replicate,
+  stagedDataUrl: string,
+  item: string,
+): Promise<boolean> {
+  try {
+    const out = await replicate.run(
+      MOONDREAM as `${string}/${string}:${string}`,
+      {
+        input: {
+          image: stagedDataUrl,
+          prompt: `Does this image contain ${item}? Answer with exactly one word: yes or no.`,
+        },
+      },
+    );
+    const ans = (Array.isArray(out) ? out.join("") : String(out))
+      .trim()
+      .toLowerCase();
+    return !ans.startsWith("no");
+  } catch {
+    return true; // verification unavailable → don't block
+  }
+}
+
 /**
  * Furniture-lock composite: original pixels everywhere except the lang-sam
  * furniture mask (dilated + feathered), with the staged frame tone-matched to
@@ -259,29 +315,58 @@ export default async function handler(req: any, res: any) {
     // Replaces reve/edit, whose upstream IP-blocked Replicate's egress
     // (FORBIDDEN ip_address) — staging had been silently down on that path.
     console.log("[flux-staging] Starting seedream-4 staging...");
-    const output = await replicate.run("bytedance/seedream-4", {
-      input: {
-        prompt,
-        image_input: [dataUrl],
-        size: "4K",
-        aspect_ratio: "match_input_image",
-        enhance_prompt: false,
-      },
-    });
+    const generate = async (): Promise<Buffer | null> => {
+      const output = await replicate.run("bytedance/seedream-4", {
+        input: {
+          prompt,
+          image_input: [dataUrl],
+          size: "4K",
+          aspect_ratio: "match_input_image",
+          enhance_prompt: false,
+        },
+      });
+      const genUrl = await extractUrl(output);
+      if (!genUrl) return null;
+      const r = await fetch(genUrl);
+      if (!r.ok) return null;
+      return Buffer.from(await r.arrayBuffer());
+    };
 
-    const genUrl = await extractUrl(output);
-    if (!genUrl) {
-      json(res, 200, { ok: false, error: "seedream-4 returned no image URL" });
+    let resultBuf = await generate();
+    if (!resultBuf) {
+      json(res, 200, { ok: false, error: "seedream-4 returned no image" });
       return;
     }
     console.log(`[flux-staging] seedream-4 done in ${Date.now() - t0}ms`);
 
-    const stagedRes = await fetch(genUrl);
-    if (!stagedRes.ok) {
-      json(res, 200, { ok: false, error: `result fetch ${stagedRes.status}` });
-      return;
+    // Verify-and-retry gate: Seedream occasionally under-stages (no bed in a
+    // bedroom — 3/12 in the 2026-06-11 QA batch). One retry bounds latency;
+    // if both attempts fail the check we keep the retry (fail-open).
+    const primary = primaryFurnitureFor(prompt);
+    if (primary) {
+      const ok1 = await hasPrimaryFurniture(
+        replicate,
+        `data:image/jpeg;base64,${resultBuf.toString("base64")}`,
+        primary,
+      );
+      if (!ok1) {
+        console.warn(
+          `[flux-staging] staged frame missing ${primary} — regenerating once`,
+        );
+        const second = await generate();
+        if (second) {
+          resultBuf = second;
+          const ok2 = await hasPrimaryFurniture(
+            replicate,
+            `data:image/jpeg;base64,${second.toString("base64")}`,
+            primary,
+          );
+          console.log(
+            `[flux-staging] retry ${ok2 ? "PASSED" : "still missing"} (${primary})`,
+          );
+        }
+      }
     }
-    let resultBuf = Buffer.from(await stagedRes.arrayBuffer());
 
     // FURNITURE-LOCK COMPOSITE — fails open to the raw staged frame.
     try {

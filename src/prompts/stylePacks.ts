@@ -95,7 +95,9 @@ HARD PRESERVATION RULES:
 
 WALL & AGAINST-WALL PIECES (consoles, media units, credenzas, sideboards, artwork, mirrors): place only on a genuinely BLANK wall. If the focal wall already has a fireplace, feature finish, built-in, or window, leave it unobstructed — move those pieces to an open wall or omit them. Free-standing floor furniture MAY sit in front of a feature wall as long as the wall behind stays fully visible and unchanged.
 
-PHOTOGRAPHY DNA: staged furniture must match the input photo's noise, grain, and compression; its shadows must match the scene's existing light direction and softness; its color temperature must match the room's ambient lighting exactly.`;
+PHOTOGRAPHY DNA: staged furniture must match the input photo's noise, grain, and compression; its shadows must match the scene's existing light direction and softness; its color temperature must match the room's ambient lighting exactly.
+
+COMPLETENESS — NON-NEGOTIABLE: you MUST add every piece listed under FURNITURE TO ADD, starting with the FIRST (primary) item — a staged room without its primary furniture (bed in a bedroom, sofa in a living room, table in a dining room) is a FAILED result. Do not under-stage.`;
 
   if (!furniture) {
     return `${scaffold}

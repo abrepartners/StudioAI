@@ -100,6 +100,9 @@ export const VellumTopbar: React.FC<TopbarProps> = ({ page, setPage, credits, pr
               <button onClick={() => { setMenuOpen(false); setPage('billing'); }}>
                 <Icon name="card" size={14} /> Billing
               </button>
+              <button onClick={() => { setMenuOpen(false); setPage('help'); }}>
+                <Icon name="help" size={14} /> Help
+              </button>
               <div className="v-avatar-menu-divider" />
               <button onClick={handleSignOut}>
                 <Icon name="logout" size={14} /> Sign out

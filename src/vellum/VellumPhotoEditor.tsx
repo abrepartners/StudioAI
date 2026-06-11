@@ -2419,6 +2419,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
 
       <div className="v-editor-center">
         <div
+          className="v-editor-topbar"
           style={{
             display: "flex",
             justifyContent: "space-between",
@@ -2433,13 +2434,17 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
               className={"v-subtab" + (view === "compare" ? " active" : "")}
               onClick={() => setView("compare")}
             >
-              <Icon name="layers" size={12} /> Before / After
+              <Icon name="layers" size={12} />{" "}
+              <span className="v-lbl-l">Before / After</span>
+              <span className="v-lbl-s">Compare</span>
             </button>
             <button
               className={"v-subtab" + (view === "grid" ? " active" : "")}
               onClick={() => setView("grid")}
             >
-              <Icon name="image" size={12} /> Photo grid
+              <Icon name="image" size={12} />{" "}
+              <span className="v-lbl-l">Photo grid</span>
+              <span className="v-lbl-s">Grid</span>
             </button>
             <button
               className={"v-subtab" + (view === "single" ? " active" : "")}
@@ -2448,10 +2453,15 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
                 setSinglePhoto(selectedPhoto);
               }}
             >
-              <Icon name="armchair" size={12} /> Single photo
+              <Icon name="armchair" size={12} />{" "}
+              <span className="v-lbl-l">Single photo</span>
+              <span className="v-lbl-s">Single</span>
             </button>
           </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div
+            className="v-editor-actions"
+            style={{ display: "flex", gap: 8, alignItems: "center" }}
+          >
             {generatingCount > 0 && (
               <span
                 style={{
@@ -2492,7 +2502,9 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
                 aria-haspopup="menu"
                 aria-expanded={exportMenuOpen}
               >
-                <Icon name="sparkles" size={12} /> Export &amp; Create{" "}
+                <Icon name="sparkles" size={12} />{" "}
+                <span className="v-lbl-l">Export &amp; Create</span>
+                <span className="v-lbl-s">Export</span>{" "}
                 <Icon name="chevron_down" size={11} />
               </button>
               {exportMenuOpen && (
@@ -3364,6 +3376,13 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
           .is-mobile-open bottom-sheet on the left (Tools) / right (Adjust)
           panels so the editor is reachable at 375px. Selecting one closes the
           other so they never stack. */}
+      {mobilePanel !== null && (
+        <div
+          className="v-sheet-scrim"
+          aria-hidden="true"
+          onClick={() => setMobilePanel(null)}
+        />
+      )}
       <div className="v-mobile-tabbar">
         <button
           type="button"

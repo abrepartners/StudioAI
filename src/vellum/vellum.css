@@ -3519,12 +3519,12 @@ img.v-ba-img-dimmed {
     position: fixed;
     left: 0;
     right: 0;
-    bottom: 0;
+    bottom: var(--v-dock-h, 64px);
     top: auto;
     z-index: 60;
     width: 100%;
-    max-height: 72dvh;
-    padding: 20px 18px calc(20px + env(safe-area-inset-bottom));
+    max-height: calc(78dvh - var(--v-dock-h, 64px));
+    padding: 20px 18px 24px;
     border: 0;
     border-top: 1px solid var(--border-medium);
     border-radius: 18px 18px 0 0;
@@ -3532,7 +3532,9 @@ img.v-ba-img-dimmed {
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     box-shadow: 0 -24px 60px -20px rgba(0, 0, 0, 0.7);
-    transform: translateY(102%);
+    /* Clear past the dock zone too — anchored above the dock, a plain 102%
+       leaves the sheet's top sliver visible through the dock blur. */
+    transform: translateY(calc(102% + var(--v-dock-h, 64px)));
     transition: transform 320ms var(--ease-vellum);
     pointer-events: none;
     overflow-y: auto;
@@ -3591,43 +3593,53 @@ img.v-ba-img-dimmed {
    (toggles the left panel) and "Adjust" (toggles the right panel) — and
    marks the active one with .is-active while applying .is-mobile-open to
    the matching panel. */
+/* Full-width app dock — the one bold element of the mobile pass. Fixed to
+   the true bottom (safe-area aware), heavy blur, hairline top. Sheets and
+   content offset themselves by --v-dock-h so nothing ever hides under it. */
 .v-mobile-tabbar {
   position: fixed;
-  left: 50%;
-  bottom: calc(16px + env(safe-area-inset-bottom));
-  transform: translateX(-50%);
-  z-index: 70;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  transform: none;
+  z-index: 80;
   display: flex;
-  gap: 4px;
-  padding: 5px;
-  border-radius: 14px;
-  border: 1px solid var(--border-medium);
-  background: rgba(18, 18, 18, 0.82);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  box-shadow: 0 18px 44px -16px rgba(0, 0, 0, 0.75);
+  gap: 6px;
+  padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+  border-radius: 0;
+  border: 0;
+  border-top: 1px solid var(--border-medium);
+  background: rgba(13, 13, 13, 0.88);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  box-shadow: 0 -20px 50px -24px rgba(0, 0, 0, 0.85);
 }
 .v-mobile-tabbar button {
+  flex: 1;
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
+  justify-content: center;
+  gap: 3px;
+  padding: 6px 4px;
+  min-height: 48px;
   border: 0;
   border-radius: 10px;
   background: transparent;
   color: var(--text-secondary);
   font-family: var(--font-sans);
-  font-size: 13px;
-  font-weight: 500;
-  letter-spacing: 0.01em;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   cursor: pointer;
   transition:
     background 180ms var(--ease-vellum),
     color 180ms var(--ease-vellum);
 }
 .v-mobile-tabbar button svg {
-  width: 16px;
-  height: 16px;
+  width: 19px;
+  height: 19px;
 }
 .v-mobile-tabbar button:hover {
   color: var(--text-primary);
@@ -4183,5 +4195,162 @@ img.v-ba-img-dimmed {
 @media (min-width: 769px) and (max-width: 1024px) {
   .vl-feature-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* =======================================================================
+   MOBILE APP PASS (≤900px) — VellumPhotoEditor as a native-feeling app.
+   One system: compact header, segmented control that never wraps, a
+   horizontally scrollable action row, near full-bleed canvas, snap-scroll
+   preset chips, and the full-width bottom dock with sheets that respect it.
+   Appended last so it wins cascade ties inside the same specificity.
+   ======================================================================= */
+@media (max-width: 900px) {
+  :root {
+    /* 48px buttons + 16px chrome + home-indicator inset */
+    --v-dock-h: calc(64px + env(safe-area-inset-bottom));
+  }
+
+  /* Header — wordmark + credits + avatar. Desktop text nav goes away;
+     Help/Settings/Billing live in the avatar menu. */
+  .v-topbar nav {
+    display: none;
+  }
+  .v-topbar {
+    height: 56px;
+    padding: 0 14px;
+    gap: 10px;
+  }
+
+  /* Editor column owns the scroll; clear the dock so the staging CTA at the
+     bottom of the inline panel is always reachable. */
+  .v-editor-center {
+    padding: 14px 12px calc(var(--v-dock-h) + 20px);
+  }
+
+  /* Segmented view control — three equal cells, never wraps. Long labels
+     are swapped for short ones via .v-lbl-l / .v-lbl-s spans. */
+  .v-editor-topbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .v-subtabs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2px;
+    width: 100%;
+  }
+  .v-subtab {
+    justify-content: center;
+    white-space: nowrap;
+    padding: 9px 4px;
+    font-size: 11.5px;
+  }
+
+  /* Action row — one line, swipeable, right-edge fade hints at overflow. */
+  .v-editor-actions {
+    width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+    mask-image: linear-gradient(90deg, #000 96%, transparent);
+    -webkit-mask-image: linear-gradient(90deg, #000 96%, transparent);
+  }
+  .v-editor-actions::-webkit-scrollbar {
+    display: none;
+  }
+  .v-editor-actions > * {
+    flex: 0 0 auto;
+  }
+  .v-editor-actions .v-btn {
+    white-space: nowrap;
+  }
+
+  /* Style preset / room chips — single snap-scroll line, real touch targets. */
+  .v-preset-row {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    scroll-snap-type: x proximity;
+    gap: 8px;
+    padding-bottom: 4px;
+    mask-image: linear-gradient(90deg, #000 93%, transparent);
+    -webkit-mask-image: linear-gradient(90deg, #000 93%, transparent);
+  }
+  .v-preset-row::-webkit-scrollbar {
+    display: none;
+  }
+  .v-preset-row .v-preset {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+    min-height: 40px;
+    white-space: nowrap;
+  }
+
+  /* The "Apply to see result" hint lives inside the clip-path half, so the
+     slider slices its text on narrow screens. The Pending tag already
+     carries the state — drop the hint on mobile. */
+  .v-ba-pending {
+    display: none;
+  }
+
+  /* Scrim behind an open sheet — tap to dismiss, focuses the sheet. */
+  .v-sheet-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    background: rgba(8, 8, 8, 0.45);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+  }
+}
+
+@media (min-width: 900px) {
+  .v-sheet-scrim {
+    display: none;
+  }
+  .v-lbl-s {
+    display: none;
+  }
+}
+@media (max-width: 900px) {
+  .v-lbl-l {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  /* Upload in the header duplicates "Add photos" in the editor — drop it. */
+  .v-topbar .right .v-btn {
+    display: none;
+  }
+  .v-topbar .wordmark {
+    font-size: 21px;
+  }
+}
+
+@media (max-width: 900px) {
+  /* Compact action buttons so Add / Export / Apply fit one 393px line. */
+  .v-editor-actions {
+    gap: 6px;
+  }
+  .v-editor-actions .v-btn {
+    padding: 8px 11px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 900px) {
+  /* Form controls inside the staging panel — real touch targets. */
+  .v-field-value .v-set-input,
+  .v-field-value select {
+    width: 100%;
+    min-height: 40px;
+    font-size: 14px;
   }
 }

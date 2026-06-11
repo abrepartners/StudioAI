@@ -254,6 +254,15 @@ const TOOL_COST: Record<string, number> = {
   lawn: 1,
 };
 
+/** Furnished staging is a remove-and-replace pass — priced at 3 cr vs 2.
+ *  Every cost surface (Apply label, batch totals, billing, activity) goes
+ *  through this so the price can never disagree with itself. */
+const REPLACE_STAGING_COST = 3;
+const toolCostFor = (tool: string, photo?: { empty?: boolean } | null): number =>
+  tool === "staging" && photo?.empty === false
+    ? REPLACE_STAGING_COST
+    : TOOL_COST[tool];
+
 /** Rooms virtual staging is designed for — empty living spaces that take
  *  freestanding furniture. Kitchens/baths/exteriors are blocked: staging a
  *  built-out or outdoor space makes the model reinterpret the whole scene
@@ -364,6 +373,7 @@ const callApiDirect = async (
   customRemovalVal: string,
   signal: AbortSignal,
   requestSamMaskSelection?: SamModalController,
+  replaceFurniture = false,
 ): Promise<ApiDirectResult> => {
   const presetMap: Record<string, Record<string, string>> = {
     sky: {
@@ -387,10 +397,15 @@ const callApiDirect = async (
       // Hardened fallback: even for an unmapped style, frame it as an ADDITIVE
       // edit with explicit preservation so Seedream never regenerates the room.
       const prompt = pack
-        ? buildStagingAssignment(pack, roomLabel)
-        : `Take this exact photograph of a ${roomLabel.toLowerCase()} and ADD ${preset} style furniture to it. This is an ADDITIVE edit, NOT image generation: keep every existing pixel — floor material, walls, ceiling, windows, cabinets, lighting, camera angle, and color temperature — identical to the input. Do NOT re-render, restyle, relight, or recolor anything already in the photo. Only place new free-standing furniture and decor into the empty space, with shadows and white balance matched to the room. If the floor is tile, stone, or marble it MUST stay that exact material.`;
+        ? buildStagingAssignment(
+            pack,
+            roomLabel,
+            replaceFurniture ? "replace" : "add",
+          )
+        : `Take this exact photograph of a ${roomLabel.toLowerCase()} and ${replaceFurniture ? "REPLACE all existing freestanding furniture and decor with" : "ADD"} ${preset} style furniture${replaceFurniture ? "" : " to it"}. This is an ADDITIVE edit, NOT image generation: keep every existing pixel — floor material, walls, ceiling, windows, cabinets, lighting, camera angle, and color temperature — identical to the input. Do NOT re-render, restyle, relight, or recolor anything already in the photo. Only place new free-standing furniture and decor into the empty space, with shadows and white balance matched to the room. If the floor is tile, stone, or marble it MUST stay that exact material.`;
       const result = await fluxStaging(imageBase64, prompt, signal, {
         skipUpscale: true,
+        furnished: replaceFurniture,
       });
       return { resultBase64: result.resultBase64, engine: result.engine };
     }
@@ -730,7 +745,9 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
           setPhotos((prev) =>
             prev.map((x) =>
               x.id === p.id
-                ? { ...x, label: c.room, empty: c.empty, detecting: false }
+                ? // A malformed classify response must never nuke the label —
+                  // an undefined label crashes the staging prompt builder.
+                  { ...x, label: c.room || x.label, empty: c.empty, detecting: false }
                 : x,
             ),
           );
@@ -950,6 +967,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
           new Promise<number[] | null>((resolve) => {
             setSamModal({ image, masks, resolver: resolve });
           }),
+        photo.empty === false,
       );
       let resultDataUrl = apiResult.resultBase64;
 
@@ -1042,7 +1060,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
       // only; it no longer deducts). Partial batch failures never overcharge.
       // Telemetry: tool always; model = staging engine when present, so the
       // usage dashboard can show the fill vs seedream rate.
-      recordGeneration(TOOL_COST[tool], {
+      recordGeneration(toolCostFor(tool, photo), {
         tool,
         ...(apiResult.engine ? { model: apiResult.engine } : {}),
       });
@@ -1072,7 +1090,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
         {
           who: "Vellum",
           what: `${(toolInfo as any)?.name} applied to ${photo!.label} · ${preset}`,
-          cost: TOOL_COST[tool],
+          cost: toolCostFor(tool, photo),
           when: "just now",
         },
         ...a,
@@ -1152,7 +1170,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
     const toolName =
       (TOOLS.find((t) => "id" in t && t.id === frozenTool) as any)?.name ||
       "Photo";
-    requestSpend(TOOL_COST[activeTool], async () => {
+    requestSpend(toolCostFor(activeTool, photo), async () => {
       const ok = await processOnePhoto(
         photo.id,
         frozenTool,
@@ -1182,7 +1200,10 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
       return;
     }
 
-    const totalCost = TOOL_COST[activeTool] * targets.length;
+    const totalCost = targets.reduce(
+      (sum, p) => sum + toolCostFor(activeTool, p),
+      0,
+    );
 
     const frozenTool = activeTool;
     const frozenPreset =
@@ -2255,7 +2276,10 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
   const unrefinedCount = photoCount - refinedCount;
   const applyAllTargets = photos.filter((p) => !isPhotoGenerating(p.id));
   const applyAllCount = applyAllTargets.length;
-  const applyAllCost = Math.round(TOOL_COST[activeTool] * applyAllCount);
+  const applyAllCost = applyAllTargets.reduce(
+    (sum, p) => sum + toolCostFor(activeTool, p),
+    0,
+  );
 
   return (
     <div
@@ -2370,27 +2394,24 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
             !!currentPhoto &&
             !photoIsExterior &&
             !STAGEABLE_ROOMS.has(currentPhoto.label);
-          const stagingFurnished =
+          // Furnished rooms no longer block staging — they route to replace
+          // mode (remove existing furniture, then stage) at 3 cr.
+          const stagingReplace =
             tool.id === "staging" && currentPhoto?.empty === false;
           const disabled =
             (exteriorOnly && !photoIsExterior) ||
             (interiorOnly && photoIsExterior) ||
-            stagingWrongRoom ||
-            stagingFurnished;
+            stagingWrongRoom;
           const disabledReason = exteriorOnly
             ? "Exterior photos only"
             : stagingWrongRoom
               ? `Staging isn't designed for a ${currentPhoto?.label || "room"} — it would re-render the space. Change the room type if this is mislabeled.`
-              : stagingFurnished
-                ? "This room already has furniture — staging is for empty rooms. Change the room type if this is mislabeled."
-                : "Interior photos only";
+              : "Interior photos only";
           const disabledShort = exteriorOnly
             ? "Exterior only"
             : stagingWrongRoom
               ? "Not stageable"
-              : stagingFurnished
-                ? "Room not empty"
-                : "Interior only";
+              : "Interior only";
           return (
             <div
               key={tool.id}
@@ -2411,10 +2432,16 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
               <div className="v-tool-body">
                 <div className="v-tool-name">{tool.name}</div>
                 <div className="v-tool-desc">
-                  {disabled ? disabledShort : tool.desc}
+                  {disabled
+                    ? disabledShort
+                    : stagingReplace
+                      ? "Replaces existing furniture"
+                      : tool.desc}
                 </div>
               </div>
-              <div className="v-tool-cost">{tool.cost}</div>
+              <div className="v-tool-cost">
+                {stagingReplace ? `${REPLACE_STAGING_COST} cr` : tool.cost}
+              </div>
             </div>
           );
         })}
@@ -2666,7 +2693,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
                 </>
               ) : (
                 <>
-                  Apply · {TOOL_COST[activeTool]} cr{" "}
+                  Apply · {toolCostFor(activeTool, currentPhoto)} cr{" "}
                   <Icon name="arrow_right" size={12} />
                 </>
               )}
@@ -2689,6 +2716,12 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
                     {getEngineOverride()} engine · A/B
                   </span>
                 )}
+                {toolName === "Virtual staging" &&
+                  currentPhoto?.empty === false && (
+                    <span className="v-engine-badge v-mode-badge">
+                      Replace mode · {REPLACE_STAGING_COST} cr
+                    </span>
+                  )}
               </div>
               <span className="v-muted" style={{ fontSize: 12 }}>
                 {view === "single"

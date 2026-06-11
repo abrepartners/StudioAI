@@ -24,6 +24,8 @@ export interface StagingResult {
 export interface StagingOptions {
   /** Skip the server-side Pruna upscale (editing phase only — export upscales). */
   skipUpscale?: boolean;
+  /** Furnished room: replace existing furniture instead of adding to empty. */
+  furnished?: boolean;
 }
 
 export async function fluxStaging(
@@ -41,6 +43,7 @@ export async function fluxStaging(
       imageBase64: shrunk,
       prompt,
       skipUpscale: Boolean(options.skipUpscale),
+      furnished: Boolean(options.furnished),
       ...(engineOverride ? { engine: engineOverride } : {}),
     }),
     signal: abortSignal,

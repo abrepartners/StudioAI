@@ -681,6 +681,10 @@ export default async function handler(req: any, res: any) {
   // safety bound, not a binding limit.
   const prompt = String(body.prompt || "").slice(0, 5000);
   const skipUpscale = Boolean(body.skipUpscale);
+  // Furnished room → replace mode: the prompt removes existing furniture
+  // before staging. Whole-frame engines only — the fill inpaint pipeline
+  // can't remove furniture through a floor mask, so its fallback is skipped.
+  const furnished = Boolean(body.furnished);
 
   if (!imageBase64) {
     json(res, 400, { ok: false, error: "imageBase64 is required" });
@@ -786,10 +790,11 @@ export default async function handler(req: any, res: any) {
           if (b) return b;
           throw new Error("nano returned no image");
         } catch (e: any) {
+          const fb = furnished ? "seedream" : "flux-fill";
           console.warn(
-            `[flux-staging] nano engine failed (${e?.message}) — falling back to fill`,
+            `[flux-staging] nano engine failed (${e?.message}) — falling back to ${fb}`,
           );
-          engine = "flux-fill";
+          engine = fb;
         }
       }
       if (engine === "flux-fill") {
@@ -807,7 +812,13 @@ export default async function handler(req: any, res: any) {
       return generateSeedream(p);
     };
 
-    console.log(`[flux-staging] Starting staging (engine: ${engine})...`);
+    if (furnished && engine === "flux-fill")
+      console.warn(
+        "[flux-staging] replace mode requested with the fill engine — fill cannot remove furniture; output may collide with existing pieces",
+      );
+    console.log(
+      `[flux-staging] Starting staging (engine: ${engine}, mode: ${furnished ? "replace" : "add"})...`,
+    );
     let resultBuf = await generate();
     if (!resultBuf) {
       json(res, 200, { ok: false, error: "staging engine returned no image" });
@@ -946,6 +957,7 @@ export default async function handler(req: any, res: any) {
       resultBase64,
       latencyMs: Date.now() - t0,
       engine,
+      mode: furnished ? "replace" : "add",
     });
   } catch (err: any) {
     console.error("[flux-staging] unhandled:", err?.message || err);

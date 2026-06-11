@@ -4385,3 +4385,12 @@ img.v-ba-img-dimmed {
     margin: 6px 0 0 0;
   }
 }
+
+/* Replace-mode badge — furnished room detected; staging will remove the
+   existing furniture before placing the new set. Inverted pill so it reads
+   as a state, not the engine A/B outline. */
+.v-mode-badge {
+  background: var(--accent-surface);
+  color: var(--accent-ink);
+  border-color: var(--accent-surface);
+}

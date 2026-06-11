@@ -63,6 +63,7 @@ function trimToSentence(text: string, max: number): string {
 export function buildStagingAssignment(
   pack: StylePack,
   roomType: string,
+  mode: "add" | "replace" = "add",
 ): string {
   const furniture = getFurnitureSpec(pack, roomType);
 
@@ -76,7 +77,22 @@ export function buildStagingAssignment(
   const palette = trimToSentence(pack.palette, 160);
   const arrangement = trimToSentence(pack.antiPatterns, 200);
 
-  const scaffold = `Add furniture and decor to this ${roomType.toLowerCase()} to virtually stage it in ${pack.label} style. This is an ADDITIVE edit: the room itself stays exactly as photographed — you only place new furnishings into the existing space. Do not redesign, re-render, or reinterpret the room.
+  // Both openings carry the backend's two parse anchors VERBATIM:
+  // "to this {room} to virtually stage" (room extraction + verify gate) and
+  // "stage it in {style} style" (style extraction). Change them and the
+  // moondream furniture check silently stops working.
+  const opening =
+    mode === "replace"
+      ? `Remove ALL existing freestanding furniture, rugs, lamps, wall art, and decor, then add new furniture and decor to this ${roomType.toLowerCase()} to virtually stage it in ${pack.label} style. This is a REPLACE edit in two steps: (1) clear every movable furnishing and personal item out of the room, (2) stage the emptied room with the new pieces. The architecture itself stays exactly as photographed. Do not redesign, re-render, or reinterpret the room.
+
+REMOVAL RULES:
+- Remove ONLY freestanding, movable items: furniture, area rugs, floor and table lamps, hung artwork and mirrors, plants, electronics, boxes, and personal clutter.
+- Anything attached to the building is NOT furniture and MUST stay: cabinets, vanities, built-ins, countertops, appliances, plumbing and light fixtures, fireplaces, mantels, and window coverings.
+- Where a removed item exposed floor or wall, reconstruct that surface to continue the SURROUNDING ORIGINAL material exactly — same flooring run, same wall finish. Never invent a new finish in the exposed area.
+- No trace of the old furnishings may remain: no shadows, outlines, reflections, dents, or partial pieces.`
+      : `Add furniture and decor to this ${roomType.toLowerCase()} to virtually stage it in ${pack.label} style. This is an ADDITIVE edit: the room itself stays exactly as photographed — you only place new furnishings into the existing space. Do not redesign, re-render, or reinterpret the room.`;
+
+  const scaffold = `${opening}
 
 STYLE DNA:
 - Materials: ${materials}

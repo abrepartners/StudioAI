@@ -110,7 +110,8 @@ export default async function handler(req: any, res: any) {
   const prompt = String(body.prompt || "");
   const skipUpscale = Boolean(body.skipUpscale);
   const isExterior = Boolean(body.isExterior);
-  const engine = String(body.engine || "bria");
+  // Default mirrors the client routing and flux-staging: nano primary.
+  const engine = String(body.engine || "nano");
   const maskBase64 = String(body.maskBase64 || "");
 
   if (!imageBase64) {

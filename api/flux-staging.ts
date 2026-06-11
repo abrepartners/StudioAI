@@ -339,32 +339,53 @@ export default async function handler(req: any, res: any) {
     }
     console.log(`[flux-staging] seedream-4 done in ${Date.now() - t0}ms`);
 
-    // Verify-and-retry gate: Seedream occasionally under-stages (no bed in a
-    // bedroom — 3/12 in the 2026-06-11 QA batch). One retry bounds latency;
-    // if both attempts fail the check we keep the retry (fail-open).
+    // Verify-and-retry gate: Seedream under-stages (no bed in a bedroom) when
+    // the room's purpose isn't visually obvious — measured at ~50% per try on
+    // a worst-case bedroom before the prompt fix. Up to 2 corrective retries;
+    // each retry prepends an explicit failure callout, which steers the model
+    // far harder than the base prompt. Fail-open: the last frame always ships.
     const primary = primaryFurnitureFor(prompt);
     if (primary) {
-      const ok1 = await hasPrimaryFurniture(
-        replicate,
-        `data:image/jpeg;base64,${resultBuf.toString("base64")}`,
-        primary,
-      );
-      if (!ok1) {
-        console.warn(
-          `[flux-staging] staged frame missing ${primary} — regenerating once`,
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const ok = await hasPrimaryFurniture(
+          replicate,
+          `data:image/jpeg;base64,${resultBuf.toString("base64")}`,
+          primary,
         );
-        const second = await generate();
-        if (second) {
-          resultBuf = second;
-          const ok2 = await hasPrimaryFurniture(
-            replicate,
-            `data:image/jpeg;base64,${second.toString("base64")}`,
-            primary,
-          );
-          console.log(
-            `[flux-staging] retry ${ok2 ? "PASSED" : "still missing"} (${primary})`,
-          );
+        if (ok) {
+          if (attempt > 0)
+            console.log(
+              `[flux-staging] retry ${attempt} PASSED (${primary} present)`,
+            );
+          break;
         }
+        if (attempt === 2) {
+          console.warn(
+            `[flux-staging] ${primary} still missing after 2 retries — shipping last frame`,
+          );
+          break;
+        }
+        console.warn(
+          `[flux-staging] staged frame missing ${primary} — corrective retry ${attempt + 1}`,
+        );
+        const retryPrompt =
+          `RETRY — your previous attempt FAILED because it did not include ${primary}. ` +
+          `Including ${primary.toUpperCase()} is MANDATORY and is the single most important requirement.\n\n` +
+          prompt;
+        const output = await replicate.run("bytedance/seedream-4", {
+          input: {
+            prompt: retryPrompt,
+            image_input: [dataUrl],
+            size: "4K",
+            aspect_ratio: "match_input_image",
+            enhance_prompt: false,
+          },
+        });
+        const url = await extractUrl(output);
+        if (!url) break;
+        const r = await fetch(url);
+        if (!r.ok) break;
+        resultBuf = Buffer.from(await r.arrayBuffer());
       }
     }
 

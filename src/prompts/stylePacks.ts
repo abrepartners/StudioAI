@@ -91,7 +91,7 @@ HARD PRESERVATION RULES:
 - DO NOT modify windows, doors, trim, baseboards, crown molding, or wall finishes.
 - DO NOT remove, cover, or restyle any fireplace, mantel, hearth, surround, accent/feature wall (stone, tile, marble, brick, wood, paneled), or built-in niche/shelving. Keep these permanent features fully visible and pixel-identical.
 - DO NOT change the camera framing, crop, angle, or field of view.
-- Stage based on what the image actually shows, not what the room label suggests. If the room is narrow or small, use fewer/smaller pieces — do NOT extend walls or rearrange architecture.
+- This room IS a ${roomType.toLowerCase()} — stage it as one, with the furniture a ${roomType.toLowerCase()} requires. Scale the furniture to the space the image actually shows: if the room is narrow or small, use fewer/smaller pieces — but do NOT extend walls, rearrange architecture, or substitute a different room type's furniture.
 
 WALL & AGAINST-WALL PIECES (consoles, media units, credenzas, sideboards, artwork, mirrors): place only on a genuinely BLANK wall. If the focal wall already has a fireplace, feature finish, built-in, or window, leave it unobstructed — move those pieces to an open wall or omit them. Free-standing floor furniture MAY sit in front of a feature wall as long as the wall behind stays fully visible and unchanged.
 

@@ -1,22 +1,33 @@
 /**
- * api/flux-staging.ts  —  Virtual staging via Seedream 4
+ * api/flux-staging.ts  —  Virtual staging via Seedream 4 + furniture-lock composite
  *
- * Uses bytedance/seedream-4 — the strongest scene-preserving editor in the
- * 2026-06-10 bake. It ADDS the furniture from the style-DNA prompt while
- * holding the floor material, white balance, architecture, and fixtures (the
- * exact regions Kontext drifted). History: flux-2-pro regenerated the whole
- * scene (camera/architecture shifted) → switched to reve/edit (faithful) →
- * reve/edit's upstream IP-blocked Replicate (FORBIDDEN ip_address), silently
- * breaking staging → now Seedream 4. Output upscaled via the Pruna pipeline.
+ * Generate: bytedance/seedream-4 — the strongest scene-preserving editor in
+ * the 2026-06-10 bake. History: flux-2-pro regenerated the whole scene →
+ * reve/edit (faithful, then upstream IP-blocked Replicate) → Seedream 4.
+ *
+ * FURNITURE-LOCK COMPOSITE (2026-06-11): Seedream still re-renders the whole
+ * frame — global tone ran 7-10% hot and surfaces micro-drift. Prompt rules
+ * only *discourage* that; the composite makes it impossible:
+ *   1. lang-segment-anything (Grounding DINO + SAM) masks FURNITURE in the
+ *      staged output (semantic — pixel-diff masking fails on low-contrast
+ *      furniture like a white duvet on beige carpet; validated 2026-06-11).
+ *   2. Mask is dilated (catch contact shadows) and feathered.
+ *   3. Staged frame is tone-matched to the original (per-channel gain from
+ *      outside-mask pixels, clamped ±12%) — kills the wall-halo + tone drift.
+ *   4. Per-pixel blend: furniture from staged, EVERYTHING else is the
+ *      original input pixels — floor, walls, windows, fixtures byte-faithful.
+ * Fails OPEN at every step: any error / implausible mask coverage (<2% or
+ * >90%) returns the raw staged frame, never blocks generation.
  *
  * Input (POST JSON):
- *   { imageBase64: string, prompt: string, isExterior?: boolean }
+ *   { imageBase64: string, prompt: string, skipUpscale?: boolean }
  *
  * Output (200 JSON):
  *   { ok: true, resultBase64: string, latencyMs: number }
  *   { ok: false, error: string }
  */
 import Replicate from "replicate";
+import sharp from "sharp";
 import {
   json,
   setCors,
@@ -25,9 +36,134 @@ import {
   parseBody,
 } from "./utils.js";
 
-export const config = { runtime: "nodejs", maxDuration: 120 };
+export const config = { runtime: "nodejs", maxDuration: 180 };
 
 const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN || "";
+
+// Community model — predictions require the pinned version hash.
+const LANG_SAM =
+  "tmappdev/lang-segment-anything:891411c38a6ed2d44c004b7b9e44217df7a5b07848f29ddefd2e28bc7cbf93bc";
+
+const FURNITURE_MASK_PROMPT =
+  "furniture, sofa, sectional, couch, bed, headboard, pillow, blanket, nightstand, dresser, " +
+  "coffee table, side table, dining table, chair, bench, stool, lamp, rug, artwork, " +
+  "picture frame, wall art, mirror, plant, tree, planter, vase, decor, media console, bookshelf, curtains";
+
+// Composite tuning — validated 2026-06-11 on bedroom + two marble great rooms.
+const MASK_BINARIZE = 8; // lang-sam instance grays → any non-black is furniture
+const DILATE_PX = 8; // grow mask to catch contact shadows
+const FEATHER_PX = 10; // soft blend boundary
+const TONE_CLAMP = 0.12; // max ±12% per-channel tone correction
+
+/**
+ * Furniture-lock composite: original pixels everywhere except the lang-sam
+ * furniture mask (dilated + feathered), with the staged frame tone-matched to
+ * the original first. Returns a JPEG buffer at the ORIGINAL's dimensions.
+ * Throws on any failure — caller falls back to the raw staged frame.
+ */
+async function furnitureLockComposite(
+  originalBuf: Buffer,
+  stagedBuf: Buffer,
+  maskBuf: Buffer,
+): Promise<Buffer> {
+  const om = await sharp(originalBuf).metadata();
+  const W = om.width || 0;
+  const H = om.height || 0;
+  if (!W || !H) throw new Error("original metadata unreadable");
+
+  // Mask → single channel at original dims, binarized.
+  // extractChannel(0) is load-bearing: sharp promotes 1-ch raw to 3-ch
+  // through blur/resize, which silently garbles every downstream buffer.
+  const { data: mRaw, info: mInfo } = await sharp(maskBuf)
+    .resize(W, H, { fit: "fill" })
+    .removeAlpha()
+    .greyscale()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const mask = Buffer.alloc(W * H);
+  for (let p = 0; p < W * H; p++) {
+    mask[p] = mRaw[p * mInfo.channels] > MASK_BINARIZE ? 255 : 0;
+  }
+  let on = 0;
+  for (let p = 0; p < mask.length; p++) if (mask[p]) on++;
+  const coverage = on / (W * H);
+  console.log(
+    `[flux-staging] furniture mask coverage=${(coverage * 100).toFixed(1)}%`,
+  );
+  if (coverage < 0.02 || coverage > 0.9) {
+    throw new Error(
+      `implausible mask coverage ${(coverage * 100).toFixed(1)}%`,
+    );
+  }
+
+  // Dilate (blur + re-binarize) then feather.
+  let dil = await sharp(mask, { raw: { width: W, height: H, channels: 1 } })
+    .blur(DILATE_PX)
+    .extractChannel(0)
+    .raw()
+    .toBuffer();
+  for (let i = 0; i < dil.length; i++) dil[i] = dil[i] > 20 ? 255 : 0;
+  const feathered = await sharp(dil, {
+    raw: { width: W, height: H, channels: 1 },
+  })
+    .blur(FEATHER_PX)
+    .extractChannel(0)
+    .raw()
+    .toBuffer();
+
+  const prior = await sharp(originalBuf).ensureAlpha().raw().toBuffer();
+  const staged = await sharp(stagedBuf)
+    .resize(W, H, { fit: "fill" })
+    .ensureAlpha()
+    .raw()
+    .toBuffer();
+
+  // Tone-match staged → original on outside-mask pixels (sampled).
+  let so = [0, 0, 0],
+    po = [0, 0, 0],
+    n = 0;
+  for (let p = 0, i = 0; p < W * H; p += 7, i += 28) {
+    if (feathered[p] < 16) {
+      so[0] += staged[i];
+      so[1] += staged[i + 1];
+      so[2] += staged[i + 2];
+      po[0] += prior[i];
+      po[1] += prior[i + 1];
+      po[2] += prior[i + 2];
+      n++;
+    }
+  }
+  if (n > 5000) {
+    const gain = [0, 1, 2].map((c) =>
+      Math.min(
+        1 + TONE_CLAMP,
+        Math.max(1 - TONE_CLAMP, po[c] / n / Math.max(1, so[c] / n)),
+      ),
+    );
+    console.log(
+      `[flux-staging] tone-match gain RGB=${gain.map((g) => g.toFixed(3)).join(",")}`,
+    );
+    for (let i = 0; i < staged.length; i += 4) {
+      staged[i] = Math.min(255, staged[i] * gain[0]);
+      staged[i + 1] = Math.min(255, staged[i + 1] * gain[1]);
+      staged[i + 2] = Math.min(255, staged[i + 2] * gain[2]);
+    }
+  }
+
+  // Blend: furniture (mask) from staged, everything else original pixels.
+  const out = Buffer.alloc(W * H * 4);
+  for (let p = 0, i = 0; p < W * H; p++, i += 4) {
+    const a = feathered[p] / 255;
+    const inv = 1 - a;
+    out[i] = prior[i] * inv + staged[i] * a;
+    out[i + 1] = prior[i + 1] * inv + staged[i + 1] * a;
+    out[i + 2] = prior[i + 2] * inv + staged[i + 2] * a;
+    out[i + 3] = 255;
+  }
+  return sharp(out, { raw: { width: W, height: H, channels: 4 } })
+    .jpeg({ quality: 95 })
+    .toBuffer();
+}
 
 async function extractUrl(output: unknown): Promise<string | null> {
   if (!output) return null;
@@ -137,29 +273,63 @@ export default async function handler(req: any, res: any) {
     }
     console.log(`[flux-staging] seedream-4 done in ${Date.now() - t0}ms`);
 
-    // Upscale via Pruna (interior default for staging).
-    // Skipped during the editing phase — export upscales once at the end,
-    // so an inline upscale here would be wasted double work.
-    let finalUrl = genUrl;
+    const stagedRes = await fetch(genUrl);
+    if (!stagedRes.ok) {
+      json(res, 200, { ok: false, error: `result fetch ${stagedRes.status}` });
+      return;
+    }
+    let resultBuf = Buffer.from(await stagedRes.arrayBuffer());
+
+    // FURNITURE-LOCK COMPOSITE — fails open to the raw staged frame.
+    try {
+      const tComp = Date.now();
+      const stagedDataUrl = `data:image/jpeg;base64,${resultBuf.toString("base64")}`;
+      const maskOut = await replicate.run(
+        LANG_SAM as `${string}/${string}:${string}`,
+        {
+          input: { image: stagedDataUrl, text_prompt: FURNITURE_MASK_PROMPT },
+        },
+      );
+      const maskUrl = await extractUrl(maskOut);
+      if (!maskUrl) throw new Error("lang-sam returned no mask URL");
+      const maskRes = await fetch(maskUrl);
+      if (!maskRes.ok) throw new Error(`mask fetch ${maskRes.status}`);
+      const maskBuf = Buffer.from(await maskRes.arrayBuffer());
+
+      const originalBuf = Buffer.from(
+        dataUrl.split(",")[1] || imageBase64,
+        "base64",
+      );
+      resultBuf = await furnitureLockComposite(originalBuf, resultBuf, maskBuf);
+      console.log(
+        `[flux-staging] furniture-lock composite done in ${Date.now() - tComp}ms`,
+      );
+    } catch (compErr: any) {
+      console.warn(
+        `[flux-staging] composite failed (${compErr?.message}) — returning raw staged frame`,
+      );
+    }
+
+    // Upscale via Pruna — on the COMPOSITED frame so the export inherits the
+    // locked pixels. Skipped during the editing phase (export upscales once).
     if (!skipUpscale) {
       const tUp = Date.now();
-      const upscaledUrl = await runPruna(replicate, genUrl);
+      const upscaledUrl = await runPruna(
+        replicate,
+        `data:image/jpeg;base64,${resultBuf.toString("base64")}`,
+      );
       if (upscaledUrl) {
-        finalUrl = upscaledUrl;
-        console.log(`[flux-staging] Pruna upscaled in ${Date.now() - tUp}ms`);
+        const upRes = await fetch(upscaledUrl);
+        if (upRes.ok) {
+          resultBuf = Buffer.from(await upRes.arrayBuffer());
+          console.log(`[flux-staging] Pruna upscaled in ${Date.now() - tUp}ms`);
+        }
       } else {
         console.warn("[flux-staging] Pruna failed — returning un-upscaled");
       }
     }
 
-    const imgRes = await fetch(finalUrl);
-    if (!imgRes.ok) {
-      json(res, 200, { ok: false, error: `result fetch ${imgRes.status}` });
-      return;
-    }
-    const buf = Buffer.from(await imgRes.arrayBuffer());
-    const resultBase64 = `data:image/jpeg;base64,${buf.toString("base64")}`;
-
+    const resultBase64 = `data:image/jpeg;base64,${resultBuf.toString("base64")}`;
     console.log(`[flux-staging] Total: ${Date.now() - t0}ms`);
     json(res, 200, { ok: true, resultBase64, latencyMs: Date.now() - t0 });
   } catch (err: any) {

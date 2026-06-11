@@ -949,8 +949,10 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
       // output for these tools, and Flux/Reve/Nano globally re-render the
       // frame, drifting untouched textures. Sharpen the soft diffusion output,
       // then composite so unchanged regions come byte-identical from the input
-      // buffer. Declutter/cleanup are scoped server-side via masks and staging
-      // is composited upstream, so neither gets a global composite here.
+      // buffer. Declutter/cleanup are scoped server-side via SAM masks, and
+      // staging gets the server-side furniture-lock composite in
+      // /api/flux-staging (lang-sam furniture mask + tone-match + blend), so
+      // neither gets the client-side global composite here.
       if (
         tool === "renovation" ||
         tool === "whiten" ||

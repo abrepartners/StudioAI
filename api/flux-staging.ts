@@ -130,11 +130,33 @@ async function furnitureLockComposite(
   const H = om.height || 0;
   if (!W || !H) throw new Error("original metadata unreadable");
 
+  // ASPECT GUARD — Seedream does not always honor the input aspect exactly.
+  // fit:"fill" would STRETCH the staged frame to the original's dims, warping
+  // furniture geometry ("looks real but doesn't fit the space"). fit:"cover"
+  // center-crops instead — geometry preserved; identical transform must be
+  // applied to the mask (it lives in the staged frame's coordinate system).
+  const sm = await sharp(stagedBuf).metadata();
+  const stagedAspect = (sm.width || 1) / (sm.height || 1);
+  const origAspect = W / H;
+  const aspectDelta = Math.abs(stagedAspect - origAspect) / origAspect;
+  if (aspectDelta > 0.015) {
+    console.warn(
+      `[flux-staging] ASPECT MISMATCH staged ${sm.width}x${sm.height} (${stagedAspect.toFixed(3)}) vs input ${W}x${H} (${origAspect.toFixed(3)}) — cover-cropping, delta=${(aspectDelta * 100).toFixed(1)}%`,
+    );
+  }
+  if (aspectDelta > 0.12) {
+    // The model recomposed the scene — a crop can't fix that. Refuse to
+    // composite a mis-registered frame; caller ships the raw staged result.
+    throw new Error(
+      `staged aspect ${stagedAspect.toFixed(3)} too far from input ${origAspect.toFixed(3)}`,
+    );
+  }
+
   // Mask → single channel at original dims, binarized.
   // extractChannel(0) is load-bearing: sharp promotes 1-ch raw to 3-ch
   // through blur/resize, which silently garbles every downstream buffer.
   const { data: mRaw, info: mInfo } = await sharp(maskBuf)
-    .resize(W, H, { fit: "fill" })
+    .resize(W, H, { fit: "cover" })
     .removeAlpha()
     .greyscale()
     .raw()
@@ -172,7 +194,7 @@ async function furnitureLockComposite(
 
   const prior = await sharp(originalBuf).ensureAlpha().raw().toBuffer();
   const staged = await sharp(stagedBuf)
-    .resize(W, H, { fit: "fill" })
+    .resize(W, H, { fit: "cover" })
     .ensureAlpha()
     .raw()
     .toBuffer();

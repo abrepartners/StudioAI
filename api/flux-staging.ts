@@ -58,6 +58,93 @@ const DILATE_PX = 8; // grow mask to catch contact shadows
 const FEATHER_PX = 10; // soft blend boundary
 const TONE_CLAMP = 0.12; // max ±12% per-channel tone correction
 
+// ── INPAINT ENGINE (R2 rebuild, 2026-06-11) ─────────────────────────────────
+// Cut-and-paste from a Seedream re-imagined frame produced furniture that was
+// geometrically coherent with a room that doesn't exist ("looks real, doesn't
+// fit the space" + phantom-room pastes — user's bonus-room failure). FLUX Fill
+// inverts the problem: the ORIGINAL photo is the canvas, a floor-region mask
+// defines where furniture may appear, and the model generates INSIDE it with
+// the real walls/floor/perspective as fixed context. Geometry cannot drift.
+// The furniture-lock composite then restores the floor inside the mask
+// (Fill re-renders it), which is registration-safe here because the fill
+// frame IS the original's geometry. Seedream remains the fallback engine.
+const FLUX_FILL = "black-forest-labs/flux-fill-pro";
+
+/** Extract room/style/furniture from the app's staging prompt and build the
+ *  positive description Fill wants (it needs "what to paint", not rules). */
+function buildInpaintPrompt(stagingPrompt: string): string {
+  const room =
+    stagingPrompt.match(/to this ([a-z &-]+?) to virtually stage/i)?.[1] ||
+    "room";
+  const style =
+    stagingPrompt.match(/stage it in (.+?) style/i)?.[1] || "modern";
+  const furniture = (
+    stagingPrompt.split(/FURNITURE TO ADD:\s*/i)[1] || ""
+  ).trim();
+  return (
+    `A professionally staged ${style} ${room}: ${furniture} ` +
+    `Premium real-estate listing photography. Furniture perfectly scaled to the room and resting naturally on the floor. ` +
+    `Photorealistic, shadows matching the room's existing natural light direction.`
+  ).slice(0, 2500);
+}
+
+/** Floor-region inpaint mask: lang-sam floor on the ORIGINAL, expanded upward
+ *  for furniture height, edges softened. Returns PNG buffer at original dims.
+ *  Throws on failure — caller falls back to the Seedream engine. */
+async function buildInpaintMask(
+  replicate: Replicate,
+  originalBuf: Buffer,
+  W: number,
+  H: number,
+): Promise<Buffer> {
+  const out = await replicate.run(LANG_SAM as `${string}/${string}:${string}`, {
+    input: {
+      image: `data:image/jpeg;base64,${originalBuf.toString("base64")}`,
+      text_prompt: "floor, carpet, rug, tile floor, wood floor",
+    },
+  });
+  const url = await extractUrl(out);
+  if (!url) throw new Error("floor mask: no URL");
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`floor mask fetch ${res.status}`);
+  const png = Buffer.from(await res.arrayBuffer());
+
+  const { data, info } = await sharp(png)
+    .resize(W, H, { fit: "cover" })
+    .removeAlpha()
+    .greyscale()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const floor = Buffer.alloc(W * H);
+  for (let p = 0; p < W * H; p++)
+    floor[p] = data[p * info.channels] > 8 ? 255 : 0;
+  let on = 0;
+  for (const v of floor) if (v) on++;
+  const cov = on / (W * H);
+  if (cov < 0.08 || cov > 0.85)
+    throw new Error(`floor coverage implausible ${(cov * 100).toFixed(1)}%`);
+
+  // Expand upward (shift-union) so beds/headboards/art zones are paintable.
+  const grown = Buffer.from(floor);
+  for (const f of [0.08, 0.16, 0.24, 0.32]) {
+    const shift = Math.round(H * f);
+    for (let y = 0; y < H - shift; y++) {
+      const src = (y + shift) * W,
+        dst = y * W;
+      for (let x = 0; x < W; x++) if (floor[src + x]) grown[dst + x] = 255;
+    }
+  }
+  let soft = await sharp(grown, { raw: { width: W, height: H, channels: 1 } })
+    .blur(6)
+    .extractChannel(0)
+    .raw()
+    .toBuffer();
+  for (let i = 0; i < soft.length; i++) soft[i] = soft[i] > 100 ? 255 : 0;
+  return sharp(soft, { raw: { width: W, height: H, channels: 1 } })
+    .png()
+    .toBuffer();
+}
+
 // ── Primary-furniture verify-and-retry gate ─────────────────────────────────
 // QA batch 2026-06-11 (12 prod runs): Seedream occasionally IGNORES most of
 // the furniture list — 3/12 runs delivered a bedroom with no bed / living
@@ -336,11 +423,20 @@ export default async function handler(req: any, res: any) {
     // input the body limit allows; see stagingService FLUX_UPLOAD_MAX_EDGE).
     // Replaces reve/edit, whose upstream IP-blocked Replicate's egress
     // (FORBIDDEN ip_address) — staging had been silently down on that path.
-    console.log("[flux-staging] Starting seedream-4 staging...");
-    const generate = async (): Promise<Buffer | null> => {
+    // ENGINE 1 — FLUX Fill inpaint (geometry locked by construction).
+    // ENGINE 2 (fallback) — Seedream whole-frame edit (legacy path).
+    const originalBuf = Buffer.from(
+      dataUrl.split(",")[1] || imageBase64,
+      "base64",
+    );
+    const oMeta = await sharp(originalBuf).metadata();
+    const oW = oMeta.width || 0;
+    const oH = oMeta.height || 0;
+
+    const generateSeedream = async (p: string): Promise<Buffer | null> => {
       const output = await replicate.run("bytedance/seedream-4", {
         input: {
-          prompt,
+          prompt: p,
           image_input: [dataUrl],
           size: "4K",
           aspect_ratio: "match_input_image",
@@ -354,12 +450,52 @@ export default async function handler(req: any, res: any) {
       return Buffer.from(await r.arrayBuffer());
     };
 
+    let inpaintMaskPng: Buffer | null = null;
+    const generateInpaint = async (p: string): Promise<Buffer | null> => {
+      if (!inpaintMaskPng)
+        inpaintMaskPng = await buildInpaintMask(replicate, originalBuf, oW, oH);
+      const output = await replicate.run(FLUX_FILL, {
+        input: {
+          image: dataUrl,
+          mask: `data:image/png;base64,${inpaintMaskPng.toString("base64")}`,
+          prompt: buildInpaintPrompt(p),
+          steps: 50,
+          guidance: 60,
+          output_format: "jpg",
+          safety_tolerance: 2,
+        },
+      });
+      const genUrl = await extractUrl(output);
+      if (!genUrl) return null;
+      const r = await fetch(genUrl);
+      if (!r.ok) return null;
+      return Buffer.from(await r.arrayBuffer());
+    };
+
+    let engine = "flux-fill";
+    const generate = async (p: string = prompt): Promise<Buffer | null> => {
+      if (engine === "flux-fill") {
+        try {
+          const b = await generateInpaint(p);
+          if (b) return b;
+          throw new Error("fill returned no image");
+        } catch (e: any) {
+          console.warn(
+            `[flux-staging] fill engine failed (${e?.message}) — falling back to seedream`,
+          );
+          engine = "seedream";
+        }
+      }
+      return generateSeedream(p);
+    };
+
+    console.log("[flux-staging] Starting staging (engine: flux-fill)...");
     let resultBuf = await generate();
     if (!resultBuf) {
-      json(res, 200, { ok: false, error: "seedream-4 returned no image" });
+      json(res, 200, { ok: false, error: "staging engine returned no image" });
       return;
     }
-    console.log(`[flux-staging] seedream-4 done in ${Date.now() - t0}ms`);
+    console.log(`[flux-staging] ${engine} generation done in ${Date.now() - t0}ms`);
 
     // Verify-and-retry gate: Seedream under-stages (no bed in a bedroom) when
     // the room's purpose isn't visually obvious — measured at ~50% per try on
@@ -394,20 +530,9 @@ export default async function handler(req: any, res: any) {
           `RETRY — your previous attempt FAILED because it did not include ${primary}. ` +
           `Including ${primary.toUpperCase()} is MANDATORY and is the single most important requirement.\n\n` +
           prompt;
-        const output = await replicate.run("bytedance/seedream-4", {
-          input: {
-            prompt: retryPrompt,
-            image_input: [dataUrl],
-            size: "4K",
-            aspect_ratio: "match_input_image",
-            enhance_prompt: false,
-          },
-        });
-        const url = await extractUrl(output);
-        if (!url) break;
-        const r = await fetch(url);
-        if (!r.ok) break;
-        resultBuf = Buffer.from(await r.arrayBuffer());
+        const second = await generate(retryPrompt);
+        if (!second) break;
+        resultBuf = second;
       }
     }
 
@@ -427,10 +552,6 @@ export default async function handler(req: any, res: any) {
       if (!maskRes.ok) throw new Error(`mask fetch ${maskRes.status}`);
       const maskBuf = Buffer.from(await maskRes.arrayBuffer());
 
-      const originalBuf = Buffer.from(
-        dataUrl.split(",")[1] || imageBase64,
-        "base64",
-      );
       resultBuf = await furnitureLockComposite(originalBuf, resultBuf, maskBuf);
       console.log(
         `[flux-staging] furniture-lock composite done in ${Date.now() - tComp}ms`,

@@ -957,7 +957,11 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
         tool === "renovation" ||
         tool === "whiten" ||
         tool === "sky" ||
-        tool === "twilight"
+        tool === "twilight" ||
+        // Lawn was the last composite-less Kontext tool: its edits are local
+        // and high-contrast (grass patches), which the diff composite handles
+        // well — house/driveway/sky revert to original pixels.
+        tool === "lawn"
       ) {
         try {
           const chainEnabled =

@@ -37,3 +37,6 @@ tests/composite-sandbox/output/
 # Playwright per-run artifacts
 test-results/
 playwright-report/
+
+# Mobile audit captures (review-by-eye artifacts)
+tests/qa-harness/shots/

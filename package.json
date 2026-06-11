@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "test:visual": "PW_SUITE=visual playwright test",
-    "test:visual:update": "PW_SUITE=visual playwright test --update-snapshots"
+    "test:visual:update": "PW_SUITE=visual playwright test --update-snapshots",
+    "audit:mobile": "node tests/qa-harness/mobile-audit.mjs"
   },
   "dependencies": {
     "@google/genai": "^1.32.0",

@@ -427,6 +427,15 @@ public/           # Static assets
 - Gemini API key — check current env var name in codebase
 - Web3Forms access key — needed for property website contact forms (TBD)
 
+### Mobile QA harness
+
+`npm run build && npm run audit:mobile` — spawns a preview server, opens
+headless Chromium at an iPhone viewport (auth-seeded, /api mocked), and
+captures the Vellum photo editor's key states (empty, loaded, scroll depths,
+Tools sheet, Adjust sheet) to `tests/qa-harness/shots/` for review by eye.
+Use it before and after any UI change that touches the editor. One-time
+prereq per machine: `npx playwright install chromium`.
+
 ---
 
 ## How to work

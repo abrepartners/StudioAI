@@ -159,8 +159,8 @@ export interface FluxCleanupOptions {
   customRemoval?: string;
   /** Optional SAM2 mask (data URL or raw base64). When provided, Bria only edits masked pixels. */
   maskBase64?: string;
-  /** Engine override: 'nano' = whole-frame Nano Banana Pro (no mask, A/B). */
-  engine?: 'nano';
+  /** Engine override. Default routing: mask present → 'bria', else 'nano'. */
+  engine?: 'nano' | 'bria' | 'reve';
 }
 
 export async function fluxCleanup(
@@ -171,8 +171,14 @@ export async function fluxCleanup(
 ): Promise<FluxCleanupResult> {
   const shrunk = await resizeForUpload(imageBase64, FLUX_UPLOAD_MAX_EDGE);
   const isExterior = isExteriorRoom(selectedRoom);
+  // Nano Banana Pro is PRIMARY for declutter (promoted 2026-06-11 after the
+  // re-run bake-off: 100% targeted removal with furniture, layered rugs, and
+  // architecture preserved — prompt-only, no SAM, no mask, no composite).
+  // Bria runs only when a mask is present (Precision Select — the user-picked
+  // mask IS the feature). 'reve' (flux-kontext-pro) stays reachable as an
+  // explicit override for debugging.
   const engine =
-    options.engine || (options.filter === 'fullclean' ? 'reve' : 'bria');
+    options.engine || (options.maskBase64 ? 'bria' : 'nano');
   const prompt = options.customPrompt
     || buildCleanupPrompt(selectedRoom, options.filter, options.customRemoval);
   const res = await fetch('/api/flux-cleanup', {

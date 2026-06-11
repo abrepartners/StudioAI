@@ -449,23 +449,9 @@ const callApiDirect = async (
         );
         maskBase64 = await combineSelectedMasks(selectedMasks);
         customPrompt = `Remove all objects in the masked area from this ${roomLabel.toLowerCase()}. Reconstruct the revealed surfaces using ONLY the material visible at the mask boundary edges — match the exact texture, color, grain, and surface type. If the surrounding area is dirt, fill with dirt. If concrete, fill with concrete. If grass, fill with grass at the same color and density. Do not add any material not already present in the surrounding area. Do not add any new items. Leave all unmasked pixels identical to the input.`;
-      } else if (!nanoCleanup) {
-        // [SAM-CLEANUP] Standard (non-precision) path: union EVERY detected
-        // object into one mask and let flux-cleanup edit only those pixels —
-        // everything outside the mask stays byte-identical. Dilate the union
-        // a bit wider than the per-object default (32px vs 24px) so clutter
-        // SAM only partially segmented, plus its cast shadows, fall inside the
-        // mask instead of being missed at the boundary. If SAM returns nothing
-        // (null / empty), maskBase64 stays undefined and fluxCleanup falls back
-        // to the prompt-only path so Bria can still remove clutter by prompt.
-        const samResult = await detectClutterMasks(imageBase64);
-        if (samResult && samResult.individualMasksBase64.length > 0) {
-          maskBase64 = await combineSelectedMasks(
-            samResult.individualMasksBase64,
-            32,
-          );
-        }
       }
+      // Standard presets are prompt-only on nano — SAM detection deleted
+      // (2026-06-11 bake-off). Precision Select above is the only mask path.
 
       const result = await fluxCleanup(imageBase64, roomLabel, signal, {
         filter,
@@ -473,7 +459,6 @@ const callApiDirect = async (
         skipUpscale: true,
         maskBase64,
         customPrompt,
-        ...(nanoCleanup ? { engine: "nano" as const } : {}),
       });
       return {
         resultBase64: result.resultBase64,
@@ -2722,7 +2707,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
               <div className="v-control-ttl">
                 <span className="v-gold-rule" />
                 {toolName}
-                {getEngineOverride() && (
+                {toolName === "Virtual staging" && getEngineOverride() && (
                   <span className="v-engine-badge">
                     {getEngineOverride()} engine · A/B
                   </span>

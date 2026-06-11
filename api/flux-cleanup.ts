@@ -1,15 +1,17 @@
 /**
  * api/flux-cleanup.ts
  *
- * Smart Cleanup via Replicate — two-engine architecture.
+ * Smart Cleanup via Replicate — nano-primary architecture (2026-06-11).
  *
  * Pipeline:
  *   1. Cleanup engine (selected by `engine` field from client):
- *      - "bria"  →  bria/fibo-edit (default). Targeted clutter removal,
- *        preserves furniture and fixtures. Best for standard declutter.
- *      - "reve"  →  flux-kontext-pro (was reve/edit, which got IP-blocked
- *        upstream). Total room clearing — removes ALL items including
- *        furniture. Used for "Full Clean" preset.
+ *      - "nano"  →  google/nano-banana-pro (PRIMARY). Whole-frame
+ *        instruction edit, prompt-only — no mask, no composite. Fails open
+ *        to Bria.
+ *      - "bria"  →  bria/fibo-edit. Masked edits for Precision Select
+ *        (user-picked SAM mask) and the nano fallback.
+ *      - "reve"  →  flux-kontext-pro. Legacy full-clear, explicit
+ *        override only.
  *   2. Upscale via prunaai/p-image-upscale (~1s, ~$0.005), both interior
  *      and exterior. Pruna with enhance_realism:false produces natural
  *      textures on every surface — no HDR over-processing.
@@ -24,9 +26,14 @@
  * Model bake-off (2026-04-28, Cody Garrett listing photos):
  *   Tested nano-banana vs bria/fibo-edit vs reve/edit vs qwen-image-edit-plus
  *   across 4 cluttered rooms. Nano Banana removed <40% of items on average.
- *   Bria removed clutter while preserving furniture. Reve cleared rooms
- *   completely. Qwen matched Bria quality but lower resolution output.
  *   → Bria for standard cleanup, Reve for full clean.
+ *
+ * Bake-off re-run (2026-06-11, nano-banana-PRO vs prompt-only Bria):
+ *   The April verdict tested the OLD nano. Pro removed 100% of targeted
+ *   decor while preserving furniture, layered rugs, floors, and the window
+ *   view; Bria removed the decor but collaterally re-rendered the rugs and
+ *   drifted the whole frame. → Nano Pro promoted to primary; Bria kept for
+ *   masked Precision Select + fallback.
  */
 import Replicate from "replicate";
 import sharp from "sharp";
@@ -137,15 +144,12 @@ export default async function handler(req: any, res: any) {
     let ranEngine = engine;
 
     if (engine === "nano") {
-      // Nano Banana Pro (google/nano-banana-pro) — whole-frame instruction
-      // editor, same model that won the staging A/B (2026-06-11). No mask,
-      // no composite: the hypothesis is that prompt-only targeted removal
-      // beats SAM+masked-Bria the same way it beat mask+inpaint for staging.
-      // NOTE: the 2026-04-28 bake-off that scored nano <40% removal tested
-      // the OLD nano-banana, not Pro. Opt-in via body.engine="nano"; fails
-      // open to the Bria path below. Caller is expected to omit maskBase64
-      // (whole-frame edit — a mask would be ignored, and the precision
-      // composite is skipped because there is nothing to composite against).
+      // Nano Banana Pro (google/nano-banana-pro) — PRIMARY for declutter
+      // since 2026-06-11 (see bake-off note in the header). Whole-frame
+      // instruction edit, prompt-only; fails open to the Bria path below.
+      // Caller omits maskBase64 on this path (whole-frame edit — a mask
+      // would be ignored, and the precision composite is skipped because
+      // there is nothing to composite against).
       try {
         const output = await replicate.run("google/nano-banana-pro", {
           input: {

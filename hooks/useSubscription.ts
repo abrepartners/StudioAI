@@ -179,7 +179,10 @@ export function useSubscription(userEmail: string | null) {
   }, [checkStatus]);
 
   const recordGeneration = useCallback(
-    async (amount: number = 1) => {
+    async (
+      amount: number = 1,
+      meta?: { tool?: string; model?: string },
+    ) => {
       if (!userEmail) return;
       if (isAdminEmail(userEmail)) return; // Admin — no tracking needed
 
@@ -209,7 +212,12 @@ export function useSubscription(userEmail: string | null) {
         const res = await fetch("/api/record-generation", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: userEmail, amount }),
+          body: JSON.stringify({
+            email: userEmail,
+            amount,
+            ...(meta?.tool ? { tool: meta.tool } : {}),
+            ...(meta?.model ? { model: meta.model } : {}),
+          }),
         });
         const data = await res.json();
         if (data.ok && data.generationsUsed !== -1) {

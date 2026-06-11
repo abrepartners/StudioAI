@@ -17,6 +17,8 @@ interface UsageResponse {
   today?: { calls: number; costUsd: string } | null;
   month?: { calls: number; costUsd: string } | null;
   byTool?: Record<string, { calls: number; costUsd: string }>;
+  /** This month's staging engine mix, e.g. { "flux-fill": 84, "seedream": 13 }. */
+  stagingEngines?: Record<string, number>;
 }
 
 interface Props {
@@ -25,7 +27,11 @@ interface Props {
 
 const TOOL_LABELS: Record<string, string> = {
   stage: 'Virtual Staging',
+  staging: 'Virtual Staging',
   cleanup: 'Smart Cleanup',
+  declutter: 'Smart Cleanup',
+  whiten: 'Photo Correction',
+  lawn: 'Lawn Repair',
   twilight: 'Day to Dusk',
   sky: 'Sky Replacement',
   renovation: 'Virtual Renovation',
@@ -33,6 +39,12 @@ const TOOL_LABELS: Record<string, string> = {
   'listing-copy': 'Listing Copy',
   'room-detect': 'Room Detection',
   unknown: 'Other',
+};
+
+const ENGINE_LABELS: Record<string, string> = {
+  'flux-fill': 'Fill (primary)',
+  seedream: 'Seedream (fallback)',
+  unknown: 'Untracked',
 };
 
 const UsageDashboard: React.FC<Props> = ({ email }) => {
@@ -99,7 +111,7 @@ const UsageDashboard: React.FC<Props> = ({ email }) => {
             <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-text)]/70">By tool · last 30 days</p>
           </div>
           <div className="space-y-2">
-            {Object.entries(data.byTool)
+            {Object.entries(data.byTool as Record<string, { calls: number; costUsd: string }>)
               .sort((a, b) => b[1].calls - a[1].calls)
               .map(([tool, stats]) => (
                 <div key={tool} className="flex items-center justify-between text-sm">
@@ -113,8 +125,38 @@ const UsageDashboard: React.FC<Props> = ({ email }) => {
         </div>
       )}
 
+      {data.stagingEngines && Object.keys(data.stagingEngines).length > 0 && (() => {
+        const entries = Object.entries(data.stagingEngines as Record<string, number>);
+        const total = entries.reduce((s, [, n]) => s + n, 0);
+        const fallback = (data.stagingEngines as Record<string, number>)['seedream'] || 0;
+        const fallbackPct = total > 0 ? Math.round((fallback / total) * 100) : 0;
+        return (
+          <div className="premium-surface rounded-2xl p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <Activity size={14} className="text-[var(--color-text)]/70" />
+              <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-text)]/70">Staging engine · this month</p>
+            </div>
+            <div className="space-y-2">
+              {entries
+                .sort((a, b) => b[1] - a[1])
+                .map(([eng, n]) => (
+                  <div key={eng} className="flex items-center justify-between text-sm">
+                    <span className="text-[var(--color-ink)]">{ENGINE_LABELS[eng] || eng}</span>
+                    <span className="text-[var(--color-text)]/60 tabular-nums">
+                      {n} · {total > 0 ? Math.round((n / total) * 100) : 0}%
+                    </span>
+                  </div>
+                ))}
+            </div>
+            <p className="text-xs text-[var(--color-text)]/50 mt-3">
+              Fallback rate: {fallbackPct}%. Rising fallback means floor detection is degrading — check staging quality.
+            </p>
+          </div>
+        );
+      })()}
+
       <p className="text-xs text-[var(--color-text)]/50 px-1">
-        Estimates based on Gemini public list pricing. Excludes internal QA traffic. Your Google Cloud
+        Estimates based on public model list pricing. Excludes internal QA traffic. Your provider
         bill is the authoritative number — this view is for same-day visibility.
       </p>
     </div>

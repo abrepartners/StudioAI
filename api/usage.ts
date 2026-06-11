@@ -67,6 +67,9 @@ export default async function handler(req: any, res: any) {
     let todayCalls = 0, todayCost = 0;
     let monthCalls = 0, monthCost = 0;
     const byTool: Record<string, { calls: number; cost: number }> = {};
+    // Staging engine mix (this month): flux-fill vs seedream fallback rate.
+    // Populated by record-generation when the client passes model=engine.
+    const stagingEngines: Record<string, number> = {};
 
     for (const r of rows) {
       const d = new Date(r.created_at);
@@ -79,6 +82,10 @@ export default async function handler(req: any, res: any) {
       if (!byTool[t]) byTool[t] = { calls: 0, cost: 0 };
       byTool[t].calls++;
       byTool[t].cost += cost;
+      if ((t === 'staging' || t === 'stage') && mKey === monthKey) {
+        const eng = String(r.model || 'unknown');
+        stagingEngines[eng] = (stagingEngines[eng] || 0) + 1;
+      }
     }
 
     json(res, 200, {
@@ -88,6 +95,7 @@ export default async function handler(req: any, res: any) {
       byTool: Object.fromEntries(
         Object.entries(byTool).map(([tool, v]) => [tool, { calls: v.calls, costCents: v.cost, costUsd: (v.cost / 100).toFixed(2) }])
       ),
+      stagingEngines,
       recent: rows.slice(0, 20),
     });
   } catch (err: any) {

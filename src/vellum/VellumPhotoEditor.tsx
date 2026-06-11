@@ -296,7 +296,10 @@ interface PhotoEditorProps {
   setPage: (p: string) => void;
   credits: number;
   requestSpend: (amount: number, after?: (res: any) => void) => boolean;
-  recordGeneration: (amount?: number) => void;
+  recordGeneration: (
+    amount?: number,
+    meta?: { tool?: string; model?: string },
+  ) => void;
   activeProject?: {
     id: string;
     address: string;
@@ -346,6 +349,8 @@ type SamModalController = (
 interface ApiDirectResult {
   resultBase64: string;
   maskBase64?: string;
+  /** Staging only: which server engine produced the frame ("flux-fill" | "seedream"). */
+  engine?: string;
 }
 
 const callApiDirect = async (
@@ -384,7 +389,7 @@ const callApiDirect = async (
       const result = await fluxStaging(imageBase64, prompt, signal, {
         skipUpscale: true,
       });
-      return { resultBase64: result.resultBase64 };
+      return { resultBase64: result.resultBase64, engine: result.engine };
     }
     case "declutter": {
       const isPrecision = preset.toLowerCase() === "precision select";
@@ -1032,7 +1037,12 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
 
       // Billing — charge ONCE per successful photo (requestSpend is now a gate
       // only; it no longer deducts). Partial batch failures never overcharge.
-      recordGeneration(TOOL_COST[tool]);
+      // Telemetry: tool always; model = staging engine when present, so the
+      // usage dashboard can show the fill vs seedream rate.
+      recordGeneration(TOOL_COST[tool], {
+        tool,
+        ...(apiResult.engine ? { model: apiResult.engine } : {}),
+      });
 
       // Flash "Updated" indicator
       setJustUpdated((prev) => new Set([...prev, photo!.id]));

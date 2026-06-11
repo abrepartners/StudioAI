@@ -120,12 +120,18 @@ export default async function handler(req: any, res: any) {
         const model = (
           body.model || "gemini-3.1-flash-image-preview"
         ).toLowerCase();
-        // Cost estimates in cents. Public Gemini rates (approx 2026-04):
+        // Cost estimates in cents.
+        // Replicate staging engines (approx 2026-06, full pipeline incl. masks):
+        //   flux-fill: fill-pro + 3 lang-sam + moondream ≈ 10¢
+        //   seedream: seedream-4 + 2 lang-sam ≈ 6¢
+        // Public Gemini rates (approx 2026-04):
         //   gemini-3-flash-preview (text/vision): 0.2¢
         //   gemini-3.1-flash-image-preview: 4¢
         //   gemini-3-pro-image-preview: 10¢
         let cost = 4;
-        if (model.includes("flash-preview") && !model.includes("image"))
+        if (model.includes("flux-fill")) cost = 10;
+        else if (model.includes("seedream")) cost = 6;
+        else if (model.includes("flash-preview") && !model.includes("image"))
           cost = 0; // text, effectively free
         else if (model.includes("pro-image")) cost = 10;
         const source = (body.source || "app").toLowerCase();

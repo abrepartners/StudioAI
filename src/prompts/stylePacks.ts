@@ -37,14 +37,15 @@ export function getFurnitureSpec(pack: StylePack, roomType: string): string {
   return pack.rooms[roomType] || pack.rooms[FALLBACK_ROOM] || "";
 }
 
-// reve/edit caps edit_instruction at 2560 chars and the server hard-truncates
-// at that length. The full preservation ruleset MUST survive that cap — losing
-// it lets reve re-render architecture (the exact failure staging exists to
-// avoid). So the scaffold (intent + preservation rules) is emitted FIRST and
-// the verbose, per-room furniture list goes LAST: it is the only trimmable
-// content, and we trim it at a clean sentence boundary before the cap is ever
-// reached. The server-side slice then never fires on a well-formed prompt.
-const STAGING_EDIT_INSTRUCTION_CAP = 2560;
+// Cap history: reve/edit hard-truncated edit_instruction at 2560, so the cap
+// was 2560 with scaffold-first ordering. BUG (2026-06-08→10): the hardened
+// preservation scaffold grew to ~2733 chars — past the cap — so the furniture
+// budget went negative and EVERY staging prompt shipped with an empty
+// "FURNITURE TO ADD:" section (the model improvised furniture). Seedream 4
+// (current engine) has no 2560 limit and /api/flux-staging clamps at 5000, so
+// the cap is now 4800: full scaffold + full furniture list both fit, and the
+// sentence-boundary trim only fires on the most verbose pack/room combos.
+const STAGING_EDIT_INSTRUCTION_CAP = 4800;
 
 /** Trim `text` to at most `max` chars, cutting at the last sentence/clause
  *  boundary (period, semicolon) so the furniture list never ends mid-item. */

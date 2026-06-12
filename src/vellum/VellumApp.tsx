@@ -12,6 +12,7 @@ import { VellumSidebar } from "./VellumSidebar";
 import { useVellumStore } from "./useVellumStore";
 import { readGoogleUser, type GoogleUser } from "../routes/authStorage";
 import { useSubscription } from "../../hooks/useSubscription";
+import { hasUnreadWhatsNew } from "./whatsNew";
 
 const VellumDashboard = React.lazy(() => import("./VellumDashboard"));
 const VellumProjects = React.lazy(() => import("./VellumProjects"));
@@ -24,6 +25,7 @@ const VellumRefillModal = React.lazy(() => import("./VellumRefillModal"));
 const VellumNewListingModal = React.lazy(
   () => import("./VellumNewListingModal"),
 );
+const VellumWhatsNew = React.lazy(() => import("./VellumWhatsNew"));
 
 const VALID_PAGES = [
   "dashboard",
@@ -194,6 +196,8 @@ const VellumApp: React.FC = () => {
     onAfter: null,
   });
   const [newListingOpen, setNewListingOpen] = useState(false);
+  const [whatsNewOpen, setWhatsNewOpen] = useState(false);
+  const [whatsNewUnread, setWhatsNewUnread] = useState(() => hasUnreadWhatsNew());
   const [activeProjectId, setActiveProjectId] = useState<string | null>(() => {
     // Rehydrate active project from hash; fall back to scratch (null) if the
     // project no longer exists in the store.
@@ -451,6 +455,11 @@ const VellumApp: React.FC = () => {
           onUploadFiles={handleUploadFiles}
           googleUser={googleUser}
           subscription={subscription}
+          whatsNewUnread={whatsNewUnread}
+          onWhatsNew={() => {
+            setWhatsNewOpen(true);
+            setWhatsNewUnread(false);
+          }}
         />
         <div className="v-app-body">
           <VellumSidebar
@@ -521,6 +530,12 @@ const VellumApp: React.FC = () => {
             open={newListingOpen}
             onClose={() => setNewListingOpen(false)}
             onCreate={handleCreateListing}
+          />
+          <VellumWhatsNew
+            open={whatsNewOpen}
+            onClose={() => setWhatsNewOpen(false)}
+            userEmail={googleUser.email}
+            userName={googleUser.name}
           />
         </Suspense>
       </div>

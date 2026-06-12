@@ -108,6 +108,10 @@ await page.addInitScript(() => {
   );
   localStorage.setItem("studioai_tutorial_seen", "true");
   localStorage.setItem("studioai_gemini_key", "test-key");
+  // Keep the audit shots clean: suppress the Vellum guided tour and the
+  // "what's next" suggestion cards (captured separately in shot 14).
+  localStorage.setItem("vellum_tour_seen", "true");
+  localStorage.setItem("vellum_suggestions_off", "true");
 });
 
 // External Google hosts fail with cert errors in sandboxed/CI environments.
@@ -293,7 +297,35 @@ try {
   failures.push(`13-landing.png: ${String(e).slice(0, 160)}`);
 }
 
-// ── 7. Verdict ─────────────────────────────────────────────────────────────
+// ── 7. First-run guided tour (fresh context — auth seeded, NO tour flag) ───
+try {
+  const tourCtx = await browser.newContext(DEVICE);
+  const tourPage = await tourCtx.newPage();
+  tourPage.on("pageerror", (e) => errors.push(`tour: ${String(e)}`));
+  await tourPage.addInitScript(() => {
+    localStorage.setItem(
+      "studioai_google_user",
+      JSON.stringify({
+        name: "QA Audit",
+        email: "audit@example.com",
+        picture: "https://example.com/a.png",
+        sub: "audit-1",
+      }),
+    );
+    localStorage.setItem("studioai_gemini_key", "test-key");
+  });
+  await mockExternalHosts(tourPage);
+  await mockApi(tourPage);
+  await tourPage.goto(`${BASE}/vellum#photo`, { waitUntil: "networkidle" });
+  // The tour auto-starts ~600ms after the lazy editor mounts.
+  await tourPage.waitForTimeout(2200);
+  await snap(tourPage, "14-tour-step1.png");
+  await tourCtx.close();
+} catch (e) {
+  failures.push(`14-tour-step1.png: ${String(e).slice(0, 160)}`);
+}
+
+// ── 8. Verdict ─────────────────────────────────────────────────────────────
 await browser.close();
 killServer();
 

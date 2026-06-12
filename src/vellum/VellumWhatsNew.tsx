@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Icon } from "./icons";
-import { WHATS_NEW, COMING_SOON, markWhatsNewSeen } from "./whatsNew";
+import { WHATS_NEW, COMING_SOON } from "./whatsNew";
 
 interface WhatsNewModalProps {
   open: boolean;
@@ -16,12 +16,15 @@ const VellumWhatsNew: React.FC<WhatsNewModalProps> = ({
   userName,
 }) => {
   const [suggestion, setSuggestion] = useState("");
-  const [sendState, setSendState] = useState<"idle" | "sending" | "sent">(
-    "idle",
-  );
+  const [sendState, setSendState] = useState<
+    "idle" | "sending" | "sent" | "error"
+  >("idle");
 
+  // Re-arm the form each time the panel opens — the component stays mounted
+  // with open=false, so without this a "sent" from earlier in the session
+  // would lock out a second suggestion.
   useEffect(() => {
-    if (open) markWhatsNewSeen();
+    if (open) setSendState("idle");
   }, [open]);
 
   if (!open) return null;
@@ -31,7 +34,7 @@ const VellumWhatsNew: React.FC<WhatsNewModalProps> = ({
     if (!message || sendState === "sending") return;
     setSendState("sending");
     try {
-      await fetch("/api/feedback", {
+      const res = await fetch("/api/feedback", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -41,12 +44,14 @@ const VellumWhatsNew: React.FC<WhatsNewModalProps> = ({
           source: "whats-new",
         }),
       });
+      if (!res.ok) throw new Error(`feedback ${res.status}`);
+      setSuggestion("");
+      setSendState("sent");
     } catch {
-      // Suggestion boxes shouldn't error at the user — worst case we lose
-      // one note; the server already fails soft the same way.
+      // Keep the text so the agent can retry — clearing it would destroy
+      // their note on a flaky connection.
+      setSendState("error");
     }
-    setSuggestion("");
-    setSendState("sent");
   };
 
   return (
@@ -106,8 +111,18 @@ const VellumWhatsNew: React.FC<WhatsNewModalProps> = ({
                 disabled={!suggestion.trim() || sendState === "sending"}
                 style={{ opacity: suggestion.trim() ? 1 : 0.5 }}
               >
-                {sendState === "sending" ? "Sending…" : "Send suggestion"}
+                {sendState === "sending"
+                  ? "Sending…"
+                  : sendState === "error"
+                    ? "Try again"
+                    : "Send suggestion"}
               </button>
+              {sendState === "error" && (
+                <p className="v-wn-error">
+                  Couldn't send — check your connection and try again. Your
+                  note is still here.
+                </p>
+              )}
             </>
           )}
         </div>

@@ -26,16 +26,33 @@ export default async function handler(req: any, res: any) {
 
   try {
     const body = parseBody(req.body);
-    const message = String(body.message || body.details || body.title || '').trim();
+    // The beta form sends title + details as separate fields — keep both.
+    const title = String(body.title || '').trim();
+    const details = String(body.message || body.details || '').trim();
+    const message = title && details ? `${title} — ${details}` : title || details;
     if (!message) {
       json(res, 400, { ok: false, error: 'Empty message' });
       return;
     }
 
+    // Unauthenticated endpoint with open CORS — cap the free-form JSON so a
+    // single request can't park megabytes in the table via the service key.
+    let context = body.context ?? body.metadata ?? null;
+    if (context !== null) {
+      try {
+        const raw = JSON.stringify(context);
+        context = raw.length > 10000 ? { truncated: true } : JSON.parse(raw);
+      } catch {
+        context = null;
+      }
+    }
+
     if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-      // Same posture as track-login: never surface infra gaps to the client.
-      console.error('feedback: SUPABASE_URL / SUPABASE_SERVICE_KEY not set — suggestion dropped');
-      json(res, 200, { ok: true });
+      // Unlike track-login, this endpoint CARRIES the data — an ok here would
+      // defeat the beta form's local re-send queue, which only kicks in on
+      // a non-ok response.
+      console.error('feedback: SUPABASE_URL / SUPABASE_SERVICE_KEY not set');
+      json(res, 503, { ok: false, error: 'Storage not configured' });
       return;
     }
 
@@ -52,16 +69,18 @@ export default async function handler(req: any, res: any) {
         message: message.slice(0, 4000),
         category: body.category ? String(body.category).slice(0, 100) : null,
         source: body.source ? String(body.source).slice(0, 100) : 'app',
-        context: body.context ?? null,
+        context,
       }),
     });
 
     if (!insertRes.ok) {
       console.error('feedback: insert failed', insertRes.status, await insertRes.text());
+      json(res, 502, { ok: false, error: 'Storage failed' });
+      return;
     }
     json(res, 200, { ok: true });
   } catch (err) {
     console.error('feedback: error', err);
-    json(res, 200, { ok: true });
+    json(res, 500, { ok: false, error: 'Internal error' });
   }
 }

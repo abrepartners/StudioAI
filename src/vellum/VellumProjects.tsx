@@ -73,7 +73,8 @@ const VellumProjects: React.FC<ProjectsProps> = ({ setPage, projects, onNewListi
           <p>Try a different search or filter.</p>
         </div>
       ) : (
-        <table className="v-tbl">
+        <div className="v-tbl-scroll">
+          <table className="v-tbl">
           <thead>
             <tr>
               <th style={{ width: '42%' }}>Listing</th>
@@ -123,7 +124,8 @@ const VellumProjects: React.FC<ProjectsProps> = ({ setPage, projects, onNewListi
               </tr>
             ))}
           </tbody>
-        </table>
+          </table>
+        </div>
       )}
     </div>
   );

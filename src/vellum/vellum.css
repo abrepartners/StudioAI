@@ -383,6 +383,16 @@
   overflow-y: auto;
   overscroll-behavior: contain;
 }
+/* The modal box is the scroll container here, so the absolutely-positioned
+   close button would scroll away with the content — pin it instead. */
+.v-wn-modal .v-modal-close {
+  position: sticky;
+  top: 0;
+  float: right;
+  margin: -8px -8px 0 0;
+  z-index: 2;
+  background: var(--background-elevated);
+}
 .v-wn-list {
   display: flex;
   flex-direction: column;
@@ -437,7 +447,9 @@
   padding-top: 18px;
   border-top: 1px solid var(--border-light);
 }
-.v-wn-textarea {
+/* textarea. prefix: the base .v-set-input rule appears later in the file and
+   would win the same-specificity tie, flattening these to 12px / 7px-10px. */
+textarea.v-wn-textarea {
   width: 100%;
   min-width: 0;
   resize: vertical;
@@ -445,10 +457,14 @@
   font-size: 14px;
   padding: 10px 12px;
 }
-.v-wn-sent {
+.v-wn-sent,
+.v-wn-error {
   font-size: 13px;
   color: var(--graphite);
   margin: 0;
+}
+.v-wn-error {
+  margin-top: 10px;
 }
 
 /* ============ APP SHELL ============ */
@@ -4624,20 +4640,29 @@ img.v-ba-img-dimmed {
 /* Listings tables (dashboard "In progress", projects index) are intrinsically
    wider than a phone. Without a scroll container of their own they stretch
    the page, so the whole viewport pans sideways and nothing feels anchored.
-   Let the table swipe inside its own box instead. */
+   The .v-tbl-scroll wrapper owns the swipe (same recipe + right-edge fade as
+   .v-preset-row); the table itself stays display:table so rows, borders, and
+   the row click target always span the full card — display:block on <table>
+   shrink-wraps the anonymous inner table and leaves a dead strip when the
+   content is narrower than the container (e.g. tablets). */
 @media (max-width: 900px) {
   .vellum {
     overflow-x: clip;
   }
-  .v-tbl {
-    display: block;
+  .v-tbl-scroll {
     max-width: 100%;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
+    mask-image: linear-gradient(90deg, #000 95%, transparent);
+    -webkit-mask-image: linear-gradient(90deg, #000 95%, transparent);
   }
-  .v-tbl::-webkit-scrollbar {
+  .v-tbl-scroll::-webkit-scrollbar {
     display: none;
+  }
+  .v-tbl {
+    width: 100%;
+    min-width: max-content;
   }
   .v-tbl th,
   .v-tbl td {

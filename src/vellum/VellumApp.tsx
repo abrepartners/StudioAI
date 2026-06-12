@@ -12,7 +12,7 @@ import { VellumSidebar } from "./VellumSidebar";
 import { useVellumStore } from "./useVellumStore";
 import { readGoogleUser, type GoogleUser } from "../routes/authStorage";
 import { useSubscription } from "../../hooks/useSubscription";
-import { hasUnreadWhatsNew } from "./whatsNew";
+import { hasUnreadWhatsNew, markWhatsNewSeen } from "./whatsNew";
 
 const VellumDashboard = React.lazy(() => import("./VellumDashboard"));
 const VellumProjects = React.lazy(() => import("./VellumProjects"));
@@ -457,8 +457,11 @@ const VellumApp: React.FC = () => {
           subscription={subscription}
           whatsNewUnread={whatsNewUnread}
           onWhatsNew={() => {
-            setWhatsNewOpen(true);
+            // Single owner of seen-state: persist + clear the dot here so a
+            // future second entry point can't get the two out of sync.
+            markWhatsNewSeen();
             setWhatsNewUnread(false);
+            setWhatsNewOpen(true);
           }}
         />
         <div className="v-app-body">
@@ -531,12 +534,16 @@ const VellumApp: React.FC = () => {
             onClose={() => setNewListingOpen(false)}
             onCreate={handleCreateListing}
           />
-          <VellumWhatsNew
-            open={whatsNewOpen}
-            onClose={() => setWhatsNewOpen(false)}
-            userEmail={googleUser.email}
-            userName={googleUser.name}
-          />
+          {/* Mounted on demand so the lazy chunk isn't fetched at startup
+              for a panel most sessions never open. */}
+          {whatsNewOpen && (
+            <VellumWhatsNew
+              open={whatsNewOpen}
+              onClose={() => setWhatsNewOpen(false)}
+              userEmail={googleUser.email}
+              userName={googleUser.name}
+            />
+          )}
         </Suspense>
       </div>
     </div>

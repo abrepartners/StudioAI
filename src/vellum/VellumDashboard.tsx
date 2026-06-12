@@ -97,7 +97,8 @@ const VellumDashboard: React.FC<DashboardProps> = ({ setPage, credits, projects,
             <button className="v-btn v-btn--ghost v-btn--sm" onClick={() => setPage('projects')}>View all <Icon name="arrow_right" size={12} /></button>
           </div>
 
-          <table className="v-tbl">
+          <div className="v-tbl-scroll">
+            <table className="v-tbl">
             <thead>
               <tr>
                 <th style={{ width: '46%' }}>Listing</th>
@@ -135,7 +136,8 @@ const VellumDashboard: React.FC<DashboardProps> = ({ setPage, credits, projects,
                 </tr>
               ))}
             </tbody>
-          </table>
+            </table>
+          </div>
         </>
       )}
 

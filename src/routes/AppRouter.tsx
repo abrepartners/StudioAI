@@ -30,8 +30,34 @@ import ModelLabRoute from './ModelLabRoute';
 import AdminApiDashboardRoute from './AdminApiDashboardRoute';
 import { readGoogleUser } from './authStorage';
 
-const VellumApp = lazy(() => import('../vellum/VellumApp'));
-const VellumLanding = lazy(() => import('../vellum/VellumLanding'));
+// A failed lazy chunk (flaky network, stale deploy) otherwise rejects the
+// dynamic import and leaves a permanently black screen with no way out.
+const ChunkErrorScreen: React.FC = () => (
+  <div className="min-h-screen grid place-items-center bg-black px-6">
+    <div className="text-center">
+      <p className="text-zinc-300 text-sm mb-4">
+        Something didn't load — check your connection and try again.
+      </p>
+      <button
+        className="px-4 py-2 rounded-lg bg-zinc-800 text-white text-sm border border-zinc-700"
+        onClick={() => window.location.reload()}
+      >
+        Reload
+      </button>
+    </div>
+  </div>
+);
+
+const lazyRoute = (load: () => Promise<{ default: React.ComponentType<any> }>) =>
+  lazy(() =>
+    load().catch((err) => {
+      console.error('route chunk failed to load', err);
+      return { default: ChunkErrorScreen };
+    }),
+  );
+
+const VellumApp = lazyRoute(() => import('../vellum/VellumApp'));
+const VellumLanding = lazyRoute(() => import('../vellum/VellumLanding'));
 
 const AuthedRoot: React.FC = () => {
   const user = useMemo(() => readGoogleUser(), []);

@@ -3,7 +3,9 @@
    Ported from hi-fi prototype for StudioAI parallel build.
    ===================================================================== */
 
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap");
+/* Inter is loaded once from index.html (<link rel="stylesheet">). A second
+   @import here would ride inside the lazy vellum chunk — and a failed font
+   fetch rejects the whole dynamic import, blanking the app. */
 
 /* ---- Fonts ---- */
 @font-face {
@@ -4393,4 +4395,136 @@ img.v-ba-img-dimmed {
   background: var(--accent-surface);
   color: var(--accent-ink);
   border-color: var(--accent-surface);
+}
+
+/* =======================================================================
+   MOBILE APP PASS 2 (≤900px) — global nav dock, tap targets, and the
+   page-level fixes the editor pass didn't cover (dashboard, billing,
+   settings, new-listing modal). Appended last so it wins cascade ties
+   inside the same specificity.
+   ======================================================================= */
+
+/* The wordmark is a real <button> now (tap → dashboard) — shed UA chrome
+   and let the existing .wordmark type rules carry the look. */
+.v-topbar .wordmark {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.vellum button,
+.vellum a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (max-width: 900px) {
+  /* Pages clear the global nav dock; the editor offsets itself already. */
+  .v-main {
+    padding-bottom: calc(var(--v-dock-h, 64px) + 28px);
+  }
+
+  /* The mobile topbar is 56px, not the desktop 64px the editor grid
+     subtracts — without this the dock floats 8px above the true bottom. */
+  .v-editor {
+    height: calc(100dvh - 56px);
+  }
+
+  /* Sheets own their scroll — reaching the end must not chain into the
+     page behind the scrim. */
+  .v-editor-left,
+  .v-editor-right {
+    overscroll-behavior: contain;
+  }
+
+  /* iOS Safari auto-zooms the page when a focused control is under 16px. */
+  .v-set-input,
+  .v-search-input input,
+  .v-field-value select,
+  .v-field-value .v-set-input {
+    font-size: 16px;
+  }
+
+  /* Topbar tap targets — comfortable thumbs inside the 56px bar. */
+  .v-credits-chip {
+    min-height: 40px;
+  }
+  .v-avatar-menu button {
+    min-height: 44px;
+  }
+
+  /* Compact KPI strip — three cards across instead of three screens down. */
+  .v-kpi-row {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 28px;
+  }
+  .v-kpi {
+    padding: 14px 12px;
+  }
+  .v-kpi .label {
+    font-size: 9.5px;
+    letter-spacing: 0.1em;
+  }
+  .v-kpi .value {
+    font-size: 30px;
+    margin: 10px 0 6px;
+  }
+  .v-kpi .delta {
+    font-size: 11px;
+  }
+
+  /* Segmented controls swipe instead of wrapping ("Export defaults" was
+     breaking onto a second line inside the Settings tab strip). */
+  .v-seg {
+    max-width: 100%;
+    grid-auto-columns: max-content;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .v-seg::-webkit-scrollbar {
+    display: none;
+  }
+  .v-seg-btn {
+    white-space: nowrap;
+    padding: 9px 12px;
+  }
+}
+
+/* New-listing modal — Type/Beds/Baths row. Three across on desktop; on
+   phones Type takes the full line with Beds/Baths split below, because
+   v-set-input's 180px min-width otherwise pushes the row off-screen. */
+.v-nl-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.v-modal .v-set-input {
+  min-width: 0;
+}
+@media (max-width: 640px) {
+  .v-nl-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .v-nl-grid > div:first-child {
+    grid-column: 1 / -1;
+  }
+  .v-modal {
+    padding: 28px 22px 22px;
+  }
+
+  /* Plan cards stack one-up; the absolutely-positioned "Current plan"
+     badge otherwise lands on top of the plan name at 2-up phone widths. */
+  .v-plans {
+    grid-template-columns: 1fr;
+    max-width: none;
+  }
+  .v-plan.featured::before {
+    position: static;
+    width: max-content;
+    margin-bottom: 10px;
+  }
 }

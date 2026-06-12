@@ -6,6 +6,7 @@ import React, {
   Suspense,
 } from "react";
 import "./vellum.css";
+import { Icon } from "./icons";
 import { VellumTopbar } from "./VellumTopbar";
 import { VellumSidebar } from "./VellumSidebar";
 import { useVellumStore } from "./useVellumStore";
@@ -478,6 +479,32 @@ const VellumApp: React.FC = () => {
             </Suspense>
           </main>
         </div>
+
+        {/* [MOBILE contract] Global nav dock — the sidebar and topbar nav are
+            hidden under 900px, so this is the only persistent way around the
+            app on phones. The photo editor owns the dock slot on its page
+            (Tools/Adjust), so it is skipped there. Hidden ≥900px via the
+            shared .v-mobile-tabbar rule. */}
+        {page !== "photo" && (
+          <nav className="v-mobile-tabbar" aria-label="Primary">
+            {[
+              { id: "dashboard", icon: "home", label: "Home" },
+              { id: "projects", icon: "folder", label: "Projects" },
+              { id: "photo", icon: "image", label: "Photos" },
+              { id: "video", icon: "video", label: "Reels" },
+            ].map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                className={page === t.id ? "is-active" : ""}
+                aria-current={page === t.id ? "page" : undefined}
+                onClick={() => setPage(t.id)}
+              >
+                <Icon name={t.icon} size={14} /> {t.label}
+              </button>
+            ))}
+          </nav>
+        )}
 
         <Suspense fallback={null}>
           <VellumRefillModal

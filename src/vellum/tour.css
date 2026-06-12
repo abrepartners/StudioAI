@@ -1,0 +1,243 @@
+/* =====================================================================
+   Vellum guided tour + "what's next" suggestions
+   Own stylesheet (imported by VellumTour / VellumNextSteps) so vellum.css
+   stays untouched. Tokens reference the .vellum custom properties with
+   literal dark-editorial fallbacks in case the components ever render
+   outside the .vellum scope.
+   ===================================================================== */
+
+/* ---- Spotlight tour ------------------------------------------------ */
+
+/* Invisible click-catcher under the spotlight: the scrim itself is drawn
+   by the highlight box's giant box-shadow, but a shadow doesn't capture
+   pointer events — this layer does, so the app is inert while touring. */
+.v-tour-blocker {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  background: transparent;
+}
+
+/* Spotlight cutout: positioned at the target's rect; the 9999px shadow
+   paints the dark scrim everywhere except the box itself. */
+.v-tour-spot {
+  position: fixed;
+  z-index: 401;
+  border: 1px solid var(--pale-gold, #d8c79a);
+  border-radius: 12px;
+  box-shadow: 0 0 0 9999px rgba(8, 8, 8, 0.78);
+  pointer-events: none;
+  transition:
+    top 220ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    left 220ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    width 220ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    height 220ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.v-tour-card {
+  position: fixed;
+  z-index: 402;
+  width: min(320px, calc(100vw - 24px));
+  background: var(--background-elevated, #161616);
+  border: 1px solid var(--border-light, #22252a);
+  border-radius: 14px;
+  box-shadow:
+    0 24px 48px rgba(0, 0, 0, 0.55),
+    0 4px 12px rgba(0, 0, 0, 0.4);
+  padding: 18px 18px 14px;
+  color: var(--text-primary, #f3f1ec);
+  font-family:
+    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.v-tour-eyebrow {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--pale-gold, #d8c79a);
+  margin-bottom: 6px;
+}
+
+.v-tour-title {
+  font-family: var(--font-serif, "Cormorant Garamond", serif);
+  font-size: 21px;
+  font-weight: 500;
+  line-height: 1.2;
+  margin: 0 0 6px;
+}
+
+.v-tour-body {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text-secondary, #a8a49d);
+  margin: 0 0 14px;
+}
+
+.v-tour-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.v-tour-btn {
+  appearance: none;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 200ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.v-tour-btn--primary {
+  background: var(--accent-surface, #d8c79a);
+  color: var(--accent-ink, #161616);
+}
+.v-tour-btn--primary:hover {
+  background: var(--accent-surface-hover, #e2d4ae);
+}
+
+.v-tour-btn--ghost {
+  background: transparent;
+  border-color: var(--border-medium, #33373d);
+  color: var(--text-secondary, #a8a49d);
+}
+.v-tour-btn--ghost:hover {
+  color: var(--text-primary, #f3f1ec);
+  border-color: var(--graphite, #9a968f);
+}
+
+/* Quieter-than-ghost text button ("Don't show this again"). */
+.v-tour-quiet {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 4px 0;
+  margin-left: auto;
+  font-size: 11px;
+  font-family: inherit;
+  color: var(--text-muted, #6f6c66);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.v-tour-quiet:hover {
+  color: var(--text-secondary, #a8a49d);
+}
+
+/* ---- "What's next" suggestion card --------------------------------- */
+
+.v-next-card {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 390;
+  width: min(360px, calc(100vw - 24px));
+  background: var(--background-elevated, #161616);
+  border: 1px solid var(--border-light, #22252a);
+  border-radius: 14px;
+  box-shadow:
+    0 24px 48px rgba(0, 0, 0, 0.55),
+    0 4px 12px rgba(0, 0, 0, 0.4);
+  padding: 14px 16px;
+  color: var(--text-primary, #f3f1ec);
+  font-family:
+    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  animation: v-next-in 280ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+@keyframes v-next-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Mobile: sit above the bottom dock, full width within margins. */
+@media (max-width: 900px) {
+  .v-next-card {
+    left: 12px;
+    right: 12px;
+    bottom: calc(var(--v-dock-h, 64px) + 12px);
+    width: auto;
+  }
+}
+
+.v-next-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.v-next-msg {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.v-next-msg .v-next-spark {
+  color: var(--pale-gold, #d8c79a);
+  margin-right: 4px;
+}
+
+.v-next-x {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 4px 6px;
+  font-size: 13px;
+  line-height: 1;
+  font-family: inherit;
+  color: var(--text-muted, #6f6c66);
+  cursor: pointer;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+.v-next-x:hover {
+  color: var(--text-primary, #f3f1ec);
+}
+
+.v-next-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.v-next-title {
+  font-family: var(--font-serif, "Cormorant Garamond", serif);
+  font-size: 19px;
+  font-weight: 500;
+}
+
+.v-next-tips {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.v-next-tips li {
+  position: relative;
+  padding-left: 16px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-secondary, #a8a49d);
+}
+.v-next-tips li::before {
+  content: "✦";
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-size: 10px;
+  color: var(--pale-gold, #d8c79a);
+}

@@ -73,6 +73,7 @@ const VellumSettings: React.FC<SettingsProps> = ({ setPage, profile, updateProfi
       </div>
 
       {tab === 'workspace' && (
+        <>
         <div className="v-split-2">
           <div className="v-settings-card">
             <div className="v-gold-rule" />
@@ -144,6 +145,23 @@ const VellumSettings: React.FC<SettingsProps> = ({ setPage, profile, updateProfi
             </div>
           </div>
         </div>
+        <div className="v-settings-card" style={{ marginTop: 24, maxWidth: 560 }}>
+          <div className="v-gold-rule" />
+          <h3>Guided tour</h3>
+          <div className="v-set-row">
+            <span>Walk through the photo editor's key controls again.</span>
+            <button
+              className="v-btn v-btn--ghost v-btn--sm"
+              onClick={() => {
+                try { localStorage.removeItem('vellum_tour_seen'); } catch { /* ignore */ }
+                setPage('photo');
+              }}
+            >
+              Replay tutorial
+            </button>
+          </div>
+        </div>
+        </>
       )}
 
       {tab === 'profile' && (

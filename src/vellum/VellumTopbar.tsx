@@ -39,7 +39,14 @@ export const VellumTopbar: React.FC<TopbarProps> = ({ page, setPage, credits, pr
 
   return (
     <div className="v-topbar">
-      <div className="wordmark">Vellum</div>
+      <button
+        type="button"
+        className="wordmark"
+        onClick={() => setPage('dashboard')}
+        title="Dashboard"
+      >
+        Vellum
+      </button>
       <nav>
         <a
           className={['dashboard', 'projects', 'photo', 'video'].includes(page) ? 'active' : ''}
@@ -94,6 +101,15 @@ export const VellumTopbar: React.FC<TopbarProps> = ({ page, setPage, credits, pr
           </div>
           {menuOpen && (
             <div className="v-avatar-menu">
+              {/* Workspace links double as the mobile escape hatch — the
+                  sidebar and topbar nav are both hidden under 900px. */}
+              <button onClick={() => { setMenuOpen(false); setPage('dashboard'); }}>
+                <Icon name="home" size={14} /> Dashboard
+              </button>
+              <button onClick={() => { setMenuOpen(false); setPage('projects'); }}>
+                <Icon name="folder" size={14} /> Projects
+              </button>
+              <div className="v-avatar-menu-divider" />
               <button onClick={() => { setMenuOpen(false); setPage('settings'); }}>
                 <Icon name="settings" size={14} /> Settings
               </button>

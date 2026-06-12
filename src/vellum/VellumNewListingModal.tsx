@@ -72,7 +72,7 @@ const VellumNewListingModal: React.FC<NewListingModalProps> = ({ open, onClose, 
               onChange={e => setCity(e.target.value)}
             />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+          <div className="v-nl-grid">
             <div>
               <label className="v-field-label" style={{ marginBottom: 6, display: 'block' }}>Type</label>
               <select className="v-set-input" style={{ width: '100%' }} value={propertyType} onChange={e => setPropertyType(e.target.value)}>

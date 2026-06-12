@@ -399,6 +399,7 @@ public/           # Static assets
 - Branch per feature: `feature/mls-export`, `feature/brand-kit`
 - Commit prefixes: `feat:`, `fix:`, `docs:`, `refactor:`, `style:`
 - PR into `main`. One PR per feature. Vercel auto-deploys on merge.
+- ALWAYS finish work by opening a PR for review — never merge or push to `main` directly. Every change ships through a PR, even small ones.
 
 ### Before pushing ANY code
 1. `npm run build` must pass

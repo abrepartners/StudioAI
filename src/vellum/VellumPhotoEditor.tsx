@@ -1090,6 +1090,8 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
         ],
       }));
 
+      window.dispatchEvent(new CustomEvent("vellum:gen-complete", { detail: { tool } }));
+
       const toolInfo = TOOLS.find((t) => "id" in t && t.id === tool);
       setActivity((a) => [
         {

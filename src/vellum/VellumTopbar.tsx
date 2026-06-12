@@ -11,9 +11,11 @@ interface TopbarProps {
   onUploadFiles: () => void;
   googleUser?: { name: string; picture: string } | null;
   subscription?: { plan: string; generationsLimit: number; subscribed: boolean };
+  whatsNewUnread?: boolean;
+  onWhatsNew?: () => void;
 }
 
-export const VellumTopbar: React.FC<TopbarProps> = ({ page, setPage, credits, profile, onRefill, onUploadFiles, googleUser, subscription }) => {
+export const VellumTopbar: React.FC<TopbarProps> = ({ page, setPage, credits, profile, onRefill, onUploadFiles, googleUser, subscription, whatsNewUnread, onWhatsNew }) => {
   const isUnlimited = subscription?.generationsLimit === -1;
   const low = !isUnlimited && credits < 5;
   const displayName = googleUser?.name || profile.name || '';
@@ -94,6 +96,7 @@ export const VellumTopbar: React.FC<TopbarProps> = ({ page, setPage, credits, pr
             onClick={() => setMenuOpen(v => !v)}
             title="Account menu"
           >
+            {whatsNewUnread && <span className="v-avatar-dot" aria-hidden="true" />}
             {avatarPic
               ? <img src={avatarPic} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} referrerPolicy="no-referrer" />
               : initial
@@ -119,6 +122,12 @@ export const VellumTopbar: React.FC<TopbarProps> = ({ page, setPage, credits, pr
               <button onClick={() => { setMenuOpen(false); setPage('help'); }}>
                 <Icon name="help" size={14} /> Help
               </button>
+              {onWhatsNew && (
+                <button onClick={() => { setMenuOpen(false); onWhatsNew(); }}>
+                  <Icon name="sparkles" size={14} /> What's new
+                  {whatsNewUnread && <span className="v-menu-dot" aria-hidden="true" />}
+                </button>
+              )}
               <div className="v-avatar-menu-divider" />
               <button onClick={handleSignOut}>
                 <Icon name="logout" size={14} /> Sign out

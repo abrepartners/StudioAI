@@ -40,3 +40,4 @@ playwright-report/
 
 # Mobile audit captures (review-by-eye artifacts)
 tests/qa-harness/shots/
+.claude/worktrees/

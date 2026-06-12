@@ -4620,3 +4620,34 @@ img.v-ba-img-dimmed {
     margin-bottom: 10px;
   }
 }
+
+/* Listings tables (dashboard "In progress", projects index) are intrinsically
+   wider than a phone. Without a scroll container of their own they stretch
+   the page, so the whole viewport pans sideways and nothing feels anchored.
+   Let the table swipe inside its own box instead. */
+@media (max-width: 900px) {
+  .vellum {
+    overflow-x: clip;
+  }
+  .v-tbl {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .v-tbl::-webkit-scrollbar {
+    display: none;
+  }
+  .v-tbl th,
+  .v-tbl td {
+    white-space: nowrap;
+  }
+  /* The address block is the one cell that should wrap, not run on. */
+  .v-tbl .project-cell .name,
+  .v-tbl .project-cell .sub {
+    white-space: normal;
+    min-width: 150px;
+    max-width: 190px;
+  }
+}

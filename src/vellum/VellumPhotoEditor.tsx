@@ -2707,11 +2707,13 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
               <div className="v-control-ttl">
                 <span className="v-gold-rule" />
                 {toolName}
-                {toolName === "Virtual staging" && getEngineOverride() && (
-                  <span className="v-engine-badge">
-                    {getEngineOverride()} engine · A/B
-                  </span>
-                )}
+                {(toolName === "Virtual staging" ||
+                  toolName === "Twilight conversion") &&
+                  getEngineOverride() && (
+                    <span className="v-engine-badge">
+                      {getEngineOverride()} engine · A/B
+                    </span>
+                  )}
                 {toolName === "Virtual staging" &&
                   currentPhoto?.empty === false && (
                     <span className="v-engine-badge v-mode-badge">

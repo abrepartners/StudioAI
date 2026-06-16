@@ -18,6 +18,10 @@ export type TwilightTime = "early-evening" | "sunset" | "twilight";
 export interface TwilightResult {
   resultBase64: string;
   latencyMs: number;
+  /** Engine the server actually ran — nano-banana-pro, or flux-2-pro on
+   *  the default path AND on a nano refusal/capacity fallback. Surfaced so
+   *  telemetry and the A/B never mislabel a Flux fallback as a nano sample. */
+  engine?: string;
 }
 
 export interface TwilightOptions {
@@ -57,5 +61,6 @@ export async function fluxTwilight(
   return {
     resultBase64: data.resultBase64,
     latencyMs: data.latencyMs,
+    engine: data.engine,
   };
 }

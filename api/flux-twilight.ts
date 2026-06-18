@@ -142,6 +142,32 @@ PHOTOGRAPHY DNA — MATCH THE INPUT:
 Output the same photograph relit to the target atmosphere. Treat the input as immutable geometry and change only the light energy in the scene.`;
 }
 
+// SHORT prompts for the nano-banana-pro A/B path. Edit models (Gemini family)
+// follow concise, positive, "keep-first / change-second" instructions far
+// better than the 400-word rule wall above — see the twilight research notes.
+const SKY_SHORT: Record<TwilightColorStyle, string> = {
+  pink: "soft peach-pink and rose near the horizon fading to cool blue overhead",
+  golden: "warm amber-gold at the horizon fading to deep blue overhead",
+  purple: "magenta-pink horizon band fading to deep blue-violet overhead",
+  natural:
+    "natural true-to-life dusk gradient, warm at the horizon to cool blue overhead, gentle and not over-saturated",
+};
+const TIME_SHORT: Record<TwilightTime, string> = {
+  "early-evening":
+    "the last minutes of sunlight — the scene stays bright and clearly lit",
+  sunset:
+    "sun just below the horizon — the house and yard stay clearly lit and detailed, never a dark silhouette",
+  twilight:
+    "deep blue hour — lower ambient light but the facade, siding texture and landscaping stay readable, never a black silhouette",
+};
+
+function buildTwilightPromptShort(
+  style: TwilightColorStyle,
+  time: TwilightTime,
+): string {
+  return `Using the provided photo, relight this house exterior to a warm twilight scene. Sky: a smooth blue-hour gradient — ${SKY_SHORT[style]} — natural, no hard bands or pasted-in look. Lighting: ${TIME_SHORT[time]}. Light the windows with a warm 2700K interior glow, and turn on ONLY the light fixtures already visible in the original photo. Do NOT add or invent any new lights, landscape uplighting, path lights, or fixtures that are not already present — if there is no fixture there, leave it dark. Keep the sky cooler than the warm window glow, and keep the house, windows, doors, roof, siding, landscaping, driveway and camera angle exactly the same — change only the sky and the lighting.`;
+}
+
 async function extractUrl(output: unknown): Promise<string | null> {
   if (!output) return null;
   if (typeof output === "string") return output;
@@ -176,6 +202,8 @@ export default async function handler(req: any, res: any) {
   const rawStyle = String(body.style || "");
   const rawTime = String(body.timeOfDay || "");
   const skipUpscale = Boolean(body.skipUpscale);
+  // A/B: engine=nano routes through google/nano-banana-pro; default stays flux.
+  const useNano = String(body.engine || "") === "nano";
 
   if (!imageBase64) {
     json(res, 400, { ok: false, error: "imageBase64 is required" });
@@ -245,27 +273,71 @@ export default async function handler(req: any, res: any) {
       Math.abs(r.v - imgRatio) < Math.abs(best.v - imgRatio) ? r : best,
     );
 
-    console.log(
-      `[flux-twilight] Starting Flux 2 Pro v6 2-axis (${style}/${time}, ${dims.w}x${dims.h} → ${bestRatio.label})`,
-    );
-    const fluxOutput = await replicate.run("black-forest-labs/flux-2-pro", {
-      input: {
-        input_images: [userDataUrl],
-        prompt: buildTwilightPrompt(style, time),
-        output_format: "jpg",
-        aspect_ratio: bestRatio.label,
-        // flux-2-pro defaults to 1 MP; 2 MP doubles output pixels for free
-        // (model supports up to 4 MP but BFL recommends ≤2 MP for quality).
-        resolution: "2 MP",
-      },
-    });
+    let cleanUrl: string | null = null;
+    let engineUsed = "flux-2-pro";
 
-    const cleanUrl = await extractUrl(fluxOutput);
+    // A/B path: google/nano-banana-pro with the short, edit-model-friendly
+    // prompt. Same call shape as staging/sky. On refusal or any failure we
+    // fall through to the flux-2-pro default below, so a nano hiccup never
+    // means a failed generation.
+    if (useNano) {
+      try {
+        console.log(
+          `[flux-twilight] Starting nano-banana-pro (${style}/${time})`,
+        );
+        const nanoOutput = await replicate.run("google/nano-banana-pro", {
+          input: {
+            prompt: buildTwilightPromptShort(style, time),
+            image_input: [userDataUrl],
+            resolution: "2K",
+            aspect_ratio: "match_input_image",
+            output_format: "jpg",
+            allow_fallback_model: false,
+          },
+        });
+        const nanoUrl = await extractUrl(nanoOutput);
+        if (nanoUrl) {
+          cleanUrl = nanoUrl;
+          engineUsed = "nano-banana-pro";
+          console.log(
+            `[flux-twilight] nano-banana-pro done in ${Date.now() - t0}ms`,
+          );
+        } else {
+          console.warn(
+            "[flux-twilight] nano-banana-pro returned no URL — falling back to flux",
+          );
+        }
+      } catch (nanoErr: any) {
+        console.warn(
+          `[flux-twilight] nano-banana-pro failed (${nanoErr?.message}) — falling back to flux`,
+        );
+      }
+    }
+
     if (!cleanUrl) {
-      json(res, 200, { ok: false, error: "Flux returned no image URL" });
+      console.log(
+        `[flux-twilight] Starting Flux 2 Pro v6 2-axis (${style}/${time}, ${dims.w}x${dims.h} → ${bestRatio.label})`,
+      );
+      const fluxOutput = await replicate.run("black-forest-labs/flux-2-pro", {
+        input: {
+          input_images: [userDataUrl],
+          prompt: buildTwilightPrompt(style, time),
+          output_format: "jpg",
+          aspect_ratio: bestRatio.label,
+          // flux-2-pro defaults to 1 MP; 2 MP doubles output pixels for free
+          // (model supports up to 4 MP but BFL recommends ≤2 MP for quality).
+          resolution: "2 MP",
+        },
+      });
+      cleanUrl = await extractUrl(fluxOutput);
+      engineUsed = "flux-2-pro";
+    }
+
+    if (!cleanUrl) {
+      json(res, 200, { ok: false, error: "twilight engine returned no image" });
       return;
     }
-    console.log(`[flux-twilight] Flux done in ${Date.now() - t0}ms`);
+    console.log(`[flux-twilight] ${engineUsed} done in ${Date.now() - t0}ms`);
 
     // Pruna 2x upscale (consistent with cleanup/staging/sky/upscale endpoints).
     // Skipped during the editing phase — export upscales once at the end,
@@ -311,7 +383,12 @@ export default async function handler(req: any, res: any) {
     console.log(
       `[flux-twilight] Total: ${Date.now() - t0}ms (${style}/${time})`,
     );
-    json(res, 200, { ok: true, resultBase64, latencyMs: Date.now() - t0 });
+    json(res, 200, {
+      ok: true,
+      resultBase64,
+      latencyMs: Date.now() - t0,
+      engine: engineUsed,
+    });
   } catch (err: any) {
     console.error("[flux-twilight] unhandled:", err?.message || err);
     json(res, 200, { ok: false, error: err?.message || "unknown" });

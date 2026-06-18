@@ -8,6 +8,7 @@
  */
 
 import { resizeForUpload } from "../utils/resizeForUpload";
+import { getEngineOverride } from "./stagingService";
 
 const FLUX_UPLOAD_MAX_EDGE = 1280;
 
@@ -17,6 +18,10 @@ export type TwilightTime = "early-evening" | "sunset" | "twilight";
 export interface TwilightResult {
   resultBase64: string;
   latencyMs: number;
+  /** Engine the server actually ran — nano-banana-pro, or flux-2-pro on
+   *  the default path AND on a nano refusal/capacity fallback. Surfaced so
+   *  telemetry and the A/B never mislabel a Flux fallback as a nano sample. */
+  engine?: string;
 }
 
 export interface TwilightOptions {
@@ -32,6 +37,7 @@ export async function fluxTwilight(
   options: TwilightOptions = {},
 ): Promise<TwilightResult> {
   const shrunk = await resizeForUpload(imageBase64, FLUX_UPLOAD_MAX_EDGE);
+  const engineOverride = getEngineOverride();
   const res = await fetch("/api/flux-twilight", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -40,6 +46,9 @@ export async function fluxTwilight(
       style,
       timeOfDay,
       skipUpscale: Boolean(options.skipUpscale),
+      // ?engine=nano routes twilight through google/nano-banana-pro (A/B);
+      // anything else keeps the flux-2-pro default untouched.
+      ...(engineOverride ? { engine: engineOverride } : {}),
     }),
     signal: abortSignal,
   });
@@ -52,5 +61,6 @@ export async function fluxTwilight(
   return {
     resultBase64: data.resultBase64,
     latencyMs: data.latencyMs,
+    engine: data.engine,
   };
 }

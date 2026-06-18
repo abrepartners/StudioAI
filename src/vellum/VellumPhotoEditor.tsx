@@ -521,7 +521,7 @@ DO NOT:
         signal,
         { skipUpscale: true },
       );
-      return { resultBase64: result.resultBase64 };
+      return { resultBase64: result.resultBase64, engine: result.engine };
     }
     case "sky": {
       const mapped = presetMap.sky[preset] || "blue";
@@ -2707,7 +2707,12 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
               <div className="v-control-ttl">
                 <span className="v-gold-rule" />
                 {toolName}
-                {toolName === "Virtual staging" && getEngineOverride() && (
+                {/* Staging honors every override (nano/seedream/fill);
+                    twilight only changes behavior on nano, so don't badge
+                    fill/seedream there as if they alter the twilight run. */}
+                {((toolName === "Virtual staging" && getEngineOverride()) ||
+                  (toolName === "Twilight conversion" &&
+                    getEngineOverride() === "nano")) && (
                   <span className="v-engine-badge">
                     {getEngineOverride()} engine · A/B
                   </span>

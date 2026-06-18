@@ -165,7 +165,7 @@ function buildTwilightPromptShort(
   style: TwilightColorStyle,
   time: TwilightTime,
 ): string {
-  return `Using the provided photo, relight this house exterior to a warm twilight scene. Sky: a smooth blue-hour gradient — ${SKY_SHORT[style]} — natural, no hard bands or pasted-in look. Lighting: ${TIME_SHORT[time]}. Turn on warm 2700K light in the windows plus the porch, path and landscape fixtures as soft glows, not blown-out white; keep the sky cooler than the warm interior glow. Keep the house, windows, doors, roof, siding, landscaping, driveway and camera angle exactly the same — change only the sky and the lighting.`;
+  return `Using the provided photo, relight this house exterior to a warm twilight scene. Sky: a smooth blue-hour gradient — ${SKY_SHORT[style]} — natural, no hard bands or pasted-in look. Lighting: ${TIME_SHORT[time]}. Light the windows with a warm 2700K interior glow, and turn on ONLY the light fixtures already visible in the original photo. Do NOT add or invent any new lights, landscape uplighting, path lights, or fixtures that are not already present — if there is no fixture there, leave it dark. Keep the sky cooler than the warm window glow, and keep the house, windows, doors, roof, siding, landscaping, driveway and camera angle exactly the same — change only the sky and the lighting.`;
 }
 
 async function extractUrl(output: unknown): Promise<string | null> {

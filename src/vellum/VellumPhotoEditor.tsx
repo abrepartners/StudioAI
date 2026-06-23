@@ -181,6 +181,7 @@ const PRESETS: Record<string, string[]> = {
     "Personal items only",
     "Surface clutter only",
     "Precision select",
+    "Touch-up render",
   ],
   declutter_ext: ["Yard clutter", "Vehicles & bins", "Signs & temp items"],
   whiten: ["Bright & airy", "Warm editorial", "Neutral"],
@@ -411,7 +412,13 @@ const callApiDirect = async (
       return { resultBase64: result.resultBase64, engine: result.engine };
     }
     case "declutter": {
-      const isPrecision = preset.toLowerCase() === "precision select";
+      const presetLc = preset.toLowerCase();
+      // Touch-up runs the Precision Select flow (SAM picker + masked fill)
+      // against the CURRENT render instead of the original — it exists to
+      // pluck one misplaced staged item out of a finished result. The input
+      // swap itself happens in processOnePhoto.
+      const isPrecision =
+        presetLc === "precision select" || presetLc === "touch-up render";
       // Engine A/B (same ?engine=nano session override as staging): whole-frame
       // Nano Banana Pro, prompt-only — skip SAM detection entirely; that's the
       // hypothesis under test. Precision Select keeps Bria+mask regardless:
@@ -948,10 +955,14 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
     }));
 
     try {
-      const inputImage =
-        tool === "declutter"
-          ? photo.dataUrl
-          : processedResultsRef.current[photo.id] || photo.dataUrl;
+      // Declutter removes REAL clutter, so it always reads the original —
+      // except Touch-up, whose whole job is editing the current render
+      // (remove one misplaced staged piece without re-rolling the room).
+      const declutterFromOriginal =
+        tool === "declutter" && preset.toLowerCase() !== "touch-up render";
+      const inputImage = declutterFromOriginal
+        ? photo.dataUrl
+        : processedResultsRef.current[photo.id] || photo.dataUrl;
       const apiResult = await callApiDirect(
         inputImage,
         photo.label,
@@ -1009,8 +1020,10 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
 
       if (tool === "declutter") {
         try {
+          // Drift is measured against whatever the model was actually fed —
+          // the original for normal declutter, the render for Touch-up.
           const drift = await checkCleanupDrift(
-            photo.dataUrl,
+            inputImage,
             resultDataUrl,
             apiResult.maskBase64,
           );
@@ -1189,9 +1202,12 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
     // Precision Select needs per-photo object picking — can't batch a modal.
     // Without this guard, 3 parallel photos all setSamModal() and overwrite
     // each other's resolver, leaving 2 of them stuck waiting forever.
-    if (activeTool === "declutter" && stylePreset === "precision select") {
+    if (
+      activeTool === "declutter" &&
+      (stylePreset === "precision select" || stylePreset === "touch-up render")
+    ) {
       alert(
-        "Precision Select picks objects per photo. Apply one at a time, or pick another preset for batch.",
+        "Precision Select and Touch-up pick objects per photo. Apply one at a time, or pick another preset for batch.",
       );
       return;
     }
@@ -2845,6 +2861,18 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
                   ))}
                 </div>
               </div>
+            )}
+
+            {activeTool === "declutter" && stylePreset === "touch-up render" && (
+              <p
+                className="v-muted"
+                style={{ fontSize: 12, lineHeight: 1.5, margin: "4px 0 0" }}
+              >
+                Touch-up edits your <strong>current result</strong> — tap a
+                misplaced piece (staged furniture included) to remove it
+                without re-rolling the room. Other cleanup presets work from
+                the original photo.
+              </p>
             )}
 
             {activeTool === "declutter" && (

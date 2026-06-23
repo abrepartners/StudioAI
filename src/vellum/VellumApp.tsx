@@ -26,6 +26,8 @@ const VellumNewListingModal = React.lazy(
   () => import("./VellumNewListingModal"),
 );
 const VellumWhatsNew = React.lazy(() => import("./VellumWhatsNew"));
+const VellumTour = React.lazy(() => import("./VellumTour"));
+const VellumNextSteps = React.lazy(() => import("./VellumNextSteps"));
 
 const VALID_PAGES = [
   "dashboard",
@@ -519,6 +521,8 @@ const VellumApp: React.FC = () => {
         )}
 
         <Suspense fallback={null}>
+          <VellumTour active={page === "photo"} />
+          <VellumNextSteps active={page === "photo"} />
           <VellumRefillModal
             open={refill.open}
             needed={refill.needed}

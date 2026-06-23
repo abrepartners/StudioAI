@@ -5,7 +5,7 @@ import {
   MONETIZATION_POLICY_VERSION,
   STARTER_MONTHLY_LIMIT,
   hasUnlimitedGeneration,
-} from '../shared/monetization';
+} from '../shared/monetization.js';
 
 export const config = { runtime: 'nodejs' };
 

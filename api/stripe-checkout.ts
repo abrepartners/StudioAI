@@ -2,7 +2,7 @@ import { json, setCors, handleOptions, rejectMethod, parseBody } from './utils.j
 import {
   PLAN_PRICING_USD,
   STARTER_MONTHLY_LIMIT,
-} from '../shared/monetization';
+} from '../shared/monetization.js';
 
 export const config = { runtime: 'nodejs' };
 

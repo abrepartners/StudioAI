@@ -190,13 +190,15 @@ export default async function handler(req: any, res: any) {
     } else if (ranEngine === "bria") {
       // Pass mask when available — Bria edits only masked areas, leaving the
       // rest of the image pixel-identical. Best path for Precision Select mode.
-      const negativePrompt = isExterior
-        ? "Do not add any new objects, plants, grass, landscaping, or greenery. Do not change ground surface material — if dirt, keep dirt; if gravel, keep gravel; if bare soil, keep bare soil. Do not change house architecture, siding, roof, windows, doors, or sky. Do not alter lighting, shadows, or color grading. Only remove specified items and fill with the existing ground surface material."
-        : "Do not add any new objects, furniture, decor, or items. Do not change room architecture, wall colors, wall texture, flooring, ceiling, or fixtures. Do not alter lighting, shadows, or color grading. Only remove specified items and fill with matching surface texture.";
+      // fibo-edit has NO negative_prompt field, so the removal guardrails are
+      // folded into `instruction` (the channel the model actually reads) —
+      // sending them as negative_prompt dropped them silently.
+      const guardrail = isExterior
+        ? " Only remove the specified items and fill with the existing ground surface material. Do not add any new objects, plants, grass, landscaping, or greenery; do not change the ground surface material, house architecture, siding, roof, windows, doors, sky, lighting, shadows, or color grading."
+        : " Only remove the specified items and fill with matching surface texture. Do not add any new objects, furniture, decor, or items; do not change room architecture, wall colors or texture, flooring, ceiling, fixtures, lighting, shadows, or color grading.";
       const briaInput: Record<string, unknown> = {
         image: dataUrl,
-        instruction: prompt,
-        negative_prompt: negativePrompt,
+        instruction: prompt + guardrail,
       };
       if (maskDataUrl) {
         briaInput.mask = maskDataUrl;

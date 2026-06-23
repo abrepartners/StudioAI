@@ -2707,12 +2707,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
               <div className="v-control-ttl">
                 <span className="v-gold-rule" />
                 {toolName}
-                {/* Staging honors every override (nano/seedream/fill);
-                    twilight only changes behavior on nano, so don't badge
-                    fill/seedream there as if they alter the twilight run. */}
-                {((toolName === "Virtual staging" && getEngineOverride()) ||
-                  (toolName === "Twilight conversion" &&
-                    getEngineOverride() === "nano")) && (
+                {toolName === "Virtual staging" && getEngineOverride() && (
                   <span className="v-engine-badge">
                     {getEngineOverride()} engine · A/B
                   </span>

@@ -8,7 +8,6 @@
  */
 
 import { resizeForUpload } from "../utils/resizeForUpload";
-import { getEngineOverride } from "./stagingService";
 
 const FLUX_UPLOAD_MAX_EDGE = 1280;
 
@@ -37,7 +36,13 @@ export async function fluxTwilight(
   options: TwilightOptions = {},
 ): Promise<TwilightResult> {
   const shrunk = await resizeForUpload(imageBase64, FLUX_UPLOAD_MAX_EDGE);
-  const engineOverride = getEngineOverride();
+  // twilight runs nano-banana-pro by default (flux-2-pro stays as the
+  // server-side fallback). The only override worth forwarding is the QA
+  // escape: ?engine=flux forces the legacy flux path for side-by-side
+  // checks. nano is the default, so no other value needs sending.
+  const forceFlux =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("engine") === "flux";
   const res = await fetch("/api/flux-twilight", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -46,9 +51,7 @@ export async function fluxTwilight(
       style,
       timeOfDay,
       skipUpscale: Boolean(options.skipUpscale),
-      // ?engine=nano routes twilight through google/nano-banana-pro (A/B);
-      // anything else keeps the flux-2-pro default untouched.
-      ...(engineOverride ? { engine: engineOverride } : {}),
+      ...(forceFlux ? { engine: "flux" } : {}),
     }),
     signal: abortSignal,
   });

@@ -202,8 +202,10 @@ export default async function handler(req: any, res: any) {
   const rawStyle = String(body.style || "");
   const rawTime = String(body.timeOfDay || "");
   const skipUpscale = Boolean(body.skipUpscale);
-  // A/B: engine=nano routes through google/nano-banana-pro; default stays flux.
-  const useNano = String(body.engine || "") === "nano";
+  // nano-banana-pro is the primary twilight engine; flux-2-pro is the
+  // fallback only (nano refusal / capacity). ?engine=flux forces the old
+  // path for side-by-side checks.
+  const forceFlux = String(body.engine || "") === "flux";
 
   if (!imageBase64) {
     json(res, 400, { ok: false, error: "imageBase64 is required" });
@@ -276,11 +278,11 @@ export default async function handler(req: any, res: any) {
     let cleanUrl: string | null = null;
     let engineUsed = "flux-2-pro";
 
-    // A/B path: google/nano-banana-pro with the short, edit-model-friendly
+    // PRIMARY: google/nano-banana-pro with the short, edit-model-friendly
     // prompt. Same call shape as staging/sky. On refusal or any failure we
-    // fall through to the flux-2-pro default below, so a nano hiccup never
-    // means a failed generation.
-    if (useNano) {
+    // fall through to the flux-2-pro fallback below, so a nano hiccup never
+    // means a failed generation. ?engine=flux skips nano for comparison.
+    if (!forceFlux) {
       try {
         console.log(
           `[flux-twilight] Starting nano-banana-pro (${style}/${time})`,

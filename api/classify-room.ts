@@ -28,15 +28,12 @@ import {
   handleOptions,
   rejectMethod,
   parseBody,
+  MOONDREAM,
 } from "./utils.js";
 
 export const config = { runtime: "nodejs", maxDuration: 60 };
 
 const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN || "";
-
-// Community model — predictions require the pinned version hash.
-const MOONDREAM =
-  "lucataco/moondream2:72ccb656353c348c1385df54b237eeb7bfa874bf11486cf0b9473e691b662d31";
 
 const QUESTIONS = {
   location:

@@ -24,10 +24,12 @@ import {
   handleOptions,
   rejectMethod,
   parseBody,
+  MOONDREAM,
 } from "./utils.js";
 
-// 180s: the no-new-lights QC gate can trigger a second flux-2-pro pass before
-// the upscale, so the worst case is flux + moondream + flux + Pruna.
+// 180s: worst case is a failed nano-banana-pro attempt, a flux-2-pro pass,
+// the moondream QC check, a corrective retry on the same engine, then the
+// Pruna upscale — five sequential model calls.
 export const config = { runtime: "nodejs", maxDuration: 180 };
 
 const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN || "";
@@ -198,8 +200,6 @@ async function extractUrl(output: unknown): Promise<string | null> {
 // presence gate — here it inspects the relit frame for obviously fake/added
 // lights. Single-image check (no original needed): "fake glow with no fixture"
 // is judgeable from the output alone, and that is exactly the complaint.
-const MOONDREAM =
-  "lucataco/moondream2:72ccb656353c348c1385df54b237eeb7bfa874bf11486cf0b9473e691b662d31";
 
 /** True if moondream sees obviously fake / added lights in the relit frame.
  *  Fails OPEN (returns false) so QC outages never block a delivery. */
@@ -208,16 +208,27 @@ async function hasFakeLights(
   imageUrl: string,
 ): Promise<boolean> {
   try {
-    const out = await replicate.run(
-      MOONDREAM as `${string}/${string}:${string}`,
-      {
+    // Deadline: replicate.run blocks until the prediction settles, so a stuck
+    // moondream (cold boot, queue delay) would burn the 180s budget AFTER the
+    // expensive generation already succeeded. 15s covers a cold boot; timeout
+    // fails open like any other QC outage.
+    const TIMED_OUT = Symbol("qc-timeout");
+    const out = await Promise.race([
+      replicate.run(MOONDREAM as `${string}/${string}:${string}`, {
         input: {
           image: imageUrl,
           prompt:
             "This is a twilight real estate photo. Are there any obviously fake or artificially added lights — a glow with no visible fixture behind it, floating orbs of light, or path lights / uplights / sconces that look painted on? Answer with exactly one word: yes or no.",
         },
-      },
-    );
+      }),
+      new Promise<typeof TIMED_OUT>((resolve) =>
+        setTimeout(() => resolve(TIMED_OUT), 15_000),
+      ),
+    ]);
+    if (out === TIMED_OUT) {
+      console.warn("[flux-twilight] QC gate timed out (15s) — failing open");
+      return false;
+    }
     const ans = (Array.isArray(out) ? out.join("") : String(out))
       .trim()
       .toLowerCase();
@@ -397,20 +408,32 @@ export default async function handler(req: any, res: any) {
     // harder than the base prompt). Fail-open: a flagged-but-unfixable frame
     // still ships.
     if (await hasFakeLights(replicate, cleanUrl)) {
-      console.warn(
-        `[flux-twilight] QC flagged added/fake lights on ${engineUsed} — corrective retry`,
-      );
-      const retryCallout =
-        "CRITICAL RETRY — your previous attempt FAILED because it ADDED light fixtures or glows that are NOT in the original photo. Add NO new lights of any kind. Illuminate ONLY windows and fixtures already physically visible in the input. This is the single most important requirement.\n\n";
-      const retryUrl =
-        engineUsed === "nano-banana-pro"
-          ? await runNano(retryCallout + buildTwilightPromptShort(style, time))
-          : await runFlux(retryCallout + basePrompt);
-      if (retryUrl) {
-        cleanUrl = retryUrl;
-        console.log(
-          `[flux-twilight] corrective retry done in ${Date.now() - t0}ms`,
+      // Budget gate: the corrective pass is a full second generation, and the
+      // Pruna upscale + result fetch still follow. With most of the 180s spent,
+      // shipping the flagged frame (fail-open) beats Vercel killing a finished
+      // delivery mid-retry.
+      if (Date.now() - t0 > 90_000) {
+        console.warn(
+          `[flux-twilight] QC flagged ${engineUsed} but budget low (${Date.now() - t0}ms elapsed) — shipping flagged frame`,
         );
+      } else {
+        console.warn(
+          `[flux-twilight] QC flagged added/fake lights on ${engineUsed} — corrective retry`,
+        );
+        const retryCallout =
+          "CRITICAL RETRY — your previous attempt FAILED because it ADDED light fixtures or glows that are NOT in the original photo. Add NO new lights of any kind. Illuminate ONLY windows and fixtures already physically visible in the input. This is the single most important requirement.\n\n";
+        const retryUrl =
+          engineUsed === "nano-banana-pro"
+            ? await runNano(
+                retryCallout + buildTwilightPromptShort(style, time),
+              )
+            : await runFlux(retryCallout + basePrompt);
+        if (retryUrl) {
+          cleanUrl = retryUrl;
+          console.log(
+            `[flux-twilight] corrective retry done in ${Date.now() - t0}ms`,
+          );
+        }
       }
     } else {
       console.log(`[flux-twilight] QC verdict: clean (${engineUsed})`);

@@ -28,14 +28,9 @@
  */
 import Replicate from "replicate";
 import sharp from "sharp";
-import {
-  json,
-  setCors,
-  handleOptions,
-  rejectMethod,
-  parseBody,
-  MOONDREAM,
-} from "./utils.js";
+import { json, rejectMethod, parseBody, MOONDREAM } from "./utils.js";
+import { applyCors, requireSession } from "./_lib/auth-middleware.js";
+import { reserveQuota, refundQuota } from "./_lib/quota.js";
 
 // 300s: worst case is mask ladder (2 lang-sam) + fill + 2 verify retries
 // (each = fill + moondream) + 2 composite lang-sams. 180 was tight; repo
@@ -664,9 +659,12 @@ async function runPruna(
 }
 
 export default async function handler(req: any, res: any) {
-  setCors(res, "POST,OPTIONS");
-  if (handleOptions(req, res)) return;
+  if (applyCors(req, res, "POST,OPTIONS")) return;
   if (rejectMethod(req, res, "POST")) return;
+
+  // Gate: verified session required. Closes the anonymous-access hole.
+  const session = await requireSession(req, res);
+  if (!session) return;
 
   if (!REPLICATE_TOKEN) {
     json(res, 200, { ok: false, error: "REPLICATE_API_TOKEN not configured" });
@@ -691,6 +689,18 @@ export default async function handler(req: any, res: any) {
   }
   if (!prompt) {
     json(res, 400, { ok: false, error: "prompt is required" });
+    return;
+  }
+
+  // Reserve AFTER validation (a malformed request never consumes quota) and
+  // BEFORE the paid Replicate work. Refund on any generation failure below.
+  const quota = await reserveQuota(session.email, session.sub, 1);
+  if (!quota.allowed) {
+    json(res, 402, {
+      ok: false,
+      error: "generation quota reached",
+      code: quota.reason || "quota_exhausted",
+    });
     return;
   }
 
@@ -820,6 +830,7 @@ export default async function handler(req: any, res: any) {
     );
     let resultBuf = await generate();
     if (!resultBuf) {
+      await refundQuota(quota.refundHandle);
       json(res, 200, { ok: false, error: "staging engine returned no image" });
       return;
     }
@@ -968,6 +979,7 @@ export default async function handler(req: any, res: any) {
       mode: furnished ? "replace" : "add",
     });
   } catch (err: any) {
+    await refundQuota(quota.refundHandle);
     console.error("[flux-staging] unhandled:", err?.message || err);
     json(res, 200, { ok: false, error: err?.message || "unknown" });
   }

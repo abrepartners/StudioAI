@@ -990,7 +990,6 @@ const App: React.FC = () => {
         const sharpened = await sharpenImage(resultBase64, 0.4, 1, 'png');
         const result = await resizeToMatch(sharpened, sourceImage);
         setGeneratedImage(result);
-        setHasGenerated(true);
         setIsGenerating(false);
         stopGenerationTimer();
         generatingSessionsRef.current.delete(generatingSessionId);
@@ -3022,7 +3021,7 @@ Direction from user: ${prompt}`;
                     multiple
                     className="hidden"
                     onChange={(e) => {
-                      const files = Array.from(e.target.files || []);
+                      const files = Array.from<File>(e.target.files || []);
                       files.forEach(file => {
                         const reader = new FileReader();
                         reader.onloadend = () => handleImageUpload(reader.result as string);

@@ -81,8 +81,7 @@ interface RefillState {
   open: boolean;
   needed: number;
   onAfter:
-    | ((res: { ok: boolean; charged: number; refilled?: number }) => void)
-    | null;
+    ((res: { ok: boolean; charged: number; refilled?: number }) => void) | null;
 }
 
 const VellumApp: React.FC = () => {
@@ -100,17 +99,18 @@ const VellumApp: React.FC = () => {
     if (user) {
       setGoogleUser(user);
       localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
-      fetch("/api/track-login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          googleId: user.sub,
-          email: user.email,
-          name: user.name,
-          picture: user.picture,
-        }),
-      }).catch(() => {});
     }
+    // Exchange the raw Google credential for a StudioAI session cookie: the
+    // server verifies the Google token ONCE against Google's JWKS and mints a
+    // 7-day HttpOnly session. Same-origin, so the Set-Cookie lands
+    // automatically and every /api/* generation call is authenticated without
+    // the Google token's 1-hour expiry ever touching the API. (This endpoint
+    // also folds in the user upsert that /api/track-login used to do.)
+    fetch("/api/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ credential: response.credential }),
+    }).catch(() => {});
     setAuthLoading(false);
   }, []);
 
@@ -197,7 +197,9 @@ const VellumApp: React.FC = () => {
   });
   const [newListingOpen, setNewListingOpen] = useState(false);
   const [whatsNewOpen, setWhatsNewOpen] = useState(false);
-  const [whatsNewUnread, setWhatsNewUnread] = useState(() => hasUnreadWhatsNew());
+  const [whatsNewUnread, setWhatsNewUnread] = useState(() =>
+    hasUnreadWhatsNew(),
+  );
   const [activeProjectId, setActiveProjectId] = useState<string | null>(() => {
     // Rehydrate active project from hash; fall back to scratch (null) if the
     // project no longer exists in the store.
@@ -404,6 +406,7 @@ const VellumApp: React.FC = () => {
             recordGeneration={subscription.recordGeneration}
             activeProject={activeProject}
             updateProject={store.updateProject}
+            onSessionExpired={handleSignOut}
           />
         );
       case "video":

@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "test:unit": "vitest run",
     "test:visual": "PW_SUITE=visual playwright test",
     "test:visual:update": "PW_SUITE=visual playwright test --update-snapshots",
     "audit:mobile": "node tests/qa-harness/mobile-audit.mjs"
@@ -21,6 +22,7 @@
     "@vercel/og": "^0.11.1",
     "file-saver": "^2.0.5",
     "idb": "^8.0.3",
+    "jose": "^6.2.3",
     "jszip": "^3.10.1",
     "lucide-react": "^0.556.0",
     "mp4-muxer": "^5.2.2",
@@ -40,6 +42,7 @@
     "postcss": "^8.5.10",
     "tailwindcss": "^3.4.19",
     "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "vite": "^6.2.0",
+    "vitest": "^4.1.9"
   }
 }

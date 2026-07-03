@@ -42,7 +42,9 @@ export default defineConfig({
     baseURL: BASE_URL,
     actionTimeout: 15_000,
     // Reduce nondeterminism between runs (motion + caret).
-    reducedMotion: 'reduce',
+    // reducedMotion is a browser-context option, not a top-level `use` field in
+    // Playwright's TestOptions, so it must be nested under contextOptions.
+    contextOptions: { reducedMotion: 'reduce' },
   },
   projects: IS_VISUAL
     ? [

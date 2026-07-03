@@ -33,10 +33,7 @@ import {
 import { nanoSky, SkyStyle } from "../../services/skyService";
 import { upscaleImage } from "../../services/upscaleService";
 import { isExteriorRoom } from "../../services/fluxService";
-import {
-  fluxStaging,
-  getEngineOverride,
-} from "../../services/stagingService";
+import { fluxStaging, getEngineOverride } from "../../services/stagingService";
 import { classifyRoom } from "../../services/classifyRoomService";
 import { reveEdit } from "../../services/reveEditService";
 import { fluxRenovation } from "../../services/renovationService";
@@ -258,7 +255,10 @@ const TOOL_COST: Record<string, number> = {
  *  Every cost surface (Apply label, batch totals, billing, activity) goes
  *  through this so the price can never disagree with itself. */
 const REPLACE_STAGING_COST = 3;
-const toolCostFor = (tool: string, photo?: { empty?: boolean } | null): number =>
+const toolCostFor = (
+  tool: string,
+  photo?: { empty?: boolean } | null,
+): number =>
   tool === "staging" && photo?.empty === false
     ? REPLACE_STAGING_COST
     : TOOL_COST[tool];
@@ -321,6 +321,9 @@ interface PhotoEditorProps {
     baths: number | null;
   } | null;
   updateProject?: (id: string, partial: Record<string, any>) => void;
+  /** Called when a generation returns 401 (session cookie expired). Bounces
+   *  the user back to sign-in so they can re-establish a session. */
+  onSessionExpired?: () => void;
 }
 
 const readFileAsDataUrl = (file: File): Promise<string> =>
@@ -619,6 +622,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
   recordGeneration,
   activeProject,
   updateProject,
+  onSessionExpired,
 }) => {
   const { pendingUploadOpen, setPendingUploadOpen } = useVellumStore();
   const [photos, setPhotos] = useState<UploadedPhoto[]>([]);
@@ -743,7 +747,12 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
               x.id === p.id
                 ? // A malformed classify response must never nuke the label —
                   // an undefined label crashes the staging prompt builder.
-                  { ...x, label: c.room || x.label, empty: c.empty, detecting: false }
+                  {
+                    ...x,
+                    label: c.room || x.label,
+                    empty: c.empty,
+                    detecting: false,
+                  }
                 : x,
             ),
           );
@@ -1117,13 +1126,43 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
         return false;
       }
       console.error("[Vellum] Generation failed:", err);
+      const msg = String(err?.message || "");
+
+      // Server-side auth/quota states that E1 (session auth) introduced. Without
+      // these branches a 401/402 lands in the generic "Couldn't apply" banner,
+      // which reads as a broken tool instead of "sign in again" / "you're out
+      // of edits" — the exact regression the design review flagged.
+      if (/HTTP 401\b/.test(msg)) {
+        setExportError(
+          "Your session expired — please sign in again to keep editing.",
+        );
+        setTimeout(() => setExportError(""), 8000);
+        onSessionExpired?.();
+        return false;
+      }
+      if (/HTTP 402\b/.test(msg)) {
+        setExportError(
+          "You're out of free edits. Upgrade to keep refining this listing.",
+        );
+        setTimeout(() => setExportError(""), 8000);
+        setPage("billing");
+        setActivity((a) => [
+          {
+            who: "Vellum",
+            what: `Quota reached on ${photo.label}`,
+            cost: 0,
+            when: "just now",
+          },
+          ...a,
+        ]);
+        return false;
+      }
+
       // Surface the failure — previously this was swallowed to console + a
       // faint activity line, so a failed generation looked identical to
       // "nothing happened" (e.g. the 2026-06-08 reve/edit IP block). Show a
       // visible banner with a short reason so provider breakage is obvious.
-      const detail = String(err?.message || "")
-        .replace(/\s+/g, " ")
-        .slice(0, 90);
+      const detail = msg.replace(/\s+/g, " ").slice(0, 90);
       setExportError(
         `Couldn't apply to ${photo.label}${detail ? ` — ${detail}` : " — please try again"}`,
       );
@@ -1391,12 +1430,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
 
   // Export & Create — which output generator overlay is mounted (if any).
   type OverlayKind =
-    | "reveal"
-    | "mls"
-    | "social"
-    | "description"
-    | "print"
-    | "listingkit";
+    "reveal" | "mls" | "social" | "description" | "print" | "listingkit";
   const [activeOverlay, setActiveOverlay] = useState<OverlayKind | null>(null);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
 

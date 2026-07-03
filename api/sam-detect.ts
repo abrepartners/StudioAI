@@ -20,13 +20,8 @@
  *
  * Pricing reference: ~$0.0066 per prediction as of 2026-04-21.
  */
-import {
-  json,
-  setCors,
-  handleOptions,
-  rejectMethod,
-  parseBody,
-} from "./utils.js";
+import { json, rejectMethod, parseBody } from "./utils.js";
+import { applyCors, requireSession } from "./_lib/auth-middleware.js";
 
 // SAM segmentation is the heaviest op (cold start + full-image segment); give it
 // the most headroom of any tool so it never 504s mid-detect (was 60 → timed out).
@@ -37,9 +32,12 @@ const SAM_VERSION =
   "cbd95fb76192174268b6b303aeeb7a736e8dab0cbc38177f09db79b2299da30b";
 
 export default async function handler(req: any, res: any) {
-  setCors(res, "POST,OPTIONS");
-  if (handleOptions(req, res)) return;
+  if (applyCors(req, res, "POST,OPTIONS")) return;
   if (rejectMethod(req, res, "POST")) return;
+
+  // Gate: verified session required. Closes the anonymous-access hole.
+  const session = await requireSession(req, res);
+  if (!session) return;
 
   if (!REPLICATE_TOKEN) {
     json(res, 200, {

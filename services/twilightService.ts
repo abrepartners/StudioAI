@@ -17,6 +17,10 @@ export type TwilightTime = "early-evening" | "sunset" | "twilight";
 export interface TwilightResult {
   resultBase64: string;
   latencyMs: number;
+  /** Engine the server actually ran — nano-banana-pro, or flux-2-pro on
+   *  the default path AND on a nano refusal/capacity fallback. Surfaced so
+   *  telemetry and the A/B never mislabel a Flux fallback as a nano sample. */
+  engine?: string;
 }
 
 export interface TwilightOptions {
@@ -32,6 +36,13 @@ export async function fluxTwilight(
   options: TwilightOptions = {},
 ): Promise<TwilightResult> {
   const shrunk = await resizeForUpload(imageBase64, FLUX_UPLOAD_MAX_EDGE);
+  // twilight runs nano-banana-pro by default (flux-2-pro stays as the
+  // server-side fallback). The only override worth forwarding is the QA
+  // escape: ?engine=flux forces the legacy flux path for side-by-side
+  // checks. nano is the default, so no other value needs sending.
+  const forceFlux =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("engine") === "flux";
   const res = await fetch("/api/flux-twilight", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -40,6 +51,7 @@ export async function fluxTwilight(
       style,
       timeOfDay,
       skipUpscale: Boolean(options.skipUpscale),
+      ...(forceFlux ? { engine: "flux" } : {}),
     }),
     signal: abortSignal,
   });
@@ -52,5 +64,6 @@ export async function fluxTwilight(
   return {
     resultBase64: data.resultBase64,
     latencyMs: data.latencyMs,
+    engine: data.engine,
   };
 }

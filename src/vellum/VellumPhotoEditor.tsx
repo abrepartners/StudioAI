@@ -521,7 +521,7 @@ DO NOT:
         signal,
         { skipUpscale: true },
       );
-      return { resultBase64: result.resultBase64 };
+      return { resultBase64: result.resultBase64, engine: result.engine };
     }
     case "sky": {
       const mapped = presetMap.sky[preset] || "blue";

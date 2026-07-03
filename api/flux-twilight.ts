@@ -145,6 +145,32 @@ PHOTOGRAPHY DNA — MATCH THE INPUT:
 Output the same photograph relit to the target atmosphere. Treat the input as immutable geometry and change only the light energy in the scene.`;
 }
 
+// SHORT prompts for the nano-banana-pro A/B path. Edit models (Gemini family)
+// follow concise, positive, "keep-first / change-second" instructions far
+// better than the 400-word rule wall above — see the twilight research notes.
+const SKY_SHORT: Record<TwilightColorStyle, string> = {
+  pink: "soft peach-pink and rose near the horizon fading to cool blue overhead",
+  golden: "warm amber-gold at the horizon fading to deep blue overhead",
+  purple: "magenta-pink horizon band fading to deep blue-violet overhead",
+  natural:
+    "natural true-to-life dusk gradient, warm at the horizon to cool blue overhead, gentle and not over-saturated",
+};
+const TIME_SHORT: Record<TwilightTime, string> = {
+  "early-evening":
+    "the last minutes of sunlight — the scene stays bright and clearly lit",
+  sunset:
+    "sun just below the horizon — the house and yard stay clearly lit and detailed, never a dark silhouette",
+  twilight:
+    "deep blue hour — lower ambient light but the facade, siding texture and landscaping stay readable, never a black silhouette",
+};
+
+function buildTwilightPromptShort(
+  style: TwilightColorStyle,
+  time: TwilightTime,
+): string {
+  return `Using the provided photo, relight this house exterior to a warm twilight scene. Sky: a smooth blue-hour gradient — ${SKY_SHORT[style]} — natural, no hard bands or pasted-in look. Lighting: ${TIME_SHORT[time]}. Light the windows with a warm 2700K interior glow, and turn on ONLY the light fixtures already visible in the original photo. Do NOT add or invent any new lights, landscape uplighting, path lights, or fixtures that are not already present — if there is no fixture there, leave it dark. Keep the sky cooler than the warm window glow, and keep the house, windows, doors, roof, siding, landscaping, driveway and camera angle exactly the same — change only the sky and the lighting.`;
+}
+
 async function extractUrl(output: unknown): Promise<string | null> {
   if (!output) return null;
   if (typeof output === "string") return output;
@@ -196,7 +222,10 @@ async function hasFakeLights(
       .trim()
       .toLowerCase();
     return ans.startsWith("yes");
-  } catch {
+  } catch (qcErr: any) {
+    console.warn(
+      `[flux-twilight] QC gate errored (${qcErr?.message}) — failing open`,
+    );
     return false; // QC unavailable → don't block delivery
   }
 }
@@ -216,6 +245,10 @@ export default async function handler(req: any, res: any) {
   const rawStyle = String(body.style || "");
   const rawTime = String(body.timeOfDay || "");
   const skipUpscale = Boolean(body.skipUpscale);
+  // nano-banana-pro is the primary twilight engine; flux-2-pro is the
+  // fallback only (nano refusal / capacity). ?engine=flux forces the old
+  // path for side-by-side checks.
+  const forceFlux = String(body.engine || "") === "flux";
 
   if (!imageBase64) {
     json(res, 400, { ok: false, error: "imageBase64 is required" });
@@ -300,34 +333,87 @@ export default async function handler(req: any, res: any) {
       });
       return extractUrl(fluxOutput);
     };
+    const runNano = async (promptText: string): Promise<string | null> => {
+      const nanoOutput = await replicate.run("google/nano-banana-pro", {
+        input: {
+          prompt: promptText,
+          image_input: [userDataUrl],
+          resolution: "2K",
+          aspect_ratio: "match_input_image",
+          output_format: "jpg",
+          allow_fallback_model: false,
+        },
+      });
+      return extractUrl(nanoOutput);
+    };
 
-    console.log(
-      `[flux-twilight] Starting Flux 2 Pro v6 2-axis (${style}/${time}, ${dims.w}x${dims.h} → ${bestRatio.label})`,
-    );
-    let cleanUrl = await runFlux(basePrompt);
+    let cleanUrl: string | null = null;
+    let engineUsed = "flux-2-pro";
+
+    // PRIMARY: google/nano-banana-pro with the short, edit-model-friendly
+    // prompt. Same call shape as staging/sky. On refusal or any failure we
+    // fall through to the flux-2-pro fallback below, so a nano hiccup never
+    // means a failed generation. ?engine=flux skips nano for comparison.
+    if (!forceFlux) {
+      try {
+        console.log(
+          `[flux-twilight] Starting nano-banana-pro (${style}/${time})`,
+        );
+        const nanoUrl = await runNano(buildTwilightPromptShort(style, time));
+        if (nanoUrl) {
+          cleanUrl = nanoUrl;
+          engineUsed = "nano-banana-pro";
+          console.log(
+            `[flux-twilight] nano-banana-pro done in ${Date.now() - t0}ms`,
+          );
+        } else {
+          console.warn(
+            "[flux-twilight] nano-banana-pro returned no URL — falling back to flux",
+          );
+        }
+      } catch (nanoErr: any) {
+        console.warn(
+          `[flux-twilight] nano-banana-pro failed (${nanoErr?.message}) — falling back to flux`,
+        );
+      }
+    }
+
     if (!cleanUrl) {
-      json(res, 200, { ok: false, error: "Flux returned no image URL" });
+      console.log(
+        `[flux-twilight] Starting Flux 2 Pro v6 2-axis (${style}/${time}, ${dims.w}x${dims.h} → ${bestRatio.label})`,
+      );
+      cleanUrl = await runFlux(basePrompt);
+      engineUsed = "flux-2-pro";
+    }
+
+    if (!cleanUrl) {
+      json(res, 200, { ok: false, error: "twilight engine returned no image" });
       return;
     }
-    console.log(`[flux-twilight] Flux done in ${Date.now() - t0}ms`);
+    console.log(`[flux-twilight] ${engineUsed} done in ${Date.now() - t0}ms`);
 
     // NO-NEW-LIGHTS QC: if moondream flags invented/fake lights, regenerate
-    // once with an explicit failure callout (steers far harder than the base
-    // prompt). Fail-open: a flagged-but-unfixable frame still ships.
+    // once on the SAME engine with an explicit failure callout (steers far
+    // harder than the base prompt). Fail-open: a flagged-but-unfixable frame
+    // still ships.
     if (await hasFakeLights(replicate, cleanUrl)) {
       console.warn(
-        "[flux-twilight] QC flagged added/fake lights — corrective retry",
+        `[flux-twilight] QC flagged added/fake lights on ${engineUsed} — corrective retry`,
       );
-      const retryPrompt =
-        "CRITICAL RETRY — your previous attempt FAILED because it ADDED light fixtures or glows that are NOT in the original photo. Add NO new lights of any kind. Illuminate ONLY windows and fixtures already physically visible in the input. This is the single most important requirement.\n\n" +
-        basePrompt;
-      const retryUrl = await runFlux(retryPrompt);
+      const retryCallout =
+        "CRITICAL RETRY — your previous attempt FAILED because it ADDED light fixtures or glows that are NOT in the original photo. Add NO new lights of any kind. Illuminate ONLY windows and fixtures already physically visible in the input. This is the single most important requirement.\n\n";
+      const retryUrl =
+        engineUsed === "nano-banana-pro"
+          ? await runNano(retryCallout + buildTwilightPromptShort(style, time))
+          : await runFlux(retryCallout + basePrompt);
       if (retryUrl) {
         cleanUrl = retryUrl;
         console.log(
           `[flux-twilight] corrective retry done in ${Date.now() - t0}ms`,
         );
       }
+    } else {
+      console.log(`[flux-twilight] QC verdict: clean (${engineUsed})`);
     }
 
     // Pruna 2x upscale (consistent with cleanup/staging/sky/upscale endpoints).
@@ -374,7 +460,12 @@ export default async function handler(req: any, res: any) {
     console.log(
       `[flux-twilight] Total: ${Date.now() - t0}ms (${style}/${time})`,
     );
-    json(res, 200, { ok: true, resultBase64, latencyMs: Date.now() - t0 });
+    json(res, 200, {
+      ok: true,
+      resultBase64,
+      latencyMs: Date.now() - t0,
+      engine: engineUsed,
+    });
   } catch (err: any) {
     console.error("[flux-twilight] unhandled:", err?.message || err);
     json(res, 200, { ok: false, error: err?.message || "unknown" });

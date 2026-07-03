@@ -101,13 +101,13 @@ export const API_TOOLS: ApiTool[] = [
     id: "day-to-dusk",
     name: "Day to Dusk",
     description:
-      "Transforms daytime exterior photos into professional twilight shots using Flux 2 Pro multi-reference style transfer.",
+      "Transforms daytime exterior photos into professional twilight shots. Primary engine nano-banana-pro with flux-2-pro fallback, moondream no-new-lights QC gate, and Pruna upscale.",
     provider: "replicate",
-    model: "black-forest-labs/flux-2-pro",
-    replicateUrl: "https://replicate.com/black-forest-labs/flux-2-pro",
+    model: "google/nano-banana-pro",
+    replicateUrl: "https://replicate.com/google/nano-banana-pro",
     endpoint: "/api/flux-twilight",
     runtime: "nodejs",
-    maxDuration: 120,
+    maxDuration: 180,
     params: [
       {
         key: "input_images",

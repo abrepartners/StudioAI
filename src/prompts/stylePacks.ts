@@ -111,6 +111,8 @@ HARD PRESERVATION RULES:
 
 WALL & AGAINST-WALL PIECES (consoles, media units, credenzas, sideboards, artwork, mirrors): place only on a genuinely BLANK wall. If the focal wall already has a fireplace, feature finish, built-in, or window, leave it unobstructed — move those pieces to an open wall or omit them. Free-standing floor furniture MAY sit in front of a feature wall as long as the wall behind stays fully visible and unchanged.
 
+ORIENTATION & FACING: face every primary piece toward the room's natural focal point — the fireplace, the TV/media wall, the largest window or view, or the seating group it anchors. A sofa or sectional faces INTO the room toward that focal point; never place it facing a blank wall or with its back to the room's main entrance or to the camera. A bed's headboard sits against the longest unbroken wall with the foot of the bed opening toward the room. Accent chairs angle toward the sofa to form a conversation grouping. Seats must be usable as photographed — a primary piece facing away from the room or jammed against the wrong wall is a FAILED result.
+
 PHOTOGRAPHY DNA: staged furniture must match the input photo's noise, grain, and compression; its shadows must match the scene's existing light direction and softness; its color temperature must match the room's ambient lighting exactly.
 
 COMPLETENESS — NON-NEGOTIABLE: you MUST add every piece listed under FURNITURE TO ADD, starting with the FIRST (primary) item — a staged room without its primary furniture (bed in a bedroom, sofa in a living room, table in a dining room) is a FAILED result. Do not under-stage.`;

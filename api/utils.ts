@@ -54,3 +54,9 @@ export const parseBody = (rawBody: unknown): any => {
   if (typeof rawBody === 'object') return rawBody;
   return {};
 };
+
+// Community model — predictions require the pinned version hash. Single
+// source of truth for the moondream VQA used by classify-room and the
+// staging/twilight QC gates; bump the version here and every gate follows.
+export const MOONDREAM =
+  'lucataco/moondream2:72ccb656353c348c1385df54b237eeb7bfa874bf11486cf0b9473e691b662d31';

@@ -10,7 +10,7 @@ import {
   FREE_TIER_POLICY,
   MONETIZATION_POLICY_VERSION,
   hasUnlimitedGeneration,
-} from "../shared/monetization";
+} from "../shared/monetization.js";
 
 export const config = { runtime: "nodejs" };
 

@@ -34,6 +34,7 @@ import {
   handleOptions,
   rejectMethod,
   parseBody,
+  MOONDREAM,
 } from "./utils.js";
 
 // 300s: worst case is mask ladder (2 lang-sam) + fill + 2 verify retries
@@ -438,8 +439,6 @@ async function floorRestoreComposite(
 // room with no sofa. A staged room missing its primary piece is a failed
 // result, so after generation we ask moondream (sub-second VQA, same model as
 // classify-room) whether the primary item is present; if not, regenerate once.
-const MOONDREAM =
-  "lucataco/moondream2:72ccb656353c348c1385df54b237eeb7bfa874bf11486cf0b9473e691b662d31";
 
 /** Room type → the primary furniture that MUST be present after staging. */
 function primaryFurnitureFor(prompt: string): string | null {
@@ -824,7 +823,9 @@ export default async function handler(req: any, res: any) {
       json(res, 200, { ok: false, error: "staging engine returned no image" });
       return;
     }
-    console.log(`[flux-staging] ${engine} generation done in ${Date.now() - t0}ms`);
+    console.log(
+      `[flux-staging] ${engine} generation done in ${Date.now() - t0}ms`,
+    );
 
     // Verify-and-retry gate: Seedream under-stages (no bed in a bedroom) when
     // the room's purpose isn't visually obvious — measured at ~50% per try on
@@ -869,66 +870,71 @@ export default async function handler(req: any, res: any) {
     // nano-banana intentionally ships RAW (no composite): the A/B question is
     // whether its native preservation makes the composite stage unnecessary.
     if (engine !== "nano-banana") {
-    try {
-      const tComp = Date.now();
-      const stagedDataUrl = `data:image/jpeg;base64,${resultBuf.toString("base64")}`;
-      const maskOut = await replicate.run(
-        LANG_SAM as `${string}/${string}:${string}`,
-        {
-          input: { image: stagedDataUrl, text_prompt: FURNITURE_MASK_PROMPT },
-        },
-      );
-      const maskUrl = await extractUrl(maskOut);
-      if (!maskUrl) throw new Error("lang-sam returned no mask URL");
-      const maskRes = await fetch(maskUrl);
-      if (!maskRes.ok) throw new Error(`mask fetch ${maskRes.status}`);
-      const maskBuf = Buffer.from(await maskRes.arrayBuffer());
+      try {
+        const tComp = Date.now();
+        const stagedDataUrl = `data:image/jpeg;base64,${resultBuf.toString("base64")}`;
+        const maskOut = await replicate.run(
+          LANG_SAM as `${string}/${string}:${string}`,
+          {
+            input: { image: stagedDataUrl, text_prompt: FURNITURE_MASK_PROMPT },
+          },
+        );
+        const maskUrl = await extractUrl(maskOut);
+        if (!maskUrl) throw new Error("lang-sam returned no mask URL");
+        const maskRes = await fetch(maskUrl);
+        if (!maskRes.ok) throw new Error(`mask fetch ${maskRes.status}`);
+        const maskBuf = Buffer.from(await maskRes.arrayBuffer());
 
-      if (engine === "flux-fill" && floorRawMask) {
-        // window/door hard-protect (kills hallucinated architecture that the
-        // furniture mask would otherwise keep via "mirror"/"wall art")
-        let protectBuf: Buffer | null = null;
-        try {
-          const pOut = await replicate.run(
-            LANG_SAM as `${string}/${string}:${string}`,
-            {
-              input: {
-                image: `data:image/jpeg;base64,${originalBuf.toString("base64")}`,
-                text_prompt: "window, door, doorway, glass door, french doors, ceiling, ceiling fan, light fixture, chandelier",
+        if (engine === "flux-fill" && floorRawMask) {
+          // window/door hard-protect (kills hallucinated architecture that the
+          // furniture mask would otherwise keep via "mirror"/"wall art")
+          let protectBuf: Buffer | null = null;
+          try {
+            const pOut = await replicate.run(
+              LANG_SAM as `${string}/${string}:${string}`,
+              {
+                input: {
+                  image: `data:image/jpeg;base64,${originalBuf.toString("base64")}`,
+                  text_prompt:
+                    "window, door, doorway, glass door, french doors, ceiling, ceiling fan, light fixture, chandelier",
+                },
               },
-            },
-          );
-          const pUrl = await extractUrl(pOut);
-          if (pUrl) {
-            const pRes = await fetch(pUrl);
-            if (pRes.ok) protectBuf = Buffer.from(await pRes.arrayBuffer());
+            );
+            const pUrl = await extractUrl(pOut);
+            if (pUrl) {
+              const pRes = await fetch(pUrl);
+              if (pRes.ok) protectBuf = Buffer.from(await pRes.arrayBuffer());
+            }
+          } catch {
+            /* protect mask optional */
           }
-        } catch {
-          /* protect mask optional */
+          resultBuf = await floorRestoreComposite(
+            originalBuf,
+            resultBuf,
+            floorRawMask,
+            maskBuf,
+            protectBuf,
+            oW,
+            oH,
+          );
+          console.log(
+            `[flux-staging] floor-restore composite done in ${Date.now() - tComp}ms`,
+          );
+        } else {
+          resultBuf = await furnitureLockComposite(
+            originalBuf,
+            resultBuf,
+            maskBuf,
+          );
+          console.log(
+            `[flux-staging] furniture-lock composite done in ${Date.now() - tComp}ms`,
+          );
         }
-        resultBuf = await floorRestoreComposite(
-          originalBuf,
-          resultBuf,
-          floorRawMask,
-          maskBuf,
-          protectBuf,
-          oW,
-          oH,
-        );
-        console.log(
-          `[flux-staging] floor-restore composite done in ${Date.now() - tComp}ms`,
-        );
-      } else {
-        resultBuf = await furnitureLockComposite(originalBuf, resultBuf, maskBuf);
-        console.log(
-          `[flux-staging] furniture-lock composite done in ${Date.now() - tComp}ms`,
+      } catch (compErr: any) {
+        console.warn(
+          `[flux-staging] composite failed (${compErr?.message}) — returning raw staged frame`,
         );
       }
-    } catch (compErr: any) {
-      console.warn(
-        `[flux-staging] composite failed (${compErr?.message}) — returning raw staged frame`,
-      );
-    }
     }
 
     // Upscale via Pruna — on the COMPOSITED frame so the export inherits the
@@ -951,7 +957,9 @@ export default async function handler(req: any, res: any) {
     }
 
     const resultBase64 = `data:image/jpeg;base64,${resultBuf.toString("base64")}`;
-    console.log(`[flux-staging] Total: ${Date.now() - t0}ms (engine: ${engine})`);
+    console.log(
+      `[flux-staging] Total: ${Date.now() - t0}ms (engine: ${engine})`,
+    );
     json(res, 200, {
       ok: true,
       resultBase64,

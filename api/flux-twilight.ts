@@ -26,7 +26,9 @@ import {
   parseBody,
 } from "./utils.js";
 
-export const config = { runtime: "nodejs", maxDuration: 120 };
+// 180s: the no-new-lights QC gate can trigger a second flux-2-pro pass before
+// the upscale, so the worst case is flux + moondream + flux + Pruna.
+export const config = { runtime: "nodejs", maxDuration: 180 };
 
 const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN || "";
 
@@ -72,7 +74,7 @@ const TIME_EXPOSURE: Record<
     brightness:
       'Still BRIGHT — the last 15 minutes of sunlight. Sky is colorful but the scene is well-lit with lingering daylight. Siding, landscaping, and architecture warmly illuminated by ambient light from the horizon. This is the "golden hour" moment real estate photographers chase.',
     windowGlow:
-      "Subtle warm 2700K glow just starting to appear in windows — visible but not dominant. Exterior light still competes with interior.",
+      "Subtle warm 2700K glow just starting to appear in the windows that already exist in the photo — visible but not dominant. Exterior light still competes with interior. Do not add any lamp, fixture, or glow that is not already physically present in the input.",
     guardrail:
       'MEDIUM-HIGH exposure, 3+ f-stops brighter than a moody night edit. Scene should read as "late afternoon transitioning to evening," NOT dusk.',
   },
@@ -80,7 +82,7 @@ const TIME_EXPOSURE: Record<
     brightness:
       "CIVIL TWILIGHT — sun just below the horizon, sky still warm and bright with rich color. Architectural details all clearly visible. Gentle lingering daylight still illuminating siding, trim, and landscaping. Think Architectural Digest twilight cover shot.",
     windowGlow:
-      "Warm amber 2700K light glowing from every visible window. Existing porch lights and path lights ON with soft warm halos. Interior glow noticeably brighter than ambient.",
+      "Warm amber 2700K light glowing from the windows that already exist. ONLY porch lights, path lights, and fixtures that are already physically visible in the input photo turn on, with soft warm halos — do NOT add or invent any fixture that is not already there. Interior glow noticeably brighter than ambient.",
     guardrail:
       "MEDIUM-HIGH exposure, 2-3 f-stops brighter than a moody night edit. All exterior details must remain clearly visible WITHOUT squinting.",
   },
@@ -88,7 +90,7 @@ const TIME_EXPOSURE: Record<
     brightness:
       "Late civil twilight / early blue hour — sky is deeper and more dramatic but the house is NOT a silhouette. Ambient light is lower but architectural details remain readable. Cool ambient light with strong warm interior contrast.",
     windowGlow:
-      "Bright warm interior glow from every window spilling warm light onto nearby walls, porches, and ground. Architectural sconces, recessed soffit lights, path lights, and landscape uplighting all ON. Window glow is the dominant light source.",
+      "Bright warm interior glow from the windows that already exist, spilling warm light onto nearby walls, porches, and ground. Any architectural sconces, soffit lights, path lights, or landscape fixtures THAT ARE ALREADY PHYSICALLY PRESENT in the input photo turn on warmly — if a fixture is not visible in the original photo it stays off and is NOT added. Window glow is the dominant light source. Never invent new lamps, sconces, uplights, or floating glows.",
     guardrail:
       "MEDIUM exposure — darker than sunset but all siding texture, landscaping, and architectural features still clearly visible. NOT night. NOT silhouette. 1-2 f-stops brighter than a moody night edit.",
   },
@@ -132,7 +134,8 @@ STRICT RULES:
 - Do NOT upgrade, repaint, re-side, or re-roof the house.
 - Do NOT regenerate grass, trees, or landscaping.
 - Do NOT add new windows, doors, lights, cars, furniture, or decor.
-- Only change: sky (to the target atmosphere), exterior ambient light level, interior window glow, and reflections that follow naturally from the new lighting.
+- NEW LIGHT SOURCES ARE THE #1 FAILURE MODE: do NOT add, invent, or switch on any light fixture, lamp, sconce, porch light, path light, landscape uplight, or window glow that is not already physically visible in the input photo. Illuminate ONLY light sources that already exist. A glow with no visible fixture behind it, or a lit fixture that is not in the original photo, is a FAILED result.
+- Only change: sky (to the target atmosphere), exterior ambient light level, interior glow of EXISTING windows and EXISTING fixtures, and reflections that follow naturally from the new lighting.
 
 PHOTOGRAPHY DNA — MATCH THE INPUT:
 - Preserve the input photo's noise/grain structure. Do not smooth or denoise.
@@ -159,6 +162,43 @@ async function extractUrl(output: unknown): Promise<string | null> {
     if (typeof o.url === "string") return o.url;
   }
   return null;
+}
+
+// ── NO-NEW-LIGHTS QC GATE ────────────────────────────────────────────────────
+// Day-to-dusk's #1 defect is the model inventing lit fixtures (path lights,
+// uplights, sconces, floating glows) that were never in the photo. The prompt
+// fix (illuminate only EXISTING fixtures) removes most of it; this gate catches
+// the rest. moondream is the same sub-second VQA already used by the staging
+// presence gate — here it inspects the relit frame for obviously fake/added
+// lights. Single-image check (no original needed): "fake glow with no fixture"
+// is judgeable from the output alone, and that is exactly the complaint.
+const MOONDREAM =
+  "lucataco/moondream2:72ccb656353c348c1385df54b237eeb7bfa874bf11486cf0b9473e691b662d31";
+
+/** True if moondream sees obviously fake / added lights in the relit frame.
+ *  Fails OPEN (returns false) so QC outages never block a delivery. */
+async function hasFakeLights(
+  replicate: Replicate,
+  imageUrl: string,
+): Promise<boolean> {
+  try {
+    const out = await replicate.run(
+      MOONDREAM as `${string}/${string}:${string}`,
+      {
+        input: {
+          image: imageUrl,
+          prompt:
+            "This is a twilight real estate photo. Are there any obviously fake or artificially added lights — a glow with no visible fixture behind it, floating orbs of light, or path lights / uplights / sconces that look painted on? Answer with exactly one word: yes or no.",
+        },
+      },
+    );
+    const ans = (Array.isArray(out) ? out.join("") : String(out))
+      .trim()
+      .toLowerCase();
+    return ans.startsWith("yes");
+  } catch {
+    return false; // QC unavailable → don't block delivery
+  }
 }
 
 export default async function handler(req: any, res: any) {
@@ -245,27 +285,50 @@ export default async function handler(req: any, res: any) {
       Math.abs(r.v - imgRatio) < Math.abs(best.v - imgRatio) ? r : best,
     );
 
+    const basePrompt = buildTwilightPrompt(style, time);
+    const runFlux = async (promptText: string): Promise<string | null> => {
+      const fluxOutput = await replicate.run("black-forest-labs/flux-2-pro", {
+        input: {
+          input_images: [userDataUrl],
+          prompt: promptText,
+          output_format: "jpg",
+          aspect_ratio: bestRatio.label,
+          // flux-2-pro defaults to 1 MP; 2 MP doubles output pixels for free
+          // (model supports up to 4 MP but BFL recommends ≤2 MP for quality).
+          resolution: "2 MP",
+        },
+      });
+      return extractUrl(fluxOutput);
+    };
+
     console.log(
       `[flux-twilight] Starting Flux 2 Pro v6 2-axis (${style}/${time}, ${dims.w}x${dims.h} → ${bestRatio.label})`,
     );
-    const fluxOutput = await replicate.run("black-forest-labs/flux-2-pro", {
-      input: {
-        input_images: [userDataUrl],
-        prompt: buildTwilightPrompt(style, time),
-        output_format: "jpg",
-        aspect_ratio: bestRatio.label,
-        // flux-2-pro defaults to 1 MP; 2 MP doubles output pixels for free
-        // (model supports up to 4 MP but BFL recommends ≤2 MP for quality).
-        resolution: "2 MP",
-      },
-    });
-
-    const cleanUrl = await extractUrl(fluxOutput);
+    let cleanUrl = await runFlux(basePrompt);
     if (!cleanUrl) {
       json(res, 200, { ok: false, error: "Flux returned no image URL" });
       return;
     }
     console.log(`[flux-twilight] Flux done in ${Date.now() - t0}ms`);
+
+    // NO-NEW-LIGHTS QC: if moondream flags invented/fake lights, regenerate
+    // once with an explicit failure callout (steers far harder than the base
+    // prompt). Fail-open: a flagged-but-unfixable frame still ships.
+    if (await hasFakeLights(replicate, cleanUrl)) {
+      console.warn(
+        "[flux-twilight] QC flagged added/fake lights — corrective retry",
+      );
+      const retryPrompt =
+        "CRITICAL RETRY — your previous attempt FAILED because it ADDED light fixtures or glows that are NOT in the original photo. Add NO new lights of any kind. Illuminate ONLY windows and fixtures already physically visible in the input. This is the single most important requirement.\n\n" +
+        basePrompt;
+      const retryUrl = await runFlux(retryPrompt);
+      if (retryUrl) {
+        cleanUrl = retryUrl;
+        console.log(
+          `[flux-twilight] corrective retry done in ${Date.now() - t0}ms`,
+        );
+      }
+    }
 
     // Pruna 2x upscale (consistent with cleanup/staging/sky/upscale endpoints).
     // Skipped during the editing phase — export upscales once at the end,

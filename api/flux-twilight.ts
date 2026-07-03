@@ -207,37 +207,39 @@ async function hasFakeLights(
   replicate: Replicate,
   imageUrl: string,
 ): Promise<boolean> {
+  // Deadline: replicate.run blocks until the prediction settles, so a stuck
+  // moondream (cold boot, queue delay) would burn the 180s budget AFTER the
+  // expensive generation already succeeded. 15s covers a cold boot; timeout
+  // fails open like any other QC outage. AbortController (not a bare
+  // Promise.race) so the abandoned prediction is cancelled instead of left
+  // polling and billing in the background.
+  const qcAbort = new AbortController();
+  const qcTimer = setTimeout(() => qcAbort.abort(), 15_000);
   try {
-    // Deadline: replicate.run blocks until the prediction settles, so a stuck
-    // moondream (cold boot, queue delay) would burn the 180s budget AFTER the
-    // expensive generation already succeeded. 15s covers a cold boot; timeout
-    // fails open like any other QC outage.
-    const TIMED_OUT = Symbol("qc-timeout");
-    const out = await Promise.race([
-      replicate.run(MOONDREAM as `${string}/${string}:${string}`, {
+    const out = await replicate.run(
+      MOONDREAM as `${string}/${string}:${string}`,
+      {
         input: {
           image: imageUrl,
           prompt:
             "This is a twilight real estate photo. Are there any obviously fake or artificially added lights — a glow with no visible fixture behind it, floating orbs of light, or path lights / uplights / sconces that look painted on? Answer with exactly one word: yes or no.",
         },
-      }),
-      new Promise<typeof TIMED_OUT>((resolve) =>
-        setTimeout(() => resolve(TIMED_OUT), 15_000),
-      ),
-    ]);
-    if (out === TIMED_OUT) {
-      console.warn("[flux-twilight] QC gate timed out (15s) — failing open");
-      return false;
-    }
+        signal: qcAbort.signal,
+      },
+    );
     const ans = (Array.isArray(out) ? out.join("") : String(out))
       .trim()
       .toLowerCase();
     return ans.startsWith("yes");
   } catch (qcErr: any) {
     console.warn(
-      `[flux-twilight] QC gate errored (${qcErr?.message}) — failing open`,
+      qcAbort.signal.aborted
+        ? "[flux-twilight] QC gate timed out (15s) — failing open"
+        : `[flux-twilight] QC gate errored (${qcErr?.message}) — failing open`,
     );
     return false; // QC unavailable → don't block delivery
+  } finally {
+    clearTimeout(qcTimer);
   }
 }
 
@@ -407,7 +409,10 @@ export default async function handler(req: any, res: any) {
     // once on the SAME engine with an explicit failure callout (steers far
     // harder than the base prompt). Fail-open: a flagged-but-unfixable frame
     // still ships.
+    let qcFlagged = false;
+    let qcRetried = false;
     if (await hasFakeLights(replicate, cleanUrl)) {
+      qcFlagged = true;
       // Budget gate: the corrective pass is a full second generation, and the
       // Pruna upscale + result fetch still follow. With most of the 180s spent,
       // shipping the flagged frame (fail-open) beats Vercel killing a finished
@@ -422,16 +427,27 @@ export default async function handler(req: any, res: any) {
         );
         const retryCallout =
           "CRITICAL RETRY — your previous attempt FAILED because it ADDED light fixtures or glows that are NOT in the original photo. Add NO new lights of any kind. Illuminate ONLY windows and fixtures already physically visible in the input. This is the single most important requirement.\n\n";
-        const retryUrl =
-          engineUsed === "nano-banana-pro"
-            ? await runNano(
-                retryCallout + buildTwilightPromptShort(style, time),
-              )
-            : await runFlux(retryCallout + basePrompt);
-        if (retryUrl) {
-          cleanUrl = retryUrl;
-          console.log(
-            `[flux-twilight] corrective retry done in ${Date.now() - t0}ms`,
+        // The retry engines throw on refusal / 429 / capacity — the same
+        // conditions the primary pass guards against. A throwing retry must
+        // not kill a delivery we already have in hand: fall back to the
+        // flagged frame (fail-open), never to the outer error path.
+        try {
+          const retryUrl =
+            engineUsed === "nano-banana-pro"
+              ? await runNano(
+                  retryCallout + buildTwilightPromptShort(style, time),
+                )
+              : await runFlux(retryCallout + basePrompt);
+          if (retryUrl) {
+            cleanUrl = retryUrl;
+            qcRetried = true;
+            console.log(
+              `[flux-twilight] corrective retry done in ${Date.now() - t0}ms`,
+            );
+          }
+        } catch (retryErr: any) {
+          console.warn(
+            `[flux-twilight] corrective retry failed (${retryErr?.message}) — shipping flagged frame`,
           );
         }
       }
@@ -488,6 +504,10 @@ export default async function handler(req: any, res: any) {
       resultBase64,
       latencyMs: Date.now() - t0,
       engine: engineUsed,
+      // QC observability: a flagged-then-shipped frame must be measurable
+      // (false-positive rate, retry efficacy) without grepping Vercel logs.
+      qcFlagged,
+      qcRetried,
     });
   } catch (err: any) {
     console.error("[flux-twilight] unhandled:", err?.message || err);

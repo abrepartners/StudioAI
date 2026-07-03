@@ -1,0 +1,42 @@
+name: CI
+
+# Gate every PR and push to protected branches on type safety, a clean build,
+# and unit tests. Keep this job fast and hermetic — no network beyond npm.
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Typecheck, Build & Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+
+      - name: Unit tests
+        run: npm run test:unit
+
+  # NOTE: Playwright e2e / visual tests are intentionally NOT run in this job.
+  # The visual suite boots the app and snapshots routes (needs a browser +
+  # committed baselines), and the deploy-smoke tests hit live preview/prod URLs.
+  # Both require `vercel dev` with project secrets that aren't wired into CI yet.
+  # A follow-up can add a separate `e2e` job that provisions the Vercel CLI +
+  # secrets and runs `vercel dev` before the Playwright suites.

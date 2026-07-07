@@ -36,6 +36,10 @@ import {
   parseBody,
   MOONDREAM,
 } from "./utils.js";
+import {
+  orientationRoomFor,
+  judgeOrientation,
+} from "./_lib/orientation-judge.js";
 
 // 300s: worst case is mask ladder (2 lang-sam) + fill + 2 verify retries
 // (each = fill + moondream) + 2 composite lang-sams. 180 was tight; repo
@@ -867,6 +871,45 @@ export default async function handler(req: any, res: any) {
         const retryPrompt =
           `RETRY — your previous attempt FAILED because it did not include ${primary}. ` +
           `Including ${primary.toUpperCase()} is MANDATORY and is the single most important requirement.\n\n` +
+          prompt;
+        const second = await generate(retryPrompt);
+        if (!second) break;
+        resultBuf = second;
+      }
+    }
+
+    // ORIENTATION gate: nano places the primary seating backwards (sofa's back
+    // to the fireplace) on its tail. The prompt already forbids it and the model
+    // ignores it; the small VQA models can't judge it. A frontier VLM (Gemini
+    // 2.5 Flash) can — one corrective regeneration when it flags BACKWARDS.
+    // Room-gated to seating rooms; fails open (needs GEMINI_API_KEY, else skips).
+    const orientRoom = orientationRoomFor(prompt);
+    if (orientRoom) {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const verdict = await judgeOrientation(
+          `data:image/jpeg;base64,${resultBuf.toString("base64")}`,
+        );
+        if (verdict !== "backwards") {
+          if (attempt > 0 && verdict === "ok")
+            console.log(
+              `[flux-staging] orientation retry ${attempt} PASSED (seating faces the room)`,
+            );
+          break;
+        }
+        if (attempt === 1) {
+          console.warn(
+            "[flux-staging] seating still backwards after 1 retry — shipping last frame",
+          );
+          break;
+        }
+        console.warn(
+          "[flux-staging] orientation flagged BACKWARDS — corrective retry",
+        );
+        const retryPrompt =
+          "RETRY — your previous attempt FAILED because the main sofa was placed BACKWARDS, " +
+          "with its back to the fireplace or a window and facing a blank wall. Orient the primary " +
+          "seating so its SEAT faces INTO the room toward the focal point (fireplace, TV wall, or " +
+          "the seating group). This facing is the single most important requirement.\n\n" +
           prompt;
         const second = await generate(retryPrompt);
         if (!second) break;

@@ -12,6 +12,7 @@ create or replace function public.reserve_generation(
 )
 returns jsonb
 language plpgsql
+set search_path = public, pg_temp
 as $$
 declare
   v_lifetime integer;
@@ -61,6 +62,7 @@ create or replace function public.refund_generation(
 )
 returns void
 language plpgsql
+set search_path = public, pg_temp
 as $$
 begin
   if p_method = 'lifetime' then

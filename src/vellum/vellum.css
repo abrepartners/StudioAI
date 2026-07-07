@@ -1290,6 +1290,52 @@ img.v-ba-img-dimmed {
   right: 14px;
 }
 
+/* Verified trust badge — sits under the "After" tag (top-left), so it reads as
+   a seal on the result it vouches for. Gold accent = quality mark, not error. */
+.v-ba-verified {
+  position: absolute;
+  top: 46px;
+  left: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  background: rgba(13, 13, 13, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(201, 169, 110, 0.5);
+  border-radius: 4px;
+  color: #e6d3ab;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  pointer-events: auto;
+  animation: v-ba-verified-in 0.4s ease both;
+}
+.v-ba-verified-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #c9a96e;
+  color: #0d0d0d;
+  font-size: 9px;
+  font-weight: 800;
+}
+@keyframes v-ba-verified-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* ============ REFINING INDICATORS ============ */
 .v-refining-bar {
   position: absolute;

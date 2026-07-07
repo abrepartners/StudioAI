@@ -12,9 +12,9 @@ const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
 
 // ─── Credit Packs (R16 reprice — align with $1/image competitor reality) ────
 const CREDIT_PACKS: Record<string, { name: string; credits: number; price: number }> = {
-  starter:  { name: 'StudioAI Starter Pack', credits: 10, price: 1500 }, // was $19
-  pro_pack: { name: 'StudioAI Pro Pack',     credits: 25, price: 2900 }, // was $39
-  agency:   { name: 'StudioAI Agency Pack',  credits: 75, price: 6900 }, // was 50@$69 → 75@$69
+  starter:  { name: 'Vellum Starter Pack', credits: 10, price: 1500 }, // was $19
+  pro_pack: { name: 'Vellum Pro Pack',     credits: 25, price: 2900 }, // was $39
+  agency:   { name: 'Vellum Agency Pack',  credits: 75, price: 6900 }, // was 50@$69 → 75@$69
 };
 
 // ─── Subscription plan catalog (R12/R13/R14/R15) ────────────────────────────
@@ -31,7 +31,7 @@ const PLAN_CATALOG: Record<PlanId, {
   metaKey: string; // stable metadata marker so we can find/reuse products
 }> = {
   starter: {
-    name: 'StudioAI Starter',
+    name: 'Vellum Starter',
     description: `${STARTER_MONTHLY_LIMIT} AI generations/month. Staging + Cleanup + MLS Export + Listing Copy.`,
     month: PLAN_PRICING_USD.starter.month * 100,
     year:  PLAN_PRICING_USD.starter.year * 12 * 100,
@@ -39,7 +39,7 @@ const PLAN_CATALOG: Record<PlanId, {
     metaKey: 'studioai_plan_starter',
   },
   pro: {
-    name: 'StudioAI Pro',
+    name: 'Vellum Pro',
     description: 'Unlimited AI staging, cleanup, and marketing tools for real estate agents',
     month: PLAN_PRICING_USD.pro.month * 100,
     year:  PLAN_PRICING_USD.pro.year * 12 * 100,
@@ -47,7 +47,7 @@ const PLAN_CATALOG: Record<PlanId, {
     metaKey: 'studioai_plan_pro',
   },
   team: {
-    name: 'StudioAI Team',
+    name: 'Vellum Team',
     description: 'Unlimited + 3 seats, shared Brand Kits, admin dashboard, priority support.',
     month: PLAN_PRICING_USD.team.month * 100,
     year:  PLAN_PRICING_USD.team.year * 12 * 100,

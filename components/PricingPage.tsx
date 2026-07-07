@@ -1,9 +1,9 @@
 /**
  * PricingPage — Phase 2 / R19
  *
- * XL visual: 4 tiers (Team · Pro · Starter · Free) with decoy ordering —
+ * XL visual: 3 tiers (Team · Pro · Free) with decoy ordering —
  * Team first (left) anchors high, Pro second flagged "Most Popular" as the
- * intended pick, Starter third as price-anchor, Free fourth.
+ * intended pick, Free third.
  *
  * Annual toggle default-on (20% off, "2 months free"). Per-photo framing
  * under each monthly price. Credit packs below the grid.
@@ -85,7 +85,7 @@ const CATALOG = {
     perPhoto: "Less than $0.05/photo at typical use",
     seats: 1,
     ctaMonth: "Start Pro",
-    ctaYear: "Start Pro — save $120/yr",
+    ctaYear: "Start Pro — save $144/yr",
     features: [
       "Unlimited generations",
       "All Pro AI Tools (day-to-dusk, sky, reno)",
@@ -101,13 +101,13 @@ const CATALOG = {
     tagline: "For media shops + small brokerages.",
     month: PLAN_PRICING_USD.team.month,
     year: PLAN_PRICING_USD.team.year,
-    perPhoto: "Shared across 3 seats",
-    seats: 3,
+    perPhoto: "Shared across 5 seats",
+    seats: 5,
     ctaMonth: "Start Team",
-    ctaYear: "Start Team — save $240/yr",
+    ctaYear: "Start Team — save $360/yr",
     features: [
       "Everything in Pro",
-      "3 team seats included",
+      "5 team seats included",
       "Shared Brand Kits",
       "Admin dashboard",
       "Priority support",
@@ -118,7 +118,7 @@ const CATALOG = {
 
 // Decoy ordering (left → right): Team anchors high, Pro is "most popular",
 // Starter is entry-level, Free closes the row.
-const ORDER: Array<keyof typeof CATALOG> = ["team", "pro", "starter", "free"];
+const ORDER: Array<keyof typeof CATALOG> = ["team", "pro", "free"];
 
 // ─── Styling helpers ────────────────────────────────────────────────────────
 // Dark editorial token set — matches .vl-root (VellumLanding):
@@ -261,7 +261,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
         </div>
 
         {/* Tier grid — decoy order: Team · Pro · Starter · Free */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-16 reveal">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-16 reveal">
           {ORDER.map((key) => {
             const plan = CATALOG[key];
             const styles = ACCENT_STYLES[plan.accent];
@@ -398,7 +398,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({
               Already a subscriber?
             </span>{" "}
             Early Bird users stay at $14/mo forever. Current Pro users keep
-            $29/mo for 12 months, then move to $49/mo with 30-day notice. No
+            $29/mo for 12 months, then move to $59/mo with 30-day notice. No
             surprise rate hikes — it's all in the account.
           </p>
         </div>

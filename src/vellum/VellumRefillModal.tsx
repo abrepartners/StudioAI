@@ -107,14 +107,7 @@ const VellumRefillModal: React.FC<RefillModalProps> = ({ open, needed, balance, 
               style={{ width: '100%' }}
               onClick={handleUpgrade}
             >
-              Upgrade to Pro — $49/mo unlimited
-            </button>
-            <button
-              className="v-btn v-btn--ghost"
-              style={{ width: '100%' }}
-              onClick={() => userId && subscription?.startCheckout(userId, { plan: 'starter', interval: 'month' })}
-            >
-              Start with Starter — $19/mo · 40 edits
+              Upgrade to Pro — $59/mo unlimited
             </button>
           </div>
         )}

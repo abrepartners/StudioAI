@@ -22,6 +22,21 @@ const SUPABASE_URL = process.env.SUPABASE_URL || "";
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || "";
 const FREE_LIFETIME_CAP = 5;
 
+// --- Unlimited-plan fair-use ceiling (COGS guardrail) ----------------------
+// Pro/Team are sold as "unlimited generation", but every delivered generation
+// costs real money on Replicate. "Unlimited generation" is NOT "unlimited
+// COGS": without a ceiling, one power user (or a compromised paid account) can
+// drain the Replicate account with zero visibility. These two numbers are a
+// BUSINESS CALL — Thomas should tune them against real Replicate spend + target
+// margin, not treat them as fixed engineering constants.
+//
+// Soft ceiling: above this we log a warning for visibility but STILL ALLOW.
+// Never degrade a legitimately paying customer at the soft tier.
+const UNLIMITED_FAIR_USE_MONTHLY = 1500;
+// Hard backstop: only trips on genuine runaway abuse. Block with a
+// support-contact message so a real customer can be un-throttled by a human.
+const UNLIMITED_ABUSE_CAP_MONTHLY = 6000;
+
 export interface QuotaResult {
   allowed: boolean;
   method: "unlimited" | "lifetime" | "credits" | "starter" | "denied";
@@ -72,6 +87,42 @@ async function callRpc(fn: string, payload: any): Promise<any> {
   return res.json();
 }
 
+/** UTC first-of-month timestamp as an ISO string (start of the calendar month). */
+function firstOfMonthISO(): string {
+  const now = new Date();
+  return new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0),
+  ).toISOString();
+}
+
+/**
+ * Count this user's delivered (source=app) generation_logs rows for the current
+ * calendar month. Uses a HEAD request with `Prefer: count=exact` so PostgREST
+ * returns the total in the `content-range` header (`*​/N`) WITHOUT transferring
+ * any rows — one indexed count, no row payload. Throws on a non-OK response so
+ * the caller can decide fail-open vs fail-closed.
+ */
+async function monthlyUsage(email: string): Promise<number> {
+  const url =
+    `${SUPABASE_URL}/rest/v1/generation_logs` +
+    `?user_email=eq.${encodeURIComponent(email.toLowerCase())}` +
+    `&created_at=gte.${encodeURIComponent(firstOfMonthISO())}` +
+    `&source=eq.app`;
+  const res = await fetch(url, {
+    method: "HEAD",
+    headers: {
+      apikey: SUPABASE_SERVICE_KEY,
+      Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+      Prefer: "count=exact",
+    },
+  });
+  if (!res.ok) throw new Error(`monthlyUsage ${res.status}`);
+  // content-range is `*​/N` (or `0-24/N`); the count is the segment after `/`.
+  const range = res.headers.get("content-range") || "";
+  const count = parseInt(range.split("/")[1] || "", 10);
+  return Number.isFinite(count) ? count : 0;
+}
+
 /**
  * Reserve `amount` generations for the caller. Call BEFORE the Replicate work.
  * - unlimited plans: allowed, no reserve.
@@ -88,7 +139,44 @@ export async function reserveQuota(
 ): Promise<QuotaResult> {
   const plan = normalizePlan(await resolvePlan(email));
   if (hasUnlimitedGeneration(plan)) {
-    return { allowed: true, method: "unlimited", refundHandle: null };
+    // "Unlimited generation" is metered by Stripe, not the free counter — but
+    // it is NOT unlimited COGS. Every delivery hits Replicate, so meter monthly
+    // usage and apply a two-tier fair-use ceiling. Fail OPEN on any metering
+    // gap: a paying customer must never be blocked by a metering outage.
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+      console.warn(
+        "[quota] Supabase not configured — allowing unlimited plan without fair-use metering",
+      );
+      return { allowed: true, method: "unlimited", refundHandle: null };
+    }
+    try {
+      const usage = await monthlyUsage(email);
+      if (usage >= UNLIMITED_ABUSE_CAP_MONTHLY) {
+        // Hard backstop — genuine runaway/abuse. Block; surface to support.
+        return {
+          allowed: false,
+          method: "denied",
+          reason: "fair_use_exceeded",
+          refundHandle: null,
+        };
+      }
+      if (usage >= UNLIMITED_FAIR_USE_MONTHLY) {
+        // Soft ceiling — log for visibility but STILL ALLOW. Never degrade a
+        // paying customer here.
+        console.warn(
+          `[quota] unlimited fair-use soft ceiling exceeded for ${email}: ${usage}/mo`,
+        );
+      }
+      return { allowed: true, method: "unlimited", refundHandle: null };
+    } catch (err: any) {
+      // Metering outage. FAIL-OPEN for unlimited: do not block a paying
+      // customer because the usage count query failed.
+      console.warn(
+        "[quota] unlimited fair-use metering failed — allowing (fail-open):",
+        err?.message,
+      );
+      return { allowed: true, method: "unlimited", refundHandle: null };
+    }
   }
   // Starter is Stripe-metered monthly; keep it on the existing accounting path
   // (record-generation) but let it through the gate — it is authenticated and

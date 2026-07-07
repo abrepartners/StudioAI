@@ -21,6 +21,12 @@ export interface TwilightResult {
    *  the default path AND on a nano refusal/capacity fallback. Surfaced so
    *  telemetry and the A/B never mislabel a Flux fallback as a nano sample. */
   engine?: string;
+  /** The no-new-lights QC gate ran on this result. Powers the "Verified"
+   *  trust badge — every twilight is checked for invented light fixtures
+   *  before the agent sees it. qcFlagged means the gate caught fakes;
+   *  qcRetried means the corrective regeneration ran and replaced them. */
+  qcFlagged?: boolean;
+  qcRetried?: boolean;
 }
 
 export interface TwilightOptions {
@@ -65,5 +71,7 @@ export async function fluxTwilight(
     resultBase64: data.resultBase64,
     latencyMs: data.latencyMs,
     engine: data.engine,
+    qcFlagged: data.qcFlagged,
+    qcRetried: data.qcRetried,
   };
 }

@@ -367,6 +367,9 @@ interface ApiDirectResult {
   /** Which server engine produced the frame (staging: nano-banana | flux-fill |
    *  seedream; declutter: nano | bria | reve). Feeds the usage dashboard. */
   engine?: string;
+  /** Twilight only: the no-new-lights QC gate ran and (optionally) caught
+   *  invented fixtures. Powers the "Verified" trust badge on the reveal. */
+  qcVerified?: boolean;
 }
 
 const callApiDirect = async (
@@ -524,7 +527,14 @@ DO NOT:
         signal,
         { skipUpscale: true },
       );
-      return { resultBase64: result.resultBase64, engine: result.engine };
+      // The QC gate runs on every twilight, so a successful result is verified.
+      // qcFlagged is undefined only when the gate itself was unavailable —
+      // treat a defined verdict (true or false) as "checked, no fake lights".
+      return {
+        resultBase64: result.resultBase64,
+        engine: result.engine,
+        qcVerified: result.qcFlagged !== undefined,
+      };
     }
     case "sky": {
       const mapped = presetMap.sky[preset] || "blue";
@@ -865,6 +875,10 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
   const [processedResults, setProcessedResults] = useState<
     Record<number, string>
   >({});
+  // Photos whose latest edit passed the twilight no-new-lights QC gate. Drives
+  // the "Verified" trust badge on the reveal — a proactive quality signal, not
+  // an after-the-fact confession.
+  const [verifiedSet, setVerifiedSet] = useState<Set<number>>(new Set());
   const [justUpdated, setJustUpdated] = useState<Set<number>>(new Set());
 
   const [photoHistory, setPhotoHistory] = useState<
@@ -1055,6 +1069,15 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
 
       setProcessedResults((prev) => ({ ...prev, [photo!.id]: resultDataUrl }));
       setProcessedSet((prev) => new Set([...prev, photo!.id]));
+      // Track QC verification per photo: a verified twilight earns the badge;
+      // any other edit (or an unverified one) clears it so the badge never
+      // lingers on a result the gate didn't actually check.
+      setVerifiedSet((prev) => {
+        const next = new Set(prev);
+        if (apiResult.qcVerified) next.add(photo!.id);
+        else next.delete(photo!.id);
+        return next;
+      });
       idbSaveResult(
         activeProject?.id || SCRATCH_KEY,
         photo.id,
@@ -1090,7 +1113,9 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
         ],
       }));
 
-      window.dispatchEvent(new CustomEvent("vellum:gen-complete", { detail: { tool } }));
+      window.dispatchEvent(
+        new CustomEvent("vellum:gen-complete", { detail: { tool } }),
+      );
 
       const toolInfo = TOOLS.find((t) => "id" in t && t.id === tool);
       setActivity((a) => [
@@ -1982,6 +2007,21 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
           {refined ? `After · ${photo.label}` : "Pending"}
         </div>
         <div className="v-ba-tag a">Before</div>
+
+        {/* Verified trust badge — every twilight is checked for invented light
+            fixtures before the agent sees it. Proactive quality signal on the
+            reveal, only on results the QC gate actually cleared. */}
+        {refined && after && verifiedSet.has(photo.id) && (
+          <div
+            className="v-ba-verified"
+            title="No artificial lights were added to this photo."
+          >
+            <span className="v-ba-verified-check" aria-hidden="true">
+              ✓
+            </span>
+            <span>Verified · no fake lights</span>
+          </div>
+        )}
 
         <div className="v-ba-handle" style={{ left: `${splitPos}%` }}>
           <div className="v-ba-knob">‹›</div>

@@ -253,7 +253,7 @@ const AdminApiDashboardRoute: React.FC = () => {
   }, [user, navigate]);
 
   useEffect(() => {
-    document.title = 'API Dashboard · Admin · StudioAI';
+    document.title = 'API Dashboard · Admin · Vellum';
   }, []);
 
   if (!user || !isOwner(user.email)) return null;
@@ -263,7 +263,7 @@ const AdminApiDashboardRoute: React.FC = () => {
       {/* Header */}
       <header className="px-6 py-4 border-b border-white/[0.06] flex items-center justify-between">
         <div className="flex items-center gap-6">
-          <Link to="/" className="font-display text-lg tracking-tight">StudioAI</Link>
+          <Link to="/" className="font-display text-lg tracking-tight">Vellum</Link>
           <nav className="flex items-center gap-4 text-xs text-zinc-400">
             <Link to="/" className="hover:text-white transition">Studio</Link>
             <Link to="/listings" className="hover:text-white transition">Listings</Link>

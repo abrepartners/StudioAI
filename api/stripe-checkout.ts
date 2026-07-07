@@ -227,7 +227,7 @@ async function handleSubscribe(body: any, res: any) {
     return json(res, 400, { ok: false, error: `Invalid plan: ${plan}` });
   }
 
-  const origin = returnUrl || 'https://studioai.averyandbryant.com';
+  const origin = returnUrl || 'https://vellum.homes';
   const customerId = await findOrCreateCustomer(email, {
     'metadata[studioai_user_id]': userId,
   });
@@ -275,7 +275,7 @@ async function handleCreditCheckout(body: any, res: any) {
     return json(res, 400, { ok: false, error: `Invalid pack: ${pack}` });
   }
 
-  const origin = returnUrl || 'https://studioai.averyandbryant.com';
+  const origin = returnUrl || 'https://vellum.homes';
   const customerId = await findOrCreateCustomer(email, {
     'metadata[studioai_user_id]': userId,
   });

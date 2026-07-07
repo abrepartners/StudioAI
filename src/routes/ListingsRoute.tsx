@@ -43,14 +43,14 @@ const ListingsRoute: React.FC = () => {
   }, [id, listings, setCurrentListing, navigate]);
 
   useEffect(() => {
-    document.title = id ? 'Listing · StudioAI' : 'Listings · StudioAI';
+    document.title = id ? 'Listing · Vellum' : 'Listings · Vellum';
   }, [id]);
 
   return (
     <div className="min-h-screen bg-black text-zinc-100">
       <header className="px-6 py-4 border-b border-white/[0.06] flex items-center justify-between">
         <div className="flex items-center gap-6">
-          <Link to="/" className="font-display text-lg tracking-tight">StudioAI</Link>
+          <Link to="/" className="font-display text-lg tracking-tight">Vellum</Link>
           <nav className="flex items-center gap-4 text-xs text-zinc-400">
             <Link to="/" className="hover:text-white transition">Studio</Link>
             <Link to="/listings" className="text-white font-semibold">Listings</Link>

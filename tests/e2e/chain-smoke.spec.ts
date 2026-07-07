@@ -1,7 +1,7 @@
 /**
  * chain-smoke.spec.ts — Playwright smoke test for StudioAI prompt-chain stacking feature.
  *
- * Runs against the production deploy at https://studioai.averyandbryant.com/?chain=1.
+ * Runs against the production deploy at https://vellum.homes/?chain=1.
  * Validates deploy health + public-surface regressions for the stacking flow.
  *
  * --------------------------------------------------------------------------------
@@ -27,7 +27,7 @@
 
 import { test, expect, request } from '@playwright/test';
 
-const BASE_URL = process.env.BASE_URL || 'https://studioai.averyandbryant.com';
+const BASE_URL = process.env.BASE_URL || 'https://vellum.homes';
 const CHAIN_URL = `${BASE_URL}/?chain=1`;
 
 test.describe('StudioAI chain=1 smoke', () => {

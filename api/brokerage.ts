@@ -66,7 +66,7 @@ async function handleCheckout(body: any, adminEmail: string, res: any) {
     return json(res, 400, { ok: false, error: `Invalid tier: ${tier}. Use team, brokerage, or enterprise.` });
   }
 
-  const origin = body.returnUrl || 'https://studioai.averyandbryant.com';
+  const origin = body.returnUrl || 'https://vellum.homes';
 
   const customers = await stripeFetch(
     `/customers/search?query=email:'${encodeURIComponent(adminEmail)}'`

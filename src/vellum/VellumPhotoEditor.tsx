@@ -1176,7 +1176,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
       if (ok)
         notifyDone(
           `${toolName} — ready`,
-          `${activeProject?.address || "Your photo"} is refined. Switch back to StudioAI to view.`,
+          `${activeProject?.address || "Your photo"} is refined. Switch back to Vellum to view.`,
         );
     });
   };
@@ -1247,7 +1247,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
       setBatchDone(0);
       notifyDone(
         "Photos ready",
-        `${okCount} of ${targets.length} photos refined. Switch back to StudioAI to view.`,
+        `${okCount} of ${targets.length} photos refined. Switch back to Vellum to view.`,
       );
       setActivity((a) => [
         {

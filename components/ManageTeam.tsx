@@ -186,7 +186,7 @@ const ManageTeam: React.FC<ManageTeamProps> = ({ adminEmail }) => {
             <h4 className="text-sm font-semibold text-[var(--color-ink)]">Manage Team</h4>
           </div>
           <p className="text-xs text-[var(--color-text)]/70">
-            Set up a brokerage to give your agents Pro access to StudioAI.
+            Set up a brokerage to give your agents Pro access to Vellum.
           </p>
           <button
             type="button"

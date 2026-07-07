@@ -68,7 +68,7 @@ const CONFIGS: Record<Tool, ModelConfig[]> = {
       modelSlug: 'zsxkib/ic-light-background:60015df78a8a795470da6494822982140d57b150b9ef14354e79302ff89f69e3',
       buildInput: (img, p) => ({
         subject_image: img,
-        background_image: 'https://studioai.averyandbryant.com/references/twilight/warm-classic.jpg',
+        background_image: 'https://vellum.homes/references/twilight/warm-classic.jpg',
         prompt: p || 'professional real estate twilight photography, blue hour with warm sunset horizon, amber window glow, cinematic dusk exterior',
         appended_prompt: 'best quality, photorealistic, real estate exterior, preserve subject',
         negative_prompt: 'lowres, different house, changed building, invented objects, cartoon, reframed, wide angle',

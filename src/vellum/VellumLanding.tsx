@@ -171,8 +171,8 @@ const VellumLanding: React.FC = () => {
 
   useEffect(() => {
     trackEvent('landing_viewed', { source: 'organic' });
-    document.title = 'StudioAI — AI-Powered Listing Media';
-    return () => { document.title = 'StudioAI'; };
+    document.title = 'Vellum — AI-Powered Listing Media';
+    return () => { document.title = 'Vellum'; };
   }, []);
 
   useEffect(() => {
@@ -202,7 +202,7 @@ const VellumLanding: React.FC = () => {
       {/* ── NAV ─────────────────────────────────────────────────── */}
       <header className="vl-nav">
         <div className="vl-nav-inner">
-          <span className="vl-wordmark">StudioAI</span>
+          <span className="vl-wordmark">Vellum</span>
           <nav className="vl-nav-links">
             <a href="#features" onClick={e => { e.preventDefault(); document.getElementById('vl-features')?.scrollIntoView({ behavior: 'smooth' }); }}>Features</a>
             <a href="#showcase" onClick={e => { e.preventDefault(); document.getElementById('vl-showcase')?.scrollIntoView({ behavior: 'smooth' }); }}>Showcase</a>
@@ -364,14 +364,14 @@ const VellumLanding: React.FC = () => {
       {/* ── FOOTER ──────────────────────────────────────────────── */}
       <footer className="vl-footer">
         <div className="vl-footer-inner">
-          <span className="vl-wordmark" style={{ fontSize: 20 }}>StudioAI</span>
+          <span className="vl-wordmark" style={{ fontSize: 20 }}>Vellum</span>
           <nav className="vl-footer-links">
             <Link to="/pricing">Pricing</Link>
             <Link to="/features">Features</Link>
             <Link to="/faq">FAQ</Link>
             <Link to="/gallery">Gallery</Link>
           </nav>
-          <span className="vl-footer-copy">&copy; {new Date().getFullYear()} StudioAI</span>
+          <span className="vl-footer-copy">&copy; {new Date().getFullYear()} Vellum</span>
         </div>
       </footer>
     </div>

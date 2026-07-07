@@ -163,7 +163,7 @@ const ExportModal: React.FC<ExportModalProps> = ({
       link.href = exportJpeg;
       const toolSlug =
         editHistory.length > 0 ? `_${[...new Set(editHistory)].join("+")}` : "";
-      link.download = `studioai${toolSlug}_${Date.now()}.jpg`;
+      link.download = `vellum${toolSlug}_${Date.now()}.jpg`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -333,7 +333,7 @@ const ExportModal: React.FC<ExportModalProps> = ({
                 : lastTool === "renovation"
                   ? "Renovated by"
                   : "Staged with";
-        const text = `${toolLabel} StudioAI`;
+        const text = `${toolLabel} Vellum`;
         const metrics = ctx.measureText(text);
         const padX = 12;
         const padY = 6;

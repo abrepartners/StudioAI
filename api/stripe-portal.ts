@@ -23,7 +23,7 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
-    const origin = returnUrl || 'https://studioai.averyandbryant.com';
+    const origin = returnUrl || 'https://vellum.homes';
 
     const searchRes = await fetch(
       `https://api.stripe.com/v1/customers/search?query=email:'${encodeURIComponent(email)}'`,

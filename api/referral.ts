@@ -247,7 +247,7 @@ export default async function handler(req: any, res: any) {
         const email = (body.email || '').toLowerCase().trim();
         const userId = body.userId || '';
         const priceInCents = body.price || 2900;
-        const origin = body.returnUrl || 'https://studioai.averyandbryant.com';
+        const origin = body.returnUrl || 'https://vellum.homes';
 
         if (!email || !userId) {
           json(res, 400, { ok: false, error: 'email and userId required' });

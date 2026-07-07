@@ -49,7 +49,7 @@ const FAQS = [
 const MarketingShell: React.FC<{ children: React.ReactNode; userEmail: string | null }> = ({ children, userEmail }) => (
   <div className="min-h-screen bg-black text-zinc-100 flex flex-col">
     <header className="px-6 py-5 border-b border-white/[0.06] flex items-center justify-between">
-      <Link to="/" className="font-display text-lg tracking-tight">StudioAI</Link>
+      <Link to="/" className="font-display text-lg tracking-tight">Vellum</Link>
       <nav className="flex items-center gap-5 text-xs text-zinc-400">
         <Link to="/features" className="hover:text-white transition">Features</Link>
         <Link to="/pricing" className="hover:text-white transition">Pricing</Link>
@@ -79,7 +79,7 @@ const MarketingRoute: React.FC<Props> = ({ anchor }) => {
       anchor === 'features' ? 'Features' :
       anchor === 'faq' ? 'FAQ' :
       'Gallery';
-    document.title = `${label} · StudioAI`;
+    document.title = `${label} · Vellum`;
     return () => { document.title = prev; };
   }, [anchor]);
 
@@ -131,7 +131,7 @@ const MarketingRoute: React.FC<Props> = ({ anchor }) => {
         <div className="max-w-5xl mx-auto space-y-6">
           <h1 className="font-display text-4xl tracking-tight">Features</h1>
           <p className="text-zinc-400 text-sm max-w-2xl">
-            StudioAI is built for listing workflows: from raw room photos to market-ready assets.
+            Vellum is built for listing workflows: from raw room photos to market-ready assets.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {FEATURES.map((feature) => (
@@ -167,7 +167,7 @@ const MarketingRoute: React.FC<Props> = ({ anchor }) => {
       <div className="max-w-md mx-auto text-center py-24">
         <h1 className="font-display text-4xl tracking-tight mb-3">Showcase Gallery</h1>
         <p className="text-sm text-zinc-400 mb-6">
-          Community-approved renders from StudioAI are rolling out soon.
+          Community-approved renders from Vellum are rolling out soon.
         </p>
         <Link
           to="/"

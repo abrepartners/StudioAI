@@ -12,8 +12,8 @@ export const STARTER_MONTHLY_LIMIT = 40;
 
 export const PLAN_PRICING_USD = {
   starter: { month: 19, year: 15, seats: 1 },
-  pro: { month: 49, year: 39, seats: 1 },
-  team: { month: 99, year: 79, seats: 3 },
+  pro: { month: 59, year: 47, seats: 1 },
+  team: { month: 149, year: 119, seats: 5 },
 } as const;
 
 export const EARLY_BIRD_MONTHLY_USD = 14;

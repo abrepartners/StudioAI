@@ -3,7 +3,6 @@ import { Icon } from './icons';
 import type { SubscriptionState } from '../../hooks/useSubscription';
 import {
   PLAN_PRICING_USD,
-  STARTER_MONTHLY_LIMIT,
   DISPLAY_COPY,
   getPlanDisplayName,
 } from '../../shared/monetization';
@@ -84,31 +83,6 @@ const VellumBilling: React.FC<BillingProps> = ({ setPage, credits, subscription,
             <li>"Virtually Staged" watermark</li>
           </ul>
           {plan === 'free' && <div className="v-plan-cta" style={{ opacity: 0.5 }}>Current plan</div>}
-        </div>
-
-        {/* Starter */}
-        <div className={`v-plan ${plan === 'starter' ? 'featured' : ''}`}>
-          <div className="v-plan-name">Starter</div>
-          <div className="v-plan-price">
-            ${interval === 'year' ? PLAN_PRICING_USD.starter.year : PLAN_PRICING_USD.starter.month}
-            <em>/mo</em>
-          </div>
-          <div className="v-plan-tag">
-            {STARTER_MONTHLY_LIMIT} generations/month.
-            {interval === 'year' && ` ${annualSaving(PLAN_PRICING_USD.starter.month, PLAN_PRICING_USD.starter.year)}`}
-          </div>
-          <ul>
-            <li>{STARTER_MONTHLY_LIMIT} generations / month</li>
-            <li>Staging + Cleanup + MLS Export</li>
-            <li>Listing Copy (1 Pro AI Tool)</li>
-            <li>Text watermark only</li>
-          </ul>
-          {plan === 'starter'
-            ? <button className="v-plan-cta" onClick={handleManage}>Manage plan</button>
-            : <button className="v-plan-cta" onClick={() => handleUpgrade('starter')}>
-                {isSubscribed ? 'Switch' : 'Upgrade'}
-              </button>
-          }
         </div>
 
         {/* Pro */}

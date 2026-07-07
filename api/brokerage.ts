@@ -7,7 +7,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
 
 const TIERS: Record<string, { name: string; price: number; maxSeats: number }> = {
-  team:       { name: 'StudioAI Team',       price: 11900, maxSeats: 5 },
+  team:       { name: 'StudioAI Team',       price: 14900, maxSeats: 5 },
   brokerage:  { name: 'StudioAI Brokerage',  price: 29900, maxSeats: 15 },
   enterprise: { name: 'StudioAI Enterprise', price: 69900, maxSeats: 40 },
 };

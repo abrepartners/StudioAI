@@ -3791,13 +3791,29 @@ img.v-ba-img-dimmed {
   -webkit-font-smoothing: antialiased;
   font-feature-settings: "cv11", "ss01";
 
-  /* Override index.css overflow:hidden on html/body — make this the scroll container */
-  position: fixed;
-  inset: 0;
+  /* Landing scrolls the DOCUMENT rather than an inner fixed box. An inner
+     position:fixed;inset:0 scroller stops the mobile address bar from
+     collapsing on scroll, so it oscillates and the bottom-anchored container
+     resizes on every oscillation (the "window goes up and down" jump between
+     sections). Document scroll lets the URL bar hide/show cleanly. */
+  position: relative;
+  overflow: visible;
+  min-height: 100%;
+  z-index: 1;
+}
+
+/* Opt the landing route out of the app-shell scroll lock (index.css sets
+   html/body { overflow:hidden;height:100% } for the fixed full-screen editor).
+   Scoped to when .vl-root is mounted, so the app shell is untouched. */
+html:has(.vl-root) {
   overflow-x: hidden;
   overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  z-index: 1;
+  height: auto;
+  overscroll-behavior: auto;
+}
+body:has(.vl-root) {
+  overflow: visible;
+  height: auto;
 }
 
 /* index.css .reveal starts opacity:0 and waits for IntersectionObserver on document scroll.

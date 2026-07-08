@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Icon } from './icons';
 import type { VellumProfile } from './useVellumStore';
+import VellumTeamCard from './VellumTeamCard';
 
 const SETTINGS_KEY = 'vellum_settings';
 
@@ -166,6 +167,8 @@ const VellumSettings: React.FC<SettingsProps> = ({ setPage, profile, updateProfi
               </div>
             </div>
           )}
+
+          {googleUser && <VellumTeamCard adminEmail={googleUser.email} />}
 
           <div className="v-settings-card">
             <div className="v-gold-rule" />

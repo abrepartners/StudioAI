@@ -49,26 +49,6 @@ export const VellumTopbar: React.FC<TopbarProps> = ({ page, setPage, credits, pr
       >
         Vellum
       </button>
-      <nav>
-        <a
-          className={['dashboard', 'projects', 'photo', 'video'].includes(page) ? 'active' : ''}
-          onClick={() => setPage('dashboard')}
-        >
-          Workspace
-        </a>
-        <a
-          className={['billing', 'settings'].includes(page) ? 'active' : ''}
-          onClick={() => setPage('billing')}
-        >
-          Account
-        </a>
-        <a
-          className={page === 'help' ? 'active' : ''}
-          onClick={() => setPage('help')}
-        >
-          Help
-        </a>
-      </nav>
       <div className="spacer" />
       <div className="right">
         {isUnlimited ? (

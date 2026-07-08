@@ -158,7 +158,7 @@ const TOOLS = [
   },
   {
     id: "lawn",
-    icon: "cloud",
+    icon: "leaf",
     name: "Lawn & landscape",
     desc: "Greener, polished exteriors",
     cost: "1 cr",
@@ -1926,21 +1926,19 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
           {refined && after ? (
             <img src={after} className="v-ba-img-el" alt="" draggable={false} />
           ) : (
-            <>
-              <img
-                src={photo.dataUrl}
-                className="v-ba-img-el v-ba-img-dimmed"
-                alt=""
-                draggable={false}
-              />
-              {!photoGen && (
-                <div className="v-ba-pending">
-                  <span>Apply to see result</span>
-                </div>
-              )}
-            </>
+            <img
+              src={photo.dataUrl}
+              className="v-ba-img-el v-ba-img-dimmed"
+              alt=""
+              draggable={false}
+            />
           )}
         </div>
+        {!(refined && after) && !photoGen && (
+          <div className="v-ba-pending">
+            <span>Apply to see result</span>
+          </div>
+        )}
 
         <div className="v-ba-tag b">
           {refined ? `After · ${photo.label}` : "Pending"}
@@ -2311,7 +2309,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
         >
           <Icon
             name="chevron_right"
-            size={12}
+            size={14}
             style={{
               transform: leftCollapsed ? "none" : "rotate(180deg)",
               transition: "transform 300ms ease",
@@ -2418,9 +2416,6 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
               }
               onClick={() => !disabled && setActiveTool(tool.id)}
               title={disabled ? disabledReason : undefined}
-              style={
-                disabled ? { opacity: 0.4, cursor: "not-allowed" } : undefined
-              }
             >
               <div className="v-tool-icon">
                 <Icon name={tool.icon} size={16} />
@@ -2435,9 +2430,11 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
                       : tool.desc}
                 </div>
               </div>
-              <div className="v-tool-cost">
-                {stagingReplace ? `${REPLACE_STAGING_COST} cr` : tool.cost}
-              </div>
+              {!disabled && (
+                <div className="v-tool-cost">
+                  {stagingReplace ? `${REPLACE_STAGING_COST} cr` : tool.cost}
+                </div>
+              )}
             </div>
           );
         })}
@@ -2931,7 +2928,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
         >
           <Icon
             name="chevron_right"
-            size={12}
+            size={14}
             style={{
               transform: rightCollapsed ? "rotate(180deg)" : "none",
               transition: "transform 300ms ease",

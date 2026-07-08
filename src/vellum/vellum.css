@@ -1052,23 +1052,26 @@ textarea.v-wn-textarea {
 .v-panel-toggle {
   position: absolute;
   top: 50%;
-  width: 20px;
-  height: 44px;
+  width: 22px;
+  height: 48px;
   transform: translateY(-50%);
   background: var(--background-elevated);
-  border: 1px solid var(--soft-stone);
-  border-radius: 4px;
+  border: 1px solid var(--border-medium);
+  border-radius: 6px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--graphite);
+  color: var(--text-secondary);
+  box-shadow: var(--shadow-sm);
   z-index: 10;
   transition:
     background 160ms ease,
     color 160ms ease,
     opacity 160ms ease;
-  opacity: 0;
+  /* Resting affordance: always discoverable. Was opacity:0 (invisible until
+     panel hover), which read as "no control here." Brightens on hover/collapsed. */
+  opacity: 0.55;
 }
 .v-editor-left:hover .v-panel-toggle,
 .v-editor-right:hover .v-panel-toggle,
@@ -1082,10 +1085,10 @@ textarea.v-wn-textarea {
   border-color: var(--accent-surface);
 }
 .v-panel-toggle--left {
-  right: -10px;
+  right: -6px;
 }
 .v-panel-toggle--right {
-  left: -10px;
+  left: -6px;
 }
 
 .v-editor-right {
@@ -1223,6 +1226,7 @@ img.v-ba-img-dimmed {
   align-items: center;
   justify-content: center;
   z-index: 1;
+  pointer-events: none;
 }
 .v-ba-pending span {
   font-size: 11px;
@@ -1576,7 +1580,7 @@ img.v-ba-img-dimmed {
   height: 13px;
   color: var(--graphite);
 }
-.v-export-btn .meta {
+.v-export-btn .v-export-meta {
   margin-left: auto;
   font-size: 11px;
   color: var(--graphite);
@@ -1604,7 +1608,7 @@ img.v-ba-img-dimmed {
 .v-plan {
   background: var(--background-elevated);
   border: 1px solid var(--soft-stone);
-  border-radius: 14px;
+  border-radius: 12px;
   padding: 28px;
   display: flex;
   flex-direction: column;
@@ -1872,7 +1876,7 @@ img.v-ba-img-dimmed {
 .v-settings-card {
   background: var(--background-elevated);
   border: 1px solid var(--soft-stone);
-  border-radius: 6px;
+  border-radius: 12px;
   padding: 28px;
   position: relative;
 }
@@ -1901,12 +1905,28 @@ img.v-ba-img-dimmed {
 .v-set-input {
   border: 1px solid var(--soft-stone);
   background: var(--background-primary);
-  border-radius: 4px;
+  border-radius: 6px;
   padding: 7px 10px;
   font-size: 12px;
   font-family: inherit;
   color: var(--deep-charcoal);
   min-width: 180px;
+}
+/* Kill the raw browser-blue focus ring; use the gold accent instead. */
+.vellum .v-set-input:focus,
+.vellum .v-set-input:focus-visible {
+  outline: none;
+  border-color: var(--accent-surface);
+  box-shadow: 0 0 0 3px rgba(216, 199, 154, 0.18);
+}
+/* Replace the OS dropdown arrow with a gold-system caret. */
+.vellum .v-modal select.v-set-input {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239a968f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 30px;
 }
 
 .v-seg {
@@ -3055,6 +3075,13 @@ img.v-ba-img-dimmed {
   font-size: 11px;
   color: var(--graphite);
   flex-shrink: 0;
+  min-width: 34px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.v-tool-item.disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 /* ============ PHOTO EDITOR — CONTROL CARD ============ */

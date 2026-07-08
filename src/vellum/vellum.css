@@ -107,6 +107,11 @@
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.35);
   --shadow-lg: 0 24px 48px rgba(0, 0, 0, 0.55), 0 4px 12px rgba(0, 0, 0, 0.4);
 
+  /* Radius scale: sm = chips/inputs/pills, md = buttons/tools, lg = cards/modals. */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
   --ease-vellum: cubic-bezier(0.22, 0.61, 0.36, 1);
 
   --font-serif: "Cormorant Garamond", "Times New Roman", serif;
@@ -136,7 +141,6 @@
 .vellum .v-preset.active,
 .vellum .v-export-btn.gold,
 .vellum .v-export-row.primary,
-.vellum .v-subtab.active,
 .vellum .v-create-btn.video {
   background: var(--accent-surface);
   color: var(--accent-ink);
@@ -332,7 +336,7 @@
   padding: 6px;
   background: var(--background-elevated);
   border: 1px solid var(--border-light);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
 }
 .v-avatar-menu button {
@@ -705,7 +709,7 @@ textarea.v-wn-textarea {
   padding: 10px 18px;
   font-size: 13px;
   font-weight: 500;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   border: 1px solid transparent;
   transition: all 200ms var(--ease-vellum);
   white-space: nowrap;
@@ -761,7 +765,7 @@ textarea.v-wn-textarea {
 .v-kpi {
   background: var(--background-elevated);
   border: 1px solid var(--soft-stone);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   padding: 24px;
   position: relative;
   transition: all 240ms var(--ease-vellum);
@@ -883,7 +887,7 @@ textarea.v-wn-textarea {
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 11px;
   font-weight: 500;
   background: var(--soft-stone);
@@ -1057,7 +1061,7 @@ textarea.v-wn-textarea {
   transform: translateY(-50%);
   background: var(--background-elevated);
   border: 1px solid var(--border-medium);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1138,7 +1142,7 @@ textarea.v-wn-textarea {
   align-items: center;
   gap: 12px;
   padding: 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   transition: all 180ms var(--ease-vellum);
   border: 1px solid transparent;
@@ -1504,7 +1508,7 @@ img.v-ba-img-dimmed {
 .v-preset {
   padding: 6px 12px;
   font-size: 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--soft-stone);
   background: var(--background-primary);
   color: var(--graphite);
@@ -1608,7 +1612,7 @@ img.v-ba-img-dimmed {
 .v-plan {
   background: var(--background-elevated);
   border: 1px solid var(--soft-stone);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   padding: 28px;
   display: flex;
   flex-direction: column;
@@ -1746,7 +1750,7 @@ img.v-ba-img-dimmed {
   position: relative;
   background: var(--background-elevated);
   border: 1px solid var(--border-light);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   width: 640px;
   max-width: 100%;
   padding: 36px 36px 28px;
@@ -1876,7 +1880,7 @@ img.v-ba-img-dimmed {
 .v-settings-card {
   background: var(--background-elevated);
   border: 1px solid var(--soft-stone);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   padding: 28px;
   position: relative;
 }
@@ -1905,7 +1909,7 @@ img.v-ba-img-dimmed {
 .v-set-input {
   border: 1px solid var(--soft-stone);
   background: var(--background-primary);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   padding: 7px 10px;
   font-size: 12px;
   font-family: inherit;
@@ -1935,7 +1939,7 @@ img.v-ba-img-dimmed {
   grid-auto-columns: 1fr;
   background: var(--background-primary);
   border: 1px solid var(--soft-stone);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   padding: 3px;
   gap: 2px;
 }
@@ -3043,7 +3047,7 @@ img.v-ba-img-dimmed {
 .v-tool-icon {
   width: 36px;
   height: 36px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--background-elevated);
   border: 1px solid var(--soft-stone);
   display: inline-flex;
@@ -3169,7 +3173,7 @@ img.v-ba-img-dimmed {
   align-items: center;
   gap: 6px;
   padding: 7px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-size: 12px;
   font-weight: 500;
   border: 0;
@@ -3183,8 +3187,11 @@ img.v-ba-img-dimmed {
   color: var(--deep-charcoal);
 }
 .v-subtab.active {
-  background: var(--deep-charcoal);
-  color: var(--warm-ivory);
+  /* Quiet surface + gold underline. Reserves the solid gold FILL for the one
+     primary CTA (Apply) so the action row has a single focal point. */
+  background: var(--soft-stone);
+  color: var(--text-primary);
+  box-shadow: inset 0 -2px 0 var(--accent-surface);
 }
 
 /* ============ PHOTO EDITOR — RIGHT PANEL ============ */

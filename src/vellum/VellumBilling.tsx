@@ -59,13 +59,13 @@ const VellumBilling: React.FC<BillingProps> = ({ setPage, credits, subscription,
       </div>
 
       {/* Interval toggle */}
-      <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 32 }}>
+      <div className="v-seg" style={{ width: 'fit-content', margin: '0 auto 32px' }}>
         <button
-          className={`v-btn v-btn--sm ${interval === 'month' ? 'v-btn--primary' : 'v-btn--ghost'}`}
+          className={'v-seg-btn' + (interval === 'month' ? ' on' : '')}
           onClick={() => setInterval('month')}
         >Monthly</button>
         <button
-          className={`v-btn v-btn--sm ${interval === 'year' ? 'v-btn--primary' : 'v-btn--ghost'}`}
+          className={'v-seg-btn' + (interval === 'year' ? ' on' : '')}
           onClick={() => setInterval('year')}
         >Annual <span style={{ fontSize: 10, opacity: 0.7, marginLeft: 4 }}>2 months free</span></button>
       </div>

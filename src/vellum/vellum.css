@@ -242,27 +242,6 @@
   line-height: 1;
   margin-right: 8px;
 }
-.v-topbar nav {
-  display: flex;
-  gap: 4px;
-}
-.v-topbar nav a {
-  font-size: 13px;
-  font-weight: 500;
-  padding: 8px 14px;
-  border-radius: 6px;
-  color: var(--graphite);
-  transition: all 200ms var(--ease-vellum);
-  cursor: pointer;
-}
-.v-topbar nav a:hover {
-  color: var(--deep-charcoal);
-  background: var(--soft-stone);
-}
-.v-topbar nav a.active {
-  color: var(--deep-charcoal);
-  background: var(--soft-stone);
-}
 .v-topbar .spacer {
   flex: 1;
 }
@@ -4371,11 +4350,8 @@ body:has(.vl-root) {
     --v-dock-h: calc(64px + env(safe-area-inset-bottom));
   }
 
-  /* Header — wordmark + credits + avatar. Desktop text nav goes away;
-     Help/Settings/Billing live in the avatar menu. */
-  .v-topbar nav {
-    display: none;
-  }
+  /* Header — wordmark + credits + avatar. Wayfinding lives in the sidebar
+     (desktop) and the avatar menu (mobile). */
   .v-topbar {
     height: 56px;
     padding: 0 14px;

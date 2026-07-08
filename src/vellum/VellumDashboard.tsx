@@ -49,12 +49,15 @@ const VellumDashboard: React.FC<DashboardProps> = ({ setPage, credits, projects,
               : 'Create your first listing to get started.'}
           </p>
         </div>
-        <div className="v-row gap-sm">
-          <button className="v-btn v-btn--secondary" onClick={() => setPage('projects')}>Browse all projects</button>
-          <button className="v-btn v-btn--primary" onClick={onNewListing}>New listing <Icon name="arrow_right" size={13} /></button>
-        </div>
+        {projects.length > 0 && (
+          <div className="v-row gap-sm">
+            <button className="v-btn v-btn--secondary" onClick={() => setPage('projects')}>Browse all projects</button>
+            <button className="v-btn v-btn--primary" onClick={onNewListing}>New listing <Icon name="arrow_right" size={13} /></button>
+          </div>
+        )}
       </div>
 
+      {projects.length > 0 && (
       <div className="v-kpi-row">
         <div className="v-kpi">
           <div className="v-gold-rule" />
@@ -75,6 +78,7 @@ const VellumDashboard: React.FC<DashboardProps> = ({ setPage, credits, projects,
           <div className="delta">{totalReels ? 'Across MLS, IG, FB' : 'Create your first reel'}</div>
         </div>
       </div>
+      )}
 
       {!projects.length ? (
         <div className="v-empty-state">
@@ -141,6 +145,7 @@ const VellumDashboard: React.FC<DashboardProps> = ({ setPage, credits, projects,
         </>
       )}
 
+      {projects.length > 0 && (
       <div className="v-split-2 v-mt-lg">
         <div className="v-kpi" style={{ padding: 28 }}>
           <div className="v-gold-rule" />
@@ -177,6 +182,7 @@ const VellumDashboard: React.FC<DashboardProps> = ({ setPage, credits, projects,
           </button>
         </div>
       </div>
+      )}
     </div>
   );
 };

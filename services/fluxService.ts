@@ -128,6 +128,13 @@ Do not change the house, roof, siding, windows, doors, driveway, walkways, fence
   return prompt;
 };
 
+// When the user types a specific instruction and has NOT picked a preset, run
+// exactly what they asked instead of burying it under the generic clutter
+// list. This is the path for targeted cleans the presets don't cover — e.g.
+// "clean the dirt out of the pool", "remove water stains from the driveway".
+const CUSTOM_CLEANUP_PROMPT = (room: string, custom: string) =>
+  `Edit this photo of a ${room}. Task: ${custom}. Treat this as a precise cleanup or removal instruction and do ONLY what it says. Reconstruct any area you clean, remove, or reveal so it looks natural and consistent with what surrounds it — match the texture, color, material, and lighting exactly (for example, cleaning a pool means clear, natural pool water consistent with the rest of the pool; a cleaned surface must match the adjacent surface). Keep everything else in the photo — architecture, fixtures, furniture, landscaping, framing, camera angle, exposure, and color temperature — identical to the input. Do not add, replace, restyle, relight, or "improve" anything the instruction did not ask for.`;
+
 export function buildCleanupPrompt(
   selectedRoom: string,
   filter?: string,
@@ -135,6 +142,8 @@ export function buildCleanupPrompt(
 ): string {
   const room = (selectedRoom || '').trim();
   const custom = (customRemoval || '').trim() || undefined;
+  // No preset picked but a specific instruction typed → do exactly that.
+  if (custom && !filter) return CUSTOM_CLEANUP_PROMPT(room || 'scene', custom);
   if (EXTERIOR_ROOMS.has(room)) return EXTERIOR_CLEANUP_PROMPT(room, filter, custom);
   return INTERIOR_CLEANUP_PROMPT(room || 'room', filter, custom);
 }

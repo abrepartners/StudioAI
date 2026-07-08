@@ -2683,14 +2683,21 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
 
             {activeTool === "declutter" && (
               <div className="v-field" style={{ marginTop: 4 }}>
-                <span className="v-field-label">Specific items to remove</span>
+                <span className="v-field-label">Remove or clean — describe it</span>
                 <input
                   className="v-set-input"
-                  placeholder="e.g. blue tarp on porch, exercise bike in corner"
+                  placeholder="e.g. dirt in the pool, water stains on driveway, cars on the street"
                   value={customRemoval}
                   onChange={(e) => setCustomRemoval(e.target.value)}
                   style={{ width: "100%", fontSize: 12 }}
                 />
+                <span
+                  className="v-muted"
+                  style={{ fontSize: 11, marginTop: 4, display: "block" }}
+                >
+                  No preset needed — describe exactly what to remove or clean
+                  (e.g. dirt in the pool) and we'll do only that.
+                </span>
               </div>
             )}
 

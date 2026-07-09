@@ -86,6 +86,13 @@ export async function reserveQuota(
   googleId: string,
   amount: number = 1,
 ): Promise<QuotaResult> {
+  // Log-only rollout: the auth middleware hands unauthenticated traffic a
+  // synthetic anon identity (sub "log-only") so nothing 500s. Don't meter that
+  // shared identity against the free cap — it would spuriously exhaust one
+  // shared bucket for every not-yet-re-logged-in user during the window.
+  if (googleId === "log-only") {
+    return { allowed: true, method: "lifetime", refundHandle: null };
+  }
   const plan = normalizePlan(await resolvePlan(email));
   if (hasUnlimitedGeneration(plan)) {
     return { allowed: true, method: "unlimited", refundHandle: null };

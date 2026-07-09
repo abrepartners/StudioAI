@@ -279,7 +279,7 @@ const CommunityGallery: React.FC = () => {
       <div className="max-w-5xl mx-auto text-center mb-10 px-5 sm:px-8 lg:px-16">
         <p className="text-xs font-bold uppercase tracking-[0.25em] text-[var(--color-primary)] mb-3">Community Gallery</p>
         <h2 className="font-display text-2xl sm:text-3xl font-black text-white tracking-tight mb-2">Made by agents like you.</h2>
-        <p className="text-sm text-zinc-500">Real before / afters from the StudioAI showcase. Hover to pause.</p>
+        <p className="text-sm text-zinc-500">Real before / afters from the Vellum showcase. Hover to pause.</p>
       </div>
 
       <div className="gallery-marquee relative w-full">
@@ -2086,7 +2086,7 @@ Direction from user: ${prompt}`;
                 <span className="text-sm text-zinc-500 line-through">$300/room</span>
                 <ArrowRight size={14} className="text-zinc-600" />
                 <span className="text-sm font-black text-[#30D158]">$1.38/room</span>
-                <span className="text-xs text-zinc-500">with StudioAI</span>
+                <span className="text-xs text-zinc-500">with Vellum</span>
               </div>
 
               <div className="flex flex-col sm:flex-row items-start gap-3 mb-8 animate-fade-in" style={{ animationDelay: '0.3s' }}>
@@ -2154,7 +2154,7 @@ Direction from user: ${prompt}`;
         <section id="features" className="px-5 sm:px-8 lg:px-16 py-24 scroll-mt-20">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-16 reveal">
-              <p className="text-xs font-bold uppercase tracking-[0.25em] text-[var(--color-primary)] mb-3">What StudioAI Does</p>
+              <p className="text-xs font-bold uppercase tracking-[0.25em] text-[var(--color-primary)] mb-3">What Vellum Does</p>
               <h2 className="font-display text-3xl sm:text-4xl font-black text-white tracking-tight mb-3">
                 Every tool your photos need.
               </h2>
@@ -2317,7 +2317,7 @@ Direction from user: ${prompt}`;
                       <div className="w-2.5 h-2.5 rounded-full bg-[#28C840]" />
                     </div>
                     <div className="flex-1 h-6 rounded-md bg-white/[0.04] flex items-center justify-center">
-                      <span className="text-xs text-zinc-600 font-medium">studioai.averyandbryant.com</span>
+                      <span className="text-xs text-zinc-600 font-medium">vellum.homes</span>
                     </div>
                   </div>
 
@@ -2525,7 +2525,7 @@ Direction from user: ${prompt}`;
         <section className="px-5 sm:px-8 lg:px-12 py-24 sm:py-32">
           <div className="max-w-3xl mx-auto text-center reveal">
             <h2 className="font-display text-3xl sm:text-5xl font-black text-white tracking-tight mb-4">
-              One staging service costs more than a year of StudioAI.
+              One staging service costs more than a year of Vellum.
             </h2>
             <p className="text-base text-zinc-400 mb-10 max-w-xl mx-auto">
               {trustPricingConsistencyEnabled
@@ -2551,7 +2551,7 @@ Direction from user: ${prompt}`;
           <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
               <Camera size={14} className="text-zinc-600" />
-              <span className="text-xs font-semibold text-zinc-600">StudioAI by Avery & Bryant</span>
+              <span className="text-xs font-semibold text-zinc-600">Vellum by Avery & Bryant</span>
             </div>
             <div className="flex items-center gap-6 text-sm text-zinc-600 font-medium">
               <span>&copy; {new Date().getFullYear()} Avery & Bryant</span>

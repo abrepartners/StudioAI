@@ -155,7 +155,7 @@ const TOOLS = [
   },
   {
     id: "lawn",
-    icon: "cloud",
+    icon: "leaf",
     name: "Lawn & landscape",
     desc: "Greener, polished exteriors",
     cost: "1 cr",
@@ -1215,7 +1215,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
       if (ok)
         notifyDone(
           `${toolName} — ready`,
-          `${activeProject?.address || "Your photo"} is refined. Switch back to StudioAI to view.`,
+          `${activeProject?.address || "Your photo"} is refined. Switch back to Vellum to view.`,
         );
     });
   };
@@ -1286,7 +1286,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
       setBatchDone(0);
       notifyDone(
         "Photos ready",
-        `${okCount} of ${targets.length} photos refined. Switch back to StudioAI to view.`,
+        `${okCount} of ${targets.length} photos refined. Switch back to Vellum to view.`,
       );
       setActivity((a) => [
         {
@@ -1428,11 +1428,10 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
   // matching panel so the editor is actually usable at 375px.
   const [mobilePanel, setMobilePanel] = useState<"left" | "right" | null>(null);
 
-  // Export & Create — which output generator overlay is mounted (if any).
+  // Deliverables — which output generator overlay is mounted (if any).
   type OverlayKind =
     "reveal" | "mls" | "social" | "description" | "print" | "listingkit";
   const [activeOverlay, setActiveOverlay] = useState<OverlayKind | null>(null);
-  const [exportMenuOpen, setExportMenuOpen] = useState(false);
 
   // Brand kit feeds the reveal-video brand bar + (internally) the surfaced
   // generators that call useBrandKit() themselves.
@@ -1492,7 +1491,6 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
     : undefined;
 
   const openOverlay = (kind: OverlayKind) => {
-    setExportMenuOpen(false);
     setActiveOverlay(kind);
   };
   const closeOverlay = useCallback(() => setActiveOverlay(null), []);
@@ -1960,21 +1958,19 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
           {refined && after ? (
             <img src={after} className="v-ba-img-el" alt="" draggable={false} />
           ) : (
-            <>
-              <img
-                src={photo.dataUrl}
-                className="v-ba-img-el v-ba-img-dimmed"
-                alt=""
-                draggable={false}
-              />
-              {!photoGen && (
-                <div className="v-ba-pending">
-                  <span>Apply to see result</span>
-                </div>
-              )}
-            </>
+            <img
+              src={photo.dataUrl}
+              className="v-ba-img-el v-ba-img-dimmed"
+              alt=""
+              draggable={false}
+            />
           )}
         </div>
+        {!(refined && after) && !photoGen && (
+          <div className="v-ba-pending">
+            <span>Apply to see result</span>
+          </div>
+        )}
 
         <div className="v-ba-tag b">
           {refined ? `After · ${photo.label}` : "Pending"}
@@ -2345,7 +2341,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
         >
           <Icon
             name="chevron_right"
-            size={12}
+            size={14}
             style={{
               transform: leftCollapsed ? "none" : "rotate(180deg)",
               transition: "transform 300ms ease",
@@ -2452,9 +2448,6 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
               }
               onClick={() => !disabled && setActiveTool(tool.id)}
               title={disabled ? disabledReason : undefined}
-              style={
-                disabled ? { opacity: 0.4, cursor: "not-allowed" } : undefined
-              }
             >
               <div className="v-tool-icon">
                 <Icon name={tool.icon} size={16} />
@@ -2469,9 +2462,11 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
                       : tool.desc}
                 </div>
               </div>
-              <div className="v-tool-cost">
-                {stagingReplace ? `${REPLACE_STAGING_COST} cr` : tool.cost}
-              </div>
+              {!disabled && (
+                <div className="v-tool-cost">
+                  {stagingReplace ? `${REPLACE_STAGING_COST} cr` : tool.cost}
+                </div>
+              )}
             </div>
           );
         })}
@@ -2552,162 +2547,6 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
                 Apply to all ({applyAllCount}) · {applyAllCost} cr
               </button>
             )}
-
-            {/* Export & Create — surfaces the output generators that were
-                previously stranded on the dead /legacy route. */}
-            <div style={{ position: "relative" }}>
-              <button
-                className="v-btn v-btn--secondary v-btn--sm"
-                onClick={() => setExportMenuOpen((o) => !o)}
-                aria-haspopup="menu"
-                aria-expanded={exportMenuOpen}
-              >
-                <Icon name="sparkles" size={12} />{" "}
-                <span className="v-lbl-l">Export &amp; Create</span>
-                <span className="v-lbl-s">Export</span>{" "}
-                <Icon name="chevron_down" size={11} />
-              </button>
-              {exportMenuOpen && (
-                <>
-                  {/* click-away catcher */}
-                  <div
-                    style={{ position: "fixed", inset: 0, zIndex: 49 }}
-                    onClick={() => setExportMenuOpen(false)}
-                  />
-                  <div
-                    role="menu"
-                    style={{
-                      position: "absolute",
-                      top: "calc(100% + 6px)",
-                      right: 0,
-                      zIndex: 50,
-                      minWidth: 224,
-                      background: "var(--background-elevated)",
-                      border: "1px solid var(--border-light)",
-                      borderRadius: 10,
-                      boxShadow: "var(--shadow-lg)",
-                      padding: 6,
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 2,
-                    }}
-                  >
-                    {(
-                      [
-                        {
-                          kind: "reveal" as const,
-                          icon: "video",
-                          label: "Reveal video",
-                          desc: "Before / after wipe for IG & TikTok",
-                          disabled: !revealAfter,
-                        },
-                        {
-                          kind: "mls" as const,
-                          icon: "mls",
-                          label: "MLS export",
-                          desc: "Resize, strip EXIF, watermark, zip",
-                          disabled: overlayImages.length === 0,
-                        },
-                        {
-                          kind: "social" as const,
-                          icon: "image",
-                          label: "Social pack",
-                          desc: "Branded IG / story templates",
-                          disabled: overlayImages.length === 0,
-                        },
-                        {
-                          kind: "description" as const,
-                          icon: "text",
-                          label: "Listing description",
-                          desc: "AI copy in 3 tones",
-                          disabled: false,
-                        },
-                        {
-                          kind: "print" as const,
-                          icon: "folder",
-                          label: "Print collateral",
-                          desc: "Flyer, open house, postcard PDFs",
-                          disabled: overlayImages.length === 0,
-                        },
-                        {
-                          kind: "listingkit" as const,
-                          icon: "sparkles",
-                          label: "Listing Kit",
-                          desc: "One-click MLS + social + copy bundle",
-                          disabled: overlayImages.length === 0,
-                        },
-                      ] as const
-                    ).map((item) => (
-                      <button
-                        key={item.kind}
-                        role="menuitem"
-                        disabled={item.disabled}
-                        onClick={() => openOverlay(item.kind)}
-                        className="v-export-menu-item"
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 10,
-                          width: "100%",
-                          textAlign: "left",
-                          padding: "8px 10px",
-                          borderRadius: 7,
-                          border: "none",
-                          background: "transparent",
-                          cursor: item.disabled ? "not-allowed" : "pointer",
-                          opacity: item.disabled ? 0.4 : 1,
-                          color: "var(--text-primary)",
-                          fontFamily: "var(--font-sans)",
-                        }}
-                        title={
-                          item.disabled
-                            ? item.kind === "reveal"
-                              ? "Refine the selected photo first"
-                              : "Upload photos first"
-                            : undefined
-                        }
-                      >
-                        <span
-                          style={{
-                            width: 26,
-                            height: 26,
-                            borderRadius: 6,
-                            background: "rgba(216,199,154,0.12)",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            flexShrink: 0,
-                          }}
-                        >
-                          <Icon
-                            name={item.icon}
-                            size={14}
-                            color="var(--pale-gold)"
-                          />
-                        </span>
-                        <span style={{ minWidth: 0 }}>
-                          <span
-                            style={{
-                              display: "block",
-                              fontSize: 12.5,
-                              fontWeight: 600,
-                            }}
-                          >
-                            {item.label}
-                          </span>
-                          <span
-                            className="v-muted"
-                            style={{ display: "block", fontSize: 10.5 }}
-                          >
-                            {item.desc}
-                          </span>
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
 
             <button
               className="v-btn v-btn--primary v-btn--sm"
@@ -2965,7 +2804,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
         >
           <Icon
             name="chevron_right"
-            size={12}
+            size={14}
             style={{
               transform: rightCollapsed ? "rotate(180deg)" : "none",
               transition: "transform 300ms ease",
@@ -3323,6 +3162,51 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
                 );
               })()}
             </div>
+          )}
+
+          {/* Create deliverables — MLS / social / print / description / kit /
+              reveal video. Consolidated here from the old action-row
+              "Export & Create" dropdown so downloads and deliverables share one
+              home. Same openOverlay() handlers + disabled rules as before. */}
+          {!exporting && (
+            <>
+              <div className="v-rp-subhead">Create deliverables</div>
+              <div className="v-export-list">
+                {(
+                  [
+                    { kind: "reveal", icon: "video", label: "Reveal video", meta: "Before / after", disabled: !revealAfter },
+                    { kind: "mls", icon: "mls", label: "MLS export", meta: "Resize · EXIF · zip", disabled: overlayImages.length === 0 },
+                    { kind: "social", icon: "image", label: "Social pack", meta: "IG / story", disabled: overlayImages.length === 0 },
+                    { kind: "description", icon: "text", label: "Listing description", meta: "AI copy · 3 tones", disabled: false },
+                    { kind: "print", icon: "folder", label: "Print collateral", meta: "Flyer · PDF", disabled: overlayImages.length === 0 },
+                    { kind: "listingkit", icon: "sparkles", label: "Listing Kit", meta: "MLS + social + copy", disabled: overlayImages.length === 0 },
+                  ] as const
+                ).map((item) => (
+                  <button
+                    key={item.kind}
+                    className="v-export-btn"
+                    disabled={item.disabled}
+                    onClick={() => openOverlay(item.kind)}
+                    title={
+                      item.disabled
+                        ? item.kind === "reveal"
+                          ? "Refine a photo first"
+                          : "Upload photos first"
+                        : undefined
+                    }
+                    style={
+                      item.disabled
+                        ? { opacity: 0.4, cursor: "not-allowed" }
+                        : undefined
+                    }
+                  >
+                    <Icon name={item.icon} size={13} />
+                    {item.label}
+                    <span className="v-export-meta">{item.meta}</span>
+                  </button>
+                ))}
+              </div>
+            </>
           )}
 
           {/* Inline confirmation for upscale-only export */}

@@ -339,7 +339,7 @@ const VellumApp: React.FC = () => {
               color: "var(--warm-ivory, #f5f0e8)",
             }}
           >
-            StudioAI
+            Vellum
           </div>
           <p
             style={{

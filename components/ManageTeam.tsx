@@ -22,9 +22,9 @@ interface Brokerage {
 type Tier = 'team' | 'brokerage' | 'enterprise';
 
 const TIERS: { id: Tier; name: string; price: number; maxSeats: number; perAgent: string; save: string }[] = [
-  { id: 'team',       name: 'Team',       price: 119, maxSeats: 5,  perAgent: '~$24', save: '17%' },
-  { id: 'brokerage',  name: 'Brokerage',  price: 299, maxSeats: 15, perAgent: '~$20', save: '31%' },
-  { id: 'enterprise', name: 'Enterprise', price: 699, maxSeats: 40, perAgent: '~$17', save: '41%' },
+  { id: 'team',       name: 'Team',       price: 149, maxSeats: 5,  perAgent: '~$30', save: '50%' },
+  { id: 'brokerage',  name: 'Brokerage',  price: 299, maxSeats: 15, perAgent: '~$20', save: '66%' },
+  { id: 'enterprise', name: 'Enterprise', price: 699, maxSeats: 40, perAgent: '~$17', save: '70%' },
 ];
 
 interface ManageTeamProps {
@@ -186,7 +186,7 @@ const ManageTeam: React.FC<ManageTeamProps> = ({ adminEmail }) => {
             <h4 className="text-sm font-semibold text-[var(--color-ink)]">Manage Team</h4>
           </div>
           <p className="text-xs text-[var(--color-text)]/70">
-            Set up a brokerage to give your agents Pro access to StudioAI.
+            Set up a brokerage to give your agents Pro access to Vellum.
           </p>
           <button
             type="button"
@@ -286,7 +286,7 @@ const ManageTeam: React.FC<ManageTeamProps> = ({ adminEmail }) => {
         </div>
 
         <div className="text-xs text-[var(--color-text)]/40 text-center">
-          Individual Pro is $29/agent/mo. Brokerage plans save your team money.
+          Individual Pro is $59/agent/mo. Brokerage plans save your team money.
         </div>
 
         {error && (

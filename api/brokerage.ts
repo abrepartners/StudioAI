@@ -7,9 +7,9 @@ const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
 
 const TIERS: Record<string, { name: string; price: number; maxSeats: number }> = {
-  team:       { name: 'StudioAI Team',       price: 11900, maxSeats: 5 },
-  brokerage:  { name: 'StudioAI Brokerage',  price: 29900, maxSeats: 15 },
-  enterprise: { name: 'StudioAI Enterprise', price: 69900, maxSeats: 40 },
+  team:       { name: 'Vellum Team',       price: 14900, maxSeats: 5 },
+  brokerage:  { name: 'Vellum Brokerage',  price: 29900, maxSeats: 15 },
+  enterprise: { name: 'Vellum Enterprise', price: 69900, maxSeats: 40 },
 };
 
 const supaFetch = async (path: string, opts: RequestInit = {}) => {
@@ -66,7 +66,7 @@ async function handleCheckout(body: any, adminEmail: string, res: any) {
     return json(res, 400, { ok: false, error: `Invalid tier: ${tier}. Use team, brokerage, or enterprise.` });
   }
 
-  const origin = body.returnUrl || 'https://studioai.averyandbryant.com';
+  const origin = body.returnUrl || 'https://vellum.homes';
 
   const customers = await stripeFetch(
     `/customers/search?query=email:'${encodeURIComponent(adminEmail)}'`
@@ -112,7 +112,7 @@ async function handleCheckout(body: any, adminEmail: string, res: any) {
   } else {
     const product = await stripeRequest('/products', {
       name: tierConfig.name,
-      description: `StudioAI Pro for up to ${tierConfig.maxSeats} agents`,
+      description: `Vellum Pro for up to ${tierConfig.maxSeats} agents`,
       'metadata[tier]': tier,
       'metadata[max_seats]': String(tierConfig.maxSeats),
     });

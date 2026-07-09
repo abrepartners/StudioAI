@@ -67,7 +67,7 @@ const SettingsRoute: React.FC = () => {
   }, [user, navigate]);
 
   useEffect(() => {
-    document.title = tab ? `${tab[0].toUpperCase()}${tab.slice(1)} · Settings · StudioAI` : 'Settings · StudioAI';
+    document.title = tab ? `${tab[0].toUpperCase()}${tab.slice(1)} · Settings · Vellum` : 'Settings · Vellum';
   }, [tab]);
 
   if (!user) return null;
@@ -79,7 +79,7 @@ const SettingsRoute: React.FC = () => {
     <div className="min-h-screen bg-black text-zinc-100">
       <header className="px-6 py-4 border-b border-white/[0.06] flex items-center justify-between">
         <div className="flex items-center gap-6">
-          <Link to="/" className="font-display text-lg tracking-tight">StudioAI</Link>
+          <Link to="/" className="font-display text-lg tracking-tight">Vellum</Link>
           <nav className="flex items-center gap-4 text-xs text-zinc-400">
             <Link to="/" className="hover:text-white transition">Studio</Link>
             <Link to="/listings" className="hover:text-white transition">Listings</Link>
@@ -141,7 +141,7 @@ const SettingsRoute: React.FC = () => {
 
           {activeTab === 'referral' && (
             <section>
-              <SectionHeading title="Referral" subtitle="Share StudioAI, earn locked-in pricing." />
+              <SectionHeading title="Referral" subtitle="Share Vellum, earn locked-in pricing." />
               <ReferralDashboard userEmail={user.email} userId={user.sub} />
             </section>
           )}
@@ -228,7 +228,7 @@ const BillingTab: React.FC<{
 
 const IntegrationsTab: React.FC = () => (
   <section>
-    <SectionHeading title="Integrations" subtitle="Connect StudioAI to your listing stack." />
+    <SectionHeading title="Integrations" subtitle="Connect Vellum to your listing stack." />
     <div className="grid gap-3">
       {[
         { name: 'Aryeo', desc: 'Pull orders + push staged media back into your Aryeo deliveries.', status: 'Coming soon' },

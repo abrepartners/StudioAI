@@ -107,6 +107,11 @@
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.35);
   --shadow-lg: 0 24px 48px rgba(0, 0, 0, 0.55), 0 4px 12px rgba(0, 0, 0, 0.4);
 
+  /* Radius scale: sm = chips/inputs/pills, md = buttons/tools, lg = cards/modals. */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
   --ease-vellum: cubic-bezier(0.22, 0.61, 0.36, 1);
 
   --font-serif: "Cormorant Garamond", "Times New Roman", serif;
@@ -136,7 +141,6 @@
 .vellum .v-preset.active,
 .vellum .v-export-btn.gold,
 .vellum .v-export-row.primary,
-.vellum .v-subtab.active,
 .vellum .v-create-btn.video {
   background: var(--accent-surface);
   color: var(--accent-ink);
@@ -238,27 +242,6 @@
   line-height: 1;
   margin-right: 8px;
 }
-.v-topbar nav {
-  display: flex;
-  gap: 4px;
-}
-.v-topbar nav a {
-  font-size: 13px;
-  font-weight: 500;
-  padding: 8px 14px;
-  border-radius: 6px;
-  color: var(--graphite);
-  transition: all 200ms var(--ease-vellum);
-  cursor: pointer;
-}
-.v-topbar nav a:hover {
-  color: var(--deep-charcoal);
-  background: var(--soft-stone);
-}
-.v-topbar nav a.active {
-  color: var(--deep-charcoal);
-  background: var(--soft-stone);
-}
 .v-topbar .spacer {
   flex: 1;
 }
@@ -332,7 +315,7 @@
   padding: 6px;
   background: var(--background-elevated);
   border: 1px solid var(--border-light);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
 }
 .v-avatar-menu button {
@@ -705,7 +688,7 @@ textarea.v-wn-textarea {
   padding: 10px 18px;
   font-size: 13px;
   font-weight: 500;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   border: 1px solid transparent;
   transition: all 200ms var(--ease-vellum);
   white-space: nowrap;
@@ -761,7 +744,7 @@ textarea.v-wn-textarea {
 .v-kpi {
   background: var(--background-elevated);
   border: 1px solid var(--soft-stone);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   padding: 24px;
   position: relative;
   transition: all 240ms var(--ease-vellum);
@@ -883,7 +866,7 @@ textarea.v-wn-textarea {
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 11px;
   font-weight: 500;
   background: var(--soft-stone);
@@ -1052,23 +1035,26 @@ textarea.v-wn-textarea {
 .v-panel-toggle {
   position: absolute;
   top: 50%;
-  width: 20px;
-  height: 44px;
+  width: 22px;
+  height: 48px;
   transform: translateY(-50%);
   background: var(--background-elevated);
-  border: 1px solid var(--soft-stone);
-  border-radius: 4px;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--graphite);
+  color: var(--text-secondary);
+  box-shadow: var(--shadow-sm);
   z-index: 10;
   transition:
     background 160ms ease,
     color 160ms ease,
     opacity 160ms ease;
-  opacity: 0;
+  /* Resting affordance: always discoverable. Was opacity:0 (invisible until
+     panel hover), which read as "no control here." Brightens on hover/collapsed. */
+  opacity: 0.55;
 }
 .v-editor-left:hover .v-panel-toggle,
 .v-editor-right:hover .v-panel-toggle,
@@ -1082,10 +1068,10 @@ textarea.v-wn-textarea {
   border-color: var(--accent-surface);
 }
 .v-panel-toggle--left {
-  right: -10px;
+  right: -6px;
 }
 .v-panel-toggle--right {
-  left: -10px;
+  left: -6px;
 }
 
 .v-editor-right {
@@ -1135,7 +1121,7 @@ textarea.v-wn-textarea {
   align-items: center;
   gap: 12px;
   padding: 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   transition: all 180ms var(--ease-vellum);
   border: 1px solid transparent;
@@ -1223,6 +1209,7 @@ img.v-ba-img-dimmed {
   align-items: center;
   justify-content: center;
   z-index: 1;
+  pointer-events: none;
 }
 .v-ba-pending span {
   font-size: 11px;
@@ -1500,7 +1487,7 @@ img.v-ba-img-dimmed {
 .v-preset {
   padding: 6px 12px;
   font-size: 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--soft-stone);
   background: var(--background-primary);
   color: var(--graphite);
@@ -1533,6 +1520,17 @@ img.v-ba-img-dimmed {
   text-transform: uppercase;
   color: var(--graphite);
   margin: 0 0 12px;
+}
+/* Sub-group label inside a panel section (e.g. "Create deliverables" under
+   Export). Smaller than the h4, with top margin to separate from the group
+   above it. */
+.v-rp-subhead {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--graphite);
+  margin: 18px 0 10px;
 }
 .v-rp-row {
   display: flex;
@@ -1576,7 +1574,7 @@ img.v-ba-img-dimmed {
   height: 13px;
   color: var(--graphite);
 }
-.v-export-btn .meta {
+.v-export-btn .v-export-meta {
   margin-left: auto;
   font-size: 11px;
   color: var(--graphite);
@@ -1604,7 +1602,7 @@ img.v-ba-img-dimmed {
 .v-plan {
   background: var(--background-elevated);
   border: 1px solid var(--soft-stone);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   padding: 28px;
   display: flex;
   flex-direction: column;
@@ -1742,7 +1740,7 @@ img.v-ba-img-dimmed {
   position: relative;
   background: var(--background-elevated);
   border: 1px solid var(--border-light);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   width: 640px;
   max-width: 100%;
   padding: 36px 36px 28px;
@@ -1872,7 +1870,7 @@ img.v-ba-img-dimmed {
 .v-settings-card {
   background: var(--background-elevated);
   border: 1px solid var(--soft-stone);
-  border-radius: 6px;
+  border-radius: var(--radius-lg);
   padding: 28px;
   position: relative;
 }
@@ -1901,12 +1899,28 @@ img.v-ba-img-dimmed {
 .v-set-input {
   border: 1px solid var(--soft-stone);
   background: var(--background-primary);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 7px 10px;
   font-size: 12px;
   font-family: inherit;
   color: var(--deep-charcoal);
   min-width: 180px;
+}
+/* Kill the raw browser-blue focus ring; use the gold accent instead. */
+.vellum .v-set-input:focus,
+.vellum .v-set-input:focus-visible {
+  outline: none;
+  border-color: var(--accent-surface);
+  box-shadow: 0 0 0 3px rgba(216, 199, 154, 0.18);
+}
+/* Replace the OS dropdown arrow with a gold-system caret. */
+.vellum .v-modal select.v-set-input {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239a968f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 30px;
 }
 
 .v-seg {
@@ -1915,7 +1929,7 @@ img.v-ba-img-dimmed {
   grid-auto-columns: 1fr;
   background: var(--background-primary);
   border: 1px solid var(--soft-stone);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   padding: 3px;
   gap: 2px;
 }
@@ -3023,7 +3037,7 @@ img.v-ba-img-dimmed {
 .v-tool-icon {
   width: 36px;
   height: 36px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--background-elevated);
   border: 1px solid var(--soft-stone);
   display: inline-flex;
@@ -3055,6 +3069,13 @@ img.v-ba-img-dimmed {
   font-size: 11px;
   color: var(--graphite);
   flex-shrink: 0;
+  min-width: 34px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.v-tool-item.disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 /* ============ PHOTO EDITOR — CONTROL CARD ============ */
@@ -3142,7 +3163,7 @@ img.v-ba-img-dimmed {
   align-items: center;
   gap: 6px;
   padding: 7px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-size: 12px;
   font-weight: 500;
   border: 0;
@@ -3156,8 +3177,11 @@ img.v-ba-img-dimmed {
   color: var(--deep-charcoal);
 }
 .v-subtab.active {
-  background: var(--deep-charcoal);
-  color: var(--warm-ivory);
+  /* Quiet surface + gold underline. Reserves the solid gold FILL for the one
+     primary CTA (Apply) so the action row has a single focal point. */
+  background: var(--soft-stone);
+  color: var(--text-primary);
+  box-shadow: inset 0 -2px 0 var(--accent-surface);
 }
 
 /* ============ PHOTO EDITOR — RIGHT PANEL ============ */
@@ -3791,13 +3815,29 @@ img.v-ba-img-dimmed {
   -webkit-font-smoothing: antialiased;
   font-feature-settings: "cv11", "ss01";
 
-  /* Override index.css overflow:hidden on html/body — make this the scroll container */
-  position: fixed;
-  inset: 0;
+  /* Landing scrolls the DOCUMENT rather than an inner fixed box. An inner
+     position:fixed;inset:0 scroller stops the mobile address bar from
+     collapsing on scroll, so it oscillates and the bottom-anchored container
+     resizes on every oscillation (the "window goes up and down" jump between
+     sections). Document scroll lets the URL bar hide/show cleanly. */
+  position: relative;
+  overflow: visible;
+  min-height: 100%;
+  z-index: 1;
+}
+
+/* Opt the landing route out of the app-shell scroll lock (index.css sets
+   html/body { overflow:hidden;height:100% } for the fixed full-screen editor).
+   Scoped to when .vl-root is mounted, so the app shell is untouched. */
+html:has(.vl-root) {
   overflow-x: hidden;
   overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  z-index: 1;
+  height: auto;
+  overscroll-behavior: auto;
+}
+body:has(.vl-root) {
+  overflow: visible;
+  height: auto;
 }
 
 /* index.css .reveal starts opacity:0 and waits for IntersectionObserver on document scroll.
@@ -4321,11 +4361,8 @@ img.v-ba-img-dimmed {
     --v-dock-h: calc(64px + env(safe-area-inset-bottom));
   }
 
-  /* Header — wordmark + credits + avatar. Desktop text nav goes away;
-     Help/Settings/Billing live in the avatar menu. */
-  .v-topbar nav {
-    display: none;
-  }
+  /* Header — wordmark + credits + avatar. Wayfinding lives in the sidebar
+     (desktop) and the avatar menu (mobile). */
   .v-topbar {
     height: 56px;
     padding: 0 14px;

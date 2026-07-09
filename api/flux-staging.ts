@@ -31,6 +31,10 @@ import sharp from "sharp";
 import { json, rejectMethod, parseBody, MOONDREAM } from "./utils.js";
 import { applyCors, requireSession } from "./_lib/auth-middleware.js";
 import { reserveQuota, refundQuota } from "./_lib/quota.js";
+import {
+  orientationRoomFor,
+  judgeOrientation,
+} from "./_lib/orientation-judge.js";
 
 // 300s: worst case is mask ladder (2 lang-sam) + fill + 2 verify retries
 // (each = fill + moondream) + 2 composite lang-sams. 180 was tight; repo
@@ -682,6 +686,14 @@ export default async function handler(req: any, res: any) {
   // before staging. Whole-frame engines only — the fill inpaint pipeline
   // can't remove furniture through a floor mask, so its fallback is skipped.
   const furnished = Boolean(body.furnished);
+  // Architecture protect (nano path only): nano ships RAW and its native
+  // preservation is NOT reliable on architecture — measured live dropping an
+  // exterior glass door (re-rendered as a solid panel) and altering windows.
+  // A moondream QC gate can't judge this (yes-biased on the real images), so we
+  // deterministically restore the ORIGINAL's windows/doors/fixtures via lang-sam
+  // masks, minus any furniture now in front of them. On by default; `?protect=0`
+  // disables for A/B against pure-RAW nano.
+  const protectArchitecture = String(body.protect || "") !== "0";
 
   if (!imageBase64) {
     json(res, 400, { ok: false, error: "imageBase64 is required" });
@@ -877,6 +889,45 @@ export default async function handler(req: any, res: any) {
       }
     }
 
+    // ORIENTATION gate: nano places the primary seating backwards (sofa's back
+    // to the fireplace) on its tail. The prompt already forbids it and the model
+    // ignores it; the small VQA models can't judge it. A frontier VLM (Gemini
+    // 2.5 Flash) can — one corrective regeneration when it flags BACKWARDS.
+    // Room-gated to seating rooms; fails open (needs GEMINI_API_KEY, else skips).
+    const orientRoom = orientationRoomFor(prompt);
+    if (orientRoom) {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const verdict = await judgeOrientation(
+          `data:image/jpeg;base64,${resultBuf.toString("base64")}`,
+        );
+        if (verdict !== "backwards") {
+          if (attempt > 0 && verdict === "ok")
+            console.log(
+              `[flux-staging] orientation retry ${attempt} PASSED (seating faces the room)`,
+            );
+          break;
+        }
+        if (attempt === 1) {
+          console.warn(
+            "[flux-staging] seating still backwards after 1 retry — shipping last frame",
+          );
+          break;
+        }
+        console.warn(
+          "[flux-staging] orientation flagged BACKWARDS — corrective retry",
+        );
+        const retryPrompt =
+          "RETRY — your previous attempt FAILED because the main sofa was placed BACKWARDS, " +
+          "with its back to the fireplace or a window and facing a blank wall. Orient the primary " +
+          "seating so its SEAT faces INTO the room toward the focal point (fireplace, TV wall, or " +
+          "the seating group). This facing is the single most important requirement.\n\n" +
+          prompt;
+        const second = await generate(retryPrompt);
+        if (!second) break;
+        resultBuf = second;
+      }
+    }
+
     // COMPOSITE — engine-specific contract, fails open to the raw frame.
     // nano-banana intentionally ships RAW (no composite): the A/B question is
     // whether its native preservation makes the composite stage unnecessary.
@@ -944,6 +995,64 @@ export default async function handler(req: any, res: any) {
       } catch (compErr: any) {
         console.warn(
           `[flux-staging] composite failed (${compErr?.message}) — returning raw staged frame`,
+        );
+      }
+    } else if (protectArchitecture) {
+      // NANO ARCHITECTURE PROTECT — narrow, deterministic. nano keeps its RAW
+      // furniture (no furniture-lock composite), but the ORIGINAL's windows,
+      // doors, and fixtures are restored where nano re-rendered them. Two
+      // lang-sam passes: doors/windows in the ORIGINAL (what to restore), and
+      // furniture in the RESULT (what to keep on top). floorRestoreComposite
+      // with an all-zero floor mask means restore = protect AND NOT furniture,
+      // so a sofa placed in front of a window is never cut through. Fails open
+      // to the raw nano frame.
+      try {
+        const tProt = Date.now();
+        const resultDataUrl = `data:image/jpeg;base64,${resultBuf.toString("base64")}`;
+
+        const protectOut = await replicate.run(
+          LANG_SAM as `${string}/${string}:${string}`,
+          {
+            input: {
+              image: `data:image/jpeg;base64,${originalBuf.toString("base64")}`,
+              text_prompt:
+                "window, door, doorway, glass door, french doors, sliding glass door, window blinds, ceiling fan, light fixture, chandelier",
+            },
+          },
+        );
+        const protectUrl = await extractUrl(protectOut);
+        const protectRes = protectUrl ? await fetch(protectUrl) : null;
+        if (!protectRes || !protectRes.ok)
+          throw new Error("architecture protect mask unavailable");
+        const protectBuf = Buffer.from(await protectRes.arrayBuffer());
+
+        const furnOut = await replicate.run(
+          LANG_SAM as `${string}/${string}:${string}`,
+          {
+            input: { image: resultDataUrl, text_prompt: FURNITURE_MASK_PROMPT },
+          },
+        );
+        const furnUrl = await extractUrl(furnOut);
+        const furnRes = furnUrl ? await fetch(furnUrl) : null;
+        if (!furnRes || !furnRes.ok)
+          throw new Error("furniture mask unavailable");
+        const furnMaskBuf = Buffer.from(await furnRes.arrayBuffer());
+
+        resultBuf = await floorRestoreComposite(
+          originalBuf,
+          resultBuf,
+          Buffer.alloc(oW * oH), // no floor restore — nano keeps its own floor + furniture
+          furnMaskBuf,
+          protectBuf,
+          oW,
+          oH,
+        );
+        console.log(
+          `[flux-staging] nano architecture-protect done in ${Date.now() - tProt}ms`,
+        );
+      } catch (protErr: any) {
+        console.warn(
+          `[flux-staging] architecture protect failed (${protErr?.message}) — returning raw nano frame`,
         );
       }
     }

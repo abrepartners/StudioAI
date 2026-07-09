@@ -28,6 +28,8 @@ import SettingsRoute from './SettingsRoute';
 import AdminPackMatrixRoute from './AdminPackMatrixRoute';
 import ModelLabRoute from './ModelLabRoute';
 import AdminApiDashboardRoute from './AdminApiDashboardRoute';
+import PrivacyRoute from './PrivacyRoute';
+import TermsRoute from './TermsRoute';
 import { readGoogleUser } from './authStorage';
 
 // A failed lazy chunk (flaky network, stale deploy) otherwise rejects the
@@ -111,6 +113,10 @@ const AppRouter: React.FC = () => {
           {/* Vellum — editorial hi-fi prototype (parallel build) */}
           <Route path="/vellum" element={<VellumApp />} />
           <Route path="/vellum/*" element={<VellumApp />} />
+
+          {/* Legal: Privacy Policy + Terms (Google OAuth consent screen URLs) */}
+          <Route path="/privacy" element={<PrivacyRoute />} />
+          <Route path="/terms" element={<TermsRoute />} />
 
           {/* Fallback: unknown path → editor */}
           <Route path="*" element={<Navigate to="/" replace />} />

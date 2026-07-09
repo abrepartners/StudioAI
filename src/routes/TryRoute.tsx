@@ -10,13 +10,13 @@ const TryRoute: React.FC = () => {
   }, [user]);
 
   useEffect(() => {
-    document.title = 'Try it free · StudioAI';
+    document.title = 'Try it free · Vellum';
   }, []);
 
   return (
     <div className="min-h-screen bg-black text-zinc-100 flex flex-col">
       <header className="px-6 py-5 border-b border-white/[0.06] flex items-center justify-between">
-        <Link to="/" className="font-display text-lg tracking-tight">StudioAI</Link>
+        <Link to="/" className="font-display text-lg tracking-tight">Vellum</Link>
         <Link
           to="/"
           className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white text-black text-xs font-semibold hover:bg-zinc-200 transition"
@@ -45,7 +45,7 @@ const TryRoute: React.FC = () => {
             to="/vellum"
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-white text-black text-sm font-bold hover:bg-zinc-200 transition"
           >
-            Open StudioAI Editor
+            Open Vellum Editor
           </Link>
         </div>
       </main>

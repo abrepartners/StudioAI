@@ -54,7 +54,10 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-function ParamRow({ label, value, note }: { label: string; value: string | number | boolean; note?: string }) {
+// These list-rendered cards declare an optional `key` in their prop types: this
+// repo has no @types/react installed, so React's special `key` attribute is not
+// auto-stripped from component props and must be permitted explicitly.
+function ParamRow({ label, value, note }: { label: string; value: string | number | boolean; note?: string; key?: string }) {
   return (
     <div className="flex items-start gap-3 py-1.5">
       <code className="text-[11px] text-[#0A84FF] bg-[#0A84FF]/10 px-1.5 py-0.5 rounded font-mono shrink-0">{label}</code>
@@ -64,7 +67,7 @@ function ParamRow({ label, value, note }: { label: string; value: string | numbe
   );
 }
 
-function ToolCard({ tool }: { tool: ApiTool }) {
+function ToolCard({ tool }: { tool: ApiTool; key?: string }) {
   const [expanded, setExpanded] = useState(false);
   return (
     <div className="bg-zinc-900/50 border border-white/[0.08] rounded-2xl overflow-hidden transition-all duration-200">
@@ -173,7 +176,7 @@ function ToolCard({ tool }: { tool: ApiTool }) {
   );
 }
 
-function GeminiFunctionCard({ fn }: { fn: GeminiFunction }) {
+function GeminiFunctionCard({ fn }: { fn: GeminiFunction; key?: string }) {
   const [expanded, setExpanded] = useState(false);
   return (
     <div className="bg-zinc-900/50 border border-white/[0.08] rounded-2xl overflow-hidden transition-all duration-200">
@@ -219,7 +222,7 @@ function GeminiFunctionCard({ fn }: { fn: GeminiFunction }) {
   );
 }
 
-function PipelineCard({ pipeline }: { pipeline: Pipeline }) {
+function PipelineCard({ pipeline }: { pipeline: Pipeline; key?: string }) {
   return (
     <div className="bg-zinc-900/50 border border-white/[0.08] rounded-2xl px-5 py-4 space-y-3">
       <div>

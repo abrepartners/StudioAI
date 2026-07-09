@@ -22,14 +22,8 @@
  *   { ok: false, error: string }
  */
 import Replicate from "replicate";
-import {
-  json,
-  setCors,
-  handleOptions,
-  rejectMethod,
-  parseBody,
-  MOONDREAM,
-} from "./utils.js";
+import { json, rejectMethod, parseBody, MOONDREAM } from "./utils.js";
+import { applyCors, requireSession } from "./_lib/auth-middleware.js";
 
 export const config = { runtime: "nodejs", maxDuration: 60 };
 
@@ -103,9 +97,12 @@ async function ask(
 }
 
 export default async function handler(req: any, res: any) {
-  setCors(res, "POST,OPTIONS");
-  if (handleOptions(req, res)) return;
+  if (applyCors(req, res, "POST,OPTIONS")) return;
   if (rejectMethod(req, res, "POST")) return;
+
+  // Gate: verified session required. Closes the anonymous-access hole.
+  const session = await requireSession(req, res);
+  if (!session) return;
 
   if (!REPLICATE_TOKEN) {
     json(res, 200, { ok: false, error: "REPLICATE_API_TOKEN not configured" });

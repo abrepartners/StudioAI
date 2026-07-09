@@ -41,3 +41,8 @@ playwright-report/
 # Mobile audit captures (review-by-eye artifacts)
 tests/qa-harness/shots/
 .gstack/
+
+# Scratch / automation artifacts (never commit)
+.playwright-mcp/
+.superpowers/
+studioai-model-test/

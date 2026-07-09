@@ -22,13 +22,9 @@
  *   { ok: false, error: string }
  */
 import Replicate from "replicate";
-import {
-  json,
-  setCors,
-  handleOptions,
-  rejectMethod,
-  parseBody,
-} from "./utils.js";
+import { json, rejectMethod, parseBody } from "./utils.js";
+import { applyCors, requireSession } from "./_lib/auth-middleware.js";
+import { reserveQuota, refundQuota } from "./_lib/quota.js";
 
 export const config = { runtime: "nodejs", maxDuration: 120 };
 
@@ -117,9 +113,12 @@ async function extractUrl(output: unknown): Promise<string | null> {
 }
 
 export default async function handler(req: any, res: any) {
-  setCors(res, "POST,OPTIONS");
-  if (handleOptions(req, res)) return;
+  if (applyCors(req, res, "POST,OPTIONS")) return;
   if (rejectMethod(req, res, "POST")) return;
+
+  // Gate: verified session required. Closes the anonymous-access hole.
+  const session = await requireSession(req, res);
+  if (!session) return;
 
   if (!REPLICATE_TOKEN) {
     json(res, 200, { ok: false, error: "REPLICATE_API_TOKEN not configured" });
@@ -153,6 +152,18 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
+  // Reserve AFTER validation (a malformed request never consumes quota) and
+  // BEFORE the paid Replicate work. Refund on any generation failure below.
+  const quota = await reserveQuota(session.email, session.sub, 1);
+  if (!quota.allowed) {
+    json(res, 402, {
+      ok: false,
+      error: "generation quota reached",
+      code: quota.reason || "quota_exhausted",
+    });
+    return;
+  }
+
   const userDataUrl = imageBase64.startsWith("data:")
     ? imageBase64
     : `data:image/jpeg;base64,${imageBase64}`;
@@ -182,6 +193,7 @@ export default async function handler(req: any, res: any) {
 
     const cleanUrl = await extractUrl(output);
     if (!cleanUrl) {
+      await refundQuota(quota.refundHandle);
       json(res, 200, {
         ok: false,
         error: "flux-kontext-pro returned no image URL",
@@ -194,6 +206,7 @@ export default async function handler(req: any, res: any) {
 
     const imgRes = await fetch(cleanUrl);
     if (!imgRes.ok) {
+      await refundQuota(quota.refundHandle);
       json(res, 200, { ok: false, error: `result fetch ${imgRes.status}` });
       return;
     }
@@ -203,6 +216,7 @@ export default async function handler(req: any, res: any) {
     console.log(`[flux-renovation] Total: ${Date.now() - t0}ms`);
     json(res, 200, { ok: true, resultBase64, latencyMs: Date.now() - t0 });
   } catch (err: any) {
+    await refundQuota(quota.refundHandle);
     console.error("[flux-renovation] unhandled:", err?.message || err);
     json(res, 200, { ok: false, error: err?.message || "unknown" });
   }

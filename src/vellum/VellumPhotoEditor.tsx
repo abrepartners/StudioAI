@@ -109,6 +109,14 @@ interface PhotoGenState {
 }
 
 const TOOLS = [
+  { section: "Magic" },
+  {
+    id: "magicedit",
+    icon: "sparkles",
+    name: "Magic edit",
+    desc: "Describe any change",
+    cost: "2 cr",
+  },
   { section: "Refine" },
   {
     id: "staging",
@@ -197,6 +205,12 @@ const DECLUTTER_FILTER_MAP: Record<string, string | undefined> = {
 };
 
 const TOOL_STEPS: Record<string, string[]> = {
+  magicedit: [
+    "Reading your instruction…",
+    "Editing the scene…",
+    "Blending the result…",
+    "Finalizing…",
+  ],
   staging: [
     "Analyzing room geometry…",
     "Selecting furniture for style…",
@@ -242,6 +256,7 @@ const TOOL_STEPS: Record<string, string[]> = {
 };
 
 const TOOL_COST: Record<string, number> = {
+  magicedit: 2,
   staging: 2,
   declutter: 1,
   whiten: 0.5,
@@ -611,6 +626,22 @@ DO NOT:
         skipUpscale: true,
       });
       return { resultBase64: result.resultBase64 };
+    }
+    case "magicedit": {
+      const instruction = (customRemovalVal || "").trim();
+      if (!instruction)
+        throw new Error("Describe the change you want to make.");
+      // Reuse the nano-banana-pro whole-frame path (same engine declutter runs
+      // on) by passing a general edit instruction as the customPrompt — this
+      // bypasses buildCleanupPrompt and lets the best model add/remove/clean
+      // exactly what the user asked. Ships raw (native preservation), no
+      // client composite, like the other nano tools.
+      const prompt = `Edit this photo${roomLabel ? ` of a ${roomLabel.toLowerCase()}` : ""}. Instruction: ${instruction}. Apply ONLY this change. Add, remove, or clean exactly what is asked and make it photorealistic — match the scene's existing lighting, perspective, materials, shadows, and color temperature so the edit is seamless. Keep everything the instruction does not mention — architecture, layout, fixtures, furniture, camera angle, framing, and exposure — identical to the input. Do not restyle, relight, or regenerate the rest of the scene.`;
+      const result = await fluxCleanup(imageBase64, roomLabel, signal, {
+        customPrompt: prompt,
+        skipUpscale: true,
+      });
+      return { resultBase64: result.resultBase64, engine: result.engine };
     }
     default:
       return { resultBase64: imageBase64 };
@@ -2557,7 +2588,8 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
               onClick={handleApply}
               disabled={
                 !photos.length ||
-                (currentPhoto ? isPhotoGenerating(currentPhoto.id) : false)
+                (currentPhoto ? isPhotoGenerating(currentPhoto.id) : false) ||
+                (activeTool === "magicedit" && !customRemoval.trim())
               }
             >
               {currentIsGenerating ? (
@@ -2616,7 +2648,47 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
               Undo steps back one step; Reset returns to your original photo.
             </p>
 
-            {activeTool === "twilight" ? (
+            {activeTool === "magicedit" ? (
+              <>
+                <div className="v-field">
+                  <span className="v-field-label">Describe the edit</span>
+                  <textarea
+                    className="v-set-input"
+                    placeholder="e.g. remove all the dirt from the pool and make the water clean and clear blue"
+                    value={customRemoval}
+                    onChange={(e) => setCustomRemoval(e.target.value)}
+                    rows={3}
+                    style={{
+                      width: "100%",
+                      fontSize: 12,
+                      resize: "vertical",
+                      lineHeight: 1.5,
+                    }}
+                  />
+                </div>
+                <div className="v-preset-row" style={{ marginTop: 8 }}>
+                  {[
+                    "Remove the cars from the driveway",
+                    "Add a fire in the fireplace",
+                    "Remove the power lines",
+                    "Clean the pool water",
+                  ].map((ex) => (
+                    <button
+                      key={ex}
+                      type="button"
+                      className="v-preset"
+                      onClick={() => setCustomRemoval(ex)}
+                    >
+                      {ex}
+                    </button>
+                  ))}
+                </div>
+                <p className="v-muted" style={{ fontSize: 11, marginTop: 8 }}>
+                  Add, remove, or clean anything. Runs on the full-quality
+                  model and only changes what you describe.
+                </p>
+              </>
+            ) : activeTool === "twilight" ? (
               <>
                 <div className="v-field">
                   <span className="v-field-label">Color style</span>
@@ -2897,6 +2969,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
                 </div>
               );
             const toolNames: Record<string, string> = {
+              magicedit: "Magic edit",
               staging: "Staging",
               declutter: "Declutter",
               whiten: "White balance",

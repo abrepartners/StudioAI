@@ -15,6 +15,12 @@ export interface WhatsNewEntry {
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    id: "2026-07-magic-edit",
+    date: "July 2026",
+    title: "Magic edit: change anything with a sentence",
+    body: "New Magic edit tool at the top of the editor. Type what you want, like \"remove the cars from the driveway\", \"add a fire in the fireplace\", or \"clean the dirt out of the pool\", and Vellum makes just that change on our best model. It's the catch-all for anything the preset tools don't cover.",
+  },
+  {
     id: "2026-06-mobile",
     date: "June 2026",
     title: "Vellum now feels right on your phone",

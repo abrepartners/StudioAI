@@ -12,6 +12,7 @@ import { VellumSidebar } from "./VellumSidebar";
 import { useVellumStore } from "./useVellumStore";
 import { readGoogleUser, type GoogleUser } from "../routes/authStorage";
 import { useSubscription } from "../../hooks/useSubscription";
+import { resetWorkspaceOnAccountSwitch } from "./imageStore";
 import { hasUnreadWhatsNew, markWhatsNewSeen } from "./whatsNew";
 
 const VellumDashboard = React.lazy(() => import("./VellumDashboard"));
@@ -94,9 +95,12 @@ const VellumApp: React.FC = () => {
   const [authLoading, setAuthLoading] = useState(true);
   const googleButtonRef = useRef<HTMLDivElement>(null);
 
-  const handleGoogleCredential = useCallback((response: any) => {
+  const handleGoogleCredential = useCallback(async (response: any) => {
     const user = decodeJwtPayload(response.credential);
     if (user) {
+      // Different account on this browser -> clear the previous account's local
+      // workspace so its projects never leak into this session.
+      void resetWorkspaceOnAccountSwitch(user.sub);
       setGoogleUser(user);
       localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
     }
@@ -106,11 +110,15 @@ const VellumApp: React.FC = () => {
     // automatically and every /api/* generation call is authenticated without
     // the Google token's 1-hour expiry ever touching the API. (This endpoint
     // also folds in the user upsert that /api/track-login used to do.)
-    fetch("/api/session", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ credential: response.credential }),
-    }).catch(() => {});
+    try {
+      await fetch("/api/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ credential: response.credential }),
+      });
+    } catch {
+      /* non-fatal — auth guard re-prompts if the cookie is missing */
+    }
     setAuthLoading(false);
   }, []);
 

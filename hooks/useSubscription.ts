@@ -47,7 +47,10 @@ const FREE_DAILY_LIMIT_AFTER_LIFETIME = FREE_TIER_POLICY.dailyAfterLifetime;
 const isAdminEmail = (email: string) =>
   ADMIN_DOMAINS.some((domain) => email.toLowerCase().endsWith(`@${domain}`));
 
-export function useSubscription(userEmail: string | null) {
+export function useSubscription(
+  userEmail: string | null,
+  googleId: string | null = null,
+) {
   const [state, setState] = useState<SubscriptionState>({
     loading: true,
     plan: "free",
@@ -90,7 +93,7 @@ export function useSubscription(userEmail: string | null) {
 
     try {
       const res = await fetch(
-        `/api/stripe-status?email=${encodeURIComponent(userEmail)}`,
+        `/api/stripe-status?email=${encodeURIComponent(userEmail)}${googleId ? `&google_id=${encodeURIComponent(googleId)}` : ""}`,
       );
       const data = await res.json();
       if (data.ok) {
@@ -158,7 +161,7 @@ export function useSubscription(userEmail: string | null) {
     } catch {
       setState((prev) => ({ ...prev, loading: false }));
     }
-  }, [userEmail]);
+  }, [userEmail, googleId]);
 
   useEffect(() => {
     checkStatus();

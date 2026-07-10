@@ -30,35 +30,17 @@ function getCurrentMonth(): string {
 }
 
 /**
- * Increment lifetime free-gens counter in Supabase for a given email by `amount`.
- * Returns the new lifetime count. Idempotent via RPC if present, else upserts.
+ * Read the current lifetime free-gens counter for `email`.
+ *
+ * The counter is now WRITTEN exclusively by the reserve_generation RPC (atomic,
+ * keyed by google_id) at spend time. record-generation must NOT also write it,
+ * or the two paths double-count. This is read-only: it reports the current
+ * value for the client's immediate post-generation display. The authoritative
+ * read is /api/stripe-status (keyed by google_id), which the client refreshes.
  */
-async function bumpLifetimeFreeGens(
-  email: string,
-  amount: number = 1,
-): Promise<number> {
+async function readLifetimeFreeGens(email: string): Promise<number> {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) return 0;
   try {
-    // Prefer RPC if schema includes it (created in migration).
-    const rpc = await fetch(
-      `${SUPABASE_URL}/rest/v1/rpc/bump_lifetime_free_gens`,
-      {
-        method: "POST",
-        headers: {
-          apikey: SUPABASE_SERVICE_KEY,
-          Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ user_email: email.toLowerCase(), amount }),
-      },
-    );
-    if (rpc.ok) {
-      const out = await rpc.json();
-      if (typeof out === "number") return out;
-      if (out && typeof out.lifetime_free_gens_used === "number")
-        return out.lifetime_free_gens_used;
-    }
-    // Fallback: read-then-write (non-atomic, acceptable for free-tier bookkeeping).
     const readRes = await fetch(
       `${SUPABASE_URL}/rest/v1/users?email=eq.${encodeURIComponent(email.toLowerCase())}&select=lifetime_free_gens_used`,
       {
@@ -68,22 +50,7 @@ async function bumpLifetimeFreeGens(
         },
       },
     ).then((r) => r.json());
-    const current = (readRes && readRes[0]?.lifetime_free_gens_used) || 0;
-    const next = current + amount;
-    await fetch(
-      `${SUPABASE_URL}/rest/v1/users?email=eq.${encodeURIComponent(email.toLowerCase())}`,
-      {
-        method: "PATCH",
-        headers: {
-          apikey: SUPABASE_SERVICE_KEY,
-          Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
-          "Content-Type": "application/json",
-          Prefer: "return=minimal",
-        },
-        body: JSON.stringify({ lifetime_free_gens_used: next }),
-      },
-    );
-    return next;
+    return (readRes && readRes[0]?.lifetime_free_gens_used) || 0;
   } catch {
     return 0;
   }
@@ -181,7 +148,7 @@ export default async function handler(req: any, res: any) {
       customerId = created.id;
 
       // First-ever gen for this email — lifetime counter goes to `amount`.
-      const lifetime = await bumpLifetimeFreeGens(email, amount);
+      const lifetime = await readLifetimeFreeGens(email);
       json(res, 200, {
         ok: true,
         generationsUsed: amount,
@@ -248,7 +215,7 @@ export default async function handler(req: any, res: any) {
 
     // Free tier — Fork #3: 5 lifetime, then 1/day.
     // Bump lifetime counter first.
-    const lifetime = await bumpLifetimeFreeGens(email, amount);
+    const lifetime = await readLifetimeFreeGens(email);
 
     // If still within the lifetime allowance, we don't also count it against
     // the daily window (lifetime phase takes precedence).

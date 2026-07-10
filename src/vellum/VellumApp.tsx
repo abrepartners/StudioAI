@@ -162,7 +162,10 @@ const VellumApp: React.FC = () => {
   }, []);
 
   // ─── Subscription (real Stripe billing) ─────────────────────────────
-  const subscription = useSubscription(googleUser?.email || null);
+  const subscription = useSubscription(
+    googleUser?.email || null,
+    googleUser?.sub || null,
+  );
 
   const canGenerate = subscription.canGenerate;
   const isUnlimited = subscription.generationsLimit === -1;

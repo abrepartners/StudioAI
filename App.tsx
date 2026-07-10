@@ -491,22 +491,27 @@ const App: React.FC = () => {
   }, [activePanel]);
 
   // ─── Google OAuth: restore session & initialize GIS ─────────────────────
-  const handleGoogleCredential = useCallback((response: any) => {
+  const handleGoogleCredential = useCallback(async (response: any) => {
     const user = decodeJwtPayload(response.credential);
     if (user) {
       setGoogleUser(user);
       localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
-      // Track login in Supabase (fire and forget)
-      fetch('/api/track-login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          googleId: user.sub,
-          email: user.email,
-          name: user.name,
-          picture: user.picture,
-        }),
-      }).catch(() => {}); // Never block on tracking
+      // Mint the StudioAI session cookie for THIS identity (verifies the Google
+      // credential server-side, sets a 7-day HttpOnly session, folds in the user
+      // upsert /api/track-login used to do). Minting on every login keeps the
+      // cookie identity in sync with the signed-in account — the old
+      // fire-and-forget /api/track-login never touched the cookie, so a fresh
+      // sign-in kept a previous account's session (wrong projects) and 401'd
+      // under auth enforce.
+      try {
+        await fetch('/api/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ credential: response.credential }),
+        });
+      } catch {
+        /* non-fatal — auth guard re-prompts if the cookie is missing */
+      }
     }
     setIsAuthLoading(false);
   }, []);

@@ -141,3 +141,37 @@ export async function deleteProjectImages(projectId: string): Promise<void> {
   for (const k of resultKeys) await resultStore.delete(k);
   await tx.done;
 }
+
+/** Wipe all locally-cached images (photos + results) for this browser. */
+export async function clearAllImages(): Promise<void> {
+  try {
+    const db = await getDb();
+    await db.clear(PHOTOS_STORE);
+    await db.clear(RESULTS_STORE);
+  } catch {
+    /* non-fatal */
+  }
+}
+
+/**
+ * On account switch — a different Google account signing in on this browser
+ * than the last one — wipe the previous account's local Vellum workspace
+ * (projects, settings, cached images). Projects live in browser-local storage
+ * (localStorage `vellum_store` + this IndexedDB), NOT namespaced by account, so
+ * without this a fresh sign-in would show the previous account's projects. No-op
+ * on same-account re-login. The localStorage clears run synchronously (before
+ * the first await), so calling this immediately before persisting the new
+ * identity reads the OLD account id correctly.
+ */
+export async function resetWorkspaceOnAccountSwitch(newSub: string): Promise<void> {
+  try {
+    const raw = localStorage.getItem('studioai_google_user');
+    const prevSub = raw ? JSON.parse(raw)?.sub : null;
+    if (!prevSub || prevSub === newSub) return;
+    localStorage.removeItem('vellum_store');
+    localStorage.removeItem('vellum_settings');
+    await clearAllImages();
+  } catch {
+    /* non-fatal */
+  }
+}

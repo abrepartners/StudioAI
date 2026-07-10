@@ -5,6 +5,7 @@ import PricingPage from '../../components/PricingPage';
 import { useSubscription } from '../../hooks/useSubscription';
 import { readGoogleUser, type GoogleUser } from '../routes/authStorage';
 import { trackEvent } from '../lib/analytics';
+import { resetWorkspaceOnAccountSwitch } from './imageStore';
 
 const GOOGLE_CLIENT_ID =
   (typeof process !== 'undefined' && process.env?.GOOGLE_CLIENT_ID) ||
@@ -126,18 +127,32 @@ const VellumLanding: React.FC = () => {
     resumeTimer.current = setTimeout(() => { showcasePaused.current = false; }, 8000);
   }, []);
 
-  const handleGoogleCredential = useCallback((response: any) => {
+  const handleGoogleCredential = useCallback(async (response: any) => {
     const user = decodeJwtPayload(response.credential);
-    if (user) {
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
-      trackEvent('signup_completed', { source: 'landing' });
-      fetch('/api/track-login', {
+    if (!user) return;
+    // Different account on this browser -> clear the previous account's local
+    // workspace so its projects never leak into this session.
+    await resetWorkspaceOnAccountSwitch(user.sub);
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
+    trackEvent('signup_completed', { source: 'landing' });
+    // Mint the StudioAI session cookie BEFORE entering the app. The raw Google
+    // credential is verified server-side and exchanged for a 7-day HttpOnly
+    // session (this also folds in the user upsert /api/track-login used to do).
+    // AWAIT it so the Set-Cookie has landed before /vellum loads — otherwise the
+    // app shows "logged in" (from localStorage) with NO session cookie and every
+    // generation 401s the moment auth enforce is on. (The old fire-and-forget
+    // /api/track-login never minted a cookie at all — that was the landing-login
+    // bug that bounced fresh sign-ins back to this page under enforce.)
+    try {
+      await fetch('/api/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ googleId: user.sub, email: user.email, name: user.name, picture: user.picture }),
-      }).catch(() => {});
-      window.location.assign('/vellum');
+        body: JSON.stringify({ credential: response.credential }),
+      });
+    } catch {
+      /* network error — the app's auth guard will re-prompt if the cookie is missing */
     }
+    window.location.assign('/vellum');
   }, []);
 
   useEffect(() => {

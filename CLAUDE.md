@@ -407,6 +407,17 @@ public/           # Static assets
 3. Empty brand kit test (no errors)
 4. Populated brand kit test (renders correctly)
 5. `npx tsc --noEmit` (no TypeScript errors)
+6. `npm run check:api` — Replicate input field-names match each model's schema,
+   and Node-runtime `api/` imports carry a `.js` extension. See
+   `docs/replicate-input-contract.md`. **Always run before touching any
+   `replicate.run(...)` call or `api/` import.** (Also gates CI.)
+
+### Wiring a new Replicate model — read this first
+Each model takes its source image under a DIFFERENT field name (`image_input`
+array vs `input_image` string vs `input_images` array vs `image`). Do NOT copy a
+call from one model to another without swapping the field. Look the model up in
+`docs/replicate-input-contract.md` (or its Replicate API page), add a contract
+row there + in `scripts/check-api-contract.mjs`, then `npm run check:api`.
 
 ---
 

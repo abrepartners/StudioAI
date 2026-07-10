@@ -28,6 +28,9 @@ jobs:
       - name: Typecheck
         run: npx tsc --noEmit
 
+      - name: API contract (Replicate input fields + ESM import extensions)
+        run: npm run check:api
+
       - name: Build
         run: npm run build
 

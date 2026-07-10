@@ -10,7 +10,8 @@
     "test:unit": "vitest run",
     "test:visual": "PW_SUITE=visual playwright test",
     "test:visual:update": "PW_SUITE=visual playwright test --update-snapshots",
-    "audit:mobile": "node tests/qa-harness/mobile-audit.mjs"
+    "audit:mobile": "node tests/qa-harness/mobile-audit.mjs",
+    "check:api": "node scripts/check-api-contract.mjs"
   },
   "dependencies": {
     "@google/genai": "^1.32.0",

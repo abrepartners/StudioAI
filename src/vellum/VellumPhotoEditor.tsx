@@ -37,7 +37,11 @@ import { fluxStaging, getEngineOverride } from "../../services/stagingService";
 import { classifyRoom } from "../../services/classifyRoomService";
 import { reveEdit } from "../../services/reveEditService";
 import { fluxRenovation } from "../../services/renovationService";
-import { STYLE_PACKS, buildStagingAssignment } from "../prompts/stylePacks";
+import {
+  STYLE_PACKS,
+  buildStagingAssignment,
+  buildOpenConceptStaging,
+} from "../prompts/stylePacks";
 import {
   detectClutterMasks,
   combineSelectedMasks,
@@ -395,6 +399,7 @@ const callApiDirect = async (
   signal: AbortSignal,
   requestSamMaskSelection?: SamModalController,
   replaceFurniture = false,
+  extraZones: string[] = [],
 ): Promise<ApiDirectResult> => {
   const presetMap: Record<string, Record<string, string>> = {
     sky: {
@@ -417,12 +422,24 @@ const callApiDirect = async (
       const pack = STYLE_PACKS[packKey] || STYLE_PACKS[preset.toLowerCase()];
       // Hardened fallback: even for an unmapped style, frame it as an ADDITIVE
       // edit with explicit preservation so Seedream never regenerates the room.
+      // Open-concept: when the agent tagged extra visible zones, stage them
+      // all in one pass; otherwise the tuned single-room prompt (unchanged).
+      const stageZones = [
+        roomLabel,
+        ...extraZones.filter((z) => z && z !== roomLabel),
+      ];
       const prompt = pack
-        ? buildStagingAssignment(
-            pack,
-            roomLabel,
-            replaceFurniture ? "replace" : "add",
-          )
+        ? stageZones.length > 1
+          ? buildOpenConceptStaging(
+              pack,
+              stageZones,
+              replaceFurniture ? "replace" : "add",
+            )
+          : buildStagingAssignment(
+              pack,
+              roomLabel,
+              replaceFurniture ? "replace" : "add",
+            )
         : `Take this exact photograph of a ${roomLabel.toLowerCase()} and ${replaceFurniture ? "REPLACE all existing freestanding furniture and decor with" : "ADD"} ${preset} style furniture${replaceFurniture ? "" : " to it"}. This is an ADDITIVE edit, NOT image generation: keep every existing pixel — floor material, walls, ceiling, windows, cabinets, lighting, camera angle, and color temperature — identical to the input. Do NOT re-render, restyle, relight, or recolor anything already in the photo. Only place new free-standing furniture and decor into the empty space, with shadows and white balance matched to the room. If the floor is tile, stone, or marble it MUST stay that exact material.`;
       const result = await fluxStaging(imageBase64, prompt, signal, {
         skipUpscale: true,
@@ -817,6 +834,10 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
   const [stylePreset, setStylePreset] = useState("contemporary");
   const [twilightTime, setTwilightTime] = useState<TwilightTime>("sunset");
   const [customRemoval, setCustomRemoval] = useState("");
+  // Open-concept staging: extra room zones visible in one shot (e.g. a kitchen
+  // + dining area behind a living room) to stage in the same pass. Empty =
+  // normal single-room staging.
+  const [openConceptZones, setOpenConceptZones] = useState<string[]>([]);
   const [renovCabinets, setRenovCabinets] = useState("");
   const [renovCountertops, setRenovCountertops] = useState("");
   const [renovFlooring, setRenovFlooring] = useState("");
@@ -961,6 +982,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
     tool: string,
     preset: string,
     customRemovalVal: string,
+    extraZonesVal: string[] = [],
   ): Promise<boolean> => {
     let photo = photosRef.current.find((p) => p.id === photoId);
     if (!photo) return false;
@@ -1008,6 +1030,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
             setSamModal({ image, masks, resolver: resolve });
           }),
         photo.empty === false,
+        extraZonesVal,
       );
       let resultDataUrl = apiResult.resultBase64;
 
@@ -1235,6 +1258,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
             })
           : stylePreset;
     const frozenCustom = customRemoval;
+    const frozenZones = frozenTool === "staging" ? openConceptZones : [];
 
     requestNotifyPermission();
     const toolName =
@@ -1246,6 +1270,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
         frozenTool,
         frozenPreset,
         frozenCustom,
+        frozenZones,
       );
       if (ok)
         notifyDone(
@@ -1288,6 +1313,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
             })
           : stylePreset;
     const frozenCustom = customRemoval;
+    const frozenZones = frozenTool === "staging" ? openConceptZones : [];
 
     requestNotifyPermission();
     requestSpend(totalCost, async () => {
@@ -1307,6 +1333,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
               frozenTool,
               frozenPreset,
               frozenCustom,
+              frozenZones,
             );
             if (ok) okCount += 1;
             setBatchDone((d) => d + 1);
@@ -2874,6 +2901,52 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
                 </div>
               </div>
             </div>
+
+            {activeTool === "staging" &&
+              STAGEABLE_ROOMS.has(currentPhoto.label) &&
+              !isExteriorRoom(currentPhoto.label) && (
+                <div className="v-field" style={{ marginTop: 4 }}>
+                  <span className="v-field-label">
+                    Open-concept? Add other rooms in this shot
+                  </span>
+                  <div className="v-preset-row" style={{ marginTop: 6 }}>
+                    {[...STAGEABLE_ROOMS]
+                      .filter(
+                        (r) =>
+                          r !== currentPhoto.label && !isExteriorRoom(r),
+                      )
+                      .map((r) => {
+                        const on = openConceptZones.includes(r);
+                        return (
+                          <button
+                            key={r}
+                            type="button"
+                            className={"v-preset" + (on ? " active" : "")}
+                            onClick={() =>
+                              setOpenConceptZones((prev) =>
+                                prev.includes(r)
+                                  ? prev.filter((z) => z !== r)
+                                  : [...prev, r],
+                              )
+                            }
+                          >
+                            {r}
+                          </button>
+                        );
+                      })}
+                  </div>
+                  <p
+                    className="v-muted"
+                    style={{ fontSize: 11, marginTop: 6 }}
+                  >
+                    {openConceptZones.length
+                      ? `Staging ${currentPhoto.label.toLowerCase()} + ${openConceptZones
+                          .map((z) => z.toLowerCase())
+                          .join(", ")} in one pass.`
+                      : "Open floor plan? Stage every visible area, not just the tagged room."}
+                  </p>
+                </div>
+              )}
           </div>
         )}
       </div>

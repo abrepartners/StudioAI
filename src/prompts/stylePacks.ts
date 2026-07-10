@@ -148,6 +148,45 @@ FURNITURE TO ADD: This is an outdoor/utility space — add only appropriate outd
   return `${scaffold}${header}${furnitureTrimmed}`;
 }
 
+/**
+ * Open-concept staging — one photo showing several rooms (e.g. kitchen + dining
+ * + living). Reuses the fully-tuned single-room prompt for the PRIMARY zone
+ * (keeps the backend's room/style parse anchors intact), then appends each
+ * additional visible zone with its own furniture so the whole frame gets
+ * staged as one cohesive space instead of just the primary area.
+ *
+ * `roomTypes[0]` is the primary (the photo's tagged room); the rest are the
+ * extra zones the agent selected. Falls back to the plain single-room prompt
+ * when there are no extras.
+ */
+export function buildOpenConceptStaging(
+  pack: StylePack,
+  roomTypes: string[],
+  mode: "add" | "replace" = "add",
+): string {
+  const primary = roomTypes[0];
+  const extras = roomTypes.slice(1).filter((r) => r && r !== primary);
+  const base = buildStagingAssignment(pack, primary, mode);
+  if (extras.length === 0) return base;
+
+  const zoneLines = extras
+    .map((zone) => {
+      const f = getFurnitureSpec(pack, zone);
+      const spec = f
+        ? trimToSentence(f, 280)
+        : `appropriate ${pack.label}-style ${zone.toLowerCase()} furniture`;
+      return `- ${zone.toUpperCase()}: ${spec}`;
+    })
+    .join("\n");
+
+  const zoneNames = extras.map((z) => z.toLowerCase()).join(", ");
+  return `${base}
+
+OPEN-CONCEPT — ADDITIONAL ZONES IN THE SAME SHOT: this photo shows one open space that also contains ${zoneNames}. In ADDITION to the ${primary.toLowerCase()} staged above, also stage each of these visible zones with its own ${pack.label}-style furniture, scaled to the area the photo actually shows and consistent in style and palette with the ${primary.toLowerCase()}:
+${zoneLines}
+Treat the entire frame as ONE cohesive open-concept space — do not add walls or partitions, keep every zone's furniture within its natural area, and keep the architecture, floor, windows, lighting, and camera angle exactly as photographed. All the HARD PRESERVATION RULES above apply to every zone.`;
+}
+
 export const STYLE_PACKS: Record<string, StylePack> = {
   contemporary: {
     id: "contemporary",

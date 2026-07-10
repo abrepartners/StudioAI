@@ -959,10 +959,12 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
     }));
 
     try {
+      // Every tool stacks: it edits your CURRENT result (or the original
+      // upload if this is the first edit), so edits compound in sequence and
+      // Undo steps back one layer. (Cleanup used to reset to the original,
+      // which silently dropped prior edits — the one confusing exception.)
       const inputImage =
-        tool === "declutter"
-          ? photo.dataUrl
-          : processedResultsRef.current[photo.id] || photo.dataUrl;
+        processedResultsRef.current[photo.id] || photo.dataUrl;
       const apiResult = await callApiDirect(
         inputImage,
         photo.label,
@@ -1021,7 +1023,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
       if (tool === "declutter") {
         try {
           const drift = await checkCleanupDrift(
-            photo.dataUrl,
+            inputImage,
             resultDataUrl,
             apiResult.maskBase64,
           );
@@ -2601,6 +2603,18 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
                 · {currentPhoto.label}
               </span>
             </div>
+
+            <p
+              style={{
+                margin: "-4px 0 14px",
+                fontSize: 11.5,
+                lineHeight: 1.45,
+                color: "var(--graphite)",
+              }}
+            >
+              Each tool builds on your current image and stacks with the next.
+              Undo steps back one step; Reset returns to your original photo.
+            </p>
 
             {activeTool === "twilight" ? (
               <>

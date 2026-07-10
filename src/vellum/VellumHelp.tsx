@@ -14,6 +14,7 @@ const FAQ = [
   { cat: 'Photo editor', items: [
     { id: 'photo-1', q: 'Can I stage a room without furniture in it?', a: 'Yes. Empty-room staging is the default flow for Virtual staging. Pick a style preset, scope to "Selected room category", and we generate two stage options per photo.' },
     { id: 'photo-2', q: 'How do I undo an applied tool?', a: 'Every applied tool shows in the right-rail Activity feed with an Undo affordance for 24 hours. After that, you can re-import the original and re-apply different settings — original photos are kept for 90 days.' },
+    { id: 'photo-4', q: 'Do edits stack, or start over each time?', a: 'They stack. Every tool builds on your current image, so edits compound in sequence — renovate the floor, then the ceiling, then repaint the walls, and each builds on the last. Use Undo (right-rail Activity) to step back one edit. Your original upload is always kept, and "Reset to original" returns to it any time.' },
     { id: 'photo-3', q: 'What does "MLS-ready" mean for the export?', a: 'JPG, sRGB, 1920×1280 max edge, < 5 MB per file, with metadata stripped to comply with most regional MLS rules. We support Bright, Stellar, MRED, and CRMLS uploads natively.' },
   ]},
   { cat: 'Video reels', items: [

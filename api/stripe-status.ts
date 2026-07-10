@@ -37,12 +37,18 @@ const checkBrokerageAccess = async (email: string): Promise<boolean> => {
   }
 };
 
-/** Fetch the per-user lifetime free-gens counter from Supabase `users` row. */
-async function getLifetimeFreeGensUsed(email: string): Promise<number> {
+/** Fetch the per-user lifetime free-gens counter from the Supabase `users`
+ *  row. Keyed by google_id — the table's unique key and how reserve_generation
+ *  (the authoritative counter) writes it — so the display reads exactly what
+ *  the spend gate maintains. Falls back to email for legacy callers. */
+async function getLifetimeFreeGensUsed(email: string, googleId: string): Promise<number> {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) return 0;
+  const filter = googleId
+    ? `google_id=eq.${encodeURIComponent(googleId)}`
+    : `email=eq.${encodeURIComponent(email.toLowerCase())}`;
   try {
     const r = await fetch(
-      `${SUPABASE_URL}/rest/v1/users?email=eq.${encodeURIComponent(email.toLowerCase())}&select=lifetime_free_gens_used`,
+      `${SUPABASE_URL}/rest/v1/users?${filter}&select=lifetime_free_gens_used`,
       { headers: { 'apikey': SUPABASE_SERVICE_KEY, 'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}` } }
     ).then(r => r.json());
     if (r && r[0] && typeof r[0].lifetime_free_gens_used === 'number') {
@@ -68,6 +74,7 @@ export default async function handler(req: any, res: any) {
       json(res, 400, { ok: false, error: 'email is required' });
       return;
     }
+    const googleId = req.query?.google_id || '';
 
     // Brokerage agents get Pro unlimited regardless of their own sub.
     const isBrokerageAgent = await checkBrokerageAccess(email);
@@ -99,14 +106,17 @@ export default async function handler(req: any, res: any) {
     let credits = 0;
     if (SUPABASE_URL && SUPABASE_SERVICE_KEY) {
       try {
+        const creditFilter = googleId
+          ? `google_id=eq.${encodeURIComponent(googleId)}`
+          : `email=eq.${encodeURIComponent(email.toLowerCase())}`;
         const creditRes = await fetch(
-          `${SUPABASE_URL}/rest/v1/users?email=eq.${encodeURIComponent(email.toLowerCase())}&select=credits`,
+          `${SUPABASE_URL}/rest/v1/users?${creditFilter}&select=credits`,
           { headers: { 'apikey': SUPABASE_SERVICE_KEY, 'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}` } }
         ).then(r => r.json());
         if (creditRes && creditRes[0]) credits = creditRes[0].credits || 0;
       } catch {}
     }
-    const lifetimeFreeGensUsed = await getLifetimeFreeGensUsed(email);
+    const lifetimeFreeGensUsed = await getLifetimeFreeGensUsed(email, googleId);
 
     // Free-tier response (no Stripe customer exists yet)
     if (!searchRes.data || searchRes.data.length === 0) {

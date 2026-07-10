@@ -32,7 +32,7 @@ const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN || "";
 const QUESTIONS = {
   location:
     "Is this photo taken indoors or outdoors? Answer with exactly one word: indoors or outdoors.",
-  room: "What type of room or space is shown? Answer with one or two words, like: living room, dining room, kitchen, bedroom, bathroom, office, laundry room, garage, basement, foyer, hallway, closet, sunroom, patio, pool, backyard, front yard.",
+  room: "What type of room or space is shown? Answer with one or two words, like: living room, dining room, kitchen, bedroom, bathroom, office, media room, home theater, bonus room, laundry room, garage, basement, foyer, hallway, closet, sunroom, patio, pool, backyard, front yard.",
   furniture:
     "Does this room contain any freestanding furniture such as sofas, beds, tables, or chairs? Built-in cabinets and fixtures do not count. Answer with exactly one word: yes or no.",
 };
@@ -56,6 +56,13 @@ const ROOM_MAP: Record<string, string> = {
   laundry: "Laundry Room",
   garage: "Garage",
   "bonus room": "Bonus Room",
+  "media room": "Media Room",
+  "home theater": "Media Room",
+  "home theatre": "Media Room",
+  theater: "Media Room",
+  theatre: "Media Room",
+  "movie room": "Media Room",
+  "screening room": "Media Room",
   nursery: "Nursery",
   basement: "Basement",
   foyer: "Foyer",

@@ -3598,49 +3598,72 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
                     }}
                   />
                   <div style={{ padding: "6px 8px" }}>
-                    <select
-                      value={p.label}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        // Manual override wins: also clear the detected
-                        // furnished flag so the staging gate trusts the agent.
-                        setPhotos((prev) =>
-                          prev.map((ph) =>
-                            ph.id === p.id
-                              ? {
-                                  ...ph,
-                                  label: val,
-                                  detecting: false,
-                                  empty: undefined,
-                                }
-                              : ph,
-                          ),
-                        );
-                        idbSavePhoto(
-                          activeProject?.id || SCRATCH_KEY,
-                          p.id,
-                          p.dataUrl,
-                          val,
-                          p.file.name,
-                        ).catch(() => {});
-                      }}
-                      style={{
-                        width: "100%",
-                        fontSize: 12,
-                        padding: "4px 6px",
-                        border: "1px solid var(--border-light)",
-                        borderRadius: 6,
-                        background: "var(--background-elevated)",
-                        color: "var(--text-primary)",
-                        fontFamily: "var(--font-sans)",
-                      }}
-                    >
-                      {ROOM_TYPES.map((r) => (
-                        <option key={r} value={r}>
-                          {r}
-                        </option>
-                      ))}
-                    </select>
+                    {p.detecting ? (
+                      // Auto-detect is in flight (~0.5-4s). Show it so the
+                      // default "Living Room" doesn't read as "detection
+                      // failed" — matches the "Detecting…" state on the photo
+                      // strip. The select swaps in the moment the tag lands.
+                      <div
+                        style={{
+                          width: "100%",
+                          fontSize: 12,
+                          padding: "4px 6px",
+                          border: "1px solid var(--border-light)",
+                          borderRadius: 6,
+                          background: "var(--background-secondary)",
+                          color: "var(--graphite)",
+                          fontFamily: "var(--font-sans)",
+                          fontStyle: "italic",
+                          textAlign: "center",
+                        }}
+                      >
+                        Detecting room type…
+                      </div>
+                    ) : (
+                      <select
+                        value={p.label}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          // Manual override wins: also clear the detected
+                          // furnished flag so the staging gate trusts the agent.
+                          setPhotos((prev) =>
+                            prev.map((ph) =>
+                              ph.id === p.id
+                                ? {
+                                    ...ph,
+                                    label: val,
+                                    detecting: false,
+                                    empty: undefined,
+                                  }
+                                : ph,
+                            ),
+                          );
+                          idbSavePhoto(
+                            activeProject?.id || SCRATCH_KEY,
+                            p.id,
+                            p.dataUrl,
+                            val,
+                            p.file.name,
+                          ).catch(() => {});
+                        }}
+                        style={{
+                          width: "100%",
+                          fontSize: 12,
+                          padding: "4px 6px",
+                          border: "1px solid var(--border-light)",
+                          borderRadius: 6,
+                          background: "var(--background-elevated)",
+                          color: "var(--text-primary)",
+                          fontFamily: "var(--font-sans)",
+                        }}
+                      >
+                        {ROOM_TYPES.map((r) => (
+                          <option key={r} value={r}>
+                            {r}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </div>
                 </div>
               ))}

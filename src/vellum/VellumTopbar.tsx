@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Icon } from './icons';
 import type { VellumProfile } from './useVellumStore';
+import { clearVellumWorkspace } from './imageStore';
 
 interface TopbarProps {
   page: string;
@@ -34,6 +35,7 @@ export const VellumTopbar: React.FC<TopbarProps> = ({ page, setPage, credits, pr
   }, [menuOpen]);
 
   const handleSignOut = () => {
+    try { void clearVellumWorkspace(); } catch {}
     try { localStorage.removeItem('studioai_google_user'); } catch {}
     try { (window as any).google?.accounts?.id?.disableAutoSelect(); } catch {}
     window.location.assign('/');

@@ -163,14 +163,25 @@ export async function clearAllImages(): Promise<void> {
  * the first await), so calling this immediately before persisting the new
  * identity reads the OLD account id correctly.
  */
+/** Unconditionally clear this browser's local Vellum workspace (projects,
+ *  settings, cached images). Called on sign-out so the next login — of ANY
+ *  account — starts clean and never inherits the prior session's projects. */
+export async function clearVellumWorkspace(): Promise<void> {
+  try {
+    localStorage.removeItem('vellum_store');
+    localStorage.removeItem('vellum_settings');
+  } catch {
+    /* ignore */
+  }
+  await clearAllImages();
+}
+
 export async function resetWorkspaceOnAccountSwitch(newSub: string): Promise<void> {
   try {
     const raw = localStorage.getItem('studioai_google_user');
     const prevSub = raw ? JSON.parse(raw)?.sub : null;
     if (!prevSub || prevSub === newSub) return;
-    localStorage.removeItem('vellum_store');
-    localStorage.removeItem('vellum_settings');
-    await clearAllImages();
+    await clearVellumWorkspace();
   } catch {
     /* non-fatal */
   }

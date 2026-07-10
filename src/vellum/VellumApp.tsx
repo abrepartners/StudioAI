@@ -12,7 +12,7 @@ import { VellumSidebar } from "./VellumSidebar";
 import { useVellumStore } from "./useVellumStore";
 import { readGoogleUser, type GoogleUser } from "../routes/authStorage";
 import { useSubscription } from "../../hooks/useSubscription";
-import { resetWorkspaceOnAccountSwitch } from "./imageStore";
+import { resetWorkspaceOnAccountSwitch, clearVellumWorkspace } from "./imageStore";
 import { hasUnreadWhatsNew, markWhatsNewSeen } from "./whatsNew";
 
 const VellumDashboard = React.lazy(() => import("./VellumDashboard"));
@@ -163,6 +163,7 @@ const VellumApp: React.FC = () => {
   }, [googleUser, handleGoogleCredential]);
 
   const handleSignOut = useCallback(() => {
+    void clearVellumWorkspace();
     setGoogleUser(null);
     localStorage.removeItem(AUTH_STORAGE_KEY);
     const google = (window as any).google;

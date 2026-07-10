@@ -16,6 +16,7 @@ import {
   signSession,
   type SessionClaims,
 } from "./session.js";
+import { timingSafeEqual } from "node:crypto";
 
 const APP_ORIGINS = [
   "https://studioai.averyandbryant.com",
@@ -99,6 +100,34 @@ export async function requireSession(
     return null;
   }
   return claims;
+}
+
+/** Constant-time string compare that tolerates length mismatch. */
+function safeEq(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ab.length !== bb.length) return false;
+  return timingSafeEqual(ab, bb);
+}
+
+/**
+ * Accept EITHER a machine service key OR a valid user session. A request whose
+ * `x-service-key` header matches SERVICE_API_KEY is authorized as a synthetic
+ * service identity (`service: true`), so our own agents/pipelines can call the
+ * staging engine headlessly without a browser login. DORMANT until
+ * SERVICE_API_KEY is set in the env — with no secret provisioned this behaves
+ * exactly like requireSession, so existing traffic is unaffected.
+ */
+export async function requireServiceOrSession(
+  req: any,
+  res: any,
+): Promise<(SessionClaims & { service?: boolean }) | null> {
+  const svcKey = process.env.SERVICE_API_KEY || "";
+  const provided = String(req.headers?.["x-service-key"] || "");
+  if (svcKey && provided && safeEq(provided, svcKey)) {
+    return { email: "service@vellum.local", sub: "service", service: true };
+  }
+  return requireSession(req, res);
 }
 
 /** Re-export so endpoints can mint a fresh cookie on a sliding refresh. */

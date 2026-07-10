@@ -29,7 +29,7 @@
 import Replicate from "replicate";
 import sharp from "sharp";
 import { json, rejectMethod, parseBody, MOONDREAM } from "./utils.js";
-import { applyCors, requireSession } from "./_lib/auth-middleware.js";
+import { applyCors, requireServiceOrSession } from "./_lib/auth-middleware.js";
 import { reserveQuota, refundQuota } from "./_lib/quota.js";
 import {
   orientationRoomFor,
@@ -666,9 +666,11 @@ export default async function handler(req: any, res: any) {
   if (applyCors(req, res, "POST,OPTIONS")) return;
   if (rejectMethod(req, res, "POST")) return;
 
-  // Gate: verified session required. Closes the anonymous-access hole.
-  const session = await requireSession(req, res);
+  // Gate: verified session OR a machine service key. The service path lets our
+  // own agents/pipelines stage headlessly; dormant unless SERVICE_API_KEY is set.
+  const session = await requireServiceOrSession(req, res);
   if (!session) return;
+  const isService = (session as any).service === true;
 
   if (!REPLICATE_TOKEN) {
     json(res, 200, { ok: false, error: "REPLICATE_API_TOKEN not configured" });
@@ -706,14 +708,22 @@ export default async function handler(req: any, res: any) {
 
   // Reserve AFTER validation (a malformed request never consumes quota) and
   // BEFORE the paid Replicate work. Refund on any generation failure below.
-  const quota = await reserveQuota(session.email, session.sub, 1);
-  if (!quota.allowed) {
-    json(res, 402, {
-      ok: false,
-      error: "generation quota reached",
-      code: quota.reason || "quota_exhausted",
-    });
-    return;
+  // Service (machine) calls are quota-exempt — they run on our own infra and
+  // are metered upstream at Replicate, not against a user's generation counter.
+  let quota: Awaited<ReturnType<typeof reserveQuota>> = {
+    allowed: true,
+    refundHandle: null,
+  } as Awaited<ReturnType<typeof reserveQuota>>;
+  if (!isService) {
+    quota = await reserveQuota(session.email, session.sub, 1);
+    if (!quota.allowed) {
+      json(res, 402, {
+        ok: false,
+        error: "generation quota reached",
+        code: quota.reason || "quota_exhausted",
+      });
+      return;
+    }
   }
 
   const dataUrl = imageBase64.startsWith("data:")
@@ -842,7 +852,7 @@ export default async function handler(req: any, res: any) {
     );
     let resultBuf = await generate();
     if (!resultBuf) {
-      await refundQuota(quota.refundHandle);
+      if (quota.refundHandle) await refundQuota(quota.refundHandle);
       json(res, 200, { ok: false, error: "staging engine returned no image" });
       return;
     }
@@ -1088,7 +1098,7 @@ export default async function handler(req: any, res: any) {
       mode: furnished ? "replace" : "add",
     });
   } catch (err: any) {
-    await refundQuota(quota.refundHandle);
+    if (quota.refundHandle) await refundQuota(quota.refundHandle);
     console.error("[flux-staging] unhandled:", err?.message || err);
     json(res, 200, { ok: false, error: err?.message || "unknown" });
   }

@@ -22,6 +22,15 @@ export interface StylePack {
 }
 
 const FALLBACK_ROOM = "Living Room";
+
+// Media/home-theater rooms are arranged around the SCREEN, not a fireplace, so
+// they can't reuse a living-room spec (which anchors seating to a hearth) — and
+// they are deliberately kept OUT of the fireplace-orientation QC judge. One
+// style-agnostic theater layout is shared across every pack; the pack's STYLE
+// DNA (materials / palette) still supplies the look, so the room reads on-style
+// without nine near-duplicate specs.
+const MEDIA_ROOM_FURNITURE =
+  "Home-theater seating arranged to face the screen / projection wall: a large plush sectional, or two staggered rows of theater-style recliners, centered on the media wall — never anchored to a fireplace. If a TV or screen is already mounted, stage around it; do not add, move, or alter it. Low media console or cabinet beneath the screen wall, styled simply. Coffee table or large ottoman within reach of the primary seating with a couple of books and a remote tray. Soft area rug under the full seating group. Low-light ambiance: one or two accent floor lamps rather than bright overheads. A few accent pillows and a folded throw on the sectional. Optional pair of lounge chairs or bean-style seats along one side for extra viewing spots. Keep the screen / media wall clear; any wall art goes on the side walls only. Every seat oriented toward the screen so the space reads as a usable media room.";
 // 'Exterior' kept for backwards compat with photos labeled before May 2026.
 const NON_STAGEABLE = new Set([
   "Exterior",
@@ -34,6 +43,11 @@ const NON_STAGEABLE = new Set([
 
 export function getFurnitureSpec(pack: StylePack, roomType: string): string {
   if (NON_STAGEABLE.has(roomType)) return "";
+  // Theater rooms face the screen, not a fireplace — share one layout unless a
+  // pack defines its own "Media Room" spec. Never fall back to Living Room here.
+  if (roomType === "Media Room") {
+    return pack.rooms["Media Room"] || MEDIA_ROOM_FURNITURE;
+  }
   return pack.rooms[roomType] || pack.rooms[FALLBACK_ROOM] || "";
 }
 

@@ -467,6 +467,7 @@ prereq per machine: `npx playwright install chromium`.
 When the user's request matches an available skill, invoke it via the Skill tool. When in doubt, invoke the skill.
 
 Key routing rules:
+- New client request/inquiry (Avery & Bryant services work) → invoke /architect — the Solutions Architect front door; see docs/ai-operating-system.md for the full role pipeline
 - Product ideas/brainstorming → invoke /office-hours
 - Strategy/scope → invoke /plan-ceo-review
 - Architecture → invoke /plan-eng-review

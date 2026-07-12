@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
+import { Link } from "react-router-dom";
 import { Icon } from "./icons";
+import { readGoogleUser } from "../routes/authStorage";
 
 interface SidebarProps {
   page: string;
@@ -16,6 +18,8 @@ export const VellumSidebar: React.FC<SidebarProps> = ({
 }) => {
   const [importOpen, setImportOpen] = useState(false);
   const importRef = useRef<HTMLDivElement>(null);
+  // Owner-only: the Property Morph tool (gated to book@averyandbryant.com).
+  const isOwner = readGoogleUser()?.email === "book@averyandbryant.com";
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
@@ -55,6 +59,12 @@ export const VellumSidebar: React.FC<SidebarProps> = ({
       <NavItem id="projects" icon="folder" label="Projects" />
       <NavItem id="photo" icon="image" label="Photo editor" />
       <NavItem id="video" icon="video" label="Video reels" />
+      {isOwner && (
+        <Link className="v-nav-link" to="/admin/morph">
+          <Icon name="video" size={15} />
+          <span>Property Morph</span>
+        </Link>
+      )}
 
       <div className="v-create-card">
         <span className="label">Create new</span>

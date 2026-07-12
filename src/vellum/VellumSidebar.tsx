@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import React from "react";
 import { Icon } from "./icons";
 import { readGoogleUser } from "../routes/authStorage";
 
@@ -16,20 +15,8 @@ export const VellumSidebar: React.FC<SidebarProps> = ({
   onNewListing,
   onUploadFiles,
 }) => {
-  const [importOpen, setImportOpen] = useState(false);
-  const importRef = useRef<HTMLDivElement>(null);
   // Owner-only: the Property Morph tool (gated to book@averyandbryant.com).
   const isOwner = readGoogleUser()?.email === "book@averyandbryant.com";
-
-  useEffect(() => {
-    const onClick = (e: MouseEvent) => {
-      if (importRef.current && !importRef.current.contains(e.target as Node)) {
-        setImportOpen(false);
-      }
-    };
-    document.addEventListener("click", onClick);
-    return () => document.removeEventListener("click", onClick);
-  }, []);
 
   const NavItem = ({
     id,
@@ -59,12 +46,12 @@ export const VellumSidebar: React.FC<SidebarProps> = ({
       <NavItem id="projects" icon="folder" label="Projects" />
       <NavItem id="photo" icon="image" label="Photo editor" />
       <NavItem id="video" icon="video" label="Video reels" />
-      {isOwner && (
-        <Link className="v-nav-link" to="/admin/morph">
-          <Icon name="video" size={15} />
-          <span>Property Morph</span>
-        </Link>
-      )}
+      <NavItem
+        id="morph"
+        icon="video"
+        label="Property Morph"
+        badge={isOwner ? undefined : "Soon"}
+      />
 
       <div className="v-create-card">
         <span className="label">Create new</span>
@@ -74,43 +61,9 @@ export const VellumSidebar: React.FC<SidebarProps> = ({
         <button className="v-create-btn video" onClick={() => setPage("video")}>
           <Icon name="play" size={13} /> Listing reel
         </button>
-        <div className="v-import-row" ref={importRef}>
-          <button
-            className="v-import-trigger"
-            onClick={(e) => {
-              e.stopPropagation();
-              setImportOpen((o) => !o);
-            }}
-          >
-            <span
-              style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
-            >
-              <Icon name="upload" size={13} /> Import from…
-            </span>
-            <Icon name="chevron_down" size={12} />
-          </button>
-          {importOpen && (
-            <div className="v-import-menu" onClick={(e) => e.stopPropagation()}>
-              <button>
-                <Icon name="mls" /> MLS listing
-              </button>
-              <button>
-                <Icon name="folder" /> Dropbox
-              </button>
-              <button>
-                <Icon name="image" /> Google Drive
-              </button>
-              <button
-                onClick={() => {
-                  setImportOpen(false);
-                  onUploadFiles?.();
-                }}
-              >
-                <Icon name="upload" /> Upload files
-              </button>
-            </div>
-          )}
-        </div>
+        <button className="v-create-btn" onClick={() => onUploadFiles?.()}>
+          <Icon name="upload" size={13} /> Upload files
+        </button>
       </div>
 
       <div className="eyebrow">Account</div>

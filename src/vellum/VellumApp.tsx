@@ -30,6 +30,7 @@ const VellumNewListingModal = React.lazy(
   () => import("./VellumNewListingModal"),
 );
 const VellumWhatsNew = React.lazy(() => import("./VellumWhatsNew"));
+const VellumMorph = React.lazy(() => import("./VellumMorph"));
 
 const VALID_PAGES = [
   "dashboard",
@@ -39,6 +40,7 @@ const VALID_PAGES = [
   "billing",
   "settings",
   "help",
+  "morph",
 ];
 
 // Hash format: #page or #page/proj_123 (active project encoded as 2nd segment)
@@ -456,6 +458,8 @@ const VellumApp: React.FC = () => {
         );
       case "help":
         return <VellumHelp setPage={setPage} />;
+      case "morph":
+        return <VellumMorph setPage={setPage} />;
       default:
         return null;
     }
@@ -536,9 +540,9 @@ const VellumApp: React.FC = () => {
             {googleUser?.email === "book@averyandbryant.com" && (
               <button
                 type="button"
-                onClick={() => {
-                  window.location.href = "/admin/morph";
-                }}
+                className={page === "morph" ? "is-active" : ""}
+                aria-current={page === "morph" ? "page" : undefined}
+                onClick={() => setPage("morph")}
               >
                 <Icon name="video" size={14} /> Morph
               </button>

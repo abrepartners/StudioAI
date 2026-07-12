@@ -27,7 +27,6 @@ import ListingsRoute from "./ListingsRoute";
 import SettingsRoute from "./SettingsRoute";
 import AdminPackMatrixRoute from "./AdminPackMatrixRoute";
 import AdminApiDashboardRoute from "./AdminApiDashboardRoute";
-import MorphRoute from "./MorphRoute";
 import PrivacyRoute from "./PrivacyRoute";
 import TermsRoute from "./TermsRoute";
 import { readGoogleUser } from "./authStorage";
@@ -126,9 +125,6 @@ const AppRouter: React.FC = () => {
 
           {/* Admin: API registry dashboard */}
           <Route path="/admin/api" element={<AdminApiDashboardRoute />} />
-
-          {/* Owner tool: Property Morph reels (gated to book@averyandbryant.com) */}
-          <Route path="/admin/morph" element={<MorphRoute />} />
 
           {/* Vellum — editorial hi-fi prototype (parallel build) */}
           <Route path="/vellum" element={<VellumApp />} />

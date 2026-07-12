@@ -12,7 +12,10 @@ import { VellumSidebar } from "./VellumSidebar";
 import { useVellumStore } from "./useVellumStore";
 import { readGoogleUser, type GoogleUser } from "../routes/authStorage";
 import { useSubscription } from "../../hooks/useSubscription";
-import { resetWorkspaceOnAccountSwitch, clearVellumWorkspace } from "./imageStore";
+import {
+  resetWorkspaceOnAccountSwitch,
+  clearVellumWorkspace,
+} from "./imageStore";
 import { hasUnreadWhatsNew, markWhatsNewSeen } from "./whatsNew";
 
 const VellumDashboard = React.lazy(() => import("./VellumDashboard"));
@@ -530,6 +533,16 @@ const VellumApp: React.FC = () => {
                 <Icon name={t.icon} size={14} /> {t.label}
               </button>
             ))}
+            {googleUser?.email === "book@averyandbryant.com" && (
+              <button
+                type="button"
+                onClick={() => {
+                  window.location.href = "/admin/morph";
+                }}
+              >
+                <Icon name="video" size={14} /> Morph
+              </button>
+            )}
           </nav>
         )}
 

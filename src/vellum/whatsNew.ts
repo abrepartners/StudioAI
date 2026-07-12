@@ -15,6 +15,12 @@ export interface WhatsNewEntry {
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    id: "2026-07-listing-descriptions",
+    date: "July 2026",
+    title: "AI listing descriptions in three tones",
+    body: "Open Listing Description, drop in the property details, and Vellum writes an MLS-ready description in three tones — Luxury, Casual, and Investment — with live character counts against Zillow, Realtor.com, and generic MLS limits. Copy it in one tap.",
+  },
+  {
     id: "2026-07-magic-edit",
     date: "July 2026",
     title: "Magic edit: change anything with a sentence",
@@ -42,7 +48,6 @@ export const WHATS_NEW: WhatsNewEntry[] = [
 
 export const COMING_SOON: string[] = [
   "Print flyers, open-house sheets & postcards",
-  "AI listing descriptions in three tones",
   "One-tap social media packs",
 ];
 

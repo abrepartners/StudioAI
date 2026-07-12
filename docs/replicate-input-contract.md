@@ -31,6 +31,7 @@ on a wrong image field or a known-forbidden key.
 | `lucataco/moondream2`                | `image` (+ `prompt`)           | string            | VQA / room classify                                                                                                                      |
 | `openai/gpt-image-2`                 | `input_images`                 | **array**         | Property Morph reframe + construction still. `quality` high, `aspect_ratio` 2:3 (max), `output_format` **png** (jpg → 422)               |
 | `bytedance/seedance-1-pro`           | `image` (+ `last_frame_image`) | string×2          | Property Morph video. start+end frame morph; `duration` 5, `resolution` 1080p, `aspect_ratio` 9:16, `camera_fixed` true                  |
+| `meta/meta-llama-3.1-405b-instruct`  | _(none — text only)_           | —                 | Listing copy (`/api/listing-copy`). Inputs: `prompt`, `system_prompt`, `max_tokens`, `temperature`, `top_p`. Registered `{ text: true }` in the checker so image-field checks are skipped. |
 
 Three different names — `image_input` (array) vs `input_image` (single string)
 vs `input_images` (array) vs `image` — are the trap. Copy-pasting a call from

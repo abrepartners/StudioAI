@@ -38,6 +38,8 @@ const CONTRACT = {
   "prunaai/p-image-upscale": { imageField: "image" },
   "tmappdev/lang-segment-anything": { imageField: "image" },
   "lucataco/moondream2": { imageField: "image" },
+  // Text-only models take no source image; skip the image-field checks.
+  "meta/meta-llama-3.1-405b-instruct": { text: true },
 };
 
 const errors = [];
@@ -110,6 +112,8 @@ for (const file of tsFiles) {
       );
       continue;
     }
+    // Text-only models take no source image — nothing to validate here.
+    if (contract.text) continue;
 
     const braceIdx = src.indexOf("{", rm.index);
     if (braceIdx === -1) continue;

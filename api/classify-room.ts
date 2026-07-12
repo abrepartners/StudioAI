@@ -23,7 +23,7 @@
  */
 import Replicate from "replicate";
 import { json, rejectMethod, parseBody, MOONDREAM } from "./utils.js";
-import { applyCors, requireSession } from "./_lib/auth-middleware.js";
+import { applyCors, requireServiceOrSession } from "./_lib/auth-middleware.js";
 
 export const config = { runtime: "nodejs", maxDuration: 60 };
 
@@ -107,8 +107,8 @@ export default async function handler(req: any, res: any) {
   if (applyCors(req, res, "POST,OPTIONS")) return;
   if (rejectMethod(req, res, "POST")) return;
 
-  // Gate: verified session required. Closes the anonymous-access hole.
-  const session = await requireSession(req, res);
+  // Gate: verified session OR machine service key (dormant unless SERVICE_API_KEY set).
+  const session = await requireServiceOrSession(req, res);
   if (!session) return;
 
   if (!REPLICATE_TOKEN) {

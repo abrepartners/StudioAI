@@ -26,7 +26,6 @@ import TryRoute from "./TryRoute";
 import ListingsRoute from "./ListingsRoute";
 import SettingsRoute from "./SettingsRoute";
 import AdminPackMatrixRoute from "./AdminPackMatrixRoute";
-import ModelLabRoute from "./ModelLabRoute";
 import AdminApiDashboardRoute from "./AdminApiDashboardRoute";
 import MorphRoute from "./MorphRoute";
 import PrivacyRoute from "./PrivacyRoute";
@@ -63,6 +62,9 @@ const lazyRoute = (
 
 const VellumApp = lazyRoute(() => import("../vellum/VellumApp"));
 const VellumLanding = lazyRoute(() => import("../vellum/VellumLanding"));
+// Admin-only, and it pulls in the full editor (callApiDirect) — lazy so it
+// never lands in the initial bundle for regular agents.
+const ModelLabRoute = lazyRoute(() => import("./ModelLabRoute"));
 
 const AuthedRoot: React.FC = () => {
   const user = useMemo(() => readGoogleUser(), []);

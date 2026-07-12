@@ -20,6 +20,7 @@ import { useNavigate } from 'react-router-dom';
 import { readGoogleUser, isAdmin } from './authStorage';
 import { callApiDirect } from '../vellum/VellumPhotoEditor';
 import { buildMagicEditPrompt } from '../vellum/toolPrompts';
+import { postProcessToolOutput } from '../vellum/toolPostProcess';
 import { STYLE_PACKS, buildStagingAssignment } from '../prompts/stylePacks';
 import { buildCleanupPrompt } from '../../services/fluxService';
 
@@ -80,6 +81,39 @@ type RunResult =
 interface GoldenPhoto {
   label: string;
   dataUrl: string;
+  /** Per-photo room label. Production classifies each photo's room; the golden
+   *  set carries it so a mixed set (kitchen + exterior) isn't all run as the
+   *  route-level room. Falls back to the route-level room when unset. */
+  room?: string;
+  /** Per-photo furnished (replace) vs empty (add) state for staging. */
+  furnished?: boolean;
+}
+
+interface PromptInputs {
+  stagingStyle: string;
+  declutterFilter: string;
+  customRemoval: string;
+  magicInstruction: string;
+}
+
+/** The exact client prompt for a tool, built by the SAME shared code prod uses.
+ *  Parameterized by room/replace so the golden set can rebuild it per photo.
+ *  Returns null for tools whose prompt is built server-side. */
+function promptForTool(tool: Tool, room: string, replace: boolean, o: PromptInputs): string | null {
+  if (tool === 'staging') {
+    const packKey = o.stagingStyle.toLowerCase().replace(/ /g, '-');
+    const pack = STYLE_PACKS[packKey] || STYLE_PACKS[o.stagingStyle.toLowerCase()];
+    return pack
+      ? buildStagingAssignment(pack, room, replace ? 'replace' : 'add')
+      : `Take this exact photograph of a ${room.toLowerCase()} and ${replace ? 'REPLACE all existing freestanding furniture and decor with' : 'ADD'} ${o.stagingStyle} style furniture${replace ? '' : ' to it'}. This is an ADDITIVE edit, NOT image generation: keep every existing pixel identical to the input.`;
+  }
+  if (tool === 'declutter') {
+    return buildCleanupPrompt(room, o.declutterFilter || undefined, o.customRemoval.trim() || undefined);
+  }
+  if (tool === 'magicedit') {
+    return buildMagicEditPrompt(room, o.magicInstruction.trim() || '[your instruction]');
+  }
+  return null;
 }
 
 /** Downscale a data URL to <=2048px longest side. resizeForUpload inside each
@@ -155,7 +189,7 @@ const ModelLabRoute: React.FC = () => {
       try {
         const res = await fetch('/golden/manifest.json', { cache: 'no-store' });
         if (!res.ok) return;
-        const list: Array<{ file: string; label?: string }> = await res.json();
+        const list: Array<{ file: string; label?: string; room?: string; furnished?: boolean }> = await res.json();
         if (!Array.isArray(list) || !list.length) return;
         const loaded = await Promise.all(
           list.map(async (item) => {
@@ -164,7 +198,12 @@ const ModelLabRoute: React.FC = () => {
               if (!imgRes.ok) return null;
               const blob = await imgRes.blob();
               const dataUrl = await readFileAsDataUrl(new File([blob], item.file));
-              return { label: item.label || item.file, dataUrl: await shrinkDataUrl(dataUrl) };
+              return {
+                label: item.label || item.file,
+                dataUrl: await shrinkDataUrl(dataUrl),
+                room: item.room,
+                furnished: item.furnished,
+              };
             } catch { return null; }
           }),
         );
@@ -177,24 +216,14 @@ const ModelLabRoute: React.FC = () => {
   const isExterior = EXTERIOR_ROOMS.has(room);
   const declutterFilterOptions = isExterior ? DECLUTTER_FILTERS_EXTERIOR : DECLUTTER_FILTERS_INTERIOR;
 
+  const promptInputs: PromptInputs = { stagingStyle, declutterFilter, customRemoval, magicInstruction };
+
   // ── Exact prompt for the current tool, built by the SAME shared code prod
   // uses. null → the prompt is built server-side (twilight/sky/renovation).
-  const builtPrompt: string | null = useMemo(() => {
-    if (tool === 'staging') {
-      const packKey = stagingStyle.toLowerCase().replace(/ /g, '-');
-      const pack = STYLE_PACKS[packKey] || STYLE_PACKS[stagingStyle.toLowerCase()];
-      return pack
-        ? buildStagingAssignment(pack, room, replaceFurniture ? 'replace' : 'add')
-        : `Take this exact photograph of a ${room.toLowerCase()} and ${replaceFurniture ? 'REPLACE all existing freestanding furniture and decor with' : 'ADD'} ${stagingStyle} style furniture${replaceFurniture ? '' : ' to it'}. This is an ADDITIVE edit, NOT image generation: keep every existing pixel identical to the input.`;
-    }
-    if (tool === 'declutter') {
-      return buildCleanupPrompt(room, declutterFilter || undefined, customRemoval.trim() || undefined);
-    }
-    if (tool === 'magicedit') {
-      return buildMagicEditPrompt(room, magicInstruction.trim() || '[your instruction]');
-    }
-    return null;
-  }, [tool, room, stagingStyle, replaceFurniture, declutterFilter, customRemoval, magicInstruction]);
+  const builtPrompt: string | null = useMemo(
+    () => promptForTool(tool, room, replaceFurniture, promptInputs),
+    [tool, room, stagingStyle, replaceFurniture, declutterFilter, customRemoval, magicInstruction],
+  );
 
   // Reset the override whenever the built prompt's inputs change so the
   // textarea re-seeds from the fresh default (unless the user is mid-edit and
@@ -222,50 +251,49 @@ const ModelLabRoute: React.FC = () => {
     e.target.value = '';
   };
 
-  // Build the (preset, customRemovalVal, replaceFurniture, promptOverride)
-  // tuple callApiDirect expects for the active tool — identical to how the
-  // editor calls it.
-  const dispatchArgs = (): { preset: string; custom: string; replace: boolean; override?: string } => {
-    const effectiveOverride = promptEditable ? textareaValue : undefined;
+  // The preset string callApiDirect expects for the active tool. Room- and
+  // replace-independent (staging style, twilight axes, sky, reno JSON).
+  const toolPreset = (): string => {
     switch (tool) {
-      case 'staging':
-        return { preset: stagingStyle, custom: '', replace: replaceFurniture, override: effectiveOverride };
-      case 'declutter':
-        // Always pass the shown prompt so display == run (bypasses the
-        // preset→filter mapping; the prompt already encodes the filter).
-        return { preset: 'standard', custom: customRemoval.trim(), replace: false, override: effectiveOverride };
-      case 'magicedit':
-        return { preset: '', custom: magicInstruction.trim(), replace: false, override: effectiveOverride };
-      case 'twilight':
-        return {
-          preset: `${twilightStyle.toLowerCase()}|${twilightTime.toLowerCase().replace(/ /g, '-')}`,
-          custom: '', replace: false,
-        };
-      case 'sky':
-        return { preset: skyStyle.toLowerCase(), custom: '', replace: false };
-      case 'renovation':
-        return { preset: JSON.stringify(reno), custom: '', replace: false };
+      case 'staging': return stagingStyle;
+      // Non-precision sentinel; the shown prompt is passed as the override so
+      // display == run and the preset→filter mapping is bypassed.
+      case 'declutter': return 'standard';
+      case 'magicedit': return '';
+      case 'twilight': return `${twilightStyle.toLowerCase()}|${twilightTime.toLowerCase().replace(/ /g, '-')}`;
+      case 'sky': return skyStyle.toLowerCase();
+      case 'renovation': return JSON.stringify(reno);
     }
   };
+  const toolCustom = (): string =>
+    tool === 'declutter' ? customRemoval.trim() : tool === 'magicedit' ? magicInstruction.trim() : '';
 
-  const runFaithful = async (imageDataUrl: string): Promise<RunResult> => {
-    const { preset, custom, replace, override } = dispatchArgs();
+  // One faithful run: the real callApiDirect path + the SAME client-side
+  // post-processing (sharpen + composite) production applies before an agent
+  // sees the frame. roomArg/replaceArg are per-photo for the golden set.
+  const runFaithful = async (
+    imageDataUrl: string,
+    roomArg: string,
+    replaceArg: boolean,
+    override: string | undefined,
+  ): Promise<RunResult> => {
     const controller = new AbortController();
     abortRef.current = controller;
     const t0 = Date.now();
     try {
       const res = await callApiDirect(
         imageDataUrl,
-        room,
+        roomArg,
         tool,
-        preset,
-        custom,
+        toolPreset(),
+        toolCustom(),
         controller.signal,
         undefined, // no SAM controller — Precision Select is not exposed in the lab
-        replace,
+        replaceArg,
         override,
       );
-      return { ok: true, image: res.resultBase64, latencyMs: Date.now() - t0, engine: res.engine };
+      const finalImage = await postProcessToolOutput(tool, imageDataUrl, res.resultBase64);
+      return { ok: true, image: finalImage, latencyMs: Date.now() - t0, engine: res.engine };
     } catch (err: any) {
       return { ok: false, error: err?.message || 'failed', latencyMs: Date.now() - t0 };
     }
@@ -284,7 +312,8 @@ const ModelLabRoute: React.FC = () => {
     if (err) { setResult({ ok: false, error: err }); return; }
     setRunning(true);
     setResult(null);
-    setResult(await runFaithful(image));
+    const override = promptEditable ? textareaValue : undefined;
+    setResult(await runFaithful(image, room, replaceFurniture, override));
     setRunning(false);
   };
 
@@ -297,8 +326,24 @@ const ModelLabRoute: React.FC = () => {
     // Sequential to stay gentle on the Replicate account and keep latency
     // readings clean (concurrency here would just queue behind rate limits).
     for (let i = 0; i < golden.length; i++) {
+      const g = golden[i];
+      // Each photo runs with ITS OWN room/furnished (production classifies per
+      // photo), so a mixed set (kitchen + exterior) isn't all run as the
+      // route-level room. Falls back to the route-level settings when unset.
+      const photoRoom = g.room ?? room;
+      const photoReplace = g.furnished ?? replaceFurniture;
+      let override: string | undefined;
+      if (!promptEditable) {
+        override = undefined; // server-side prompt (twilight/sky/renovation)
+      } else if (promptOverride !== null) {
+        override = textareaValue; // user pinned a custom prompt → applies to all photos
+      } else {
+        // Rebuild the prompt for THIS photo's room so declutter picks the right
+        // interior/exterior template and staging names the right room.
+        override = promptForTool(tool, photoRoom, photoReplace, promptInputs) ?? undefined;
+      }
       // eslint-disable-next-line no-await-in-loop
-      const r = await runFaithful(golden[i].dataUrl);
+      const r = await runFaithful(g.dataUrl, photoRoom, photoReplace, override);
       setGoldenResults((prev) => ({ ...prev, [i]: r }));
     }
     setGoldenRunning(false);
@@ -524,7 +569,10 @@ const ModelLabRoute: React.FC = () => {
                       {r && !r.ok && <p className="text-[10px] text-[#FF375F] p-2 text-center">{r.error}</p>}
                     </div>
                     <div className="px-2 py-1.5 flex items-center justify-between gap-1">
-                      <span className="text-[10px] text-zinc-400 truncate">{g.label}</span>
+                      <span className="text-[10px] text-zinc-400 truncate" title={g.label}>
+                        {g.label}
+                        {g.room && <span className="text-zinc-600"> · {g.room}</span>}
+                      </span>
                       {r?.ok
                         ? <button type="button" onClick={() => download(r, g.label.replace(/\W+/g, '-'))} className="text-[10px] text-[var(--color-primary)] font-semibold shrink-0">↓</button>
                         : <button type="button" onClick={() => setGolden((gs) => gs.filter((_, j) => j !== i))} className="text-[10px] text-zinc-600 hover:text-[#FF375F] shrink-0">✕</button>}

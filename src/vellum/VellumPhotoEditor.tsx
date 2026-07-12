@@ -58,8 +58,7 @@ import {
   type CleanupQualitySignal,
 } from "../types/cleanupQuality.ts";
 import { useVellumStore } from "./useVellumStore";
-import { sharpenImage } from "../../utils/sharpen";
-import { compositeStackedEdit } from "../../utils/stackComposite";
+import { postProcessToolOutput } from "./toolPostProcess";
 import { generateThumbnail } from "../../utils/thumbnail";
 import { requestNotifyPermission, notifyDone } from "./notify";
 
@@ -69,20 +68,6 @@ const SCRATCH_KEY = "__quick_edit__";
 // Renovation makes LOW-contrast whole-plane material swaps (wall color, floors,
 // backsplash) that a cleanup-tuned threshold silently filters out, so it needs
 // a far more permissive threshold to let those large diffs survive the mask.
-const RENOVATION_COMPOSITE = {
-  threshold: 0.03,
-  dilatePx: 8,
-  featherPx: 12,
-} as const;
-// Whiten / sky / twilight repaint broad regions with subtle, global tonal
-// shifts. A lighter, wide-feather preset preserves untouched texture without
-// the double-exposure overlay that an aggressive mask would produce.
-const LIGHT_COMPOSITE = {
-  threshold: 0.1,
-  dilatePx: 4,
-  featherPx: 18,
-} as const;
-
 interface UploadedPhoto {
   id: number;
   file: File;
@@ -1024,44 +1009,13 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
       let resultDataUrl = apiResult.resultBase64;
 
       // C3 — per-tool composite drift-fix. callApiDirect returns RAW model
-      // output for these tools, and Flux/Reve/Nano globally re-render the
-      // frame, drifting untouched textures. Sharpen the soft diffusion output,
-      // then composite so unchanged regions come byte-identical from the input
-      // buffer. Declutter/cleanup are scoped server-side via SAM masks, and
-      // staging gets the server-side furniture-lock composite in
-      // /api/flux-staging (lang-sam furniture mask + tone-match + blend), so
-      // neither gets the client-side global composite here.
-      if (
-        tool === "renovation" ||
-        tool === "whiten" ||
-        tool === "sky" ||
-        tool === "twilight" ||
-        // Lawn was the last composite-less Kontext tool: its edits are local
-        // and high-contrast (grass patches), which the diff composite handles
-        // well — house/driveway/sky revert to original pixels.
-        tool === "lawn"
-      ) {
-        try {
-          const chainEnabled =
-            typeof window !== "undefined"
-              ? new URLSearchParams(window.location.search).get("chain") !== "0"
-              : true;
-          const fmt: "png" | "jpeg" = chainEnabled ? "png" : "jpeg";
-          const sharpened = await sharpenImage(resultDataUrl, 0.4, 1, fmt);
-          const compositeOpts =
-            tool === "renovation" ? RENOVATION_COMPOSITE : LIGHT_COMPOSITE;
-          resultDataUrl = await compositeStackedEdit(inputImage, sharpened, {
-            format: fmt,
-            ...compositeOpts,
-          });
-        } catch (compErr) {
-          console.warn(
-            "[Vellum] composite drift-fix failed, using raw model output:",
-            compErr,
-          );
-          resultDataUrl = apiResult.resultBase64;
-        }
-      }
+      // output for renovation/whiten/sky/twilight/lawn (Flux/Reve globally
+      // re-render the frame, drifting untouched textures), so we sharpen +
+      // composite before display. Shared with the Model Lab so it evaluates the
+      // exact image agents receive. Nano tools (staging/declutter/magicedit)
+      // ship raw — staging is furniture-locked server-side, declutter is
+      // mask-scoped — so postProcessToolOutput passes them through untouched.
+      resultDataUrl = await postProcessToolOutput(tool, inputImage, resultDataUrl);
 
       if (tool === "declutter") {
         try {

@@ -12,7 +12,10 @@ import { VellumSidebar } from "./VellumSidebar";
 import { useVellumStore } from "./useVellumStore";
 import { readGoogleUser, type GoogleUser } from "../routes/authStorage";
 import { useSubscription } from "../../hooks/useSubscription";
-import { resetWorkspaceOnAccountSwitch, clearVellumWorkspace } from "./imageStore";
+import {
+  resetWorkspaceOnAccountSwitch,
+  clearVellumWorkspace,
+} from "./imageStore";
 import { hasUnreadWhatsNew, markWhatsNewSeen } from "./whatsNew";
 
 const VellumDashboard = React.lazy(() => import("./VellumDashboard"));
@@ -27,6 +30,7 @@ const VellumNewListingModal = React.lazy(
   () => import("./VellumNewListingModal"),
 );
 const VellumWhatsNew = React.lazy(() => import("./VellumWhatsNew"));
+const VellumMorph = React.lazy(() => import("./VellumMorph"));
 
 const VALID_PAGES = [
   "dashboard",
@@ -36,6 +40,7 @@ const VALID_PAGES = [
   "billing",
   "settings",
   "help",
+  "morph",
 ];
 
 // Hash format: #page or #page/proj_123 (active project encoded as 2nd segment)
@@ -453,6 +458,8 @@ const VellumApp: React.FC = () => {
         );
       case "help":
         return <VellumHelp setPage={setPage} />;
+      case "morph":
+        return <VellumMorph setPage={setPage} />;
       default:
         return null;
     }
@@ -530,6 +537,16 @@ const VellumApp: React.FC = () => {
                 <Icon name={t.icon} size={14} /> {t.label}
               </button>
             ))}
+            {googleUser?.email === "book@averyandbryant.com" && (
+              <button
+                type="button"
+                className={page === "morph" ? "is-active" : ""}
+                aria-current={page === "morph" ? "page" : undefined}
+                onClick={() => setPage("morph")}
+              >
+                <Icon name="video" size={14} /> Morph
+              </button>
+            )}
           </nav>
         )}
 

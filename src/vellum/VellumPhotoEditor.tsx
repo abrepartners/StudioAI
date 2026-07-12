@@ -38,6 +38,7 @@ import { classifyRoom } from "../../services/classifyRoomService";
 import { reveEdit } from "../../services/reveEditService";
 import { fluxRenovation } from "../../services/renovationService";
 import { STYLE_PACKS, buildStagingAssignment } from "../prompts/stylePacks";
+import { buildMagicEditPrompt } from "./toolPrompts";
 import {
   detectClutterMasks,
   combineSelectedMasks,
@@ -378,7 +379,7 @@ type SamModalController = (
   masks: string[],
 ) => Promise<number[] | null>;
 
-interface ApiDirectResult {
+export interface ApiDirectResult {
   resultBase64: string;
   maskBase64?: string;
   /** Which server engine produced the frame (staging: nano-banana | flux-fill |
@@ -386,7 +387,16 @@ interface ApiDirectResult {
   engine?: string;
 }
 
-const callApiDirect = async (
+/**
+ * The one dispatch every tool runs through — production editor AND the admin
+ * Model Lab. Exported so the lab exercises the exact same services, endpoints,
+ * engines, and prompts prod does (single source of truth).
+ *
+ * `promptOverride` lets the lab run an edited prompt through the real pipeline
+ * for the tools that build their prompt client-side (staging, declutter,
+ * magicedit). Production never passes it, so behavior there is unchanged.
+ */
+export const callApiDirect = async (
   imageBase64: string,
   roomLabel: string,
   tool: string,
@@ -395,6 +405,7 @@ const callApiDirect = async (
   signal: AbortSignal,
   requestSamMaskSelection?: SamModalController,
   replaceFurniture = false,
+  promptOverride?: string,
 ): Promise<ApiDirectResult> => {
   const presetMap: Record<string, Record<string, string>> = {
     sky: {
@@ -417,13 +428,14 @@ const callApiDirect = async (
       const pack = STYLE_PACKS[packKey] || STYLE_PACKS[preset.toLowerCase()];
       // Hardened fallback: even for an unmapped style, frame it as an ADDITIVE
       // edit with explicit preservation so Seedream never regenerates the room.
-      const prompt = pack
+      const prompt = promptOverride
+        || (pack
         ? buildStagingAssignment(
             pack,
             roomLabel,
             replaceFurniture ? "replace" : "add",
           )
-        : `Take this exact photograph of a ${roomLabel.toLowerCase()} and ${replaceFurniture ? "REPLACE all existing freestanding furniture and decor with" : "ADD"} ${preset} style furniture${replaceFurniture ? "" : " to it"}. This is an ADDITIVE edit, NOT image generation: keep every existing pixel — floor material, walls, ceiling, windows, cabinets, lighting, camera angle, and color temperature — identical to the input. Do NOT re-render, restyle, relight, or recolor anything already in the photo. Only place new free-standing furniture and decor into the empty space, with shadows and white balance matched to the room. If the floor is tile, stone, or marble it MUST stay that exact material.`;
+        : `Take this exact photograph of a ${roomLabel.toLowerCase()} and ${replaceFurniture ? "REPLACE all existing freestanding furniture and decor with" : "ADD"} ${preset} style furniture${replaceFurniture ? "" : " to it"}. This is an ADDITIVE edit, NOT image generation: keep every existing pixel — floor material, walls, ceiling, windows, cabinets, lighting, camera angle, and color temperature — identical to the input. Do NOT re-render, restyle, relight, or recolor anything already in the photo. Only place new free-standing furniture and decor into the empty space, with shadows and white balance matched to the room. If the floor is tile, stone, or marble it MUST stay that exact material.`);
       const result = await fluxStaging(imageBase64, prompt, signal, {
         skipUpscale: true,
         furnished: replaceFurniture,
@@ -478,7 +490,7 @@ const callApiDirect = async (
         customRemoval: custom,
         skipUpscale: true,
         maskBase64,
-        customPrompt,
+        customPrompt: promptOverride || customPrompt,
       });
       return {
         resultBase64: result.resultBase64,
@@ -636,7 +648,7 @@ DO NOT:
       // bypasses buildCleanupPrompt and lets the best model add/remove/clean
       // exactly what the user asked. Ships raw (native preservation), no
       // client composite, like the other nano tools.
-      const prompt = `Edit this photo${roomLabel ? ` of a ${roomLabel.toLowerCase()}` : ""}. Instruction: ${instruction}. Apply ONLY this change. Add, remove, or clean exactly what is asked and make it photorealistic — match the scene's existing lighting, perspective, materials, shadows, and color temperature so the edit is seamless. Keep everything the instruction does not mention — architecture, layout, fixtures, furniture, camera angle, framing, and exposure — identical to the input. Do not restyle, relight, or regenerate the rest of the scene.`;
+      const prompt = promptOverride || buildMagicEditPrompt(roomLabel, instruction);
       const result = await fluxCleanup(imageBase64, roomLabel, signal, {
         customPrompt: prompt,
         skipUpscale: true,

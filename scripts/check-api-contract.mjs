@@ -28,6 +28,9 @@ const CONTRACT = {
   "google/nano-banana-pro": { imageField: "image_input" },
   "google/nano-banana": { imageField: "image_input" },
   "bytedance/seedream-4": { imageField: "image_input" },
+  // Property Morph feature (api/morph/*, called via raw REST not replicate.run):
+  "openai/gpt-image-2": { imageField: "input_images" },
+  "bytedance/seedance-1-pro": { imageField: "image" }, // + last_frame_image (2nd image)
   "black-forest-labs/flux-kontext-pro": { imageField: "input_image" },
   "black-forest-labs/flux-2-pro": { imageField: "input_images" },
   "black-forest-labs/flux-fill-pro": { imageField: "image" },

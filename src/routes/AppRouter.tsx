@@ -18,19 +18,20 @@
  * retire the mode-based rendering inside App.tsx.
  */
 
-import React, { Suspense, lazy, useMemo } from 'react';
-import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom';
-import App from '../../App';
-import MarketingRoute from './MarketingRoute';
-import TryRoute from './TryRoute';
-import ListingsRoute from './ListingsRoute';
-import SettingsRoute from './SettingsRoute';
-import AdminPackMatrixRoute from './AdminPackMatrixRoute';
-import ModelLabRoute from './ModelLabRoute';
-import AdminApiDashboardRoute from './AdminApiDashboardRoute';
-import PrivacyRoute from './PrivacyRoute';
-import TermsRoute from './TermsRoute';
-import { readGoogleUser } from './authStorage';
+import React, { Suspense, lazy, useMemo } from "react";
+import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
+import App from "../../App";
+import MarketingRoute from "./MarketingRoute";
+import TryRoute from "./TryRoute";
+import ListingsRoute from "./ListingsRoute";
+import SettingsRoute from "./SettingsRoute";
+import AdminPackMatrixRoute from "./AdminPackMatrixRoute";
+import ModelLabRoute from "./ModelLabRoute";
+import AdminApiDashboardRoute from "./AdminApiDashboardRoute";
+import MorphRoute from "./MorphRoute";
+import PrivacyRoute from "./PrivacyRoute";
+import TermsRoute from "./TermsRoute";
+import { readGoogleUser } from "./authStorage";
 
 // A failed lazy chunk (flaky network, stale deploy) otherwise rejects the
 // dynamic import and leaves a permanently black screen with no way out.
@@ -50,16 +51,18 @@ const ChunkErrorScreen: React.FC = () => (
   </div>
 );
 
-const lazyRoute = (load: () => Promise<{ default: React.ComponentType<any> }>) =>
+const lazyRoute = (
+  load: () => Promise<{ default: React.ComponentType<any> }>,
+) =>
   lazy(() =>
     load().catch((err) => {
-      console.error('route chunk failed to load', err);
+      console.error("route chunk failed to load", err);
       return { default: ChunkErrorScreen };
     }),
   );
 
-const VellumApp = lazyRoute(() => import('../vellum/VellumApp'));
-const VellumLanding = lazyRoute(() => import('../vellum/VellumLanding'));
+const VellumApp = lazyRoute(() => import("../vellum/VellumApp"));
+const VellumLanding = lazyRoute(() => import("../vellum/VellumLanding"));
 
 const AuthedRoot: React.FC = () => {
   const user = useMemo(() => readGoogleUser(), []);
@@ -85,10 +88,19 @@ const AppRouter: React.FC = () => {
           <Route path="/legacy" element={<App />} />
 
           {/* R24 — real marketing URLs, pre- and post-auth */}
-          <Route path="/pricing" element={<MarketingRoute anchor="pricing" />} />
-          <Route path="/features" element={<MarketingRoute anchor="features" />} />
+          <Route
+            path="/pricing"
+            element={<MarketingRoute anchor="pricing" />}
+          />
+          <Route
+            path="/features"
+            element={<MarketingRoute anchor="features" />}
+          />
           <Route path="/faq" element={<MarketingRoute anchor="faq" />} />
-          <Route path="/gallery" element={<MarketingRoute anchor="gallery" />} />
+          <Route
+            path="/gallery"
+            element={<MarketingRoute anchor="gallery" />}
+          />
 
           {/* R25 — unauth single-gen demo (Fork #3 Option D) */}
           <Route path="/try" element={<TryRoute />} />
@@ -98,7 +110,10 @@ const AppRouter: React.FC = () => {
           <Route path="/listings/:id" element={<ListingsRoute />} />
 
           {/* R21 — settings page with 6 sub-tabs */}
-          <Route path="/settings" element={<Navigate to="/settings/brand" replace />} />
+          <Route
+            path="/settings"
+            element={<Navigate to="/settings/brand" replace />}
+          />
           <Route path="/settings/:tab" element={<SettingsRoute />} />
 
           {/* Admin: Pack verification matrix (7×3 grid, admin-only) */}
@@ -109,6 +124,9 @@ const AppRouter: React.FC = () => {
 
           {/* Admin: API registry dashboard */}
           <Route path="/admin/api" element={<AdminApiDashboardRoute />} />
+
+          {/* Owner tool: Property Morph reels (gated to book@averyandbryant.com) */}
+          <Route path="/admin/morph" element={<MorphRoute />} />
 
           {/* Vellum — editorial hi-fi prototype (parallel build) */}
           <Route path="/vellum" element={<VellumApp />} />

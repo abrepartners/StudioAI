@@ -21,6 +21,7 @@
 import Replicate from "replicate";
 import { json, rejectMethod, parseBody } from "./utils.js";
 import { applyCors, requireSession } from "./_lib/auth-middleware.js";
+import { reserveQuota, refundQuota } from "./_lib/quota.js";
 
 export const config = { runtime: "nodejs", maxDuration: 120 };
 
@@ -59,6 +60,20 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
+  // Reserve AFTER validation, BEFORE the paid Replicate call — one unit per
+  // description, same accounting as the image tools (unlimited plans skip it;
+  // free tier is capped). Refunded on any failure below so a user is never
+  // charged for copy they didn't get.
+  const quota = await reserveQuota(session.email, session.sub, 1);
+  if (!quota.allowed) {
+    json(res, 402, {
+      ok: false,
+      error: "generation quota reached",
+      code: quota.reason || "quota_exhausted",
+    });
+    return;
+  }
+
   const replicate = new Replicate({ auth: REPLICATE_TOKEN });
   const t0 = Date.now();
 
@@ -81,6 +96,7 @@ export default async function handler(req: any, res: any) {
     // Replicate LLMs stream token arrays; join to a single string.
     const text = (Array.isArray(output) ? output.join("") : String(output)).trim();
     if (!text) {
+      await refundQuota(quota.refundHandle);
       json(res, 200, {
         ok: false,
         error: "model returned empty text",
@@ -94,6 +110,7 @@ export default async function handler(req: any, res: any) {
     );
     json(res, 200, { ok: true, text, latencyMs: Date.now() - t0 });
   } catch (err: any) {
+    await refundQuota(quota.refundHandle);
     console.error("[listing-copy] failed:", err?.message || err);
     json(res, 200, {
       ok: false,

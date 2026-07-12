@@ -1,248 +1,126 @@
 /**
  * src/routes/ModelLabRoute.tsx
  *
- * Admin Model Lab. Upload a photo, pick a tool, compare 3 candidate
- * Replicate models side-by-side. Gated by isAdmin() — any
- * @averyandbryant.com email (including book@averyandbryant.com) passes.
- * Non-admins are redirected to /.
+ * Admin Model Lab — the FAITHFUL playground. Upload a photo (or use the golden
+ * set), pick a tool, and run it through the EXACT same pipeline production
+ * uses: the shared callApiDirect() dispatch, the shared client prompt builders
+ * (buildStagingAssignment, buildCleanupPrompt, buildMagicEditPrompt), the real
+ * /api/flux-* endpoints, and the current shipping engines. What you test here
+ * IS what an agent gets — no stale hardcoded prompts, no drift.
  *
- * Model configs are editable per-card so the admin can tweak slugs and
- * prompts on the fly without a deploy.
+ * The exact prompt is shown and editable; edits run through the real pipeline
+ * via callApiDirect's promptOverride. Server-side-prompt tools (twilight, sky,
+ * renovation) build their prompt in the endpoint, so the lab notes that.
+ *
+ * Gated by isAdmin() — any @averyandbryant.com email. Non-admins → /.
+ * Runs on the live deploy with the production Replicate key. No DB writes.
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { readGoogleUser, isAdmin } from './authStorage';
+import { callApiDirect } from '../vellum/VellumPhotoEditor';
+import { buildMagicEditPrompt } from '../vellum/toolPrompts';
+import { postProcessToolOutput } from '../vellum/toolPostProcess';
+import { STYLE_PACKS, buildStagingAssignment } from '../prompts/stylePacks';
+import { buildCleanupPrompt } from '../../services/fluxService';
 
-type Tool = 'twilight' | 'cleanup' | 'sky' | 'renovation' | 'staging';
-
-type RunResult = { ok: true; image: string; latencyMs: number } | { ok: false; error: string; latencyMs?: number };
-
-interface ModelConfig {
-  /** Display name for the card header. */
-  name: string;
-  /** 1-line description of what this model/approach does. */
-  description: string;
-  /** Replicate slug, optionally version-pinned (owner/model[:hash]). */
-  modelSlug: string;
-  /** Builds the Replicate input payload from the uploaded image + optional prompt override. */
-  buildInput: (imageDataUrl: string, promptOverride: string) => Record<string, unknown>;
-}
-
-const TWILIGHT_PROMPT = `LIGHTING-ONLY EDIT. Take the input photograph and change only the lighting and sky. PRESERVE: house architecture, siding, roof, windows, doors, landscaping, yard, camera framing, perspective. TARGET: blue hour twilight with warm amber window glow, porch lights on, cinematic real estate photography. Do NOT invent objects, do NOT change perspective, do NOT re-side or re-roof the house.`;
-
-const CLEANUP_PROMPT = `Remove personal items, clutter, trash, construction debris, and for-sale signs from this photo. PRESERVE the house, architecture, siding, roof, windows, doors, landscaping, grass, and perspective exactly. Treat as photo restoration, not creative regeneration.`;
-
-const SKY_PROMPT = `Replace the sky only with a vivid deep blue sky with scattered cumulus clouds. Keep the house, landscaping, perspective, and everything else pixel-identical.`;
-
-const RENO_PROMPT = `Change cabinets to white shaker style with brushed nickel hardware. Keep everything else in the photo (walls, floor, appliances, perspective, architecture) pixel-identical.`;
-
-const STAGING_PROMPT = `Virtually stage this empty room with photorealistic modern transitional furniture appropriate for the room's type and scale. Add a sofa and accent chairs in neutral tones, a coffee table or ottoman, an area rug that fits the space, a console or side tables, tasteful artwork and lamps, and a few plants. Furniture must be proportional to the room — no king beds in small rooms, no oversized sectionals in tight spaces.
-
-ABSOLUTE PRESERVATION — pixel-identical on every non-furniture surface:
-- Walls, wall color, paint, trim, baseboards
-- Floors, flooring material, rugs that are actually painted on the floor
-- Ceiling, ceiling fans, light fixtures already in place
-- Windows, window frames, blinds/curtains already present, views through windows
-- Doors, door frames, doorways
-- Architectural details: crown molding, wainscoting, built-ins
-- Camera framing, perspective, focal length, lens distortion
-
-Shadows under new furniture must match the existing light direction in the photo. Professional real estate photography style — crisp, bright, neutral color balance. Do NOT repaint walls, do NOT change flooring, do NOT alter architecture.`;
-
-const CONFIGS: Record<Tool, ModelConfig[]> = {
-  twilight: [
-    {
-      name: 'Flux 2 Pro (current)',
-      description: 'Text-to-image edit. Hallucinates exteriors sometimes.',
-      modelSlug: 'black-forest-labs/flux-2-pro',
-      buildInput: (img, p) => ({
-        input_images: [img],
-        prompt: p || TWILIGHT_PROMPT,
-        output_format: 'jpg',
-        aspect_ratio: 'match_input_image',
-      }),
-    },
-    {
-      name: 'IC-Light Background',
-      description: 'Dedicated relighting. Uses subject_image as hard ground truth + a background reference for the target lighting. Cannot invent new architecture.',
-      modelSlug: 'zsxkib/ic-light-background:60015df78a8a795470da6494822982140d57b150b9ef14354e79302ff89f69e3',
-      buildInput: (img, p) => ({
-        subject_image: img,
-        background_image: 'https://vellum.homes/references/twilight/warm-classic.jpg',
-        prompt: p || 'professional real estate twilight photography, blue hour with warm sunset horizon, amber window glow, cinematic dusk exterior',
-        appended_prompt: 'best quality, photorealistic, real estate exterior, preserve subject',
-        negative_prompt: 'lowres, different house, changed building, invented objects, cartoon, reframed, wide angle',
-        light_source: 'Use Background Image',
-        steps: 30,
-        cfg: 2,
-        lowres_denoise: 0.9,
-        highres_denoise: 0.3,
-      }),
-    },
-    {
-      name: 'Flux Kontext Pro',
-      description: 'Flux family tuned for image editing. Tighter input preservation than Flux 2 Pro on some edit tasks.',
-      modelSlug: 'black-forest-labs/flux-kontext-pro',
-      buildInput: (img, p) => ({
-        input_image: img,
-        prompt: p || TWILIGHT_PROMPT,
-        output_format: 'jpg',
-        aspect_ratio: 'match_input_image',
-      }),
-    },
-  ],
-  cleanup: [
-    {
-      name: 'Flux 2 Pro (current)',
-      description: 'Text-to-image edit with preservation prompt.',
-      modelSlug: 'black-forest-labs/flux-2-pro',
-      buildInput: (img, p) => ({
-        input_images: [img],
-        prompt: p || CLEANUP_PROMPT,
-        output_format: 'jpg',
-        aspect_ratio: 'match_input_image',
-      }),
-    },
-    {
-      name: 'Flux Kontext Pro',
-      description: 'Editing-specialized Flux, designed for clean object removal while preserving context.',
-      modelSlug: 'black-forest-labs/flux-kontext-pro',
-      buildInput: (img, p) => ({
-        input_image: img,
-        prompt: p || CLEANUP_PROMPT,
-        output_format: 'jpg',
-        aspect_ratio: 'match_input_image',
-      }),
-    },
-    {
-      name: 'Google Nano Banana',
-      description: 'Gemini 2.5 Flash Image editing. Fast, cheap (~$0.04/img), strong preservation.',
-      modelSlug: 'google/nano-banana',
-      buildInput: (img, p) => ({
-        image_input: [img],
-        prompt: p || CLEANUP_PROMPT,
-        output_format: 'jpg',
-      }),
-    },
-  ],
-  sky: [
-    {
-      name: 'Flux Kontext Pro',
-      description: 'Targeted image edit — ask for sky only, rest preserved.',
-      modelSlug: 'black-forest-labs/flux-kontext-pro',
-      buildInput: (img, p) => ({
-        input_image: img,
-        prompt: p || SKY_PROMPT,
-        output_format: 'jpg',
-        aspect_ratio: 'match_input_image',
-      }),
-    },
-    {
-      name: 'Flux 2 Pro',
-      description: 'Text-driven sky replacement, broader model.',
-      modelSlug: 'black-forest-labs/flux-2-pro',
-      buildInput: (img, p) => ({
-        input_images: [img],
-        prompt: p || SKY_PROMPT,
-        output_format: 'jpg',
-        aspect_ratio: 'match_input_image',
-      }),
-    },
-    {
-      name: 'Google Nano Banana',
-      description: 'Gemini image edit — often best at localized sky edits with preservation.',
-      modelSlug: 'google/nano-banana',
-      buildInput: (img, p) => ({
-        image_input: [img],
-        prompt: p || SKY_PROMPT,
-        output_format: 'jpg',
-      }),
-    },
-  ],
-  renovation: [
-    {
-      name: 'Flux Kontext Pro',
-      description: 'Strong at material/color/finish swaps while keeping geometry intact.',
-      modelSlug: 'black-forest-labs/flux-kontext-pro',
-      buildInput: (img, p) => ({
-        input_image: img,
-        prompt: p || RENO_PROMPT,
-        output_format: 'jpg',
-        aspect_ratio: 'match_input_image',
-      }),
-    },
-    {
-      name: 'Flux 2 Pro',
-      description: 'Text-driven renovation preview.',
-      modelSlug: 'black-forest-labs/flux-2-pro',
-      buildInput: (img, p) => ({
-        input_images: [img],
-        prompt: p || RENO_PROMPT,
-        output_format: 'jpg',
-        aspect_ratio: 'match_input_image',
-      }),
-    },
-    {
-      name: 'Qwen Image Edit',
-      description: 'Alibaba\'s image-edit model — alternative take on prompt-driven renovation.',
-      modelSlug: 'qwen/qwen-image-edit',
-      buildInput: (img, p) => ({
-        image: img,
-        prompt: p || RENO_PROMPT,
-      }),
-    },
-  ],
-  staging: [
-    {
-      name: 'Adirik Interior Design',
-      description: 'Budget tier — ~$0.0072/img (~6x cheaper than Gemini/Flux). SD-based with interior-design finetune. Big margin unlock if quality holds.',
-      modelSlug: 'adirik/interior-design',
-      buildInput: (img, p) => ({
-        image: img,
-        prompt: p || STAGING_PROMPT,
-        negative_prompt: 'lowres, blurry, distorted, deformed, watermark, text, cartoon, anime, painting, oversized furniture, unrealistic proportions, wrong perspective, different room, changed walls, changed floors',
-        prompt_strength: 0.8,
-        num_inference_steps: 50,
-        guidance_scale: 15,
-      }),
-    },
-    {
-      name: 'Flux Kontext Pro',
-      description: 'Editing-specialized Flux. Strong at adding objects into a scene while keeping walls/floors/perspective pixel-accurate.',
-      modelSlug: 'black-forest-labs/flux-kontext-pro',
-      buildInput: (img, p) => ({
-        input_image: img,
-        prompt: p || STAGING_PROMPT,
-        output_format: 'jpg',
-        aspect_ratio: 'match_input_image',
-      }),
-    },
-    {
-      name: 'Google Nano Banana',
-      description: 'Gemini 2.5 Flash Image. Same model we locked for cleanup + sky. ~$0.04/img. Strong preservation.',
-      modelSlug: 'google/nano-banana',
-      buildInput: (img, p) => ({
-        image_input: [img],
-        prompt: p || STAGING_PROMPT,
-        output_format: 'jpg',
-      }),
-    },
-  ],
-};
+// ── Faithful tool set: exactly the tools that route through callApiDirect.
+type Tool =
+  | 'staging'
+  | 'declutter'
+  | 'magicedit'
+  | 'twilight'
+  | 'sky'
+  | 'renovation';
 
 const TOOL_LABELS: Record<Tool, { label: string; sub: string }> = {
-  twilight: { label: 'Day to Dusk', sub: 'Relight exteriors to twilight' },
-  cleanup: { label: 'Smart Cleanup', sub: 'Remove clutter & personal items' },
-  sky: { label: 'Sky Replacement', sub: 'Swap dull skies' },
-  renovation: { label: 'Virtual Renovation', sub: 'Material & finish swaps' },
-  staging: { label: 'Virtual Staging', sub: 'Fill empty rooms with furniture' },
+  staging: { label: 'Virtual Staging', sub: 'Fill / restage a room' },
+  declutter: { label: 'Smart Cleanup', sub: 'Remove clutter' },
+  magicedit: { label: 'Magic Edit', sub: 'Free-text catch-all' },
+  twilight: { label: 'Twilight', sub: 'Day to dusk' },
+  sky: { label: 'Sky Replacement', sub: 'Swap the sky' },
+  renovation: { label: 'Virtual Renovation', sub: 'Finish swaps' },
 };
 
-/** Downscale a data URL to <=1280px longest side to stay under Vercel's 4.5MB limit. */
-async function shrinkDataUrl(dataUrl: string, maxEdge = 1280): Promise<string> {
+// Option lists mirror the Vellum editor's pickers. These are menu options only
+// — the prompt and model come from shared code, so nothing here can drift the
+// actual output.
+const ROOM_TYPES = [
+  'Living Room', 'Dining Room', 'Kitchen', 'Bedroom', 'Bathroom', 'Office',
+  'Laundry Room', 'Garage', 'Bonus Room', 'Media Room', 'Nursery', 'Basement',
+  'Foyer', 'Hallway', 'Closet', 'Sunroom', 'Patio', 'Pool', 'Backyard',
+  'Front Yard',
+];
+const STAGING_STYLES = [
+  'Contemporary', 'Mid-century', 'Coastal', 'Farmhouse', 'Scandinavian',
+  'Minimalist', 'Urban loft', 'Bohemian',
+];
+// buildCleanupPrompt's own filter vocabulary (the true source), so the lab
+// bypasses the preset→filter indirection and drives the builder directly.
+const DECLUTTER_FILTERS_INTERIOR = [
+  { value: '', label: 'Standard (room clutter)' },
+  { value: 'fullclean', label: 'Full clean (empty the room)' },
+  { value: 'personal', label: 'Personal items only' },
+  { value: 'surfaces', label: 'Surface clutter only' },
+];
+const DECLUTTER_FILTERS_EXTERIOR = [
+  { value: '', label: 'Standard (movable clutter)' },
+  { value: 'yard', label: 'Yard clutter' },
+  { value: 'vehicles', label: 'Vehicles & bins' },
+  { value: 'signs', label: 'Signs & temp items' },
+];
+const EXTERIOR_ROOMS = new Set(['Exterior', 'Patio', 'Pool', 'Backyard', 'Front Yard']);
+const TWILIGHT_STYLES = ['Pink', 'Golden', 'Purple', 'Natural'];
+const TWILIGHT_TIMES = ['Early evening', 'Sunset', 'Twilight'];
+const SKY_STYLES = ['Clear blue', 'Golden hour', 'Soft overcast', 'Dramatic'];
+
+type RunResult =
+  | { ok: true; image: string; latencyMs: number; engine?: string }
+  | { ok: false; error: string; latencyMs?: number };
+
+interface GoldenPhoto {
+  label: string;
+  dataUrl: string;
+  /** Per-photo room label. Production classifies each photo's room; the golden
+   *  set carries it so a mixed set (kitchen + exterior) isn't all run as the
+   *  route-level room. Falls back to the route-level room when unset. */
+  room?: string;
+  /** Per-photo furnished (replace) vs empty (add) state for staging. */
+  furnished?: boolean;
+}
+
+interface PromptInputs {
+  stagingStyle: string;
+  declutterFilter: string;
+  customRemoval: string;
+  magicInstruction: string;
+}
+
+/** The exact client prompt for a tool, built by the SAME shared code prod uses.
+ *  Parameterized by room/replace so the golden set can rebuild it per photo.
+ *  Returns null for tools whose prompt is built server-side. */
+function promptForTool(tool: Tool, room: string, replace: boolean, o: PromptInputs): string | null {
+  if (tool === 'staging') {
+    const packKey = o.stagingStyle.toLowerCase().replace(/ /g, '-');
+    const pack = STYLE_PACKS[packKey] || STYLE_PACKS[o.stagingStyle.toLowerCase()];
+    return pack
+      ? buildStagingAssignment(pack, room, replace ? 'replace' : 'add')
+      : `Take this exact photograph of a ${room.toLowerCase()} and ${replace ? 'REPLACE all existing freestanding furniture and decor with' : 'ADD'} ${o.stagingStyle} style furniture${replace ? '' : ' to it'}. This is an ADDITIVE edit, NOT image generation: keep every existing pixel identical to the input.`;
+  }
+  if (tool === 'declutter') {
+    return buildCleanupPrompt(room, o.declutterFilter || undefined, o.customRemoval.trim() || undefined);
+  }
+  if (tool === 'magicedit') {
+    return buildMagicEditPrompt(room, o.magicInstruction.trim() || '[your instruction]');
+  }
+  return null;
+}
+
+/** Downscale a data URL to <=2048px longest side. resizeForUpload inside each
+ *  service shrinks again per-tool; this just keeps the initial read sane. */
+async function shrinkDataUrl(dataUrl: string, maxEdge = 2048): Promise<string> {
   return new Promise((resolve) => {
     const img = new Image();
-    img.crossOrigin = 'anonymous';
     img.onload = () => {
       const longest = Math.max(img.naturalWidth, img.naturalHeight);
       if (longest <= maxEdge) return resolve(dataUrl);
@@ -254,103 +132,293 @@ async function shrinkDataUrl(dataUrl: string, maxEdge = 1280): Promise<string> {
       const ctx = canvas.getContext('2d');
       if (!ctx) return resolve(dataUrl);
       ctx.drawImage(img, 0, 0, w, h);
-      resolve(canvas.toDataURL('image/jpeg', 0.85));
+      resolve(canvas.toDataURL('image/jpeg', 0.9));
     };
     img.onerror = () => resolve(dataUrl);
     img.src = dataUrl;
   });
 }
 
+const readFileAsDataUrl = (f: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result as string);
+    r.onerror = () => reject(new Error('read failed'));
+    r.readAsDataURL(f);
+  });
+
 const ModelLabRoute: React.FC = () => {
   const navigate = useNavigate();
   const [user] = useState(() => readGoogleUser());
   const admin = isAdmin(user);
 
-  const [tool, setTool] = useState<Tool>('twilight');
+  const [tool, setTool] = useState<Tool>('staging');
   const [image, setImage] = useState<string | null>(null);
-  const [promptOverride, setPromptOverride] = useState('');
-  const [results, setResults] = useState<Array<RunResult | null>>([null, null, null]);
-  const [running, setRunning] = useState<boolean[]>([false, false, false]);
-  const [editedSlugs, setEditedSlugs] = useState<Record<Tool, string[]>>({
-    twilight: CONFIGS.twilight.map(c => c.modelSlug),
-    cleanup: CONFIGS.cleanup.map(c => c.modelSlug),
-    sky: CONFIGS.sky.map(c => c.modelSlug),
-    renovation: CONFIGS.renovation.map(c => c.modelSlug),
-    staging: CONFIGS.staging.map(c => c.modelSlug),
-  });
+  const [golden, setGolden] = useState<GoldenPhoto[]>([]);
+
+  // Tool-specific controls (mirror the editor's inputs).
+  const [room, setRoom] = useState('Living Room');
+  const [stagingStyle, setStagingStyle] = useState('Contemporary');
+  const [replaceFurniture, setReplaceFurniture] = useState(false);
+  const [declutterFilter, setDeclutterFilter] = useState('');
+  const [customRemoval, setCustomRemoval] = useState('');
+  const [magicInstruction, setMagicInstruction] = useState('');
+  const [twilightStyle, setTwilightStyle] = useState('Golden');
+  const [twilightTime, setTwilightTime] = useState('Sunset');
+  const [skyStyle, setSkyStyle] = useState('Clear blue');
+  const [reno, setReno] = useState({ cabinets: '', countertops: '', flooring: '', walls: '' });
+
+  // promptOverride === null → not dirtied, textarea shows the built prompt.
+  const [promptOverride, setPromptOverride] = useState<string | null>(null);
+
+  const [result, setResult] = useState<RunResult | null>(null);
+  const [running, setRunning] = useState(false);
+  const [goldenResults, setGoldenResults] = useState<Record<number, RunResult | null>>({});
+  const [goldenRunning, setGoldenRunning] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (!admin) navigate('/', { replace: true });
   }, [admin, navigate]);
 
-  const configs = useMemo(() => CONFIGS[tool], [tool]);
+  // Auto-load a committed golden set if the team has curated one at
+  // /golden/manifest.json (same-origin — avoids canvas-taint on upload).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/golden/manifest.json', { cache: 'no-store' });
+        if (!res.ok) return;
+        const list: Array<{ file: string; label?: string; room?: string; furnished?: boolean }> = await res.json();
+        if (!Array.isArray(list) || !list.length) return;
+        const loaded = await Promise.all(
+          list.map(async (item) => {
+            try {
+              const imgRes = await fetch(`/golden/${item.file}`, { cache: 'no-store' });
+              if (!imgRes.ok) return null;
+              const blob = await imgRes.blob();
+              const dataUrl = await readFileAsDataUrl(new File([blob], item.file));
+              return {
+                label: item.label || item.file,
+                dataUrl: await shrinkDataUrl(dataUrl),
+                room: item.room,
+                furnished: item.furnished,
+              };
+            } catch { return null; }
+          }),
+        );
+        if (!cancelled) setGolden((g) => (g.length ? g : loaded.filter(Boolean) as GoldenPhoto[]));
+      } catch { /* no committed set — fine, admin uploads their own */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
-  const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const isExterior = EXTERIOR_ROOMS.has(room);
+  const declutterFilterOptions = isExterior ? DECLUTTER_FILTERS_EXTERIOR : DECLUTTER_FILTERS_INTERIOR;
+
+  const promptInputs: PromptInputs = { stagingStyle, declutterFilter, customRemoval, magicInstruction };
+
+  // ── Exact prompt for the current tool, built by the SAME shared code prod
+  // uses. null → the prompt is built server-side (twilight/sky/renovation).
+  const builtPrompt: string | null = useMemo(
+    () => promptForTool(tool, room, replaceFurniture, promptInputs),
+    [tool, room, stagingStyle, replaceFurniture, declutterFilter, customRemoval, magicInstruction],
+  );
+
+  // Reset the override whenever the built prompt's inputs change so the
+  // textarea re-seeds from the fresh default (unless the user is mid-edit and
+  // wants to keep it — the Reset button restores the default explicitly).
+  useEffect(() => { setPromptOverride(null); }, [tool]);
+
+  const textareaValue = promptOverride ?? (builtPrompt || '');
+  const promptEditable = builtPrompt !== null;
+
+  const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const raw = reader.result as string;
-      const shrunk = await shrinkDataUrl(raw, 1280);
-      setImage(shrunk);
-      setResults([null, null, null]);
-    };
-    reader.readAsDataURL(f);
+    const raw = await readFileAsDataUrl(f);
+    setImage(await shrinkDataUrl(raw));
+    setResult(null);
   };
 
-  const runOne = async (idx: number) => {
-    if (!image) return;
-    const cfg = configs[idx];
-    const slug = editedSlugs[tool][idx] || cfg.modelSlug;
-    setRunning(r => { const n = [...r]; n[idx] = true; return n; });
-    setResults(r => { const n = [...r]; n[idx] = null; return n; });
+  const onGoldenFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files: File[] = e.target.files ? Array.from(e.target.files) : [];
+    if (!files.length) return;
+    const added = await Promise.all(
+      files.map(async (f) => ({ label: f.name, dataUrl: await shrinkDataUrl(await readFileAsDataUrl(f)) })),
+    );
+    setGolden((g) => [...g, ...added]);
+    e.target.value = '';
+  };
+
+  // The preset string callApiDirect expects for the active tool. Room- and
+  // replace-independent (staging style, twilight axes, sky, reno JSON).
+  const toolPreset = (): string => {
+    switch (tool) {
+      case 'staging': return stagingStyle;
+      // Non-precision sentinel; the shown prompt is passed as the override so
+      // display == run and the preset→filter mapping is bypassed.
+      case 'declutter': return 'standard';
+      case 'magicedit': return '';
+      case 'twilight': return `${twilightStyle.toLowerCase()}|${twilightTime.toLowerCase().replace(/ /g, '-')}`;
+      case 'sky': return skyStyle.toLowerCase();
+      case 'renovation': return JSON.stringify(reno);
+    }
+  };
+  const toolCustom = (): string =>
+    tool === 'declutter' ? customRemoval.trim() : tool === 'magicedit' ? magicInstruction.trim() : '';
+
+  // One faithful run: the real callApiDirect path + the SAME client-side
+  // post-processing (sharpen + composite) production applies before an agent
+  // sees the frame. roomArg/replaceArg are per-photo for the golden set.
+  const runFaithful = async (
+    imageDataUrl: string,
+    roomArg: string,
+    replaceArg: boolean,
+    override: string | undefined,
+  ): Promise<RunResult> => {
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const t0 = Date.now();
     try {
-      const res = await fetch('/api/lab-run', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ modelSlug: slug, input: cfg.buildInput(image, promptOverride) }),
-      });
-      const data = await res.json();
-      setResults(r => {
-        const n = [...r];
-        n[idx] = data.ok
-          ? { ok: true, image: data.resultBase64, latencyMs: data.latencyMs }
-          : { ok: false, error: data.error || 'unknown error', latencyMs: data.latencyMs };
-        return n;
-      });
+      const res = await callApiDirect(
+        imageDataUrl,
+        roomArg,
+        tool,
+        toolPreset(),
+        toolCustom(),
+        controller.signal,
+        undefined, // no SAM controller — Precision Select is not exposed in the lab
+        replaceArg,
+        override,
+      );
+      const finalImage = await postProcessToolOutput(tool, imageDataUrl, res.resultBase64);
+      return { ok: true, image: finalImage, latencyMs: Date.now() - t0, engine: res.engine };
     } catch (err: any) {
-      setResults(r => { const n = [...r]; n[idx] = { ok: false, error: err?.message || 'network error' }; return n; });
-    } finally {
-      setRunning(r => { const n = [...r]; n[idx] = false; return n; });
+      return { ok: false, error: err?.message || 'failed', latencyMs: Date.now() - t0 };
     }
   };
 
-  const runAll = () => { for (let i = 0; i < 3; i++) runOne(i); };
-
-  const updateSlug = (idx: number, slug: string) => {
-    setEditedSlugs(prev => ({ ...prev, [tool]: prev[tool].map((s, i) => i === idx ? slug : s) }));
+  const validate = (): string | null => {
+    if (tool === 'magicedit' && !magicInstruction.trim()) return 'Enter a Magic Edit instruction.';
+    if (tool === 'renovation' && !(reno.cabinets.trim() || reno.countertops.trim() || reno.flooring.trim() || reno.walls.trim()))
+      return 'Enter at least one renovation change.';
+    return null;
   };
 
-  const downloadResult = (idx: number) => {
-    const r = results[idx];
-    if (!r || !r.ok) return;
+  const runSingle = async () => {
+    if (!image) return;
+    const err = validate();
+    if (err) { setResult({ ok: false, error: err }); return; }
+    setRunning(true);
+    setResult(null);
+    const override = promptEditable ? textareaValue : undefined;
+    setResult(await runFaithful(image, room, replaceFurniture, override));
+    setRunning(false);
+  };
+
+  const runGolden = async () => {
+    if (!golden.length) return;
+    const err = validate();
+    if (err) { setResult({ ok: false, error: err }); return; }
+    setGoldenRunning(true);
+    setGoldenResults({});
+    // Sequential to stay gentle on the Replicate account and keep latency
+    // readings clean (concurrency here would just queue behind rate limits).
+    for (let i = 0; i < golden.length; i++) {
+      const g = golden[i];
+      // Each photo runs with ITS OWN room/furnished (production classifies per
+      // photo), so a mixed set (kitchen + exterior) isn't all run as the
+      // route-level room. Falls back to the route-level settings when unset.
+      const photoRoom = g.room ?? room;
+      const photoReplace = g.furnished ?? replaceFurniture;
+      let override: string | undefined;
+      if (!promptEditable) {
+        override = undefined; // server-side prompt (twilight/sky/renovation)
+      } else if (promptOverride !== null) {
+        override = textareaValue; // user pinned a custom prompt → applies to all photos
+      } else {
+        // Rebuild the prompt for THIS photo's room so declutter picks the right
+        // interior/exterior template and staging names the right room.
+        override = promptForTool(tool, photoRoom, photoReplace, promptInputs) ?? undefined;
+      }
+      // eslint-disable-next-line no-await-in-loop
+      const r = await runFaithful(g.dataUrl, photoRoom, photoReplace, override);
+      setGoldenResults((prev) => ({ ...prev, [i]: r }));
+    }
+    setGoldenRunning(false);
+  };
+
+  const download = (r: RunResult, name: string) => {
+    if (!r.ok) return;
     const a = document.createElement('a');
     a.href = r.image;
-    a.download = `lab-${tool}-${configs[idx].name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}.jpg`;
+    a.download = `lab-${tool}-${name}-${Date.now()}.jpg`;
     a.click();
   };
 
   if (!admin) return null;
 
-  const anyRunning = running.some(Boolean);
+  const controls = () => {
+    switch (tool) {
+      case 'staging':
+        return (
+          <>
+            <LabSelect label="Room" value={room} onChange={setRoom} options={ROOM_TYPES} />
+            <LabSelect label="Style" value={stagingStyle} onChange={setStagingStyle} options={STAGING_STYLES} />
+            <label className="flex items-center gap-2 text-xs text-zinc-300 mt-1">
+              <input type="checkbox" checked={replaceFurniture} onChange={(e) => setReplaceFurniture(e.target.checked)} />
+              Replace existing furniture (furnished room)
+            </label>
+          </>
+        );
+      case 'declutter':
+        return (
+          <>
+            <LabSelect label="Room" value={room} onChange={setRoom} options={ROOM_TYPES} />
+            <LabSelect
+              label="Cleanup mode" value={declutterFilter} onChange={setDeclutterFilter}
+              options={declutterFilterOptions.map((o) => o.value)}
+              render={(v) => declutterFilterOptions.find((o) => o.value === v)?.label || v}
+            />
+            <LabText label="Also remove (optional)" value={customRemoval} onChange={setCustomRemoval} placeholder="e.g. the blue trash can" />
+          </>
+        );
+      case 'magicedit':
+        return (
+          <>
+            <LabSelect label="Room (context, optional)" value={room} onChange={setRoom} options={ROOM_TYPES} />
+            <LabText label="Instruction *" value={magicInstruction} onChange={setMagicInstruction} placeholder="e.g. remove the cars from the driveway" />
+          </>
+        );
+      case 'twilight':
+        return (
+          <>
+            <LabSelect label="Sky palette" value={twilightStyle} onChange={setTwilightStyle} options={TWILIGHT_STYLES} />
+            <LabSelect label="Time of day" value={twilightTime} onChange={setTwilightTime} options={TWILIGHT_TIMES} />
+          </>
+        );
+      case 'sky':
+        return <LabSelect label="Sky" value={skyStyle} onChange={setSkyStyle} options={SKY_STYLES} />;
+      case 'renovation':
+        return (
+          <>
+            <LabText label="Cabinets" value={reno.cabinets} onChange={(v) => setReno((r) => ({ ...r, cabinets: v }))} placeholder="white shaker" />
+            <LabText label="Countertops" value={reno.countertops} onChange={(v) => setReno((r) => ({ ...r, countertops: v }))} placeholder="white quartz" />
+            <LabText label="Flooring" value={reno.flooring} onChange={(v) => setReno((r) => ({ ...r, flooring: v }))} placeholder="light oak LVP" />
+            <LabText label="Walls" value={reno.walls} onChange={(v) => setReno((r) => ({ ...r, walls: v }))} placeholder="warm white" />
+          </>
+        );
+    }
+  };
 
   return (
     <div className="min-h-screen bg-black text-white">
-      {/* Header */}
       <header className="border-b border-white/10 px-6 py-4 flex items-center justify-between bg-black/60 backdrop-blur-xl sticky top-0 z-50">
         <div>
           <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--color-primary)] font-bold">Admin · Model Lab</p>
-          <h1 className="text-xl font-black mt-0.5">A/B/C test Replicate models</h1>
+          <h1 className="text-xl font-black mt-0.5">Faithful playground</h1>
+          <p className="text-[11px] text-zinc-500 mt-0.5">Real pipeline · real prompts · shipping engines. What runs here is what agents get.</p>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs text-zinc-500">{user?.email}</span>
@@ -364,8 +432,8 @@ const ModelLabRoute: React.FC = () => {
       <main className="max-w-7xl mx-auto px-6 py-6 space-y-6">
         {/* Tool tabs */}
         <div className="flex gap-2 flex-wrap">
-          {(Object.keys(CONFIGS) as Tool[]).map(t => (
-            <button key={t} type="button" onClick={() => { setTool(t); setResults([null, null, null]); setPromptOverride(''); }}
+          {(Object.keys(TOOL_LABELS) as Tool[]).map((t) => (
+            <button key={t} type="button" onClick={() => { setTool(t); setResult(null); }}
               className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
                 tool === t
                   ? 'bg-[var(--color-primary)]/20 border border-[var(--color-primary)] text-[var(--color-primary)]'
@@ -377,109 +445,180 @@ const ModelLabRoute: React.FC = () => {
           ))}
         </div>
 
-        {/* Upload + prompt override */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+          {/* Left: source + controls */}
+          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 space-y-3">
             <label className="text-xs uppercase tracking-wider text-zinc-500 font-bold">1. Source photo</label>
             <input type="file" accept="image/*" onChange={onFile}
-              className="block mt-2 text-sm text-zinc-300 file:mr-3 file:rounded-lg file:border file:border-white/10 file:bg-white/5 file:px-3 file:py-1.5 file:text-white file:text-xs file:font-semibold hover:file:bg-white/10" />
+              className="block text-sm text-zinc-300 file:mr-3 file:rounded-lg file:border file:border-white/10 file:bg-white/5 file:px-3 file:py-1.5 file:text-white file:text-xs file:font-semibold hover:file:bg-white/10" />
             {image && (
-              <div className="mt-3 rounded-xl overflow-hidden border border-white/10">
-                <img src={image} alt="source" className="w-full max-h-[320px] object-contain bg-black" />
+              <div className="rounded-xl overflow-hidden border border-white/10">
+                <img src={image} alt="source" className="w-full max-h-[280px] object-contain bg-black" />
               </div>
             )}
+            <div className="pt-2 space-y-2">
+              <label className="text-xs uppercase tracking-wider text-zinc-500 font-bold">2. {TOOL_LABELS[tool].label} settings</label>
+              {controls()}
+            </div>
           </div>
 
+          {/* Right: exact prompt */}
           <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
-            <label className="text-xs uppercase tracking-wider text-zinc-500 font-bold">2. Prompt override (optional)</label>
-            <p className="text-[10px] text-zinc-600 mt-1">Leave empty to use each model card's built-in prompt. Applies to all 3 cards.</p>
-            <textarea value={promptOverride} onChange={e => setPromptOverride(e.target.value)}
-              rows={6} placeholder={`Using default ${TOOL_LABELS[tool].label} prompt…`}
-              className="w-full mt-2 rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] transition-all font-mono" />
-            <div className="mt-3 flex items-center gap-2">
-              <button type="button" onClick={runAll} disabled={!image || anyRunning}
-                className="flex-1 rounded-xl bg-[var(--color-primary)] text-white text-sm font-bold px-4 py-2.5 disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity">
-                {anyRunning ? 'Running…' : '3. Run all 3 models'}
-              </button>
+            <div className="flex items-center justify-between">
+              <label className="text-xs uppercase tracking-wider text-zinc-500 font-bold">3. Exact prompt (as shipped)</label>
+              {promptEditable && promptOverride !== null && (
+                <button type="button" onClick={() => setPromptOverride(null)}
+                  className="text-[11px] text-[var(--color-primary)] hover:opacity-80 font-semibold">Reset to default</button>
+              )}
             </div>
+            {promptEditable ? (
+              <>
+                <p className="text-[10px] text-zinc-600 mt-1">
+                  Built by the same shared code production runs ({tool === 'staging' ? 'buildStagingAssignment' : tool === 'declutter' ? 'buildCleanupPrompt' : 'buildMagicEditPrompt'}). Edit to A/B a wording — your edit runs through the real endpoint.
+                </p>
+                <textarea value={textareaValue} onChange={(e) => setPromptOverride(e.target.value)} rows={14}
+                  className="w-full mt-2 rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-[12px] leading-relaxed text-white focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] transition-all font-mono" />
+                <p className="text-[10px] text-zinc-600 mt-1">{textareaValue.length.toLocaleString()} chars</p>
+              </>
+            ) : (
+              <div className="mt-2 rounded-xl border border-white/10 bg-black/40 p-3 text-[12px] text-zinc-400 leading-relaxed">
+                This tool builds its prompt <b>server-side</b> inside{' '}
+                <span className="font-mono text-zinc-300">
+                  {tool === 'twilight' ? '/api/flux-twilight' : tool === 'sky' ? '/api/sky-replace' : '/api/flux-renovation'}
+                </span>{' '}
+                from the settings on the left. The lab sends those settings through the exact same endpoint — the server owns the wording, so there's nothing to override here.
+              </div>
+            )}
+            <button type="button" onClick={runSingle} disabled={!image || running}
+              className="w-full mt-3 rounded-xl bg-[var(--color-primary)] text-white text-sm font-bold px-4 py-2.5 disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity">
+              {running ? 'Running…' : '4. Run on source photo'}
+            </button>
           </div>
         </div>
 
-        {/* Results grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {configs.map((cfg, idx) => {
-            const res = results[idx];
-            const isRunning = running[idx];
-            const slug = editedSlugs[tool][idx];
-            return (
-              <div key={idx} className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 flex flex-col">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[10px] uppercase tracking-[0.14em] text-zinc-500 font-bold">Option {idx + 1}</p>
-                    <h3 className="font-black text-base mt-0.5">{cfg.name}</h3>
-                    <p className="text-xs text-zinc-400 mt-1 leading-snug">{cfg.description}</p>
-                  </div>
-                  <button type="button" onClick={() => runOne(idx)} disabled={!image || isRunning}
-                    className="shrink-0 rounded-lg text-[10px] uppercase tracking-wider font-bold px-3 py-1.5 bg-white/10 border border-white/10 hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed">
-                    {isRunning ? 'Running…' : 'Run'}
-                  </button>
-                </div>
-
-                <label className="text-[10px] uppercase tracking-wider text-zinc-600 font-bold mt-3">Model slug</label>
-                <input value={slug} onChange={e => updateSlug(idx, e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-white/10 bg-black/50 px-2 py-1.5 text-[11px] text-zinc-300 focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] font-mono" />
-
-                <div className="mt-3 rounded-xl overflow-hidden border border-white/10 bg-black aspect-[4/3] relative">
-                  {isRunning && (
-                    <div className="absolute inset-0 grid place-items-center">
-                      <div className="text-xs text-zinc-400 flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full border-2 border-[var(--color-primary)] border-t-transparent animate-spin" />
-                        Generating…
-                      </div>
-                    </div>
-                  )}
-                  {!isRunning && res && res.ok && (
-                    <img src={res.image} alt={cfg.name} className="w-full h-full object-contain" />
-                  )}
-                  {!isRunning && res && !res.ok && (
-                    <div className="absolute inset-0 grid place-items-center p-3 text-center">
-                      <div>
-                        <p className="text-xs font-bold text-[#FF375F]">Failed</p>
-                        <p className="text-[10px] text-zinc-500 mt-1 break-words">{res.error}</p>
-                      </div>
-                    </div>
-                  )}
-                  {!isRunning && !res && (
-                    <div className="absolute inset-0 grid place-items-center">
-                      <p className="text-xs text-zinc-600">No result yet</p>
+        {/* Single result */}
+        {(running || result) && (
+          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+            <label className="text-xs uppercase tracking-wider text-zinc-500 font-bold">Result</label>
+            <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+              {image && (
+                <figure>
+                  <figcaption className="text-[10px] uppercase tracking-wider text-zinc-600 font-bold mb-1">Before</figcaption>
+                  <img src={image} alt="before" className="w-full rounded-xl border border-white/10 object-contain bg-black max-h-[420px]" />
+                </figure>
+              )}
+              <figure>
+                <figcaption className="text-[10px] uppercase tracking-wider text-zinc-600 font-bold mb-1">After</figcaption>
+                <div className="w-full rounded-xl border border-white/10 bg-black aspect-[4/3] grid place-items-center overflow-hidden">
+                  {running && <Spinner />}
+                  {!running && result?.ok && <img src={result.image} alt="after" className="w-full h-full object-contain" />}
+                  {!running && result && !result.ok && (
+                    <div className="p-3 text-center">
+                      <p className="text-xs font-bold text-[#FF375F]">Failed</p>
+                      <p className="text-[10px] text-zinc-500 mt-1 break-words">{result.error}</p>
                     </div>
                   )}
                 </div>
-
-                {res && (res.latencyMs !== undefined) && (
+                {result && result.latencyMs !== undefined && (
                   <div className="mt-2 flex items-center justify-between text-[11px]">
-                    <span className={`font-semibold ${res.ok ? 'text-[#30D158]' : 'text-[#FF375F]'}`}>
-                      {res.ok ? 'Success' : 'Error'} · {(res.latencyMs / 1000).toFixed(1)}s
+                    <span className={`font-semibold ${result.ok ? 'text-[#30D158]' : 'text-[#FF375F]'}`}>
+                      {result.ok ? `Success · ${(result.latencyMs / 1000).toFixed(1)}s${result.engine ? ` · ${result.engine}` : ''}` : 'Error'}
                     </span>
-                    {res.ok && (
-                      <button type="button" onClick={() => downloadResult(idx)}
-                        className="text-[11px] text-[var(--color-primary)] hover:opacity-80 font-semibold">
-                        Download
-                      </button>
+                    {result.ok && (
+                      <button type="button" onClick={() => download(result, 'source')}
+                        className="text-[11px] text-[var(--color-primary)] hover:opacity-80 font-semibold">Download</button>
                     )}
                   </div>
                 )}
-              </div>
-            );
-          })}
+              </figure>
+            </div>
+          </div>
+        )}
+
+        {/* Golden set */}
+        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <label className="text-xs uppercase tracking-wider text-zinc-500 font-bold">Golden set</label>
+              <p className="text-[10px] text-zinc-600 mt-0.5">
+                Your canonical test photos. Auto-loads from <span className="font-mono">/golden/manifest.json</span> if committed, or add your own below. "Run golden set" runs the current tool + prompt across every photo.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="rounded-lg text-[11px] uppercase tracking-wider font-bold px-3 py-1.5 bg-white/10 border border-white/10 hover:bg-white/20 cursor-pointer">
+                Add photos
+                <input type="file" accept="image/*" multiple onChange={onGoldenFiles} className="hidden" />
+              </label>
+              <button type="button" onClick={runGolden} disabled={!golden.length || goldenRunning}
+                className="rounded-lg text-[11px] uppercase tracking-wider font-bold px-3 py-1.5 bg-[var(--color-primary)] text-white disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90">
+                {goldenRunning ? 'Running…' : `Run golden set (${golden.length})`}
+              </button>
+            </div>
+          </div>
+
+          {golden.length > 0 && (
+            <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+              {golden.map((g, i) => {
+                const r = goldenResults[i];
+                return (
+                  <div key={i} className="rounded-xl border border-white/10 overflow-hidden bg-black/40">
+                    <div className="aspect-[4/3] bg-black grid place-items-center overflow-hidden relative">
+                      {goldenRunning && !r && <Spinner />}
+                      {r?.ok && <img src={r.image} alt={g.label} className="w-full h-full object-contain" />}
+                      {!r && !goldenRunning && <img src={g.dataUrl} alt={g.label} className="w-full h-full object-contain opacity-40" />}
+                      {r && !r.ok && <p className="text-[10px] text-[#FF375F] p-2 text-center">{r.error}</p>}
+                    </div>
+                    <div className="px-2 py-1.5 flex items-center justify-between gap-1">
+                      <span className="text-[10px] text-zinc-400 truncate" title={g.label}>
+                        {g.label}
+                        {g.room && <span className="text-zinc-600"> · {g.room}</span>}
+                      </span>
+                      {r?.ok
+                        ? <button type="button" onClick={() => download(r, g.label.replace(/\W+/g, '-'))} className="text-[10px] text-[var(--color-primary)] font-semibold shrink-0">↓</button>
+                        : <button type="button" onClick={() => setGolden((gs) => gs.filter((_, j) => j !== i))} className="text-[10px] text-zinc-600 hover:text-[#FF375F] shrink-0">✕</button>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
-        <div className="text-[11px] text-zinc-600 pt-4">
-          Admin-only page. Gated to @averyandbryant.com emails via localStorage auth probe. Results are stored in memory only (no DB writes). Costs billed to the shop's Replicate account per run.
+        <div className="text-[11px] text-zinc-600 pt-2">
+          Admin-only. Every run hits the live <span className="font-mono">/api/flux-*</span> endpoints via the shared <span className="font-mono">callApiDirect</span> — the same code path, prompts, and engines the Vellum editor ships. Costs bill to the shop's Replicate account. No DB writes; results held in memory.
         </div>
       </main>
     </div>
   );
 };
+
+const Spinner: React.FC = () => (
+  <div className="text-xs text-zinc-400 flex items-center gap-2">
+    <div className="w-3 h-3 rounded-full border-2 border-[var(--color-primary)] border-t-transparent animate-spin" />
+    Generating…
+  </div>
+);
+
+const LabSelect: React.FC<{
+  label: string; value: string; onChange: (v: string) => void; options: string[]; render?: (v: string) => string;
+}> = ({ label, value, onChange, options, render }) => (
+  <div>
+    <label className="text-[10px] uppercase tracking-wider text-zinc-600 font-bold">{label}</label>
+    <select value={value} onChange={(e) => onChange(e.target.value)}
+      className="mt-1 w-full rounded-lg border border-white/10 bg-black/50 px-2 py-1.5 text-sm text-zinc-200 focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)]">
+      {options.map((o) => <option key={o} value={o}>{render ? render(o) : o}</option>)}
+    </select>
+  </div>
+);
+
+const LabText: React.FC<{
+  label: string; value: string; onChange: (v: string) => void; placeholder?: string;
+}> = ({ label, value, onChange, placeholder }) => (
+  <div>
+    <label className="text-[10px] uppercase tracking-wider text-zinc-600 font-bold">{label}</label>
+    <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+      className="mt-1 w-full rounded-lg border border-white/10 bg-black/50 px-2 py-1.5 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)]" />
+  </div>
+);
 
 export default ModelLabRoute;

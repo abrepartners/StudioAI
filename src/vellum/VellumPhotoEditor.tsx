@@ -38,6 +38,7 @@ import { classifyRoom } from "../../services/classifyRoomService";
 import { reveEdit } from "../../services/reveEditService";
 import { fluxRenovation } from "../../services/renovationService";
 import { STYLE_PACKS, buildStagingAssignment } from "../prompts/stylePacks";
+import { buildMagicEditPrompt } from "./toolPrompts";
 import {
   detectClutterMasks,
   combineSelectedMasks,
@@ -57,8 +58,7 @@ import {
   type CleanupQualitySignal,
 } from "../types/cleanupQuality.ts";
 import { useVellumStore } from "./useVellumStore";
-import { sharpenImage } from "../../utils/sharpen";
-import { compositeStackedEdit } from "../../utils/stackComposite";
+import { postProcessToolOutput } from "./toolPostProcess";
 import { generateThumbnail } from "../../utils/thumbnail";
 import { requestNotifyPermission, notifyDone } from "./notify";
 
@@ -68,20 +68,6 @@ const SCRATCH_KEY = "__quick_edit__";
 // Renovation makes LOW-contrast whole-plane material swaps (wall color, floors,
 // backsplash) that a cleanup-tuned threshold silently filters out, so it needs
 // a far more permissive threshold to let those large diffs survive the mask.
-const RENOVATION_COMPOSITE = {
-  threshold: 0.03,
-  dilatePx: 8,
-  featherPx: 12,
-} as const;
-// Whiten / sky / twilight repaint broad regions with subtle, global tonal
-// shifts. A lighter, wide-feather preset preserves untouched texture without
-// the double-exposure overlay that an aggressive mask would produce.
-const LIGHT_COMPOSITE = {
-  threshold: 0.1,
-  dilatePx: 4,
-  featherPx: 18,
-} as const;
-
 interface UploadedPhoto {
   id: number;
   file: File;
@@ -378,7 +364,7 @@ type SamModalController = (
   masks: string[],
 ) => Promise<number[] | null>;
 
-interface ApiDirectResult {
+export interface ApiDirectResult {
   resultBase64: string;
   maskBase64?: string;
   /** Which server engine produced the frame (staging: nano-banana | flux-fill |
@@ -386,7 +372,16 @@ interface ApiDirectResult {
   engine?: string;
 }
 
-const callApiDirect = async (
+/**
+ * The one dispatch every tool runs through — production editor AND the admin
+ * Model Lab. Exported so the lab exercises the exact same services, endpoints,
+ * engines, and prompts prod does (single source of truth).
+ *
+ * `promptOverride` lets the lab run an edited prompt through the real pipeline
+ * for the tools that build their prompt client-side (staging, declutter,
+ * magicedit). Production never passes it, so behavior there is unchanged.
+ */
+export const callApiDirect = async (
   imageBase64: string,
   roomLabel: string,
   tool: string,
@@ -395,6 +390,7 @@ const callApiDirect = async (
   signal: AbortSignal,
   requestSamMaskSelection?: SamModalController,
   replaceFurniture = false,
+  promptOverride?: string,
 ): Promise<ApiDirectResult> => {
   const presetMap: Record<string, Record<string, string>> = {
     sky: {
@@ -417,13 +413,14 @@ const callApiDirect = async (
       const pack = STYLE_PACKS[packKey] || STYLE_PACKS[preset.toLowerCase()];
       // Hardened fallback: even for an unmapped style, frame it as an ADDITIVE
       // edit with explicit preservation so Seedream never regenerates the room.
-      const prompt = pack
+      const prompt = promptOverride
+        || (pack
         ? buildStagingAssignment(
             pack,
             roomLabel,
             replaceFurniture ? "replace" : "add",
           )
-        : `Take this exact photograph of a ${roomLabel.toLowerCase()} and ${replaceFurniture ? "REPLACE all existing freestanding furniture and decor with" : "ADD"} ${preset} style furniture${replaceFurniture ? "" : " to it"}. This is an ADDITIVE edit, NOT image generation: keep every existing pixel — floor material, walls, ceiling, windows, cabinets, lighting, camera angle, and color temperature — identical to the input. Do NOT re-render, restyle, relight, or recolor anything already in the photo. Only place new free-standing furniture and decor into the empty space, with shadows and white balance matched to the room. If the floor is tile, stone, or marble it MUST stay that exact material.`;
+        : `Take this exact photograph of a ${roomLabel.toLowerCase()} and ${replaceFurniture ? "REPLACE all existing freestanding furniture and decor with" : "ADD"} ${preset} style furniture${replaceFurniture ? "" : " to it"}. This is an ADDITIVE edit, NOT image generation: keep every existing pixel — floor material, walls, ceiling, windows, cabinets, lighting, camera angle, and color temperature — identical to the input. Do NOT re-render, restyle, relight, or recolor anything already in the photo. Only place new free-standing furniture and decor into the empty space, with shadows and white balance matched to the room. If the floor is tile, stone, or marble it MUST stay that exact material.`);
       const result = await fluxStaging(imageBase64, prompt, signal, {
         skipUpscale: true,
         furnished: replaceFurniture,
@@ -478,7 +475,7 @@ const callApiDirect = async (
         customRemoval: custom,
         skipUpscale: true,
         maskBase64,
-        customPrompt,
+        customPrompt: promptOverride || customPrompt,
       });
       return {
         resultBase64: result.resultBase64,
@@ -636,7 +633,7 @@ DO NOT:
       // bypasses buildCleanupPrompt and lets the best model add/remove/clean
       // exactly what the user asked. Ships raw (native preservation), no
       // client composite, like the other nano tools.
-      const prompt = `Edit this photo${roomLabel ? ` of a ${roomLabel.toLowerCase()}` : ""}. Instruction: ${instruction}. Apply ONLY this change. Add, remove, or clean exactly what is asked and make it photorealistic — match the scene's existing lighting, perspective, materials, shadows, and color temperature so the edit is seamless. Keep everything the instruction does not mention — architecture, layout, fixtures, furniture, camera angle, framing, and exposure — identical to the input. Do not restyle, relight, or regenerate the rest of the scene.`;
+      const prompt = promptOverride || buildMagicEditPrompt(roomLabel, instruction);
       const result = await fluxCleanup(imageBase64, roomLabel, signal, {
         customPrompt: prompt,
         skipUpscale: true,
@@ -1012,44 +1009,13 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
       let resultDataUrl = apiResult.resultBase64;
 
       // C3 — per-tool composite drift-fix. callApiDirect returns RAW model
-      // output for these tools, and Flux/Reve/Nano globally re-render the
-      // frame, drifting untouched textures. Sharpen the soft diffusion output,
-      // then composite so unchanged regions come byte-identical from the input
-      // buffer. Declutter/cleanup are scoped server-side via SAM masks, and
-      // staging gets the server-side furniture-lock composite in
-      // /api/flux-staging (lang-sam furniture mask + tone-match + blend), so
-      // neither gets the client-side global composite here.
-      if (
-        tool === "renovation" ||
-        tool === "whiten" ||
-        tool === "sky" ||
-        tool === "twilight" ||
-        // Lawn was the last composite-less Kontext tool: its edits are local
-        // and high-contrast (grass patches), which the diff composite handles
-        // well — house/driveway/sky revert to original pixels.
-        tool === "lawn"
-      ) {
-        try {
-          const chainEnabled =
-            typeof window !== "undefined"
-              ? new URLSearchParams(window.location.search).get("chain") !== "0"
-              : true;
-          const fmt: "png" | "jpeg" = chainEnabled ? "png" : "jpeg";
-          const sharpened = await sharpenImage(resultDataUrl, 0.4, 1, fmt);
-          const compositeOpts =
-            tool === "renovation" ? RENOVATION_COMPOSITE : LIGHT_COMPOSITE;
-          resultDataUrl = await compositeStackedEdit(inputImage, sharpened, {
-            format: fmt,
-            ...compositeOpts,
-          });
-        } catch (compErr) {
-          console.warn(
-            "[Vellum] composite drift-fix failed, using raw model output:",
-            compErr,
-          );
-          resultDataUrl = apiResult.resultBase64;
-        }
-      }
+      // output for renovation/whiten/sky/twilight/lawn (Flux/Reve globally
+      // re-render the frame, drifting untouched textures), so we sharpen +
+      // composite before display. Shared with the Model Lab so it evaluates the
+      // exact image agents receive. Nano tools (staging/declutter/magicedit)
+      // ship raw — staging is furniture-locked server-side, declutter is
+      // mask-scoped — so postProcessToolOutput passes them through untouched.
+      resultDataUrl = await postProcessToolOutput(tool, inputImage, resultDataUrl);
 
       if (tool === "declutter") {
         try {

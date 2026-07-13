@@ -4,6 +4,7 @@ import {
   MONETIZATION_POLICY_VERSION,
   STARTER_MONTHLY_LIMIT,
   hasUnlimitedGeneration,
+  isAdminEmail,
   normalizePlan,
   type PlanId,
 } from "../shared/monetization";
@@ -39,13 +40,8 @@ export interface SubscriptionState {
   };
 }
 
-const ADMIN_DOMAINS = ["averyandbryant.com"];
-
 const FREE_LIFETIME_CAP = FREE_TIER_POLICY.lifetimeCap;
 const FREE_DAILY_LIMIT_AFTER_LIFETIME = FREE_TIER_POLICY.dailyAfterLifetime;
-
-const isAdminEmail = (email: string) =>
-  ADMIN_DOMAINS.some((domain) => email.toLowerCase().endsWith(`@${domain}`));
 
 export function useSubscription(
   userEmail: string | null,

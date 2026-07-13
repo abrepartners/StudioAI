@@ -1,8 +1,12 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
-    "api/morph/finalize.ts": { "includeFiles": "node_modules/ffmpeg-static/**" }
+    "api/morph/finalize.ts": {
+      "includeFiles": "node_modules/ffmpeg-static/**"
+    },
+    "api/morph/tick.ts": { "includeFiles": "node_modules/ffmpeg-static/**" }
   },
+  "crons": [{ "path": "/api/morph/tick", "schedule": "* * * * *" }],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/(.*)", "destination": "/index.html" }

@@ -261,3 +261,91 @@ export async function sbUploadReel(path: string, buf: Buffer): Promise<string> {
     );
   return `${SB}/storage/v1/object/public/morph-reels/${path}`;
 }
+
+/** In-flight jobs that no client has touched in `staleMs` (default 30s) — i.e.
+ *  no active browser poller. The cron (/tick) advances ONLY these, so it never
+ *  races an open tab that is already driving the job. Excludes awaiting_approval
+ *  (waits for a human), concatenating (in progress), done, and error. */
+export async function sbListInflight(staleMs = 30000): Promise<MorphJob[]> {
+  const cutoff = new Date(Date.now() - staleMs).toISOString();
+  const q =
+    `status=in.(reframing,constructing,morph1,morph2,stitching)` +
+    `&updated_at=lt.${cutoff}&order=updated_at.asc&limit=25`;
+  const r = await fetch(`${SB}/rest/v1/morph_jobs?${q}`, {
+    headers: sbHeaders,
+  });
+  if (!r.ok) return [];
+  const rows = await r.json();
+  return Array.isArray(rows) ? (rows as MorphJob[]) : [];
+}
+
+/** Advance an in-flight job ONE step: reframe→construction→awaiting_approval,
+ *  morph1→morph2→stitching. No concat (that's finalizeJob) and no auto-approve
+ *  (awaiting_approval waits for /approve). Shared by /status (client poll) and
+ *  /tick (cron self-advance) so the two can never diverge. Returns the fresh job. */
+export async function advanceJob(job: MorphJob): Promise<MorphJob> {
+  const id = job.id;
+  try {
+    if (job.status === "reframing" && job.real_pred) {
+      const p = await getPred(job.real_pred);
+      if (p.status === "succeeded") {
+        const realUrl = predUrl(p);
+        const consPred = await startConstruction(realUrl);
+        await sbPatch(id, {
+          real_url: realUrl,
+          cons_pred: consPred,
+          status: "constructing",
+          step: "building the under-construction frame",
+        });
+      } else if (p.status === "failed" || p.status === "canceled") {
+        await sbPatch(id, { status: "error", error: "reframe failed" });
+      }
+    } else if (job.status === "constructing" && job.cons_pred) {
+      const p = await getPred(job.cons_pred);
+      if (p.status === "succeeded") {
+        await sbPatch(id, {
+          construction_url: predUrl(p),
+          status: "awaiting_approval",
+          step: "waiting for your approval",
+        });
+      } else if (p.status === "failed" || p.status === "canceled") {
+        await sbPatch(id, {
+          status: "error",
+          error: "construction frame failed",
+        });
+      }
+    } else if (job.status === "morph1" && job.morph1_pred) {
+      const p = await getPred(job.morph1_pred);
+      if (p.status === "succeeded") {
+        const m2Pred = await startMorph(
+          job.construction_url!,
+          job.real_url!,
+          "under construction",
+          "real house",
+        );
+        await sbPatch(id, {
+          morph1_url: predUrl(p),
+          morph2_pred: m2Pred,
+          status: "morph2",
+          step: "morphing 2/2: under construction → real house",
+        });
+      } else if (p.status === "failed" || p.status === "canceled") {
+        await sbPatch(id, { status: "error", error: "morph 1 failed" });
+      }
+    } else if (job.status === "morph2" && job.morph2_pred) {
+      const p = await getPred(job.morph2_pred);
+      if (p.status === "succeeded") {
+        await sbPatch(id, {
+          morph2_url: predUrl(p),
+          status: "stitching",
+          step: "stitching the reel",
+        });
+      } else if (p.status === "failed" || p.status === "canceled") {
+        await sbPatch(id, { status: "error", error: "morph 2 failed" });
+      }
+    }
+  } catch (e: any) {
+    await sbPatch(id, { status: "error", error: String(e?.message || e) });
+  }
+  return (await sbGet(id)) || job;
+}

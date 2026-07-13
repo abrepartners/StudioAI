@@ -8,6 +8,7 @@ import React, {
 } from "react";
 import { Icon } from "./icons";
 import { useBrandKit } from "../../hooks/useBrandKit";
+import VellumPartialBatchModal from "./VellumPartialBatchModal";
 
 // ── Output generators — lazy-loaded so they never bloat the editor chunk.
 // These were stranded on the dead /legacy route; surfacing them here is the
@@ -413,14 +414,15 @@ export const callApiDirect = async (
       const pack = STYLE_PACKS[packKey] || STYLE_PACKS[preset.toLowerCase()];
       // Hardened fallback: even for an unmapped style, frame it as an ADDITIVE
       // edit with explicit preservation so Seedream never regenerates the room.
-      const prompt = promptOverride
-        || (pack
-        ? buildStagingAssignment(
-            pack,
-            roomLabel,
-            replaceFurniture ? "replace" : "add",
-          )
-        : `Take this exact photograph of a ${roomLabel.toLowerCase()} and ${replaceFurniture ? "REPLACE all existing freestanding furniture and decor with" : "ADD"} ${preset} style furniture${replaceFurniture ? "" : " to it"}. This is an ADDITIVE edit, NOT image generation: keep every existing pixel — floor material, walls, ceiling, windows, cabinets, lighting, camera angle, and color temperature — identical to the input. Do NOT re-render, restyle, relight, or recolor anything already in the photo. Only place new free-standing furniture and decor into the empty space, with shadows and white balance matched to the room. If the floor is tile, stone, or marble it MUST stay that exact material.`);
+      const prompt =
+        promptOverride ||
+        (pack
+          ? buildStagingAssignment(
+              pack,
+              roomLabel,
+              replaceFurniture ? "replace" : "add",
+            )
+          : `Take this exact photograph of a ${roomLabel.toLowerCase()} and ${replaceFurniture ? "REPLACE all existing freestanding furniture and decor with" : "ADD"} ${preset} style furniture${replaceFurniture ? "" : " to it"}. This is an ADDITIVE edit, NOT image generation: keep every existing pixel — floor material, walls, ceiling, windows, cabinets, lighting, camera angle, and color temperature — identical to the input. Do NOT re-render, restyle, relight, or recolor anything already in the photo. Only place new free-standing furniture and decor into the empty space, with shadows and white balance matched to the room. If the floor is tile, stone, or marble it MUST stay that exact material.`);
       const result = await fluxStaging(imageBase64, prompt, signal, {
         skipUpscale: true,
         furnished: replaceFurniture,
@@ -633,7 +635,8 @@ DO NOT:
       // bypasses buildCleanupPrompt and lets the best model add/remove/clean
       // exactly what the user asked. Ships raw (native preservation), no
       // client composite, like the other nano tools.
-      const prompt = promptOverride || buildMagicEditPrompt(roomLabel, instruction);
+      const prompt =
+        promptOverride || buildMagicEditPrompt(roomLabel, instruction);
       const result = await fluxCleanup(imageBase64, roomLabel, signal, {
         customPrompt: prompt,
         skipUpscale: true,
@@ -819,6 +822,16 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
   const [renovFlooring, setRenovFlooring] = useState("");
   const [renovWalls, setRenovWalls] = useState("");
   const [selectedPhoto, setSelectedPhoto] = useState(0);
+  // Option B partial-credit picker: when Apply-all costs more than the balance
+  // but the balance is > 0, let the user choose which photos to spend it on.
+  const [partialBatch, setPartialBatch] = useState<{
+    targets: UploadedPhoto[];
+    totalCost: number;
+    frozenTool: string;
+    frozenPreset: string;
+    frozenCustom: string;
+    toolName: string;
+  } | null>(null);
 
   const setActiveTool = (tool: string) => {
     setActiveToolRaw(tool);
@@ -991,8 +1004,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
       // upload if this is the first edit), so edits compound in sequence and
       // Undo steps back one layer. (Cleanup used to reset to the original,
       // which silently dropped prior edits — the one confusing exception.)
-      const inputImage =
-        processedResultsRef.current[photo.id] || photo.dataUrl;
+      const inputImage = processedResultsRef.current[photo.id] || photo.dataUrl;
       const apiResult = await callApiDirect(
         inputImage,
         photo.label,
@@ -1015,7 +1027,11 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
       // exact image agents receive. Nano tools (staging/declutter/magicedit)
       // ship raw — staging is furniture-locked server-side, declutter is
       // mask-scoped — so postProcessToolOutput passes them through untouched.
-      resultDataUrl = await postProcessToolOutput(tool, inputImage, resultDataUrl);
+      resultDataUrl = await postProcessToolOutput(
+        tool,
+        inputImage,
+        resultDataUrl,
+      );
 
       if (tool === "declutter") {
         try {
@@ -1221,6 +1237,57 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
     });
   };
 
+  // The batch runner, extracted so both "Apply all" and the partial-credit
+  // picker (option B) can drive it over any list of photos.
+  const runToolBatch = async (
+    targetList: UploadedPhoto[],
+    frozenTool: string,
+    frozenPreset: string,
+    frozenCustom: string,
+  ) => {
+    setBatchTotal(targetList.length);
+    setBatchDone(0);
+
+    let okCount = 0;
+    const queue = [...targetList];
+    const runBatch = async () => {
+      const chunk = queue.splice(0, BATCH_CONCURRENCY);
+      if (!chunk.length) return;
+
+      await Promise.all(
+        chunk.map(async (p) => {
+          const ok = await processOnePhoto(
+            p.id,
+            frozenTool,
+            frozenPreset,
+            frozenCustom,
+          );
+          if (ok) okCount += 1;
+          setBatchDone((d) => d + 1);
+        }),
+      );
+
+      if (queue.length > 0) await runBatch();
+    };
+
+    await runBatch();
+    setBatchTotal(0);
+    setBatchDone(0);
+    notifyDone(
+      "Photos ready",
+      `${okCount} of ${targetList.length} photos refined. Switch back to Vellum to view.`,
+    );
+    setActivity((a) => [
+      {
+        who: "Vellum",
+        what: `Batch complete — ${targetList.length} photos processed`,
+        cost: 0,
+        when: "just now",
+      },
+      ...a,
+    ]);
+  };
+
   const handleApplyAll = () => {
     if (!photos.length) return;
     const targets = photos.filter((p) => !isPhotoGenerating(p.id));
@@ -1236,10 +1303,8 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
       return;
     }
 
-    const totalCost = targets.reduce(
-      (sum, p) => sum + toolCostFor(activeTool, p),
-      0,
-    );
+    const perCosts = targets.map((p) => toolCostFor(activeTool, p));
+    const totalCost = perCosts.reduce((a, b) => a + b, 0);
 
     const frozenTool = activeTool;
     const frozenPreset =
@@ -1254,51 +1319,43 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
             })
           : stylePreset;
     const frozenCustom = customRemoval;
+    const toolName =
+      (TOOLS.find((t) => "id" in t && t.id === frozenTool) as any)?.name ||
+      "Photos";
 
     requestNotifyPermission();
-    requestSpend(totalCost, async () => {
-      setBatchTotal(targets.length);
-      setBatchDone(0);
 
-      let okCount = 0;
-      const queue = [...targets];
-      const runBatch = async () => {
-        const chunk = queue.splice(0, BATCH_CONCURRENCY);
-        if (!chunk.length) return;
-
-        await Promise.all(
-          chunk.map(async (p) => {
-            const ok = await processOnePhoto(
-              p.id,
-              frozenTool,
-              frozenPreset,
-              frozenCustom,
-            );
-            if (ok) okCount += 1;
-            setBatchDone((d) => d + 1);
-          }),
-        );
-
-        if (queue.length > 0) await runBatch();
-      };
-
-      await runBatch();
-      setBatchTotal(0);
-      setBatchDone(0);
-      notifyDone(
-        "Photos ready",
-        `${okCount} of ${targets.length} photos refined. Switch back to Vellum to view.`,
+    // Can afford the whole batch (unlimited plans expose a large credit sentinel).
+    if (credits >= totalCost) {
+      requestSpend(totalCost, () =>
+        runToolBatch(targets, frozenTool, frozenPreset, frozenCustom),
       );
-      setActivity((a) => [
-        {
-          who: "Vellum",
-          what: `Batch complete — ${targets.length} photos processed`,
-          cost: 0,
-          when: "just now",
-        },
-        ...a,
-      ]);
-    });
+      return;
+    }
+
+    // Short on credits but some balance remains → option B: let them pick which
+    // photos to spend the remaining credits on instead of blocking outright.
+    let affordable = 0;
+    let acc = 0;
+    for (const c of perCosts) {
+      if (acc + c > credits) break;
+      acc += c;
+      affordable += 1;
+    }
+    if (credits > 0 && affordable >= 1) {
+      setPartialBatch({
+        targets,
+        totalCost,
+        frozenTool,
+        frozenPreset,
+        frozenCustom,
+        toolName,
+      });
+      return;
+    }
+
+    // No credits at all → upgrade / buy modal.
+    requestSpend(totalCost);
   };
 
   const handleSelectPhoto = (idx: number) => {
@@ -2650,8 +2707,8 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
                   ))}
                 </div>
                 <p className="v-muted" style={{ fontSize: 11, marginTop: 8 }}>
-                  Add, remove, or clean anything. Runs on the full-quality
-                  model and only changes what you describe.
+                  Add, remove, or clean anything. Runs on the full-quality model
+                  and only changes what you describe.
                 </p>
               </>
             ) : activeTool === "twilight" ? (
@@ -3229,12 +3286,48 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
               <div className="v-export-list">
                 {(
                   [
-                    { kind: "reveal", icon: "video", label: "Reveal video", meta: "Before / after", disabled: !revealAfter },
-                    { kind: "mls", icon: "mls", label: "MLS export", meta: "Resize · EXIF · zip", disabled: overlayImages.length === 0 },
-                    { kind: "social", icon: "image", label: "Social pack", meta: "IG / story", disabled: overlayImages.length === 0 },
-                    { kind: "description", icon: "text", label: "Listing description", meta: "AI copy · 3 tones", disabled: false },
-                    { kind: "print", icon: "folder", label: "Print collateral", meta: "Flyer · PDF", disabled: overlayImages.length === 0 },
-                    { kind: "listingkit", icon: "sparkles", label: "Listing Kit", meta: "MLS + social + copy", disabled: overlayImages.length === 0 },
+                    {
+                      kind: "reveal",
+                      icon: "video",
+                      label: "Reveal video",
+                      meta: "Before / after",
+                      disabled: !revealAfter,
+                    },
+                    {
+                      kind: "mls",
+                      icon: "mls",
+                      label: "MLS export",
+                      meta: "Resize · EXIF · zip",
+                      disabled: overlayImages.length === 0,
+                    },
+                    {
+                      kind: "social",
+                      icon: "image",
+                      label: "Social pack",
+                      meta: "IG / story",
+                      disabled: overlayImages.length === 0,
+                    },
+                    {
+                      kind: "description",
+                      icon: "text",
+                      label: "Listing description",
+                      meta: "AI copy · 3 tones",
+                      disabled: false,
+                    },
+                    {
+                      kind: "print",
+                      icon: "folder",
+                      label: "Print collateral",
+                      meta: "Flyer · PDF",
+                      disabled: overlayImages.length === 0,
+                    },
+                    {
+                      kind: "listingkit",
+                      icon: "sparkles",
+                      label: "Listing Kit",
+                      meta: "MLS + social + copy",
+                      disabled: overlayImages.length === 0,
+                    },
                   ] as const
                 ).map((item) => (
                   <button
@@ -3738,6 +3831,30 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
           onCancel={() => {
             samModal.resolver(null);
             setSamModal(null);
+          }}
+        />
+      )}
+
+      {partialBatch && (
+        <VellumPartialBatchModal
+          open={true}
+          photos={partialBatch.targets}
+          credits={credits}
+          costOf={(p) => toolCostFor(partialBatch.frozenTool, p)}
+          toolName={partialBatch.toolName}
+          onClose={() => setPartialBatch(null)}
+          onConfirm={(ids) => {
+            const chosen = partialBatch.targets.filter((t) =>
+              ids.includes(t.id),
+            );
+            const { frozenTool, frozenPreset, frozenCustom } = partialBatch;
+            setPartialBatch(null);
+            void runToolBatch(chosen, frozenTool, frozenPreset, frozenCustom);
+          }}
+          onGetMore={() => {
+            const tc = partialBatch.totalCost;
+            setPartialBatch(null);
+            requestSpend(tc);
           }}
         />
       )}

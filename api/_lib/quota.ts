@@ -14,6 +14,7 @@
  */
 import {
   hasUnlimitedGeneration,
+  isAdminEmail,
   normalizePlan,
 } from "../../shared/monetization.js";
 
@@ -92,6 +93,12 @@ export async function reserveQuota(
   // shared bucket for every not-yet-re-logged-in user during the window.
   if (googleId === "log-only") {
     return { allowed: true, method: "lifetime", refundHandle: null };
+  }
+  // Owner/admin accounts are unlimited everywhere. The client (useSubscription)
+  // already treats these as unlimited; without the SAME check here the server
+  // 402'd them and the editor bounced the owner straight to billing mid-click.
+  if (isAdminEmail(email)) {
+    return { allowed: true, method: "unlimited", refundHandle: null };
   }
   const plan = normalizePlan(await resolvePlan(email));
   if (hasUnlimitedGeneration(plan)) {

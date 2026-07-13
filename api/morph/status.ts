@@ -44,6 +44,30 @@ export default async function handler(req: any, res: any) {
   let job = await sbGet(id);
   if (!job) return json(res, 404, { ok: false, error: "unknown job" });
 
+  // Stuck-launch recovery. The atomic claim flips status to morph1/morph2 BEFORE
+  // the prediction id is saved, so a function timeout or a rejected patch in that
+  // ~2s window can leave a job advanced but with a null pred id, which the
+  // branches below then skip forever. After a grace period well beyond the
+  // launch window, surface it as a restartable error. We do NOT auto-relaunch:
+  // a prediction may have been created whose id we lost, and relaunching would
+  // double-charge without an idempotency key. Better one visible error than a
+  // silent hang or a risk of double spend.
+  const STUCK_LAUNCH_MS = 120_000;
+  const stuck =
+    (job.status === "morph1" && !job.morph1_pred) ||
+    (job.status === "morph2" && !job.morph2_pred);
+  if (
+    stuck &&
+    job.updated_at &&
+    Date.now() - new Date(job.updated_at).getTime() > STUCK_LAUNCH_MS
+  ) {
+    await sbPatch(id, {
+      status: "error",
+      error: "render did not start, please try again",
+    });
+    return json(res, 200, view((await sbGet(id)) || job));
+  }
+
   try {
     if (job.status === "reframing" && job.real_pred) {
       const p = await getPred(job.real_pred);

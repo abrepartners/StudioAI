@@ -185,6 +185,8 @@ export interface MorphJob {
   morph2_url?: string;
   video_url?: string;
   error?: string;
+  /** Set by sbPatch/sbClaim on every write; used to detect stuck-launch jobs. */
+  updated_at?: string;
 }
 
 export async function sbInsert(row: Partial<MorphJob>): Promise<void> {

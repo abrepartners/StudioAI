@@ -26,7 +26,7 @@
  */
 import Replicate from "replicate";
 import { json, rejectMethod, parseBody } from "./utils.js";
-import { applyCors, requireSession } from "./_lib/auth-middleware.js";
+import { applyCors, requireServiceOrSession } from "./_lib/auth-middleware.js";
 import { reserveQuota, refundQuota } from "./_lib/quota.js";
 
 export const config = { runtime: "nodejs", maxDuration: 120 };
@@ -80,9 +80,10 @@ export default async function handler(req: any, res: any) {
   if (applyCors(req, res, "POST,OPTIONS")) return;
   if (rejectMethod(req, res, "POST")) return;
 
-  // Gate: verified session required. Closes the anonymous-access hole.
-  const session = await requireSession(req, res);
+  // Gate: verified session OR a machine service key (dormant unless SERVICE_API_KEY set).
+  const session = await requireServiceOrSession(req, res);
   if (!session) return;
+  const isService = (session as any).service === true;
 
   if (!REPLICATE_TOKEN) {
     json(res, 200, { ok: false, error: "REPLICATE_API_TOKEN not configured" });
@@ -106,14 +107,21 @@ export default async function handler(req: any, res: any) {
 
   // Reserve AFTER validation (a malformed request never consumes quota) and
   // BEFORE the paid Replicate work. Refund on any generation failure below.
-  const quota = await reserveQuota(session.email, session.sub, 1);
-  if (!quota.allowed) {
-    json(res, 402, {
-      ok: false,
-      error: "generation quota reached",
-      code: quota.reason || "quota_exhausted",
-    });
-    return;
+  // Service (machine) calls are quota-exempt — metered upstream at Replicate.
+  let quota: Awaited<ReturnType<typeof reserveQuota>> = {
+    allowed: true,
+    refundHandle: null,
+  } as Awaited<ReturnType<typeof reserveQuota>>;
+  if (!isService) {
+    quota = await reserveQuota(session.email, session.sub, 1);
+    if (!quota.allowed) {
+      json(res, 402, {
+        ok: false,
+        error: "generation quota reached",
+        code: quota.reason || "quota_exhausted",
+      });
+      return;
+    }
   }
 
   const dataUrl = imageBase64.startsWith("data:")
@@ -139,7 +147,7 @@ export default async function handler(req: any, res: any) {
 
     const editUrl = await extractUrl(output);
     if (!editUrl) {
-      await refundQuota(quota.refundHandle);
+      if (quota.refundHandle) await refundQuota(quota.refundHandle);
       json(res, 200, {
         ok: false,
         error: "flux-kontext-pro returned no image URL",
@@ -167,7 +175,7 @@ export default async function handler(req: any, res: any) {
 
     const imgRes = await fetch(finalUrl);
     if (!imgRes.ok) {
-      await refundQuota(quota.refundHandle);
+      if (quota.refundHandle) await refundQuota(quota.refundHandle);
       json(res, 200, { ok: false, error: `result fetch ${imgRes.status}` });
       return;
     }
@@ -179,7 +187,7 @@ export default async function handler(req: any, res: any) {
     );
     json(res, 200, { ok: true, resultBase64, latencyMs: Date.now() - t0 });
   } catch (err: any) {
-    await refundQuota(quota.refundHandle);
+    if (quota.refundHandle) await refundQuota(quota.refundHandle);
     console.error("[reve-edit] unhandled:", err?.message || err);
     json(res, 200, { ok: false, error: err?.message || "unknown" });
   }

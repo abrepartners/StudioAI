@@ -18,6 +18,19 @@ StudioAI is an AI-powered listing media platform for real estate agents. An agen
 
 ---
 
+## How we work (operating rules)
+
+Team conventions set with the client. Binding, same as the rest of this manual.
+
+- **Architect mode first.** Before starting any new feature that is not already spelled out in an approved brief, stop and produce a short architecture brief (what it does, the real options, a recommendation), then wait for approval. Do not build on assumptions. If ambiguity shows up mid-build, stop and return to the brief instead of guessing. Bug fixes and clearly-scoped changes do not need this.
+- **Robust projects get a living checklist.** Any project with more than three tasks, or tasks that have subtasks, gets a living status board (Now / Next / Later, with a checked-off record), kept updated as work moves. A published Artifact works well for this.
+- **No em dashes.** Not in generated copy (listing descriptions, captions, marketing text) and not in writing to the client. Use commas, colons, or parentheses.
+- **Fair Housing compliance.** All generated real estate copy must follow the Fair Housing Act: describe the property, never the buyer or the neighborhood's demographics, and never steer toward or away from a protected class. The listing-copy prompts enforce this; keep it enforced anywhere copy is generated.
+- **Spend guards live in our code.** Replicate is one shared account across projects, so a runaway in one place drains the shared bill. Every paid generation path reserves quota or has a per-job or per-day cap on our side. Do not rely on the provider dashboard for a hard limit.
+- **One PR per change, reviewed.** Never merge or push to main directly. Every change ships through a PR, even docs and small fixes.
+
+---
+
 ## Current state (as of March 2026)
 
 These features are LIVE and working. Do NOT rebuild or refactor these unless explicitly asked:

@@ -1,35 +1,51 @@
-import React, { useState } from 'react';
-import { Icon } from './icons';
-import type { SubscriptionState } from '../../hooks/useSubscription';
+import React, { useState } from "react";
+import { Icon } from "./icons";
+import type { SubscriptionState } from "../../hooks/useSubscription";
 import {
   PLAN_PRICING_USD,
   DISPLAY_COPY,
   getPlanDisplayName,
-} from '../../shared/monetization';
+} from "../../shared/monetization";
 
 interface BillingProps {
   setPage: (p: string) => void;
   credits: number;
   subscription?: SubscriptionState & {
-    startCheckout: (userId: string, opts?: { plan?: 'starter' | 'pro' | 'team'; interval?: 'month' | 'year' }) => void;
+    startCheckout: (
+      userId: string,
+      opts?: { plan?: "starter" | "pro" | "team"; interval?: "month" | "year" },
+    ) => void;
     openPortal: () => void;
-    buyCredits: (pack: 'starter' | 'pro_pack' | 'agency', userId: string) => void;
+    buyCredits: (
+      pack: "starter" | "pro_pack" | "agency",
+      userId: string,
+    ) => void;
   };
   userEmail?: string;
   userId?: string;
 }
 
-const VellumBilling: React.FC<BillingProps> = ({ setPage, credits, subscription, userEmail, userId }) => {
-  const [interval, setInterval] = useState<'month' | 'year'>('year');
+const VellumBilling: React.FC<BillingProps> = ({
+  setPage,
+  credits,
+  subscription,
+  userEmail,
+  userId,
+}) => {
+  // Default to Monthly on purpose: Annual bills the whole year up front, and a
+  // year-default with a "/mo" price label is exactly how a user buys 12 months
+  // by accident (this cost a real client). Let people opt INTO the annual
+  // commitment, don't pre-select it.
+  const [interval, setInterval] = useState<"month" | "year">("month");
 
-  const plan = subscription?.plan || 'free';
+  const plan = subscription?.plan || "free";
   const isSubscribed = subscription?.subscribed || false;
   const isUnlimited = subscription?.generationsLimit === -1;
   const limit = subscription?.generationsLimit ?? 5;
   const used = subscription?.generationsUsed ?? 0;
   const loading = subscription?.loading ?? false;
 
-  const handleUpgrade = (targetPlan: 'starter' | 'pro' | 'team') => {
+  const handleUpgrade = (targetPlan: "starter" | "pro" | "team") => {
     if (!userId || !subscription) return;
     subscription.startCheckout(userId, { plan: targetPlan, interval });
   };
@@ -40,8 +56,27 @@ const VellumBilling: React.FC<BillingProps> = ({ setPage, credits, subscription,
   };
 
   const annualSaving = (monthly: number, yearly: number) => {
-    const saved = (monthly * 12) - (yearly * 12);
-    return saved > 0 ? `Save $${saved}/yr` : '';
+    const saved = monthly * 12 - yearly * 12;
+    return saved > 0 ? `Save $${saved}/yr` : "";
+  };
+
+  // The number that actually leaves the card. Annual bills the full year at
+  // once, so state it in real dollars — never let a lone "/mo" label stand on
+  // an annual plan (that is how a client bought 12 months by accident).
+  const billedNote = (price: { month: number; year: number }): string =>
+    interval === "year"
+      ? `Billed $${price.year * 12} today, once a year`
+      : `Billed $${price.month} today, monthly`;
+
+  // CTA carries the cadence so the charge is unambiguous at the click.
+  const ctaLabel = (
+    planName: string,
+    price: { month: number; year: number },
+  ): string => {
+    const verb = isSubscribed ? "Switch to" : "Upgrade to";
+    return interval === "year"
+      ? `${verb} ${planName} · $${price.year * 12}/yr`
+      : `${verb} ${planName} · $${price.month}/mo`;
   };
 
   return (
@@ -49,30 +84,49 @@ const VellumBilling: React.FC<BillingProps> = ({ setPage, credits, subscription,
       <div className="v-page-head">
         <div>
           <div className="v-page-eyebrow">Plan & billing</div>
-          <h1 className="v-page-title">Refined work, <em>fairly priced.</em></h1>
+          <h1 className="v-page-title">
+            Refined work, <em>fairly priced.</em>
+          </h1>
           <p className="v-page-sub">
             {isSubscribed
-              ? `You're on the ${getPlanDisplayName(plan)} plan. ${isUnlimited ? 'Unlimited generations.' : `${Math.max(0, limit - used)} of ${limit} generations remaining this period.`}`
-              : 'Start free, upgrade when you need more.'}
+              ? `You're on the ${getPlanDisplayName(plan)} plan. ${isUnlimited ? "Unlimited generations." : `${Math.max(0, limit - used)} of ${limit} generations remaining this period.`}`
+              : "Start free, upgrade when you need more."}
           </p>
         </div>
       </div>
 
       {/* Interval toggle */}
-      <div className="v-seg" style={{ width: 'fit-content', margin: '0 auto 32px' }}>
+      <div
+        className="v-seg"
+        style={{ width: "fit-content", margin: "0 auto 32px" }}
+      >
         <button
-          className={'v-seg-btn' + (interval === 'month' ? ' on' : '')}
-          onClick={() => setInterval('month')}
-        >Monthly</button>
+          className={"v-seg-btn" + (interval === "month" ? " on" : "")}
+          onClick={() => setInterval("month")}
+        >
+          Monthly
+        </button>
         <button
-          className={'v-seg-btn' + (interval === 'year' ? ' on' : '')}
-          onClick={() => setInterval('year')}
-        >Annual <span style={{ fontSize: 10, opacity: 0.7, marginLeft: 4 }}>2 months free</span></button>
+          className={"v-seg-btn" + (interval === "year" ? " on" : "")}
+          onClick={() => setInterval("year")}
+        >
+          Annual{" "}
+          <span style={{ fontSize: 10, opacity: 0.7, marginLeft: 4 }}>
+            2 months free
+          </span>
+        </button>
       </div>
 
-      <div className="v-plans" style={{ gridTemplateColumns: 'repeat(3, 1fr)', maxWidth: 960, margin: '24px auto 48px' }}>
+      <div
+        className="v-plans"
+        style={{
+          gridTemplateColumns: "repeat(3, 1fr)",
+          maxWidth: 960,
+          margin: "24px auto 48px",
+        }}
+      >
         {/* Free */}
-        <div className={`v-plan ${plan === 'free' ? 'featured' : ''}`}>
+        <div className={`v-plan ${plan === "free" ? "featured" : ""}`}>
           <div className="plan-name">Free</div>
           <div className="plan-price">$0</div>
           <div className="plan-tag">5 edits to start, then 1 per day.</div>
@@ -85,16 +139,39 @@ const VellumBilling: React.FC<BillingProps> = ({ setPage, credits, subscription,
         </div>
 
         {/* Pro */}
-        <div className={`v-plan ${plan === 'pro' ? 'featured' : ''}`}>
-          {plan !== 'pro' && <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--pale-gold)', marginBottom: 8 }}>Most popular</div>}
+        <div className={`v-plan ${plan === "pro" ? "featured" : ""}`}>
+          {plan !== "pro" && (
+            <div
+              style={{
+                fontSize: 10,
+                fontWeight: 600,
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                color: "var(--pale-gold)",
+                marginBottom: 8,
+              }}
+            >
+              Most popular
+            </div>
+          )}
           <div className="plan-name">Pro</div>
           <div className="plan-price">
-            ${interval === 'year' ? PLAN_PRICING_USD.pro.year : PLAN_PRICING_USD.pro.month}
+            $
+            {interval === "year"
+              ? PLAN_PRICING_USD.pro.year
+              : PLAN_PRICING_USD.pro.month}
             <em>/mo</em>
+          </div>
+          <div
+            className="plan-billed"
+            style={{ fontSize: 12, color: "var(--graphite)", marginTop: 2 }}
+          >
+            {billedNote(PLAN_PRICING_USD.pro)}
           </div>
           <div className="plan-tag">
             Unlimited generations.
-            {interval === 'year' && ` ${annualSaving(PLAN_PRICING_USD.pro.month, PLAN_PRICING_USD.pro.year)}`}
+            {interval === "year" &&
+              ` ${annualSaving(PLAN_PRICING_USD.pro.month, PLAN_PRICING_USD.pro.year)}`}
           </div>
           <ul>
             <li>Unlimited generations</li>
@@ -104,24 +181,37 @@ const VellumBilling: React.FC<BillingProps> = ({ setPage, credits, subscription,
             <li>Priority rendering</li>
             <li>Community showcase access</li>
           </ul>
-          {plan === 'pro'
-            ? <button className="plan-cta" onClick={handleManage}>Manage plan</button>
-            : <button className="plan-cta" onClick={() => handleUpgrade('pro')}>
-                {isSubscribed ? 'Switch to Pro' : 'Upgrade to Pro'}
-              </button>
-          }
+          {plan === "pro" ? (
+            <button className="plan-cta" onClick={handleManage}>
+              Manage plan
+            </button>
+          ) : (
+            <button className="plan-cta" onClick={() => handleUpgrade("pro")}>
+              {ctaLabel("Pro", PLAN_PRICING_USD.pro)}
+            </button>
+          )}
         </div>
 
         {/* Team */}
-        <div className={`v-plan ${plan === 'team' ? 'featured' : ''}`}>
+        <div className={`v-plan ${plan === "team" ? "featured" : ""}`}>
           <div className="plan-name">Team</div>
           <div className="plan-price">
-            ${interval === 'year' ? PLAN_PRICING_USD.team.year : PLAN_PRICING_USD.team.month}
+            $
+            {interval === "year"
+              ? PLAN_PRICING_USD.team.year
+              : PLAN_PRICING_USD.team.month}
             <em>/mo</em>
+          </div>
+          <div
+            className="plan-billed"
+            style={{ fontSize: 12, color: "var(--graphite)", marginTop: 2 }}
+          >
+            {billedNote(PLAN_PRICING_USD.team)}
           </div>
           <div className="plan-tag">
             Unlimited + {PLAN_PRICING_USD.team.seats} seats.
-            {interval === 'year' && ` ${annualSaving(PLAN_PRICING_USD.team.month, PLAN_PRICING_USD.team.year)}`}
+            {interval === "year" &&
+              ` ${annualSaving(PLAN_PRICING_USD.team.month, PLAN_PRICING_USD.team.year)}`}
           </div>
           <ul>
             <li>Everything in Pro</li>
@@ -130,12 +220,15 @@ const VellumBilling: React.FC<BillingProps> = ({ setPage, credits, subscription,
             <li>Admin dashboard</li>
             <li>Priority support</li>
           </ul>
-          {plan === 'team'
-            ? <button className="plan-cta" onClick={handleManage}>Manage plan</button>
-            : <button className="plan-cta" onClick={() => handleUpgrade('team')}>
-                {isSubscribed ? 'Switch to Team' : 'Upgrade to Team'}
-              </button>
-          }
+          {plan === "team" ? (
+            <button className="plan-cta" onClick={handleManage}>
+              Manage plan
+            </button>
+          ) : (
+            <button className="plan-cta" onClick={() => handleUpgrade("team")}>
+              {ctaLabel("Team", PLAN_PRICING_USD.team)}
+            </button>
+          )}
         </div>
       </div>
 
@@ -153,14 +246,42 @@ const VellumBilling: React.FC<BillingProps> = ({ setPage, credits, subscription,
           <div className="label">Generations</div>
           {isUnlimited ? (
             <>
-              <div className="value">{used}<span style={{ fontSize: 24, color: 'var(--graphite)' }}> used</span></div>
-              <div className="delta">Unlimited on {getPlanDisplayName(plan)}</div>
+              <div className="value">
+                {used}
+                <span style={{ fontSize: 24, color: "var(--graphite)" }}>
+                  {" "}
+                  used
+                </span>
+              </div>
+              <div className="delta">
+                Unlimited on {getPlanDisplayName(plan)}
+              </div>
             </>
           ) : (
             <>
-              <div className="value">{used}<span style={{ fontSize: 24, color: 'var(--graphite)' }}> / {limit}</span></div>
-              <div style={{ height: 4, background: 'var(--soft-stone)', borderRadius: 2, marginTop: 12, overflow: 'hidden' }}>
-                <div style={{ width: `${Math.min(100, (used / Math.max(limit, 1)) * 100)}%`, height: '100%', background: 'var(--pale-gold)' }} />
+              <div className="value">
+                {used}
+                <span style={{ fontSize: 24, color: "var(--graphite)" }}>
+                  {" "}
+                  / {limit}
+                </span>
+              </div>
+              <div
+                style={{
+                  height: 4,
+                  background: "var(--soft-stone)",
+                  borderRadius: 2,
+                  marginTop: 12,
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    width: `${Math.min(100, (used / Math.max(limit, 1)) * 100)}%`,
+                    height: "100%",
+                    background: "var(--pale-gold)",
+                  }}
+                />
               </div>
             </>
           )}
@@ -180,19 +301,49 @@ const VellumBilling: React.FC<BillingProps> = ({ setPage, credits, subscription,
         <div>
           <div className="eyebrow">Top up</div>
           <h2 className="title">Credit packs</h2>
-          <p className="v-muted" style={{ fontSize: 13 }}>Need a few more edits? Packs never expire and work on any plan.</p>
+          <p className="v-muted" style={{ fontSize: 13 }}>
+            Need a few more edits? Packs never expire and work on any plan.
+          </p>
         </div>
       </div>
 
-      <div className="v-plans" style={{ gridTemplateColumns: 'repeat(3, 1fr)', maxWidth: 640 }}>
-        {([
-          { id: 'starter' as const, cr: 10, price: 15, rate: '$1.50 / edit' },
-          { id: 'pro_pack' as const, cr: 25, price: 29, rate: '$1.16 / edit', best: true },
-          { id: 'agency' as const, cr: 75, price: 69, rate: '$0.92 / edit' },
-        ]).map(p => (
-          <div key={p.id} className="v-plan" style={{ textAlign: 'center', gap: 10 }}>
-            {p.best && <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--pale-gold)' }}>Best value</div>}
-            <div className="plan-price" style={{ fontSize: 28 }}>{p.cr}<em style={{ fontSize: 14, fontWeight: 400 }}> edits</em></div>
+      <div
+        className="v-plans"
+        style={{ gridTemplateColumns: "repeat(3, 1fr)", maxWidth: 640 }}
+      >
+        {[
+          { id: "starter" as const, cr: 10, price: 15, rate: "$1.50 / edit" },
+          {
+            id: "pro_pack" as const,
+            cr: 25,
+            price: 29,
+            rate: "$1.16 / edit",
+            best: true,
+          },
+          { id: "agency" as const, cr: 75, price: 69, rate: "$0.92 / edit" },
+        ].map((p) => (
+          <div
+            key={p.id}
+            className="v-plan"
+            style={{ textAlign: "center", gap: 10 }}
+          >
+            {p.best && (
+              <div
+                style={{
+                  fontSize: 10,
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                  color: "var(--pale-gold)",
+                }}
+              >
+                Best value
+              </div>
+            )}
+            <div className="plan-price" style={{ fontSize: 28 }}>
+              {p.cr}
+              <em style={{ fontSize: 14, fontWeight: 400 }}> edits</em>
+            </div>
             <div className="plan-name">${p.price}</div>
             <div className="plan-tag">{p.rate}</div>
             <button
@@ -208,8 +359,11 @@ const VellumBilling: React.FC<BillingProps> = ({ setPage, credits, subscription,
 
       {/* Manage billing */}
       {isSubscribed && (
-        <div style={{ textAlign: 'center', marginTop: 24 }}>
-          <button className="v-btn v-btn--ghost v-btn--sm" onClick={handleManage}>
+        <div style={{ textAlign: "center", marginTop: 24 }}>
+          <button
+            className="v-btn v-btn--ghost v-btn--sm"
+            onClick={handleManage}
+          >
             Manage billing & invoices
           </button>
         </div>
@@ -223,12 +377,15 @@ const VellumBilling: React.FC<BillingProps> = ({ setPage, credits, subscription,
               <h2 className="title">Recent receipts</h2>
             </div>
           </div>
-          <div className="v-empty-state" style={{ padding: '40px 0' }}>
+          <div className="v-empty-state" style={{ padding: "40px 0" }}>
             <div className="v-empty-icon">
               <Icon name="card" size={24} color="var(--graphite)" />
             </div>
             <h3>No invoices yet</h3>
-            <p>Your billing history will appear here once your first payment is processed.</p>
+            <p>
+              Your billing history will appear here once your first payment is
+              processed.
+            </p>
           </div>
         </>
       )}

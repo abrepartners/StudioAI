@@ -134,38 +134,46 @@ const VellumApp: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (googleUser || !GOOGLE_CLIENT_ID) return;
-    const init = () => {
+    // Wait out the loading screen: the button's container only exists once
+    // authLoading flips false and the sign-in gate mounts. Running before that
+    // is what broke re-login — on a return visit the GSI script is cached and
+    // ready instantly, so init() ran while the "Loading…" screen was still up,
+    // the ref was null, renderButton was skipped, and nothing retried. Result:
+    // a sign-in screen with no button. First-time signups only worked because
+    // the uncached GSI script loaded slowly enough to miss that window.
+    if (authLoading || googleUser || !GOOGLE_CLIENT_ID) return;
+    let cancelled = false;
+    // Render only once BOTH the GSI script is ready AND the container is
+    // mounted. Poll until both hold so no load-order (cached-instant or slow)
+    // can drop the button.
+    const tryRender = (): boolean => {
+      if (cancelled) return true;
       const google = (window as any).google;
-      if (!google?.accounts?.id) return;
+      if (!google?.accounts?.id || !googleButtonRef.current) return false;
       google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
         callback: handleGoogleCredential,
       });
-      if (googleButtonRef.current) {
-        googleButtonRef.current.innerHTML = "";
-        google.accounts.id.renderButton(googleButtonRef.current, {
-          type: "standard",
-          theme: "outline",
-          size: "large",
-          text: "signin_with",
-          shape: "pill",
-          width: 300,
-        });
-      }
+      googleButtonRef.current.innerHTML = "";
+      google.accounts.id.renderButton(googleButtonRef.current, {
+        type: "standard",
+        theme: "outline",
+        size: "large",
+        text: "signin_with",
+        shape: "pill",
+        width: 300,
+      });
+      return true;
     };
-    if ((window as any).google?.accounts?.id) {
-      init();
-    } else {
-      const interval = setInterval(() => {
-        if ((window as any).google?.accounts?.id) {
-          clearInterval(interval);
-          init();
-        }
-      }, 100);
-      return () => clearInterval(interval);
-    }
-  }, [googleUser, handleGoogleCredential]);
+    if (tryRender()) return;
+    const interval = setInterval(() => {
+      if (tryRender()) clearInterval(interval);
+    }, 100);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [authLoading, googleUser, handleGoogleCredential]);
 
   const handleSignOut = useCallback(() => {
     void clearVellumWorkspace();

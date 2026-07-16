@@ -252,6 +252,9 @@ async function patchJob(req: any, res: any) {
     patch.photo_count = Number(body.photoCount ?? body.photo_count) || 0;
   }
   if (status === "delivered") patch.delivered_at = new Date().toISOString();
+  // Bookkeeping only. touch_updated_at() deliberately ignores this column, so
+  // nagging a job never resets the age clock the sweep reads.
+  if (body.remindedAt) patch.reminded_at = new Date().toISOString();
 
   let updated = job;
   if (Object.keys(patch).length) {

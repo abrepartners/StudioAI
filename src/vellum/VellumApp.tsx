@@ -10,7 +10,11 @@ import { Icon } from "./icons";
 import { VellumTopbar } from "./VellumTopbar";
 import { VellumSidebar } from "./VellumSidebar";
 import { useVellumStore } from "./useVellumStore";
-import { readGoogleUser, type GoogleUser } from "../routes/authStorage";
+import {
+  readGoogleUser,
+  restoreGoogleUser,
+  type GoogleUser,
+} from "../routes/authStorage";
 import { useSubscription } from "../../hooks/useSubscription";
 import {
   resetWorkspaceOnAccountSwitch,
@@ -128,9 +132,21 @@ const VellumApp: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const saved = readGoogleUser();
-    if (saved) setGoogleUser(saved);
-    setAuthLoading(false);
+    // localStorage first (instant), then fall back to the session cookie via
+    // GET /api/session. This is the re-login fix: a returning user whose
+    // localStorage was wiped (managed browser, ITP, incognito, 2nd device) is
+    // restored from their still-valid cookie instead of being forced back to
+    // Google sign-in.
+    let alive = true;
+    (async () => {
+      const user = await restoreGoogleUser();
+      if (!alive) return;
+      if (user) setGoogleUser(user);
+      setAuthLoading(false);
+    })();
+    return () => {
+      alive = false;
+    };
   }, []);
 
   useEffect(() => {

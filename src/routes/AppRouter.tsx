@@ -18,7 +18,7 @@
  * retire the mode-based rendering inside App.tsx.
  */
 
-import React, { Suspense, lazy, useMemo } from "react";
+import React, { Suspense, lazy, useEffect, useState } from "react";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import App from "../../App";
 import MarketingRoute from "./MarketingRoute";
@@ -29,7 +29,7 @@ import AdminPackMatrixRoute from "./AdminPackMatrixRoute";
 import AdminApiDashboardRoute from "./AdminApiDashboardRoute";
 import PrivacyRoute from "./PrivacyRoute";
 import TermsRoute from "./TermsRoute";
-import { readGoogleUser } from "./authStorage";
+import { readGoogleUser, restoreGoogleUser } from "./authStorage";
 
 // A failed lazy chunk (flaky network, stale deploy) otherwise rejects the
 // dynamic import and leaves a permanently black screen with no way out.
@@ -66,8 +66,25 @@ const VellumLanding = lazyRoute(() => import("../vellum/VellumLanding"));
 const ModelLabRoute = lazyRoute(() => import("./ModelLabRoute"));
 
 const AuthedRoot: React.FC = () => {
-  const user = useMemo(() => readGoogleUser(), []);
-  if (user) return <Navigate to="/vellum" replace />;
+  // Logged-in users (localStorage present) redirect instantly with no flash.
+  // Everyone else gets a quick cookie check before we decide sign-in vs app —
+  // so a returning user whose localStorage was wiped but whose session cookie
+  // is still valid lands in the app instead of the marketing page.
+  const [state, setState] = useState<"checking" | "authed" | "anon">(() =>
+    readGoogleUser() ? "authed" : "checking",
+  );
+  useEffect(() => {
+    if (state !== "checking") return;
+    let alive = true;
+    restoreGoogleUser().then((u) => {
+      if (alive) setState(u ? "authed" : "anon");
+    });
+    return () => {
+      alive = false;
+    };
+  }, [state]);
+  if (state === "checking") return <RouteFallback />;
+  if (state === "authed") return <Navigate to="/vellum" replace />;
   return <VellumLanding />;
 };
 

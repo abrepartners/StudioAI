@@ -35,6 +35,7 @@ import {
   isSource,
   isStatus,
   isTerminal,
+  modelFor,
   TOOLS,
   SOURCES,
   STATUSES,
@@ -285,19 +286,28 @@ async function patchJob(req: any, res: any) {
 
   // Log this job's generations. Henry's calls are quota-exempt at the tool
   // endpoints, so without this every Replicate dollar it spends is invisible.
+  //
+  // `engine` is what the endpoint reports it ACTUALLY ran, after any runtime
+  // fallback — so the model, and therefore the cost, is observed rather than
+  // assumed. A caller that can't say which engine ran gets "unknown" instead of
+  // a plausible lie.
   let logged = 0;
   const gens = Array.isArray(body.generations) ? body.generations : [];
   if (gens.length) {
-    const rows = gens.map((g: any) => ({
-      user_email: (job.user_email || "service@vellum.local").toLowerCase(),
-      tool: isTool(g.tool) ? g.tool : job.tool,
-      model: String(g.model || "unknown"),
-      estimated_cost_cents: Number(
-        g.costCents ?? g.cost_cents ?? estimateCents(g.model),
-      ),
-      source: job.source,
-      job_id: id,
-    }));
+    const rows = gens.map((g: any) => {
+      const tool = isTool(g.tool) ? g.tool : job.tool;
+      const model = String(g.model || modelFor(tool, g.engine) || "unknown");
+      return {
+        user_email: (job.user_email || "service@vellum.local").toLowerCase(),
+        tool,
+        model,
+        estimated_cost_cents: Number(
+          g.costCents ?? g.cost_cents ?? estimateCents(model),
+        ),
+        source: job.source,
+        job_id: id,
+      };
+    });
     const r = await sb("generation_logs", {
       method: "POST",
       headers: { Prefer: "return=minimal" },

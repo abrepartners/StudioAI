@@ -87,6 +87,44 @@ export const KEYWORD_TO_TOOL: Record<string, Tool> = {
   morph: "morph",
 };
 
+/**
+ * Engine label → the Replicate model behind it, keyed by tool.
+ *
+ * A tool endpoint reports the engine it ACTUALLY ran, after any runtime
+ * fallback. That distinction is the whole reason cost can be honest:
+ * flux-staging silently falls nano-banana → seedream → flux-fill, and those are
+ * ~14c / ~6c / ~10c. Only the endpoint knows which one survived, so a static
+ * tool→model guess would be wrong exactly when a fallback fired — the moment
+ * you'd most want to know.
+ *
+ * Keyed by tool because the labels collide across endpoints: flux-cleanup's
+ * "reve" is Kontext (a legacy name, kept), and flux-staging's "nano-banana" and
+ * flux-cleanup's "nano" are the same model under two names.
+ */
+export const ENGINE_MODEL: Partial<Record<Tool, Record<string, string>>> = {
+  staging: {
+    "nano-banana": "google/nano-banana-pro",
+    seedream: "bytedance/seedream-4",
+    "flux-fill": "black-forest-labs/flux-fill-pro",
+  },
+  declutter: {
+    nano: "google/nano-banana-pro",
+    bria: "bria/fibo-edit",
+    reve: "black-forest-labs/flux-kontext-pro",
+  },
+  magicedit: {
+    "flux-kontext-pro": "black-forest-labs/flux-kontext-pro",
+  },
+};
+
+/** Resolve what actually ran. Returns null rather than guessing. */
+export function modelFor(tool: unknown, engine: unknown): string | null {
+  if (!isTool(tool)) return null;
+  const map = ENGINE_MODEL[tool];
+  if (!map) return null;
+  return map[String(engine ?? "").toLowerCase()] ?? null;
+}
+
 export const isTool = (v: unknown): v is Tool =>
   typeof v === "string" && (TOOLS as readonly string[]).includes(v);
 export const isSource = (v: unknown): v is Source =>

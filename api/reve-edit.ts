@@ -21,7 +21,7 @@
  *   { imageBase64: string, prompt: string, isExterior?: boolean, skipUpscale?: boolean }
  *
  * Output (200 JSON):
- *   { ok: true, resultBase64: string, latencyMs: number }
+ *   { ok: true, resultBase64: string, latencyMs: number, engine: string }
  *   { ok: false, error: string }
  */
 import Replicate from "replicate";
@@ -185,7 +185,14 @@ export default async function handler(req: any, res: any) {
     console.log(
       `[reve-edit] Total: ${Date.now() - t0}ms (upscaler: ${upscalerUsed})`,
     );
-    json(res, 200, { ok: true, resultBase64, latencyMs: Date.now() - t0 });
+    // `engine` mirrors flux-staging/flux-cleanup so every tool reports what it
+    // actually ran. Single-model here, but callers shouldn't have to know that.
+    json(res, 200, {
+      ok: true,
+      resultBase64,
+      latencyMs: Date.now() - t0,
+      engine: "flux-kontext-pro",
+    });
   } catch (err: any) {
     if (quota.refundHandle) await refundQuota(quota.refundHandle);
     console.error("[reve-edit] unhandled:", err?.message || err);

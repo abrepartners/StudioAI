@@ -61,6 +61,9 @@ const lazyRoute = (
 
 const VellumApp = lazyRoute(() => import("../vellum/VellumApp"));
 const VellumLanding = lazyRoute(() => import("../vellum/VellumLanding"));
+const FeedbackDashboardRoute = lazyRoute(
+  () => import("./FeedbackDashboardRoute"),
+);
 // Admin-only, and it pulls in the full editor (callApiDirect) — lazy so it
 // never lands in the initial bundle for regular agents.
 const ModelLabRoute = lazyRoute(() => import("./ModelLabRoute"));
@@ -142,6 +145,9 @@ const AppRouter: React.FC = () => {
 
           {/* Admin: API registry dashboard */}
           <Route path="/admin/api" element={<AdminApiDashboardRoute />} />
+
+          {/* Admin: feedback queue (What's New submissions) */}
+          <Route path="/admin/feedback" element={<FeedbackDashboardRoute />} />
 
           {/* Vellum — editorial hi-fi prototype (parallel build) */}
           <Route path="/vellum" element={<VellumApp />} />

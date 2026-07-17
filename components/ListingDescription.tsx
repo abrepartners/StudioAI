@@ -6,16 +6,11 @@
  * via the shared [GEN-PROPS] contract:
  *   <ListingDescription open onClose={…} images={…} listingMeta={…} />
  *
- * COPY GENERATION IS TEMPORARILY DISABLED. This panel used a browser-side
- * Gemini call (@google/genai + an in-bundle key) to write the descriptions —
- * that path is purged. The form still renders so agents can stage their inputs;
- * the Generate buttons surface a tasteful "Coming soon — moving to Replicate"
- * state instead of firing any browser Gemini call.
- *
- * TODO: wire generateDescription() to a server text endpoint
- * (e.g. POST /api/listing-copy → Replicate/Claude) using the existing
- * generate{Luxury,Casual,Investment}TonePrompt builders below, then drop the
- * COMING_SOON gate. No browser key — server-side only.
+ * Copy generation runs SERVER-SIDE via POST /api/listing-copy (a Replicate-
+ * hosted text model, same REPLICATE_API_TOKEN as the image tools). The old
+ * browser Gemini path (in-bundle key) is gone for good. generateDescription()
+ * builds the tone prompt with the generate{Luxury,Casual,Investment}TonePrompt
+ * builders below and POSTs it — no browser key, no client-side model.
  */
 
 import React, { useState, useCallback, useMemo } from "react";
@@ -28,7 +23,6 @@ import {
   Gem,
   Coffee,
   TrendingUp,
-  Clock,
 } from "lucide-react";
 import {
   generateLuxuryTonePrompt,
@@ -37,10 +31,6 @@ import {
   type ListingDescriptionInput,
   type PropertyDetails,
 } from "../src/prompts/listingDescription";
-
-// Hard gate: keep the browser Gemini call from ever firing. Flip to false once
-// a server /api/listing-copy endpoint backs generateDescription().
-const COMING_SOON = true;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -146,7 +136,9 @@ const ListingDescription: React.FC<ListingDescriptionProps> = ({
     casual: "",
     investment: "",
   });
-  const [isGenerating] = useState(false);
+  const [generatingTone, setGeneratingTone] = useState<Tone | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const isGenerating = generatingTone !== null;
   const [copiedTone, setCopiedTone] = useState<Tone | null>(null);
 
   // Build the tone prompt for the active inputs. This is the server payload the
@@ -172,26 +164,38 @@ const ListingDescription: React.FC<ListingDescriptionProps> = ({
     [details, agentNotes, roomTypes],
   );
 
-  // Generate description for a tone.
-  // DISABLED: the browser-side Gemini call is purged. When COMING_SOON is true
-  // this is a no-op (the UI shows a "coming soon" state instead). The prompt is
-  // still built so the wiring point is obvious.
-  // TODO: POST buildTonePrompt(tone) to /api/listing-copy and setDescriptions
-  // from the server response. No browser key.
+  // Generate the description for a tone: build the prompt with the shared tone
+  // builder, POST it to the server text endpoint, and store the result. No
+  // browser key — /api/listing-copy runs the Replicate text model server-side.
   const generateDescription = useCallback(
     async (tone: Tone) => {
       setActiveTone(tone);
-      if (COMING_SOON) return;
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const _prompt = buildTonePrompt(tone);
-      // server call goes here
+      setError(null);
+      setGeneratingTone(tone);
+      try {
+        const res = await fetch("/api/listing-copy", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: buildTonePrompt(tone), tone }),
+        });
+        if (!res.ok) throw new Error(`listing-copy HTTP ${res.status}`);
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || "generation failed");
+        const text = String(data.text || "").trim();
+        if (!text) throw new Error("empty description");
+        setDescriptions((prev) => ({ ...prev, [tone]: text }));
+      } catch (e: any) {
+        setError(e?.message || "Couldn't generate — try again.");
+      } finally {
+        setGeneratingTone(null);
+      }
     },
     [buildTonePrompt],
   );
 
-  // Generate all 3 tones (no-op while COMING_SOON).
+  // Generate all 3 tones, one after another (sequential keeps the Replicate
+  // account gentle and the UI legible — each tab flips green as it lands).
   const generateAll = useCallback(async () => {
-    if (COMING_SOON) return;
     for (const tone of ["luxury", "casual", "investment"] as Tone[]) {
       await generateDescription(tone);
     }
@@ -378,44 +382,40 @@ const ListingDescription: React.FC<ListingDescriptionProps> = ({
         })}
       </div>
 
-      {/* Coming soon — AI copy generation is moving to Replicate (server-side).
-          No browser Gemini call fires. The form above stays usable so agents
-          can stage inputs now and generate the moment the endpoint ships. */}
-      {COMING_SOON ? (
-        <div className="rounded-xl border border-[#d8c79a]/25 bg-[#d8c79a]/[0.06] px-4 py-3.5 flex items-start gap-2.5">
-          <Clock className="w-4 h-4 text-[#d8c79a] mt-0.5 shrink-0" />
-          <div>
-            <p className="text-sm font-medium text-[#f7f6f2]">
-              Coming soon — moving to Replicate
-            </p>
-            <p className="text-xs text-zinc-400 mt-0.5">
-              AI listing copy is being re-wired to run server-side. Your
-              property details and notes are saved here and ready to generate
-              when it lands.
-            </p>
-          </div>
-        </div>
-      ) : (
-        <div className="flex gap-2">
-          <button
-            onClick={() => generateDescription(activeTone)}
-            disabled={isGenerating || !details.address}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-all duration-200 ${
-              !details.address
-                ? "bg-zinc-800 text-zinc-600 cursor-not-allowed"
-                : "bg-[#d8c79a] text-black hover:bg-[#e3d4ab] active:scale-[0.98]"
-            }`}
-          >
-            Generate {TONE_CONFIG[activeTone].label}
-          </button>
-          <button
-            onClick={generateAll}
-            disabled={isGenerating || !details.address}
-            className="px-4 py-2.5 rounded-xl text-sm font-medium bg-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-700 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            All 3
-          </button>
-        </div>
+      {/* Generate — copy runs server-side via /api/listing-copy. The address
+          gates generation (it anchors every tone prompt). */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => generateDescription(activeTone)}
+          disabled={isGenerating || !details.address}
+          className={`flex-1 py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-all duration-200 ${
+            isGenerating || !details.address
+              ? "bg-zinc-800 text-zinc-600 cursor-not-allowed"
+              : "bg-[#d8c79a] text-black hover:bg-[#e3d4ab] active:scale-[0.98]"
+          }`}
+        >
+          {generatingTone === activeTone
+            ? "Generating…"
+            : `Generate ${TONE_CONFIG[activeTone].label}`}
+        </button>
+        <button
+          onClick={generateAll}
+          disabled={isGenerating || !details.address}
+          className="px-4 py-2.5 rounded-xl text-sm font-medium bg-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-700 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {isGenerating ? "…" : "All 3"}
+        </button>
+      </div>
+
+      {!details.address && (
+        <p className="text-xs text-zinc-500 -mt-2">
+          Add the property address above to generate copy.
+        </p>
+      )}
+      {error && (
+        <p className="text-xs text-[#FF375F] -mt-2">
+          Couldn't generate — {error}. Try again.
+        </p>
       )}
 
       {/* Description Output */}

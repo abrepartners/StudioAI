@@ -1,6 +1,11 @@
-import { json, setCors, handleOptions, parseBody } from './utils.js';
+import { json, parseBody } from './utils.js';
+import { applyCors } from './_lib/auth-middleware.js';
+import { requireBillingSession } from './_lib/billing-auth.js';
+import { PLAN_PRICING_USD } from '../shared/monetization.js';
 
 export const config = { runtime: 'nodejs' };
+
+const PRO_MONTHLY_CENTS = PLAN_PRICING_USD.pro.month * 100; // 5900
 
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
@@ -46,8 +51,7 @@ const generateCode = (): string => {
 };
 
 export default async function handler(req: any, res: any) {
-  setCors(res, 'GET,POST,OPTIONS');
-  if (handleOptions(req, res)) return;
+  if (applyCors(req, res, 'GET,POST,OPTIONS')) return;
 
   if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
     json(res, 500, { ok: false, error: 'Not configured' });
@@ -134,6 +138,9 @@ export default async function handler(req: any, res: any) {
       if (action === 'claim_early_bird') {
         const email = (body.email || '').toLowerCase().trim();
         if (!email) { json(res, 400, { ok: false, error: 'email required' }); return; }
+
+        const claimClaims = await requireBillingSession(req, res, { actingOn: email });
+        if (!claimClaims) return;
 
         // Check slots
         const slots = await supaFetch('early_bird_slots?id=eq.1&select=*');
@@ -246,12 +253,35 @@ export default async function handler(req: any, res: any) {
 
         const email = (body.email || '').toLowerCase().trim();
         const userId = body.userId || '';
-        const priceInCents = body.price || 2900;
         const origin = body.returnUrl || 'https://vellum.homes';
 
         if (!email || !userId) {
           json(res, 400, { ok: false, error: 'email and userId required' });
           return;
+        }
+
+        const claims = await requireBillingSession(req, res, { actingOn: email });
+        if (!claims) return;
+
+        // Price is a server fact, never a client input. A referred user gets their
+        // referral code's discount; everyone else pays the Pro catalog rate. Any
+        // body.price is ignored entirely.
+        let priceInCents = PRO_MONTHLY_CENTS;
+        try {
+          const ref = await supaFetch(
+            `referrals?referred_email=eq.${encodeURIComponent(email)}&select=referral_code_id`
+          );
+          if (Array.isArray(ref) && ref.length > 0 && ref[0].referral_code_id) {
+            const rc = await supaFetch(
+              `referral_codes?id=eq.${ref[0].referral_code_id}&select=discount_price`
+            );
+            if (Array.isArray(rc) && rc.length > 0 && Number.isFinite(Number(rc[0].discount_price))) {
+              priceInCents = Number(rc[0].discount_price);
+            }
+          }
+        } catch {
+          // On any lookup failure, fall back to the full catalog price (fail safe: never cheaper).
+          priceInCents = PRO_MONTHLY_CENTS;
         }
 
         // Find or create customer
@@ -283,7 +313,7 @@ export default async function handler(req: any, res: any) {
         }
 
         // Find or create product + price at the right amount
-        const productName = priceInCents === 2900 ? 'StudioAI Pro' : `StudioAI Pro (Early Bird)`;
+        const productName = 'Vellum Pro';
         const products = await fetch(
           `https://api.stripe.com/v1/products/search?query=name:'${encodeURIComponent(productName)}'`,
           { headers: { Authorization: `Basic ${btoa(STRIPE_SECRET_KEY + ':')}` } }
@@ -311,9 +341,7 @@ export default async function handler(req: any, res: any) {
         } else {
           const product = await stripeRequest('/products', {
             name: productName,
-            description: priceInCents === 2900
-              ? 'Unlimited AI staging for real estate agents'
-              : 'Early bird unlimited AI staging — locked-in rate',
+            description: 'Unlimited AI staging for real estate agents',
           });
           const price = await stripeRequest('/prices', {
             product: product.id,
@@ -331,6 +359,7 @@ export default async function handler(req: any, res: any) {
           mode: 'subscription',
           success_url: `${origin}?checkout=success`,
           cancel_url: `${origin}?checkout=cancel`,
+          'subscription_data[metadata][studioai_plan]': 'pro',
           'subscription_data[metadata][studioai_user_id]': userId,
           'subscription_data[metadata][price_locked]': String(priceInCents),
         });

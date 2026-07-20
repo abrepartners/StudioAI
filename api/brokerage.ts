@@ -1,4 +1,6 @@
-import { json, setCors, handleOptions, parseBody } from './utils.js';
+import { json, parseBody } from './utils.js';
+import { applyCors } from './_lib/auth-middleware.js';
+import { requireBillingSession } from './_lib/billing-auth.js';
 
 export const config = { runtime: 'nodejs' };
 
@@ -98,8 +100,9 @@ async function handleCheckout(body: any, adminEmail: string, res: any) {
     const prices = await stripeFetch(
       `/prices?product=${products.data[0].id}&active=true&type=recurring`
     );
-    if (prices.data && prices.data.length > 0) {
-      priceId = prices.data[0].id;
+    const exact = prices.data?.find((p: any) => p.unit_amount === tierConfig.price);
+    if (exact) {
+      priceId = exact.id;
     } else {
       const price = await stripeRequest('/prices', {
         product: products.data[0].id,
@@ -166,8 +169,7 @@ async function handleCheckout(body: any, adminEmail: string, res: any) {
 
 // ─── Handler ─────────────────────────────────────────────────────────────────
 export default async function handler(req: any, res: any) {
-  setCors(res, 'GET,POST,DELETE,OPTIONS');
-  if (handleOptions(req, res)) return;
+  if (applyCors(req, res, 'GET,POST,OPTIONS')) return;
 
   if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
     json(res, 500, { ok: false, error: 'Supabase not configured' });
@@ -181,6 +183,10 @@ export default async function handler(req: any, res: any) {
     json(res, 400, { ok: false, error: 'adminEmail is required' });
     return;
   }
+
+  // adminEmail is a claim, not an identity. Bind it to the session.
+  const claims = await requireBillingSession(req, res, { actingOn: adminEmail });
+  if (!claims) return;
 
   try {
     if (req.method === 'GET') {

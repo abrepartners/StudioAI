@@ -1,12 +1,13 @@
-import { json, setCors, handleOptions, rejectMethod, parseBody } from './utils.js';
+import { json, rejectMethod, parseBody } from './utils.js';
+import { applyCors } from './_lib/auth-middleware.js';
+import { requireBillingSession } from './_lib/billing-auth.js';
 
 export const config = { runtime: 'nodejs' };
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
 
 export default async function handler(req: any, res: any) {
-  setCors(res, 'POST,OPTIONS');
-  if (handleOptions(req, res)) return;
+  if (applyCors(req, res, 'POST,OPTIONS')) return;
   if (rejectMethod(req, res, 'POST')) return;
 
   if (!STRIPE_SECRET_KEY) {
@@ -16,14 +17,26 @@ export default async function handler(req: any, res: any) {
 
   try {
     const body = parseBody(req.body);
-    const { email, returnUrl } = body;
 
+    // The portal is always opened for the signed-in customer. An email in the
+    // body is ignored for identity; it is only honored for admins doing
+    // support, and even then it must pass requireBillingSession.
+    const requested = (body.email || '').toLowerCase().trim();
+    const claims = await requireBillingSession(req, res, {
+      actingOn: requested || undefined,
+    });
+    if (!claims) return;
+
+    const email = requested || (claims.email || '').toLowerCase().trim();
     if (!email) {
       json(res, 400, { ok: false, error: 'email is required' });
       return;
     }
 
-    const origin = returnUrl || 'https://vellum.homes';
+    // returnUrl is attacker-controllable, so never reflect it. Stripe redirects
+    // the customer here after they finish, which makes it an open-redirect
+    // vector if taken from the body.
+    const origin = 'https://vellum.homes';
 
     const searchRes = await fetch(
       `https://api.stripe.com/v1/customers/search?query=email:'${encodeURIComponent(email)}'`,

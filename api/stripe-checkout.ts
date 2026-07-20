@@ -2,6 +2,7 @@ import { json, rejectMethod, parseBody } from './utils.js';
 import { applyCors } from './_lib/auth-middleware.js';
 import { requireBillingSession } from './_lib/billing-auth.js';
 import {
+  ADMIN_EMAIL_DOMAINS,
   PLAN_PRICING_USD,
   STARTER_MONTHLY_LIMIT,
 } from '../shared/monetization.js';
@@ -305,6 +306,9 @@ async function handleCreditCheckout(body: any, res: any) {
 }
 
 // ─── Post-purchase credit fulfillment ───────────────────────────────────────
+// Idempotent by construction: the checkout session id is claimed in
+// credit_fulfillments (primary key) BEFORE any credits are granted. A replay
+// of the same sessionId conflicts on insert and returns without granting.
 async function handleFulfillCredits(body: any, res: any, claims: any) {
   const { sessionId } = body;
   if (!sessionId || !SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
@@ -320,6 +324,41 @@ async function handleFulfillCredits(body: any, res: any, claims: any) {
   const customerEmail = (session.metadata?.email || session.customer_email || '').toLowerCase();
   if (!creditAmount || !customerEmail) {
     return json(res, 400, { ok: false, error: 'Missing credit/email metadata' });
+  }
+
+  // A signed-in user may only fulfill their own purchase. Admins may fulfill
+  // on a customer's behalf for support.
+  const caller = (claims?.email || '').toLowerCase().trim();
+  const isAdmin = ADMIN_EMAIL_DOMAINS.some((d: string) => caller.endsWith(`@${d}`));
+  if (caller !== customerEmail && !isAdmin) {
+    return json(res, 403, { ok: false, error: 'not authorized for this purchase' });
+  }
+
+  // Claim first. Conflict means someone already fulfilled this session.
+  const claim = await fetch(`${SUPABASE_URL}/rest/v1/credit_fulfillments`, {
+    method: 'POST',
+    headers: {
+      'apikey': SUPABASE_SERVICE_KEY,
+      'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=minimal',
+    },
+    body: JSON.stringify({
+      stripe_session_id: sessionId,
+      user_email: customerEmail,
+      credits: creditAmount,
+      amount_cents: session.amount_total ?? null,
+    }),
+  });
+
+  if (!claim.ok) {
+    if (claim.status === 409) {
+      console.warn(`[credits] replay blocked for session ${sessionId}`);
+      return json(res, 200, { ok: true, already_fulfilled: true, credits: creditAmount });
+    }
+    const text = await claim.text();
+    console.error(`[credits] claim failed ${claim.status}: ${text}`);
+    return json(res, 500, { ok: false, error: 'Could not record fulfillment' });
   }
 
   await fetch(`${SUPABASE_URL}/rest/v1/rpc/add_credits`, {

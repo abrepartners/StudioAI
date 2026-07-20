@@ -19,7 +19,7 @@
  */
 
 import React, { useState } from "react";
-import { Check, Crown, Star, Users, Sparkles } from "lucide-react";
+import { Check, Crown, Users, Sparkles } from "lucide-react";
 import {
   DISPLAY_COPY,
   PLAN_PRICING_USD,
@@ -245,19 +245,6 @@ export const PricingPage: React.FC<PricingPageProps> = ({
           <p className="text-center text-xs font-bold uppercase tracking-[0.2em] text-[#888580]/70 mb-4">
             Trusted by agents, photographers, and media shops
           </p>
-          <div className="flex items-center justify-center gap-2">
-            <div className="flex items-center gap-1">
-              {[0, 1, 2, 3, 4].map((i) => (
-                <Star
-                  key={i}
-                  size={14}
-                  className="text-[#d8c79a] fill-[#d8c79a]"
-                />
-              ))}
-            </div>
-            <span className="text-sm font-semibold text-[#f7f6f2]">4.9/5</span>
-            <span className="text-xs text-[#888580]">from verified agents</span>
-          </div>
         </div>
 
         {/* Tier grid — decoy order: Team · Pro · Starter · Free */}

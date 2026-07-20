@@ -1,11 +1,11 @@
 export type FeatureFlagKey =
-  | "trust_pricing_consistency"
-  | "try_real_generation"
-  | "cleanup_confidence_ui"
-  | "route_link_stability";
+  | 'trust_pricing_consistency'
+  | 'try_real_generation'
+  | 'cleanup_confidence_ui'
+  | 'route_link_stability';
 
-const STORAGE_PREFIX = "studioai_ff_";
-const STICKY_SEED_KEY = "studioai_ff_seed";
+const STORAGE_PREFIX = 'studioai_ff_';
+const STICKY_SEED_KEY = 'studioai_ff_seed';
 const DEFAULT_PERCENT_PROD = 10;
 
 const DEFAULTS: Record<FeatureFlagKey, boolean> = {
@@ -23,7 +23,7 @@ function getStickySeed(): string {
     localStorage.setItem(STICKY_SEED_KEY, generated);
     return generated;
   } catch {
-    return "seed-fallback";
+    return 'seed-fallback';
   }
 }
 
@@ -37,22 +37,22 @@ function hashToBucket(input: string): number {
 }
 
 function readUrlOverride(key: FeatureFlagKey): boolean | null {
-  if (typeof window === "undefined") return null;
+  if (typeof window === 'undefined') return null;
   const params = new URLSearchParams(window.location.search);
   const raw = params.get(`ff_${key}`);
   if (!raw) return null;
-  if (raw === "1" || raw === "on" || raw === "true") return true;
-  if (raw === "0" || raw === "off" || raw === "false") return false;
+  if (raw === '1' || raw === 'on' || raw === 'true') return true;
+  if (raw === '0' || raw === 'off' || raw === 'false') return false;
   return null;
 }
 
 function readLocalOverride(key: FeatureFlagKey): boolean | null {
-  if (typeof window === "undefined") return null;
+  if (typeof window === 'undefined') return null;
   try {
     const raw = localStorage.getItem(`${STORAGE_PREFIX}${key}`);
     if (!raw) return null;
-    if (raw === "1" || raw === "on" || raw === "true") return true;
-    if (raw === "0" || raw === "off" || raw === "false") return false;
+    if (raw === '1' || raw === 'on' || raw === 'true') return true;
+    if (raw === '0' || raw === 'off' || raw === 'false') return false;
     return null;
   } catch {
     return null;
@@ -76,10 +76,7 @@ function inRolloutPercent(key: FeatureFlagKey, seed?: string): boolean {
   return bucket < pct;
 }
 
-export function getFeatureFlag(
-  key: FeatureFlagKey,
-  opts?: { seed?: string },
-): boolean {
+export function getFeatureFlag(key: FeatureFlagKey, opts?: { seed?: string }): boolean {
   const urlOverride = readUrlOverride(key);
   if (urlOverride !== null) return urlOverride;
 
@@ -98,20 +95,17 @@ export function readFeatureFlagOverride(key: FeatureFlagKey): boolean | null {
   return readLocalOverride(key);
 }
 
-export function setFeatureFlagOverride(
-  key: FeatureFlagKey,
-  enabled: boolean,
-): void {
-  if (typeof window === "undefined") return;
+export function setFeatureFlagOverride(key: FeatureFlagKey, enabled: boolean): void {
+  if (typeof window === 'undefined') return;
   try {
-    localStorage.setItem(`${STORAGE_PREFIX}${key}`, enabled ? "true" : "false");
+    localStorage.setItem(`${STORAGE_PREFIX}${key}`, enabled ? 'true' : 'false');
   } catch {
     // ignore localStorage failures
   }
 }
 
 export function clearFeatureFlagOverride(key: FeatureFlagKey): void {
-  if (typeof window === "undefined") return;
+  if (typeof window === 'undefined') return;
   try {
     localStorage.removeItem(`${STORAGE_PREFIX}${key}`);
   } catch {

@@ -19,6 +19,8 @@ import {
 import { timingSafeEqual } from "node:crypto";
 
 const APP_ORIGINS = [
+  "https://vellum.homes",
+  "https://www.vellum.homes",
   "https://studioai.averyandbryant.com",
   "http://localhost:3000",
   "http://localhost:3100",

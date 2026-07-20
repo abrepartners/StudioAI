@@ -19,6 +19,7 @@
 import Replicate from "replicate";
 import { json, rejectMethod, parseBody } from "./utils.js";
 import { applyCors, requireSession } from "./_lib/auth-middleware.js";
+import { isAdminEmail } from "../shared/monetization.js";
 
 export const config = { runtime: "nodejs", maxDuration: 120 };
 
@@ -52,6 +53,15 @@ export default async function handler(req: any, res: any) {
   // Gate: verified session required. Closes the anonymous-access hole.
   const session = await requireSession(req, res);
   if (!session) return;
+
+  // Model Lab runs arbitrary Replicate models with no quota reservation, so a
+  // valid session is not sufficient authorization. Without this check any free
+  // signup can pick an expensive model and bill the shared Replicate account.
+  if (!isAdminEmail(session.email)) {
+    console.warn(`[lab-run] denied non-admin ${session.email}`);
+    json(res, 403, { ok: false, error: "not authorized", code: "forbidden" });
+    return;
+  }
 
   if (!REPLICATE_TOKEN) {
     json(res, 200, { ok: false, error: "REPLICATE_API_TOKEN not configured" });

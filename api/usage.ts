@@ -8,7 +8,9 @@
  * Filters out source='qa-harness' by default so dev traffic doesn't inflate
  * the user-facing number. Pass ?includeDev=1 to include it.
  */
-import { json, setCors, handleOptions, rejectMethod } from './utils.js';
+import { json, rejectMethod } from './utils.js';
+import { applyCors } from './_lib/auth-middleware.js';
+import { requireBillingSession } from './_lib/billing-auth.js';
 
 export const config = { runtime: 'nodejs' };
 
@@ -16,14 +18,18 @@ const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
 
 export default async function handler(req: any, res: any) {
-  setCors(res);
-  if (handleOptions(req, res)) return;
+  if (applyCors(req, res, 'GET,OPTIONS')) return;
   if (rejectMethod(req, res, 'GET')) return;
 
   if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
     json(res, 500, { ok: false, error: 'Supabase not configured' });
     return;
   }
+
+  const claims = await requireBillingSession(req, res, {
+    actingOn: String(req.query?.email || '').toLowerCase().trim() || undefined,
+  });
+  if (!claims) return;
 
   const email = String(req.query?.email || '').toLowerCase();
   if (!email) {

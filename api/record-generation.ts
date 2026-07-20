@@ -1,10 +1,6 @@
-import {
-  json,
-  setCors,
-  handleOptions,
-  rejectMethod,
-  parseBody,
-} from "./utils.js";
+import { json, rejectMethod, parseBody } from "./utils.js";
+import { applyCors } from "./_lib/auth-middleware.js";
+import { requireBillingSession } from "./_lib/billing-auth.js";
 import {
   DISPLAY_COPY,
   FREE_TIER_POLICY,
@@ -57,8 +53,7 @@ async function readLifetimeFreeGens(email: string): Promise<number> {
 }
 
 export default async function handler(req: any, res: any) {
-  setCors(res, "POST,OPTIONS");
-  if (handleOptions(req, res)) return;
+  if (applyCors(req, res, "POST,OPTIONS")) return;
   if (rejectMethod(req, res, "POST")) return;
 
   if (!STRIPE_SECRET_KEY) {
@@ -68,6 +63,12 @@ export default async function handler(req: any, res: any) {
 
   try {
     const body = parseBody(req.body);
+
+    const claims = await requireBillingSession(req, res, {
+      actingOn: (body.email || "").toLowerCase().trim() || undefined,
+    });
+    if (!claims) return;
+
     const email = body.email;
     if (!email) {
       json(res, 400, { ok: false, error: "email is required" });

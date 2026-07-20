@@ -361,7 +361,7 @@ async function handleFulfillCredits(body: any, res: any, claims: any) {
     return json(res, 500, { ok: false, error: 'Could not record fulfillment' });
   }
 
-  await fetch(`${SUPABASE_URL}/rest/v1/rpc/add_credits`, {
+  const addCreditsResp = await fetch(`${SUPABASE_URL}/rest/v1/rpc/add_credits`, {
     method: 'POST',
     headers: {
       'apikey': SUPABASE_SERVICE_KEY,
@@ -370,6 +370,29 @@ async function handleFulfillCredits(body: any, res: any, claims: any) {
     },
     body: JSON.stringify({ user_email: customerEmail, amount: creditAmount }),
   });
+
+  if (!addCreditsResp.ok) {
+    const addErrText = await addCreditsResp.text().catch(() => '');
+    console.error(`[credits] add_credits failed ${addCreditsResp.status} for session ${sessionId}: ${addErrText}`);
+    try {
+      const release = await fetch(
+        `${SUPABASE_URL}/rest/v1/credit_fulfillments?stripe_session_id=eq.${encodeURIComponent(sessionId)}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'apikey': SUPABASE_SERVICE_KEY,
+            'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+          },
+        }
+      );
+      if (!release.ok) {
+        console.error(`[credits] failed to release claim for session ${sessionId} (status ${release.status})`);
+      }
+    } catch (releaseErr) {
+      console.error(`[credits] error releasing claim for session ${sessionId}:`, releaseErr);
+    }
+    return json(res, 500, { ok: false, error: 'Failed to add credits, please retry' });
+  }
 
   return json(res, 200, { ok: true, credits: creditAmount });
 }

@@ -1,5 +1,5 @@
 /**
- * api/stripe-webhook.ts — the only trusted inbound channel for payment events.
+ * api/stripe-webhook.ts: the only trusted inbound channel for payment events.
  *
  * Raw-body warning: Vercel's Node runtime buffers the request and parses
  * req.body lazily. Re-serializing parsed JSON does NOT reproduce the bytes

@@ -95,3 +95,61 @@ describe("credit fulfillment idempotency", () => {
     expect(addCreditsCalls.length).toBe(1); // still 1: no second grant
   });
 });
+
+describe("credit fulfillment failure recovery", () => {
+  it("releases the claim and returns an error when add_credits fails", async () => {
+    let claimed = false;
+    let deleteCalls = 0;
+
+    global.fetch = vi.fn(async (url: any, init: any) => {
+      const u = String(url);
+      const method = String(init?.method || "GET").toUpperCase();
+
+      if (u.includes("/checkout/sessions/")) {
+        return {
+          ok: true,
+          json: async () => ({
+            payment_status: "paid",
+            amount_total: 1500,
+            metadata: { credits: "10", email: "buyer@example.com" },
+          }),
+        } as any;
+      }
+      if (u.includes("/rest/v1/credit_fulfillments")) {
+        if (method === "DELETE") {
+          deleteCalls += 1;
+          expect(u).toContain("stripe_session_id=eq.cs_test_fail");
+          return { ok: true, status: 204, text: async () => "" } as any;
+        }
+        claimed = true;
+        return { ok: true, status: 201, text: async () => "[]" } as any;
+      }
+      if (u.includes("/rpc/add_credits")) {
+        return { ok: false, status: 500, text: async () => "db error" } as any;
+      }
+      throw new Error(`unexpected fetch: ${u}`);
+    }) as any;
+
+    const cookie = await signedCookieFor("buyer@example.com");
+    const res = makeRes();
+    await handler(
+      {
+        method: "POST",
+        headers: { cookie },
+        body: {
+          action: "fulfill",
+          sessionId: "cs_test_fail",
+          email: "buyer@example.com",
+        },
+      },
+      res,
+    );
+
+    expect(claimed).toBe(true);
+    expect(res._status).toBe(500);
+    const parsed = JSON.parse(res._body);
+    expect(parsed.ok).toBe(false);
+    expect(parsed.already_fulfilled).toBeUndefined();
+    expect(deleteCalls).toBe(1);
+  });
+});

@@ -138,6 +138,7 @@ async function handleCheckout(body: any, adminEmail: string, res: any) {
     'subscription_data[metadata][studioai_role]': 'brokerage_admin',
     'subscription_data[metadata][brokerage_tier]': tier,
     'subscription_data[metadata][brokerage_id]': brokerageId || '',
+    'subscription_data[metadata][studioai_plan]': 'team',
     'metadata[brokerage_tier]': tier,
     'allow_promotion_codes': 'true',
   };

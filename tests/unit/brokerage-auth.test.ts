@@ -134,5 +134,8 @@ describe("brokerage tier pricing", () => {
     );
 
     expect(sessions[0]?.["line_items[0][price]"]).toBe("price_149");
+    expect(
+      sessions[0]?.["subscription_data[metadata][studioai_plan]"],
+    ).toBe("team");
   });
 });

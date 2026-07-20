@@ -1,4 +1,6 @@
-import { json, setCors, handleOptions, rejectMethod, parseBody } from './utils.js';
+import { json, rejectMethod, parseBody } from './utils.js';
+import { applyCors } from './_lib/auth-middleware.js';
+import { requireBillingSession } from './_lib/billing-auth.js';
 import {
   PLAN_PRICING_USD,
   STARTER_MONTHLY_LIMIT,
@@ -303,7 +305,7 @@ async function handleCreditCheckout(body: any, res: any) {
 }
 
 // ─── Post-purchase credit fulfillment ───────────────────────────────────────
-async function handleFulfillCredits(body: any, res: any) {
+async function handleFulfillCredits(body: any, res: any, claims: any) {
   const { sessionId } = body;
   if (!sessionId || !SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
     return json(res, 400, { ok: false, error: 'Missing params' });
@@ -405,8 +407,7 @@ async function handleResumeSubscription(body: any, res: any) {
 
 // ─── Handler ────────────────────────────────────────────────────────────────
 export default async function handler(req: any, res: any) {
-  setCors(res, 'POST,OPTIONS');
-  if (handleOptions(req, res)) return;
+  if (applyCors(req, res, 'POST,OPTIONS')) return;
   if (rejectMethod(req, res, 'POST')) return;
 
   if (!STRIPE_SECRET_KEY) {
@@ -418,9 +419,16 @@ export default async function handler(req: any, res: any) {
     const body = parseBody(req.body);
     const action = body.action || 'subscribe';
 
+    // Every action here either moves money or changes a subscription, so all
+    // of them require a session bound to the email being acted on.
+    const claims = await requireBillingSession(req, res, {
+      actingOn: (body.email || '').toLowerCase().trim() || undefined,
+    });
+    if (!claims) return;
+
     if (action === 'subscribe')          return await handleSubscribe(body, res);
     if (action === 'credits')            return await handleCreditCheckout(body, res);
-    if (action === 'fulfill')            return await handleFulfillCredits(body, res);
+    if (action === 'fulfill')            return await handleFulfillCredits(body, res, claims);
     if (action === 'pause_subscription') return await handlePauseSubscription(body, res);
     if (action === 'resume_subscription')return await handleResumeSubscription(body, res);
 

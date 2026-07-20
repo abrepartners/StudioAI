@@ -1,4 +1,6 @@
-import { json, setCors, handleOptions, rejectMethod } from './utils.js';
+import { json, rejectMethod, parseBody } from './utils.js';
+import { applyCors } from './_lib/auth-middleware.js';
+import { requireBillingSession } from './_lib/billing-auth.js';
 import {
   DISPLAY_COPY,
   FREE_TIER_POLICY,
@@ -59,8 +61,7 @@ async function getLifetimeFreeGensUsed(email: string, googleId: string): Promise
 }
 
 export default async function handler(req: any, res: any) {
-  setCors(res, 'GET,OPTIONS');
-  if (handleOptions(req, res)) return;
+  if (applyCors(req, res, 'GET,OPTIONS')) return;
   if (rejectMethod(req, res, 'GET')) return;
 
   if (!STRIPE_SECRET_KEY) {
@@ -69,11 +70,18 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    const email = req.query?.email || '';
+    const body = parseBody(req.body);
+    const email = body.email || req.query?.email || '';
     if (!email) {
       json(res, 400, { ok: false, error: 'email is required' });
       return;
     }
+
+    const claims = await requireBillingSession(req, res, {
+      actingOn: email.toLowerCase().trim() || undefined,
+    });
+    if (!claims) return;
+
     const googleId = req.query?.google_id || '';
 
     // Brokerage agents get Pro unlimited regardless of their own sub.

@@ -4,6 +4,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 process.env.STRIPE_SECRET_KEY = "sk_test_dummy";
 process.env.SUPABASE_URL = "https://dummy.supabase.co";
 process.env.SUPABASE_SERVICE_KEY = "dummy_service_key";
+process.env.SESSION_SECRET = "test_secret_at_least_32_chars_long_ok";
+process.env.VITE_GOOGLE_CLIENT_ID = "test-client-id";
+process.env.AUTH_ENFORCE = "enforce";
 
 const handler = (await import("../../api/stripe-status")).default;
 
@@ -31,8 +34,15 @@ function makeRes() {
   return res;
 }
 
+async function signedCookieFor(email: string): Promise<string> {
+  const { signSession } = await import("../../api/_lib/session");
+  const token = await signSession({ email, sub: `sub-${email}` });
+  return `studioai_session=${token}`;
+}
+
 beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => {});
+  vi.spyOn(console, "warn").mockImplementation(() => {});
 });
 afterEach(() => vi.restoreAllMocks());
 
@@ -60,6 +70,7 @@ describe("stripe-status — free-gens counter is read by google_id (regression)"
 
     const req: any = {
       method: "GET",
+      headers: { cookie: await signedCookieFor("user@example.com") },
       query: { email: "user@example.com", google_id: "g-abc-123" },
     };
     const res = makeRes();

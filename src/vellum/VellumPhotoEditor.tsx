@@ -25,6 +25,12 @@ const ListingKitPipeline = lazy(
   () => import("../../components/ListingKitPipeline"),
 );
 const ExportModal = lazy(() => import("../../components/ExportModal"));
+
+// Client-facing toggle. The standalone AI "Listing description" deliverable is
+// hidden for clients while its copy engine is rebuilt server-side (browser
+// Gemini was purged, so the generator currently throws "Gemini disabled").
+// Flip to true to restore the button. 2026-07-22.
+const LISTING_DESCRIPTION_ENABLED = false;
 import { fluxCleanup } from "../../services/fluxService";
 import {
   fluxTwilight,
@@ -3329,7 +3335,14 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
                       disabled: overlayImages.length === 0,
                     },
                   ] as const
-                ).map((item) => (
+                )
+                  // Hidden for clients while the copy engine is rebuilt.
+                  .filter(
+                    (item) =>
+                      item.kind !== "description" ||
+                      LISTING_DESCRIPTION_ENABLED,
+                  )
+                  .map((item) => (
                   <button
                     key={item.kind}
                     className="v-export-btn"

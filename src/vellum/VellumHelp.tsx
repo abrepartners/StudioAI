@@ -22,8 +22,8 @@ const FAQ = [
     { id: 'video-2', q: 'Why is my reel longer than 30 seconds?', a: 'Reel duration is the sum of scene lengths. Drag a scene shorter on the storyboard, or use Auto-trim in the right rail to fit a target length without cutting scenes.' },
   ]},
   { cat: 'Imports & integrations', items: [
-    { id: 'import-1', q: 'How does MLS import work?', a: 'Connect your MLS in Settings → Integrations. Paste an MLS# and we pull the listing photos, address, beds/baths, and price into a new project. Re-imports overwrite only the photos, never your edits.' },
-    { id: 'import-2', q: 'Does Dropbox import keep folder structure?', a: 'Yes — folders become rooms. A folder named "Kitchen" auto-tags those photos as kitchen for room-aware staging.' },
+    { id: 'import-1', q: 'How does MLS import work?', a: 'MLS import is coming soon. When it launches you will connect your MLS in Settings, paste an MLS# and we will pull the listing photos, address, beds/baths, and price into a new project. For now, add photos by drag and drop or the file picker.' },
+    { id: 'import-2', q: 'Does Dropbox import keep folder structure?', a: 'Dropbox import is coming soon. When it launches, folders will become rooms (a folder named "Kitchen" auto-tags those photos as kitchen for room-aware staging). For now, add photos by drag and drop or the file picker.' },
   ]},
 ];
 
@@ -93,7 +93,7 @@ const VellumHelp: React.FC<HelpProps> = ({ setPage }) => {
             <ul className="v-quick-links">
               <li onClick={() => setPage('billing')}>Manage plan & credits →</li>
               <li onClick={() => setPage('settings')}>Set up watermark →</li>
-              <li>Connect your MLS →</li>
+              <li>Connect your MLS (coming soon)</li>
               <li>Brand guidelines for end cards →</li>
               <li>What's new in Vellum (changelog) →</li>
             </ul>

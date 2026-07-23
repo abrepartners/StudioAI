@@ -88,6 +88,13 @@ export function getFeatureFlag(key: FeatureFlagKey, opts?: { seed?: string }): b
   return inRolloutPercent(key, opts?.seed);
 }
 
+/** Public override reader: URL param wins, then localStorage, else null. */
+export function readFeatureFlagOverride(key: FeatureFlagKey): boolean | null {
+  const urlOverride = readUrlOverride(key);
+  if (urlOverride !== null) return urlOverride;
+  return readLocalOverride(key);
+}
+
 export function setFeatureFlagOverride(key: FeatureFlagKey, enabled: boolean): void {
   if (typeof window === 'undefined') return;
   try {

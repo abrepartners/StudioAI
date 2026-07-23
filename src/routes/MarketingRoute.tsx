@@ -2,7 +2,7 @@ import React, { useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import PricingPage from '../../components/PricingPage';
 import { useSubscription } from '../../hooks/useSubscription';
-import { getFeatureFlag } from '../config/featureFlags';
+import { readFeatureFlagOverride } from '../config/featureFlags';
 import { readGoogleUser } from './authStorage';
 import { trackEvent } from '../lib/analytics';
 
@@ -67,9 +67,14 @@ const MarketingShell: React.FC<{ children: React.ReactNode; userEmail: string | 
 const MarketingRoute: React.FC<Props> = ({ anchor }) => {
   const user = useMemo(() => readGoogleUser(), []);
   const subscription = useSubscription(user?.email || null);
+  // Marketing routes are not an experiment. This was gated behind a 10%
+  // percentage rollout (featureFlags DEFAULT_PERCENT_PROD), which redirected
+  // roughly 90% of pricing, features, FAQ, and gallery visitors back to the
+  // homepage. A URL override is kept so the old bounce behavior stays
+  // reproducible for debugging: /pricing?ff_route_link_stability=0
   const routeLinkStability = useMemo(
-    () => getFeatureFlag('route_link_stability', { seed: user?.email }),
-    [user?.email]
+    () => readFeatureFlagOverride('route_link_stability') ?? true,
+    []
   );
 
   useEffect(() => {

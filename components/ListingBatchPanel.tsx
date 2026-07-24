@@ -19,6 +19,7 @@ import { saveAs } from "file-saver";
 import {
   runBatch,
   fetchPhotoResult,
+  writeLastBatchSummary,
   type BatchStatus,
   type BatchPhotoMeta,
 } from "../services/listingBatchService";
@@ -127,6 +128,7 @@ const ListingBatchPanel: React.FC = () => {
       jobIdRef.current = final.jobId;
       setStatus(final);
       collectResults(final.jobId, final.photos);
+      writeLastBatchSummary(final);
       if (final.status === "failed") {
         setPhase("error");
         setError(final.error || "batch failed");

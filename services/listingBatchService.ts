@@ -56,6 +56,54 @@ export interface BatchStatus {
   error: string | null;
 }
 
+// ── Last batch summary (dashboard "what happened" card) ──────────────────────
+const LAST_BATCH_KEY = "vellum_last_batch_summary";
+
+export interface LastBatchSummary {
+  completedAt: string;
+  total: number;
+  staged: number;
+  decluttered: number;
+  brightened: number;
+  exteriors: number;
+  failed: number;
+  copyReady: boolean;
+}
+
+/** Persist a completed batch's shape so the dashboard can recap it. */
+export function writeLastBatchSummary(status: BatchStatus): void {
+  const byTool = (tool: string) =>
+    status.photos.filter((p) => p.status === "completed" && p.tool === tool)
+      .length;
+  const summary: LastBatchSummary = {
+    completedAt: new Date().toISOString(),
+    total: status.photos.length,
+    staged: byTool("staging"),
+    decluttered: byTool("declutter"),
+    brightened: byTool("whiten"),
+    exteriors: byTool("exterior"),
+    failed: status.photos.filter((p) => p.status === "failed").length,
+    copyReady: Boolean(status.listing_copy),
+  };
+  try {
+    localStorage.setItem(LAST_BATCH_KEY, JSON.stringify(summary));
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+export function readLastBatchSummary(): LastBatchSummary | null {
+  try {
+    const raw = localStorage.getItem(LAST_BATCH_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed.total !== "number") return null;
+    return parsed as LastBatchSummary;
+  } catch {
+    return null;
+  }
+}
+
 async function post(body: Record<string, unknown>): Promise<any> {
   const res = await fetch("/api/listing-batch/start", {
     method: "POST",

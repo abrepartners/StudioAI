@@ -2,6 +2,11 @@ import React from 'react';
 import { Icon } from './icons';
 import type { VellumProject, VellumProfile } from './useVellumStore';
 import { getPlanDisplayName, type PlanId } from '../../shared/monetization';
+import { readLastBatchSummary } from '../../services/listingBatchService';
+
+const ClientOnboardingFlow = React.lazy(
+  () => import('../../components/ClientOnboardingFlow'),
+);
 
 interface DashboardProps {
   setPage: (p: string) => void;
@@ -34,6 +39,8 @@ const VellumDashboard: React.FC<DashboardProps> = ({ setPage, credits, projects,
   const isUnlimited = subscription?.generationsLimit === -1;
   const limit = subscription?.generationsLimit ?? 5;
   const used = subscription?.generationsUsed ?? 0;
+  // Recap of the most recent batch pipeline run (written by ListingBatchPanel).
+  const [lastBatch] = React.useState(() => readLastBatchSummary());
 
   return (
     <div className="v-main">
@@ -56,6 +63,27 @@ const VellumDashboard: React.FC<DashboardProps> = ({ setPage, credits, projects,
           </div>
         )}
       </div>
+
+      {/* Last batch recap — what the pipeline actually did, from the most
+          recent completed run (persisted by ListingBatchPanel). */}
+      {projects.length > 0 && lastBatch && lastBatch.total > 0 && (
+        <div className="v-kpi" style={{ padding: 16, marginBottom: 12 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <span className="v-muted" style={{ fontSize: 12, marginRight: 4 }}>
+              Last batch ({timeAgo(lastBatch.completedAt)}):
+            </span>
+            {lastBatch.staged > 0 && <span className="v-pill v-pill--ready" style={{ fontSize: 12 }}>{lastBatch.staged} photo{lastBatch.staged !== 1 ? 's' : ''} staged</span>}
+            {lastBatch.exteriors > 0 && <span className="v-pill v-pill--ready" style={{ fontSize: 12 }}>{lastBatch.exteriors} exterior{lastBatch.exteriors !== 1 ? 's' : ''} enhanced</span>}
+            {lastBatch.brightened > 0 && <span className="v-pill v-pill--ready" style={{ fontSize: 12 }}>{lastBatch.brightened} brightened</span>}
+            {lastBatch.decluttered > 0 && <span className="v-pill v-pill--ready" style={{ fontSize: 12 }}>{lastBatch.decluttered} decluttered</span>}
+            {lastBatch.copyReady && <span className="v-pill v-pill--gold" style={{ fontSize: 12 }}>MLS description ready</span>}
+            {lastBatch.failed > 0 && <span className="v-pill v-pill--draft" style={{ fontSize: 12 }}>{lastBatch.failed} failed</span>}
+            <button className="v-btn v-btn--ghost v-btn--sm" style={{ marginLeft: 'auto' }} onClick={() => setPage('batch')}>
+              View <Icon name="arrow_right" size={12} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {projects.length > 0 && (
       <div className="v-kpi-row">
@@ -81,16 +109,16 @@ const VellumDashboard: React.FC<DashboardProps> = ({ setPage, credits, projects,
       )}
 
       {!projects.length ? (
-        <div className="v-empty-state">
-          <div className="v-empty-icon">
-            <Icon name="image" size={28} color="var(--pale-gold)" />
-          </div>
-          <h3>No listings yet</h3>
-          <p>Create your first listing to start refining photos, building reels, and exporting for MLS.</p>
-          <button className="v-btn v-btn--primary" onClick={onNewListing}>
-            <Icon name="plus" size={13} /> Create first listing
-          </button>
-        </div>
+        <>
+          <React.Suspense fallback={null}>
+            <ClientOnboardingFlow setPage={setPage} />
+          </React.Suspense>
+          <p style={{ textAlign: 'center', marginTop: 16 }}>
+            <button className="v-btn v-btn--ghost v-btn--sm" onClick={onNewListing}>
+              <Icon name="plus" size={12} /> Or start a new listing manually
+            </button>
+          </p>
+        </>
       ) : (
         <>
           <div className="v-section-head">
@@ -160,6 +188,7 @@ const VellumDashboard: React.FC<DashboardProps> = ({ setPage, credits, projects,
             <button className="v-btn v-btn--ghost v-btn--sm" onClick={() => setPage('photo')}><Icon name="sun" size={13} /> Sky replace</button>
             <button className="v-btn v-btn--ghost v-btn--sm" onClick={() => setPage('photo')}><Icon name="moon" size={13} /> Twilight</button>
             <button className="v-btn v-btn--ghost v-btn--sm" onClick={() => setPage('photo')}><Icon name="sparkles" size={13} /> Declutter</button>
+            <button className="v-btn v-btn--ghost v-btn--sm" onClick={() => setPage('batch')}><Icon name="download" size={13} /> Export all</button>
           </div>
         </div>
         <div className="v-kpi" style={{ padding: 28 }}>

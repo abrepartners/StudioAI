@@ -133,7 +133,6 @@
    near-black-on-near-black (invisible). Retarget them to the gold accent
    so active/primary states stay legible and premium. Selectors mirror the
    original surface-pairings exactly. */
-.vellum .v-nav-link.active,
 .vellum .v-btn--primary,
 .vellum .v-filter-chip.active,
 .vellum .v-tool-item.active .icon,
@@ -153,11 +152,24 @@
   color: var(--text-primary);
   border-color: var(--pale-gold);
 }
-.vellum .v-nav-link.active svg,
 .vellum .v-create-btn.video svg,
 .vellum .v-tool-item.active .icon svg,
 .vellum .v-export-btn.gold svg {
   color: var(--accent-ink);
+}
+/* Active nav link: quiet surface + gold spine instead of a full gold fill —
+   the filled treatment shouted over the content; this reads as "you are
+   here" at a glance without competing with primary CTAs. */
+.vellum .v-nav-link.active {
+  background: var(--soft-stone);
+  color: var(--deep-charcoal);
+  border-left: 3px solid var(--pale-gold);
+  padding-left: 9px; /* 12px base minus the 3px spine — text doesn't shift */
+  font-weight: 600;
+  border-radius: 0 7px 7px 0;
+}
+.vellum .v-nav-link.active svg {
+  color: var(--pale-gold);
 }
 .vellum .v-btn--primary:hover,
 .vellum .v-create-btn.video:hover,
@@ -166,9 +178,9 @@
   background: var(--accent-surface-hover);
   color: var(--accent-ink);
 }
-/* Nav badge sitting inside an active (gold) link → dark ink chip. */
+/* Nav badge sitting inside an active link → gold chip on the quiet surface. */
 .vellum .v-nav-link.active .v-nav-badge {
-  background: rgba(22, 22, 22, 0.18);
+  background: var(--pale-gold);
   color: var(--accent-ink);
 }
 /* The avatar pill reads better as a gold disc on dark than a charcoal one. */

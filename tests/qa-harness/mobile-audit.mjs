@@ -91,7 +91,12 @@ const DEVICE = {
   userAgent:
     "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
 };
-const browser = await chromium.launch();
+// PW_CHROMIUM_PATH: cloud/CI sessions ship a pinned system Chromium instead of
+// the Playwright-managed download (which is blocked there). Local runs where
+// `npx playwright install chromium` has been done need no env var.
+const browser = await chromium.launch({
+  executablePath: process.env.PW_CHROMIUM_PATH || undefined,
+});
 const ctx = await browser.newContext(DEVICE);
 const page = await ctx.newPage();
 

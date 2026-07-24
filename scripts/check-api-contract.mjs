@@ -59,10 +59,19 @@ function matchDelim(src, openIdx) {
 const baseSlug = (m) => m.split(":")[0];
 const lineOf = (src, idx) => src.slice(0, idx).split("\n").length;
 
-const tsFiles = fs
-  .readdirSync(API_DIR)
-  .filter((f) => f.endsWith(".ts"))
-  .map((f) => path.join(API_DIR, f));
+// Recursive: replicate.run calls live in api/ subdirectories too
+// (api/_lib/listing-batch-core.ts, api/listing-batch/*). Both checks apply
+// everywhere under api/.
+function walkTsFiles(dir) {
+  const out = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...walkTsFiles(full));
+    else if (entry.name.endsWith(".ts")) out.push(full);
+  }
+  return out;
+}
+const tsFiles = walkTsFiles(API_DIR);
 
 // Global const→model-slug map (models are sometimes declared in utils.ts and
 // imported, and the value can be on the next line).

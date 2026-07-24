@@ -153,6 +153,7 @@ const VellumDashboard: React.FC<DashboardProps> = ({ setPage, credits, projects,
           <div className="v-row gap-sm" style={{ flexWrap: 'wrap', marginTop: 16 }}>
             <button className="v-btn v-btn--primary v-btn--sm" onClick={onNewListing}><Icon name="image" size={13} /> New listing</button>
             <button className="v-btn v-btn--primary v-btn--sm" onClick={() => setPage('video')}><Icon name="play" size={13} /> Create listing reel</button>
+            <button className="v-btn v-btn--primary v-btn--sm" onClick={() => setPage('batch')}><Icon name="layers" size={13} /> Batch process</button>
           </div>
           <div className="v-row gap-sm" style={{ flexWrap: 'wrap', marginTop: 12 }}>
             <button className="v-btn v-btn--ghost v-btn--sm" onClick={() => setPage('photo')}><Icon name="armchair" size={13} /> Stage room</button>

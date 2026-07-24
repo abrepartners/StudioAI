@@ -19,6 +19,7 @@ import {
   requireServiceOrSession,
 } from "../_lib/auth-middleware.js";
 import { refundQuota } from "../_lib/quota.js";
+import { recordBatchGeneration } from "../_lib/batch-usage.js";
 import {
   processPhoto,
   generateListingCopy,
@@ -35,6 +36,8 @@ const SUPABASE_URL = process.env.SUPABASE_URL || "";
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || "";
 /** A photo claimed longer than this belongs to a dead invocation. */
 const STALE_CLAIM_MS = 270_000;
+/** An init'd job whose uploads never finished — reclaim the reserved quota. */
+const STALE_UPLOAD_MS = 30 * 60_000;
 
 export default async function handler(req: any, res: any) {
   if (applyCors(req, res, "GET,OPTIONS")) return;
@@ -51,7 +54,7 @@ export default async function handler(req: any, res: any) {
 
   try {
     const rows = await sbSelect(
-      `batch_jobs?id=eq.${encodeURIComponent(jobId)}&user_email=eq.${encodeURIComponent(email)}&select=id,status,progress,photos,listing_copy,error`,
+      `batch_jobs?id=eq.${encodeURIComponent(jobId)}&user_email=eq.${encodeURIComponent(email)}&select=id,status,progress,photos,listing_copy,error,updated_at`,
     );
     const job = rows[0];
     if (!job) return json(res, 404, { ok: false, error: "batch not found" });
@@ -71,9 +74,36 @@ export default async function handler(req: any, res: any) {
       });
     }
 
+    // ── Stuck-state recovery ─────────────────────────────────────────────────
+    // begin() owns the queued→classifying→processing transition; if that
+    // invocation dies mid-flight the job is un-pumpable (this endpoint only
+    // pumps processing/generating_text) and the init-time reserve leaks.
+    // Nothing has been charged or metered before the first photo completes,
+    // so a stale classifying/queued job is safe to fail + refund in full.
+    const jobAge = Date.now() - Date.parse(job.updated_at || "");
+    const stuck =
+      (job.status === "classifying" && jobAge > STALE_CLAIM_MS) ||
+      (job.status === "queued" && jobAge > STALE_UPLOAD_MS);
+    if (stuck) {
+      const stuckError =
+        job.status === "classifying"
+          ? "classification timed out"
+          : "upload never completed";
+      const quotaCtx = job.progress?.quota || null;
+      if (quotaCtx)
+        await refundQuota({
+          googleId: quotaCtx.google_id,
+          amount: Number(job.progress?.total || 0) || 1,
+          method: quotaCtx.method,
+        });
+      await patchJob(jobId, { status: "failed", error: stuckError });
+      job.status = "failed";
+      job.error = stuckError;
+    }
+
     // ── Pump: advance the pipeline by at most one photo ──────────────────────
     if (job.status === "processing" || job.status === "generating_text") {
-      await pump(jobId, job);
+      await pump(jobId, job, email);
       // Re-read so the response reflects the work this poll just did.
       const fresh = await sbSelect(
         `batch_jobs?id=eq.${encodeURIComponent(jobId)}&select=id,status,progress,photos,listing_copy,error`,
@@ -96,7 +126,7 @@ export default async function handler(req: any, res: any) {
   }
 }
 
-async function pump(jobId: string, job: any): Promise<void> {
+async function pump(jobId: string, job: any, email: string): Promise<void> {
   const photos: PhotoMeta[] = Array.isArray(job.photos) ? job.photos : [];
   if (!photos.length) return;
   const quotaCtx = job.progress?.quota || null;
@@ -153,6 +183,11 @@ async function pump(jobId: string, job: any): Promise<void> {
       await storeResult(jobId, next.index, result);
       next.status = "completed";
       next.has_result = true;
+      await recordBatchGeneration(
+        email,
+        next.tool,
+        job.progress?.quota_method === "starter",
+      );
     } catch (e: any) {
       console.error(`[batch-status] photo ${next.index} failed:`, e?.message);
       next.status = "failed";

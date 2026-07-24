@@ -22,6 +22,10 @@ import {
 } from "../_lib/auth-middleware.js";
 import { reserveQuota, refundQuota } from "../_lib/quota.js";
 import {
+  assertStarterCapacity,
+  recordBatchGeneration,
+} from "../_lib/batch-usage.js";
+import {
   MAX_PHOTOS,
   CLASSIFY_MAX_EDGE,
   PROCESS_MAX_EDGE,
@@ -88,6 +92,19 @@ async function handleInit(res: any, body: any, session: any, email: string) {
       code: quota.reason || "quota_exhausted",
     });
 
+  // Starter is Stripe-metered, not reserve-metered, so reserveQuota lets it
+  // through — enforce the monthly cap here or a capped-out Starter could still
+  // run a 30-photo batch (successful photos bump the meter in the pump).
+  if (quota.method === "starter") {
+    const cap = await assertStarterCapacity(email, total);
+    if (!cap.allowed)
+      return json(res, 402, {
+        ok: false,
+        error: `monthly generation cap reached (${cap.used} used)`,
+        code: "starter_cap_exhausted",
+      });
+  }
+
   const jobId = "batch_" + randomUUID().slice(0, 12);
   try {
     await sbPost("batch_jobs", {
@@ -107,6 +124,8 @@ async function handleInit(res: any, body: any, session: any, email: string) {
         quota: quota.refundHandle
           ? { google_id: quota.refundHandle.googleId, method: quota.refundHandle.method }
           : null,
+        // How this batch is billed — the pump meters Starter photos per success.
+        quota_method: quota.method,
       },
     });
   } catch (err) {
@@ -221,6 +240,11 @@ async function handleBegin(res: any, body: any, email: string) {
       await storeResult(jobId, 0, result);
       photos[0].status = "completed";
       photos[0].has_result = true;
+      await recordBatchGeneration(
+        email,
+        photos[0].tool,
+        job.progress?.quota_method === "starter",
+      );
     } catch (e: any) {
       console.error(`[batch-start] photo 0 failed:`, e?.message);
       photos[0].status = "failed";
@@ -251,16 +275,20 @@ async function handleBegin(res: any, body: any, email: string) {
     });
 
     if (allDone) {
-      // Single-photo batch: finish everything inline.
+      // Single-photo batch: finish everything inline. Mirror the pump's
+      // terminal status — a batch whose only photo failed is a FAILED batch.
       let listingCopy = null;
-      try {
-        listingCopy = await generateListingCopy(photos);
-      } catch (e: any) {
-        console.error(`[batch-start] listing copy failed:`, e?.message);
+      if (completed > 0) {
+        try {
+          listingCopy = await generateListingCopy(photos);
+        } catch (e: any) {
+          console.error(`[batch-start] listing copy failed:`, e?.message);
+        }
       }
       await patchJob(jobId, {
-        status: "completed",
+        status: completed > 0 ? "completed" : "failed",
         listing_copy: listingCopy,
+        error: completed > 0 ? null : "all photos failed",
         progress: {
           ...job.progress,
           completed,

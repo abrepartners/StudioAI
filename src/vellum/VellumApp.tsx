@@ -35,6 +35,12 @@ const VellumNewListingModal = React.lazy(
 );
 const VellumWhatsNew = React.lazy(() => import("./VellumWhatsNew"));
 const VellumMorph = React.lazy(() => import("./VellumMorph"));
+const ListingBatchPanel = React.lazy(
+  () => import("../../components/ListingBatchPanel"),
+);
+const ClientOnboardingFlow = React.lazy(
+  () => import("../../components/ClientOnboardingFlow"),
+);
 
 const VALID_PAGES = [
   "dashboard",
@@ -45,6 +51,8 @@ const VALID_PAGES = [
   "settings",
   "help",
   "morph",
+  "batch",
+  "onboard",
 ];
 
 // Hash format: #page or #page/proj_123 (active project encoded as 2nd segment)
@@ -484,6 +492,10 @@ const VellumApp: React.FC = () => {
         return <VellumHelp setPage={setPage} />;
       case "morph":
         return <VellumMorph setPage={setPage} />;
+      case "batch":
+        return <ListingBatchPanel />;
+      case "onboard":
+        return <ClientOnboardingFlow setPage={setPage} />;
       default:
         return null;
     }

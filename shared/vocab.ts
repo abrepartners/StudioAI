@@ -23,6 +23,7 @@ export const TOOLS = [
   "lawn", // Lawn repair
   "renovation", // Virtual Renovation — finish swaps
   "morph", // Property morph reel
+  "batch", // Listing Batch Pipeline — auto-classify + auto-tool per photo
 ] as const;
 export type Tool = (typeof TOOLS)[number];
 
@@ -85,6 +86,8 @@ export const KEYWORD_TO_TOOL: Record<string, Tool> = {
   lawn: "lawn",
   renovation: "renovation",
   morph: "morph",
+  batch: "batch",
+  pipeline: "batch",
 };
 
 /**

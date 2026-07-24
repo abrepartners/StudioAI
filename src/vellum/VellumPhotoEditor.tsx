@@ -97,6 +97,8 @@ interface PhotoGenState {
   preset: string;
   step: number;
   progress: number;
+  /** Rough time remaining ("~30s") from the per-tool estimate. */
+  eta: string | null;
   abort: AbortController;
   timerRef: ReturnType<typeof setTimeout> | null;
 }
@@ -195,6 +197,19 @@ const DECLUTTER_FILTER_MAP: Record<string, string | undefined> = {
   "yard clutter": "yard",
   "vehicles & bins": "vehicles",
   "signs & temp items": "signs",
+};
+
+/** Typical wall-clock per tool (observed medians, generous). Drives the
+ *  progress fill rate and the "~Ns" label so waits feel bounded, not stuck. */
+const TOOL_ETA_SECONDS: Record<string, number> = {
+  staging: 45,
+  declutter: 30,
+  magicedit: 30,
+  whiten: 20,
+  sky: 25,
+  twilight: 35,
+  lawn: 20,
+  renovation: 40,
 };
 
 const TOOL_STEPS: Record<string, string[]> = {
@@ -946,27 +961,33 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
     tool: string,
   ): { timer: ReturnType<typeof setTimeout> } => {
     const steps = TOOL_STEPS[tool] || TOOL_STEPS.staging;
-    let prog = 0;
+    // Time-based fill: the bar tracks the tool's typical duration and shows a
+    // live "~Ns" estimate, instead of the old random creep that read as stuck.
+    // Still caps at 90% — the last 10% lands with the real result.
+    const estimatedSeconds = TOOL_ETA_SECONDS[tool] || 30;
+    const startTime = Date.now();
     let step = 0;
     const tick = () => {
-      prog += 1.5 + Math.random() * 2;
-      const capped = Math.min(prog, 90);
+      const elapsed = (Date.now() - startTime) / 1000;
+      const capped = Math.min(90, (elapsed / estimatedSeconds) * 100);
+      const remaining = Math.max(1, Math.round(estimatedSeconds - elapsed));
+      const eta = elapsed < estimatedSeconds ? `~${remaining}s` : "almost done";
       const expectedStep = Math.floor((capped / 100) * (steps.length - 1));
       if (expectedStep !== step) step = expectedStep;
+      timer = setTimeout(tick, 500);
       setGenMap((prev) => {
         if (!(photoId in prev)) return prev;
         return {
           ...prev,
-          [photoId]: { ...prev[photoId], progress: capped, step },
+          [photoId]: {
+            ...prev[photoId],
+            progress: capped,
+            step,
+            eta,
+            timerRef: timer,
+          },
         };
       });
-      if (prog < 90) {
-        timer = setTimeout(tick, 200 + Math.random() * 300);
-        setGenMap((prev) => {
-          if (!(photoId in prev)) return prev;
-          return { ...prev, [photoId]: { ...prev[photoId], timerRef: timer } };
-        });
-      }
     };
     let timer = setTimeout(tick, 200);
     return { timer };
@@ -1000,6 +1021,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
         preset,
         step: 0,
         progress: 0,
+        eta: null,
         abort: controller,
         timerRef: timer,
       },
@@ -2051,6 +2073,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
             <span className="v-refining-dot" />
             <span>
               {(TOOL_STEPS[photoGen.tool] || TOOL_STEPS.staging)[photoGen.step]}
+              {photoGen.eta ? ` · ${photoGen.eta}` : ""}
             </span>
           </div>
         )}
@@ -2295,6 +2318,7 @@ const VellumPhotoEditor: React.FC<PhotoEditorProps> = ({
                     photoGen.step
                   ]
                 }
+                {photoGen.eta ? ` · ${photoGen.eta}` : ""}
               </span>
             </div>
           )}

@@ -252,16 +252,16 @@ export interface ListingCopyPropertyDetails {
 export type ListingCopyTone = "luxury" | "casual" | "investment";
 
 /**
- * Listing copy generation used browser Gemini. Until a server /api text endpoint
- * exists, this is disabled. Callers (ListingKitPipeline, SpecialModesPanel) treat
- * a thrown error as a best-effort copy-step failure and continue.
- * TODO: route to a server /api/listing-copy endpoint (Replicate/Claude) so the
- * copy step comes back online without a browser key.
+ * Listing copy generation, LIVE again via the server /api/listing-copy endpoint
+ * (Gemini text runs server-side with the key in Vercel env, never the browser).
+ * The image is no longer sent; the room label and property details drive the
+ * copy. Callers (ListingKitPipeline, SpecialModesPanel) still treat a thrown
+ * error as a best-effort copy-step failure and continue.
  */
 export const generateListingCopy = async (
-  _imageBase64: string,
-  _selectedRoom: string,
-  _options?: {
+  _imageBase64?: string,
+  selectedRoom?: string,
+  options?: {
     styleNotes?: string;
     propertyDetails?: ListingCopyPropertyDetails;
     tone?: ListingCopyTone;
@@ -272,7 +272,28 @@ export const generateListingCopy = async (
   description: string;
   socialCaption: string;
   hashtags: string[];
-}> => geminiDisabled();
+}> => {
+  const rooms = selectedRoom || "Living Room (interior)";
+  const details = options?.propertyDetails || {};
+  const res = await fetch("/api/listing-copy", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ rooms, propertyDetails: details }),
+    signal: options?.abortSignal,
+  });
+  if (!res.ok) throw new Error(`listing-copy HTTP ${res.status}`);
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error || "listing-copy failed");
+  const lc = data.listing_copy || {};
+  return {
+    headline: lc.headline || "Stunning Home, Move-In Ready",
+    description:
+      lc.description ||
+      "This beautifully maintained home offers a perfect blend of comfort and style.",
+    socialCaption: lc.social_caption || "",
+    hashtags: lc.hashtags || [],
+  };
+};
 
 // ─── Style Advisor ────────────────────────────────────────────────────────────
 export interface StyleRecommendation {

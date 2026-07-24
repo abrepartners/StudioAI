@@ -46,6 +46,7 @@ export const VellumSidebar: React.FC<SidebarProps> = ({
       <NavItem id="projects" icon="folder" label="Projects" />
       <NavItem id="photo" icon="image" label="Photo editor" />
       <NavItem id="video" icon="video" label="Video reels" />
+      <NavItem id="batch" icon="layers" label="Batch pipeline" />
       <NavItem
         id="morph"
         icon="video"
